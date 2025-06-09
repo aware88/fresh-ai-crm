@@ -136,14 +136,14 @@ export async function saveContactFromEmail(
     if (existingContact) {
       // Update existing contact with new personality information if available
       if (contactData.personalityType || contactData.personalityNotes) {
-        const updatedContact = updateContact({
+        const updatedContact = await updateContact({
           id: existingContact.id,
           personalityType: contactData.personalityType || existingContact.personalityType,
           personalityNotes: contactData.personalityNotes || existingContact.personalityNotes
         });
         
         // Update the last interaction separately
-        updateContactLastInteraction(existingContact.email);
+        await updateContactLastInteraction(existingContact.email);
         
         if (updatedContact) {
           return {
@@ -167,7 +167,7 @@ export async function saveContactFromEmail(
       lastInteraction: new Date().toISOString()
     };
     
-    const newContact = createContact(contactWithInteraction);
+    const newContact = await createContact(contactWithInteraction);
     
     if (!newContact) {
       return {
