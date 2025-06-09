@@ -22,6 +22,7 @@ export default function Home() {
               <a href="#features" className="text-gray-600 hover:text-blue-600 transition-colors">Features</a>
               <a href="#science" className="text-gray-600 hover:text-blue-600 transition-colors">Science</a>
               <a href="#benefits" className="text-gray-600 hover:text-blue-600 transition-colors">Benefits</a>
+              <Link href="/suppliers" className="text-gray-600 hover:text-blue-600 transition-colors">Suppliers</Link>
               <Link href="/dashboard">
                 <Button variant="outline" className="rounded-full px-4 border-blue-200 text-blue-600 hover:bg-blue-50">Dashboard</Button>
               </Link>
@@ -70,14 +71,18 @@ export default function Home() {
             <div className="relative">
               <div className="absolute -inset-4 bg-gradient-to-r from-blue-600/20 to-indigo-600/20 blur-3xl opacity-30 rounded-full"></div>
               <div className="relative bg-white/80 backdrop-blur-sm border border-gray-100 p-8 rounded-2xl shadow-xl">
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 flex items-center justify-center text-white font-bold">AI</div>
-                  <div>
-                    <h3 className="font-semibold">AI Assistant</h3>
-                    <p className="text-sm text-gray-500">Analyzing personality...</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-12">
+                  <div className="p-4 bg-blue-50 rounded-lg border border-blue-100">
+                    <p className="text-sm font-medium text-blue-800">Personality Type: Analytical Decision-Maker</p>
+                  </div>
+                  <div className="p-4 bg-indigo-50 rounded-lg border border-indigo-100">
+                    <p className="text-sm font-medium text-indigo-800">Communication Style: Data-driven, logical, values precision</p>
+                  </div>
+                  <div className="p-4 bg-purple-50 rounded-lg border border-purple-100">
+                    <p className="text-sm font-medium text-purple-800">Recommended Approach: Focus on ROI and specific metrics</p>
                   </div>
                 </div>
-                <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-12">
                   <div className="p-4 bg-blue-50 rounded-lg border border-blue-100">
                     <p className="text-sm font-medium text-blue-800">Personality Type: Analytical Decision-Maker</p>
                   </div>
@@ -164,7 +169,7 @@ export default function Home() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="p-6 bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300">
               <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mb-4 mx-auto">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 1-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg>
               </div>
               <h3 className="text-xl font-semibold text-center mb-2">Pattern Matching</h3>
               <p className="text-gray-600 text-center">It matches their tone and phrasing to a known psychological profile</p>
@@ -290,6 +295,9 @@ export default function Home() {
               <a href="#features" className="text-gray-600 hover:text-blue-600 transition-colors text-sm">Features</a>
               <a href="#science" className="text-gray-600 hover:text-blue-600 transition-colors text-sm">Science</a>
               <a href="#benefits" className="text-gray-600 hover:text-blue-600 transition-colors text-sm">Benefits</a>
+              <Link href="/suppliers" className="text-gray-600 hover:text-blue-600 transition-colors text-sm">
+                Suppliers
+              </Link>
               <Link href="/dashboard" className="text-gray-600 hover:text-blue-600 transition-colors text-sm">
                 Dashboard
               </Link>

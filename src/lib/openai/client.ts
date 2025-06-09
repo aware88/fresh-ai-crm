@@ -1,5 +1,5 @@
 import OpenAI from 'openai';
-import { getLimitedFormattedDataForPrompt } from '../personality/flexible-data';
+import { getLimitedFormattedDataForPrompt, getAllFormattedDataForPrompt } from '../personality/flexible-data';
 import fs from 'fs';
 import path from 'path';
 import axios from 'axios';
@@ -356,9 +356,9 @@ export const analyzeEmail = async (emailContent: string) => {
   try {
     const openai = getOpenAIClient();
     
-    // Get limited personality profile data to avoid token limit
-    // This now includes data from all sources (CSV, mock data, Excel sheets)
-    const personalityData = getLimitedFormattedDataForPrompt(3); // Limit to 3 profiles per source
+    // Get ALL personality profile data from all sources (CSV, mock data, Excel sheets)
+    // Using the comprehensive version to ensure all uploaded data is considered
+    const personalityData = getAllFormattedDataForPrompt(); // Use all available profiles for comprehensive analysis
     
     // Load user identity information
     const userIdentity = loadUserIdentity();

@@ -1,1 +1,12 @@
-[]
+[
+  {
+    "id": "08cc47f3-d90a-4318-b845-406fd95d9cf1",
+    "firstName": "Hans",
+    "lastName": "Versteegh",
+    "email": "hans@noworganic.eu",
+    "company": "Now Organic",
+    "lastInteraction": "2025-06-09T17:53:00.566Z",
+    "createdAt": "2025-06-09T17:53:00.567Z",
+    "updatedAt": "2025-06-09T17:53:00.567Z"
+  }
+]

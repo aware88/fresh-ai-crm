@@ -8,6 +8,7 @@ import { Separator } from '@/components/ui/separator';
 import { Loader2, Copy, Check, Mail, Brain, Sparkles, Send, Trash2, UserPlus, AlertCircle, User, Globe, Link } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
 import { ToastAction } from '@/components/ui/toast';
+import { updateContactPersonalityFromEmail } from '@/lib/contacts/personality';
 
 export function EmailAnalyzer() {
   const [inputMode, setInputMode] = useState<'email' | 'url'>('email');
@@ -69,6 +70,11 @@ export function EmailAnalyzer() {
       let response;
       
       if (inputMode === 'email') {
+        // Try to extract sender email from the content for contact updating
+        const emailRegex = /From:\s*["']?([^"'<>\s]+@[^"'<>\s]+\.[^"'<>\s]+)/i;
+        const fromMatch = emailContent.match(emailRegex);
+        const senderEmail = fromMatch ? fromMatch[1].trim() : null;
+        
         response = await fetch('/api/analyze-email', {
           method: 'POST',
           headers: {
@@ -76,6 +82,26 @@ export function EmailAnalyzer() {
           },
           body: JSON.stringify({ emailContent }),
         });
+        
+        // If we found a sender email, update their personality profile in the background
+        if (senderEmail) {
+          try {
+            // Don't await this - let it run in the background
+            updateContactPersonalityFromEmail(senderEmail, emailContent)
+              .then(updated => {
+                if (updated) {
+                  toast({
+                    title: "Contact Updated",
+                    description: `Personality profile for ${senderEmail} has been updated based on this email analysis.`,
+                    variant: "default"
+                  });
+                }
+              })
+              .catch(err => console.error('Error updating contact personality:', err));
+          } catch (err) {
+            console.error('Error updating contact personality:', err);
+          }
+        }
       } else {
         // For URL analysis, we'll analyze the first URL in the list for now
         // In a more advanced implementation, you could analyze multiple URLs together

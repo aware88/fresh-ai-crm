@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
-import { writeFile, mkdir } from 'fs/promises';
-import { existsSync } from 'fs';
+import { writeFile } from 'fs/promises';
 import path from 'path';
 import * as XLSX from 'xlsx';
+import { initializeExcelData } from '@/lib/excel/init';
 
 // Function to validate Excel file
 const validateExcel = (buffer: Buffer): { valid: boolean; error?: string; sheetCount?: number; sheets?: string[] } => {
@@ -83,17 +83,18 @@ export async function POST(request: Request) {
       );
     }
 
-    // Ensure data directory exists
-    const dataDir = path.join(process.cwd(), 'src/data');
-    if (!existsSync(dataDir)) {
-      await mkdir(dataDir, { recursive: true });
+    // Initialize Excel data directory
+    const { initialized, excelPath } = await initializeExcelData();
+    
+    if (!initialized || !excelPath) {
+      return NextResponse.json(
+        { error: 'Failed to initialize Excel data directory' },
+        { status: 500 }
+      );
     }
 
-    // Path to save the file
-    const filePath = path.join(process.cwd(), 'src/data/excel_personality_data.xlsx');
-
     // Write file to disk
-    await writeFile(filePath, fileBuffer);
+    await writeFile(excelPath, fileBuffer);
 
     return NextResponse.json({
       success: true,
