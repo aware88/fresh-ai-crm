@@ -1,5 +1,7 @@
 import OpenAI from 'openai';
 import { getPersonalityDataForPrompt, loadPersonalityProfiles } from '../personality/data';
+import fs from 'fs';
+import path from 'path';
 
 let openAIClient: OpenAI | null = null;
 
@@ -47,6 +49,23 @@ const getLimitedPersonalityData = (maxProfiles: number = 5) => {
   return formattedData;
 };
 
+// Function to load user identity if available
+const loadUserIdentity = () => {
+  try {
+    const userIdentityPath = path.join(process.cwd(), 'src/data/user_identity.json');
+    
+    if (fs.existsSync(userIdentityPath)) {
+      const fileContent = fs.readFileSync(userIdentityPath, 'utf8');
+      return JSON.parse(fileContent);
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Error loading user identity:', error);
+    return null;
+  }
+};
+
 export const analyzeEmail = async (emailContent: string) => {
   try {
     const openai = getOpenAIClient();
@@ -54,13 +73,28 @@ export const analyzeEmail = async (emailContent: string) => {
     // Get limited personality profile data to avoid token limit
     const personalityData = getLimitedPersonalityData(5); // Limit to 5 profiles
     
+    // Load user identity information
+    const userIdentity = loadUserIdentity();
+    let userIdentityPrompt = '';
+    
+    if (userIdentity && (userIdentity.name || userIdentity.email || userIdentity.company)) {
+      userIdentityPrompt = `
+USER IDENTITY INFORMATION:
+- Name: ${userIdentity.name || 'Not specified'}
+- Company: ${userIdentity.company || 'Not specified'}
+- Email: ${userIdentity.email || 'Not specified'}
+
+IMPORTANT: When analyzing email threads, identify which emails are from the user (matching the identity above) and which are from customers/clients. Focus your analysis ONLY on the customer/client emails, not on the user's emails. If the email thread contains both user and customer emails, analyze only the customer's communication style and personality.
+`;  
+    }
+    
     const systemPrompt = `You are an advanced AI sales assistant specializing in psychological profiling based on written communication, such as emails or LinkedIn messages.
 
 IMPORTANT: Before analyzing the message, you MUST follow these steps:
 
 1. CAREFULLY REVIEW the personality profiles provided below. These are from the uploaded CSV data and contain crucial information for your analysis.
 2. For each profile, note the key traits, communication preferences, and recommended approaches.
-3. ONLY AFTER reviewing all profiles, proceed to analyze the message.
+3. ONLY AFTER reviewing all profiles, proceed to analyze the message.${userIdentityPrompt}
 
 Your job is to:
 

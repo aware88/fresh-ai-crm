@@ -81,13 +81,25 @@ export function EmailAnalyzer() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Textarea 
-              placeholder="Paste email content here..." 
-              className="min-h-[300px]" 
-              value={emailContent}
-              onChange={(e) => setEmailContent(e.target.value)}
-            />
-            {error && <p className="text-red-500 mt-2 text-sm">{error}</p>}
+            <div className="space-y-3">
+              <Textarea 
+                placeholder="Paste email content here..." 
+                className="min-h-[300px]" 
+                value={emailContent}
+                onChange={(e) => setEmailContent(e.target.value)}
+              />
+              {error && <p className="text-red-500 mt-2 text-sm">{error}</p>}
+              <div className="flex justify-end">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => setEmailContent('')}
+                  disabled={!emailContent.trim()}
+                >
+                  Clear Content
+                </Button>
+              </div>
+            </div>
           </CardContent>
           <CardFooter>
             <Button 
