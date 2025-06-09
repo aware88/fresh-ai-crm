@@ -1,5 +1,5 @@
 import OpenAI from 'openai';
-import { getPersonalityDataForPrompt } from '../personality/data';
+import { getPersonalityDataForPrompt, loadPersonalityProfiles } from '../personality/data';
 
 let openAIClient: OpenAI | null = null;
 
@@ -20,12 +20,39 @@ export const getOpenAIClient = () => {
   return openAIClient;
 };
 
+// Helper function to limit the number of profiles to avoid token limit issues
+const getLimitedPersonalityData = (maxProfiles: number = 5) => {
+  const profiles = loadPersonalityProfiles();
+  
+  if (profiles.length === 0) {
+    return '';
+  }
+
+  // Take only a subset of profiles
+  const limitedProfiles = profiles.slice(0, maxProfiles);
+  
+  // Format the data for inclusion in the prompt
+  let formattedData = 'PERSONALITY PROFILES REFERENCE:\n\n';
+  
+  limitedProfiles.forEach((profile, index) => {
+    formattedData += `PROFILE ${index + 1}: ${profile['Personality_Type']}\n`;
+    formattedData += `Traits: ${profile['Traits']}\n`;
+    formattedData += `Sales Strategy: ${profile['Sales_Strategy']}\n`;
+    formattedData += `Messaging Do: ${profile['Messaging_Do']}\n`;
+    formattedData += `Messaging Don't: ${profile['Messaging_Dont']}\n`;
+    // Include only the most important fields to reduce token count
+    formattedData += `Description: ${profile['Description']}\n\n`;
+  });
+  
+  return formattedData;
+};
+
 export const analyzeEmail = async (emailContent: string) => {
   try {
     const openai = getOpenAIClient();
     
-    // Get personality profile data from CSV
-    const personalityData = getPersonalityDataForPrompt();
+    // Get limited personality profile data to avoid token limit
+    const personalityData = getLimitedPersonalityData(5); // Limit to 5 profiles
     
     const systemPrompt = `You are an advanced AI sales assistant specializing in psychological profiling based on written communication, such as emails or LinkedIn messages.
 
@@ -58,6 +85,12 @@ Your output must always follow this structure:
 
 Always respond with confidence, empathy, and a tone aligned with the analyzed profile.`;
     
+    // Limit email content length if it's too long
+    const maxEmailLength = 1500;
+    const truncatedEmail = emailContent.length > maxEmailLength 
+      ? emailContent.substring(0, maxEmailLength) + '... [content truncated for length]'
+      : emailContent;
+    
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [
@@ -67,7 +100,7 @@ Always respond with confidence, empathy, and a tone aligned with the analyzed pr
         },
         {
           role: "user",
-          content: emailContent
+          content: truncatedEmail
         }
       ],
       temperature: 0.7,
