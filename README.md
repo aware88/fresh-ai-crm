@@ -1,8 +1,47 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# AI CRM Application
+
+A minimal Next.js 15 CRM application with AI-powered email analysis using OpenAI and Supabase integration.
+
+## Features
+
+- 🚀 Built with Next.js 15 and TypeScript
+- 🎨 Modern UI with Tailwind CSS
+- 🤖 AI-powered email analysis using OpenAI API
+- 🗄️ Supabase integration for data storage
+- 📱 Responsive design for all devices
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
+
+- Node.js 18.17 or later
+- OpenAI API key
+- Supabase project and credentials
+
+### Environment Setup
+
+Create a `.env.local` file in the root directory with the following variables:
+
+```
+# Supabase Configuration
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+
+# OpenAI Configuration
+OPENAI_API_KEY=your_openai_api_key
+```
+
+### Installation
+
+```bash
+npm install
+# or
+yarn install
+# or
+pnpm install
+```
+
+### Running the Development Server
 
 ```bash
 npm run dev
@@ -10,27 +49,34 @@ npm run dev
 yarn dev
 # or
 pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the application.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Project Structure
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- `/src/app` - Next.js App Router pages
+- `/src/components` - Reusable UI components
+- `/src/lib` - Utility functions and API clients
+  - `/lib/supabase` - Supabase client configuration
+  - `/lib/openai` - OpenAI client and analysis functions
 
-## Learn More
+## Email Analysis
 
-To learn more about Next.js, take a look at the following resources:
+The email analysis feature uses OpenAI's GPT-4o model to extract insights from customer emails, including:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- Key points and intentions
+- Sentiment analysis
+- Customer needs and pain points
+- Recommended follow-up actions
+- Urgency level
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Deployment
 
-## Deploy on Vercel
+This application can be deployed on Vercel or any other Next.js compatible hosting platform.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+npm run build
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+For more deployment options, check out the [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying).
