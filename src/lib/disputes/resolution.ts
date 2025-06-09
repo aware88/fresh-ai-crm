@@ -8,6 +8,7 @@ import {
 import { getContactById } from '../contacts/data';
 import { createDispute, updateDisputeWithResolution } from './data';
 import { getOpenAIClient } from '../openai/client';
+import { getCompanyInfo, generateCompanyContextPrompt } from '../company/websiteScanner';
 import fs from 'fs';
 import path from 'path';
 import * as XLSX from 'xlsx';
@@ -90,6 +91,10 @@ async function createResolutionStrategy(
       additionalContext = await extractContextFromFile(uploadedFilePath, contact);
     }
     
+    // Get company information for context
+    const companyInfo = getCompanyInfo();
+    const companyContext = companyInfo ? generateCompanyContextPrompt(companyInfo) : '';
+    
     const systemPrompt = `
 You are an expert conflict resolution consultant specializing in business disputes with deep knowledge of personality psychology, negotiation tactics, and communication strategies.
 Your task is to create a highly personalized dispute resolution strategy based on the contact's personality profile, communication preferences, and the specific dispute details.
@@ -104,6 +109,11 @@ Contact Information:
 
 Additional Context from Data Files:
 ${additionalContext}
+
+${companyContext ? `Your Company Context:
+${companyContext}
+
+Use this company information to personalize the resolution strategy and ensure it aligns with your company's values, products/services, and target audience.` : ''}
 
 Dispute Information:
 - Category: ${dispute.category}

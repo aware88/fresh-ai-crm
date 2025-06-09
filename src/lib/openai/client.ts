@@ -1,5 +1,6 @@
 import OpenAI from 'openai';
 import { getLimitedFormattedDataForPrompt, getAllFormattedDataForPrompt } from '../personality/flexible-data';
+import { getCompanyInfo, generateCompanyContextPrompt } from '../company/websiteScanner';
 import fs from 'fs';
 import path from 'path';
 import axios from 'axios';
@@ -244,7 +245,13 @@ export const analyzeUrl = async (url: string) => {
     
     // Load user identity information
     const userIdentity = loadUserIdentity();
-    const userIdentityPrompt = userIdentity ? `\n\nThe person analyzing this URL is ${userIdentity.name} from ${userIdentity.company}.` : '';
+    const userIdentityPrompt = userIdentity ? `
+
+You are assisting ${userIdentity.name} who works at ${userIdentity.company}. Their email is ${userIdentity.email}. When analyzing email threads, focus only on the customer's communication style, not ${userIdentity.name}'s style.` : '';
+    
+    // Get company information for context
+    const companyInfo = getCompanyInfo();
+    const companyContext = companyInfo ? generateCompanyContextPrompt(companyInfo) : '';
     
     // Fetch content from the URL - this will return either real content or fallback content
     // The fetchUrlContent function now handles errors internally and provides fallback content
@@ -283,6 +290,12 @@ Your job is to:
 Here are the personality profiles to reference:
 
 ${personalityData}
+
+${companyContext ? `COMPANY CONTEXT INFORMATION:
+${companyContext}
+
+IMPORTANT: Use this company information to personalize your analysis and response, ensuring they align with the company's values, products/services, and target audience.
+` : ''}
 
 CRITICAL: You MUST explicitly reference which profile(s) from which dataset(s) you're using for your analysis. Clearly indicate the source dataset (e.g., CSV profiles, Excel sheet name, etc.). If no profile matches well, explain why and provide a general approach.
 
@@ -375,6 +388,19 @@ IMPORTANT: When analyzing email threads, identify which emails are from the user
 `;  
     }
     
+    // Get company information for context
+    const companyInfo = getCompanyInfo();
+    let companyContextPrompt = '';
+    
+    if (companyInfo) {
+      companyContextPrompt = `
+COMPANY CONTEXT INFORMATION:
+${generateCompanyContextPrompt(companyInfo)}
+
+IMPORTANT: Use this company information to personalize your analysis and response, ensuring they align with the company's values, products/services, and target audience.
+`;
+    }
+    
     const systemPrompt = `You are an advanced AI sales assistant specializing in psychological profiling based on written communication, such as emails or LinkedIn messages.
 
 IMPORTANT: Before analyzing the message, you MUST follow these steps:
@@ -401,6 +427,7 @@ Your job is to:
 5. Write a personalized draft response that aligns with the identified profile's preferences.
 
 ${personalityData}
+${companyContextPrompt}
 
 CRITICAL: You MUST explicitly reference which profile(s) from which dataset(s) you're using for your analysis. Clearly indicate the source dataset (e.g., CSV profiles, Excel sheet name, etc.). If no profile matches well, explain why and provide a general approach.
 
