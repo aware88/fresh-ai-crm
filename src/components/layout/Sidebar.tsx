@@ -98,7 +98,7 @@ export function Sidebar({ className }: SidebarProps) {
                   {item.icon}
                 </div>
                 <span>{item.title}</span>
-                {item.href === "/dashboard/email" && (
+                {item.href === "/dashboard/contacts" && (
                   <span className="ml-auto bg-blue-100 text-blue-700 text-xs font-medium px-2 py-0.5 rounded">
                     New
                   </span>

@@ -5,15 +5,19 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { Loader2, Copy, Check, Mail, Brain, Sparkles, Send, Trash2 } from 'lucide-react';
+import { Loader2, Copy, Check, Mail, Brain, Sparkles, Send, Trash2, UserPlus, AlertCircle, User } from 'lucide-react';
+import { toast } from '@/components/ui/use-toast';
+import { ToastAction } from '@/components/ui/toast';
 
 export function EmailAnalyzer() {
   const [emailContent, setEmailContent] = useState('');
   const [analysis, setAnalysis] = useState<string | null>(null);
   const [suggestedEmail, setSuggestedEmail] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isExtractingContact, setIsExtractingContact] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [contactExtracted, setContactExtracted] = useState(false);
   const emailTextRef = useRef<HTMLDivElement>(null);
 
   const handleAnalyzeClick = async () => {
@@ -26,6 +30,7 @@ export function EmailAnalyzer() {
     setError(null);
     setSuggestedEmail(null);
     setCopied(false);
+    setContactExtracted(false);
 
     try {
       const response = await fetch('/api/analyze-email', {
@@ -57,6 +62,58 @@ export function EmailAnalyzer() {
       setAnalysis(null);
     } finally {
       setIsLoading(false);
+    }
+  };
+  
+  // Handle extracting contact from email
+  const handleExtractContact = async () => {
+    if (!emailContent.trim()) {
+      setError('Please enter an email to extract contact information');
+      return;
+    }
+    
+    setIsExtractingContact(true);
+    setError(null);
+    
+    try {
+      const response = await fetch('/api/contacts/extract', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          emailContent,
+          personalityAnalysis: analysis || ''
+        }),
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to extract contact');
+      }
+      
+      setContactExtracted(true);
+      
+      toast({
+        title: 'Contact ' + (data.message.includes('updated') ? 'Updated' : 'Saved'),
+        description: data.message,
+        action: data.contactId ? (
+          <ToastAction>
+            <a href={`/dashboard/contacts?id=${data.contactId}`}>View Contact</a>
+          </ToastAction>
+        ) : undefined,
+      });
+      
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to extract contact');
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: err instanceof Error ? err.message : 'Failed to extract contact',
+      });
+    } finally {
+      setIsExtractingContact(false);
     }
   };
 
@@ -124,7 +181,7 @@ export function EmailAnalyzer() {
                 </div>
               </div>
             </CardContent>
-            <CardFooter className="pt-2 pb-6">
+            <CardFooter className="pt-2 pb-6 flex flex-col gap-3">
               <Button 
                 onClick={handleAnalyzeClick}
                 disabled={isLoading || !emailContent.trim()}
@@ -140,6 +197,30 @@ export function EmailAnalyzer() {
                   <>
                     <Brain className="mr-2 h-5 w-5" />
                     Analyze Email
+                  </>
+                )}
+              </Button>
+              
+              <Button 
+                onClick={handleExtractContact}
+                disabled={isExtractingContact || !emailContent.trim()}
+                variant="outline"
+                className="w-full border-blue-200 text-blue-700 hover:bg-blue-50 hover:text-blue-800 hover:border-blue-300"
+              >
+                {isExtractingContact ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> 
+                    Extracting Contact...
+                  </>
+                ) : contactExtracted ? (
+                  <>
+                    <Check className="mr-2 h-4 w-4 text-green-500" />
+                    Contact Saved
+                  </>
+                ) : (
+                  <>
+                    <UserPlus className="mr-2 h-4 w-4" />
+                    Save Contact to CRM
                   </>
                 )}
               </Button>

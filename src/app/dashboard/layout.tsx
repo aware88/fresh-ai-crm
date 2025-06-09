@@ -1,6 +1,7 @@
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Bell, Search, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Toaster } from "@/components/ui/toaster";
 
 export default function DashboardLayout({
   children,
@@ -49,6 +50,7 @@ export default function DashboardLayout({
           © {new Date().getFullYear()} AI CRM. All rights reserved.
         </footer>
       </div>
+      <Toaster />
     </div>
   );
 }
