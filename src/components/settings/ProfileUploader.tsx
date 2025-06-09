@@ -88,10 +88,9 @@ export function ProfileUploader() {
       <div className="mt-4">
         <h3 className="text-sm font-medium mb-2">CSV Format Example:</h3>
         <pre className="bg-gray-100 p-3 rounded-md text-xs overflow-auto">
-          trait,description,communicationApproach,doEmphasis,dontEmphasis<br/>
-          Analytical,"Logical, data-driven","Use facts and data","Research, data","Emotional appeals"<br/>
-          Emotional,"Expressive, feeling-driven","Use stories","Personal stories","Excessive data"
+          Personality Type,Tone,Message Do,Message Dont,Content Needs,Topic,Description,Tone-out,Personality,Direction,Stance,Expression Type-Do,Style
         </pre>
+        <p className="text-xs text-gray-500 mt-2">Paste your complete CSV file with this header structure. The AI will use this data to better analyze emails and provide personalized responses.</p>
       </div>
     </div>
   );

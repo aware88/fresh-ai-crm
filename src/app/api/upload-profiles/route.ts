@@ -12,7 +12,11 @@ const validateCsv = (fileContent: string): boolean => {
     });
     
     // Check if the CSV has the required columns
-    const requiredColumns = ['trait', 'description', 'communicationApproach', 'doEmphasis', 'dontEmphasis'];
+    const requiredColumns = [
+      'Personality Type', 'Tone', 'Message Do', 'Message Dont', 
+      'Content Needs', 'Topic', 'Description', 'Tone-out', 
+      'Personality', 'Direction', 'Stance', 'Expression Type-Do', 'Style'
+    ];
     
     if (records.length === 0) {
       return false;
