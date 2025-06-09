@@ -3,9 +3,31 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Home, Mail, Building2, BarChart3, Settings } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import Image from 'next/image';
 
 export function Navigation() {
   const pathname = usePathname();
+  const [logoPath, setLogoPath] = useState<string | null>(null);
+  
+  useEffect(() => {
+    // Fetch the logo path from the API
+    const fetchLogo = async () => {
+      try {
+        const response = await fetch('/api/logo/get');
+        if (response.ok) {
+          const data = await response.json();
+          if (data.logoPath) {
+            setLogoPath(data.logoPath);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching logo:', error);
+      }
+    };
+    
+    fetchLogo();
+  }, []);
   
   const isActive = (path: string) => {
     return pathname === path || pathname.startsWith(`${path}/`);
@@ -25,8 +47,18 @@ export function Navigation() {
         <div className="flex justify-between h-16">
           <div className="flex">
             <div className="flex-shrink-0 flex items-center">
-              <Link href="/" className="text-2xl font-bold text-blue-600">
-                AI CRM
+              <Link href="/" className="flex items-center">
+                {logoPath ? (
+                  <div className="h-10 w-auto mr-2 relative">
+                    <img 
+                      src={logoPath} 
+                      alt="Company Logo" 
+                      className="h-full w-auto object-contain"
+                    />
+                  </div>
+                ) : (
+                  <span className="text-2xl font-bold text-blue-600">AI CRM</span>
+                )}
               </Link>
             </div>
             <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
