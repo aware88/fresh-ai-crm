@@ -29,11 +29,11 @@ const validateCsv = (fileContent: string): { valid: boolean; error?: string } =>
       return { valid: false, error: 'No records found in CSV' };
     }
     
-    // Required columns
+    // Required columns - using underscores as in the user's CSV
     const requiredColumns = [
-      'Personality Type', 'Tone', 'Message Do', 'Message Dont', 
-      'Content Needs', 'Topic', 'Description', 'Tone-out', 
-      'Personality', 'Direction', 'Stance', 'Expression Type-Do', 'Style'
+      'Personality_Type', 'Traits', 'Sales_Strategy', 'Messaging_Do', 'Messaging_Dont',
+      'Common_Biases', 'Trigger', 'Description', 'Example', 'Personality',
+      'Objection', 'Reframe', 'Framework', 'Best_For', 'Style'
     ];
     
     // Check first record for required columns

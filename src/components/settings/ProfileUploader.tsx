@@ -128,7 +128,7 @@ export function ProfileUploader() {
       <div className="mt-4 p-4 bg-white border rounded-lg">
         <h3 className="text-sm font-medium mb-2">CSV Format Requirements:</h3>
         <pre className="bg-gray-100 p-3 rounded-md text-xs overflow-auto">
-          Personality Type,Tone,Message Do,Message Dont,Content Needs,Topic,Description,Tone-out,Personality,Direction,Stance,Expression Type-Do,Style
+          Personality_Type,Traits,Sales_Strategy,Messaging_Do,Messaging_Dont,Common_Biases,Trigger,Description,Example,Personality,Objection,Reframe,Framework,Best_For,Style
         </pre>
         <p className="text-xs text-gray-500 mt-2">Your CSV file must include all these column headers exactly as shown above. The AI will use this data to better analyze emails and provide personalized responses.</p>
       </div>
