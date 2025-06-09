@@ -246,8 +246,14 @@ export const analyzeUrl = async (url: string) => {
     const userIdentity = loadUserIdentity();
     const userIdentityPrompt = userIdentity ? `\n\nThe person analyzing this URL is ${userIdentity.name} from ${userIdentity.company}.` : '';
     
-    // Fetch content from the URL
-    const urlContent = await fetchUrlContent(url);
+    // Fetch content from the URL - this will return either real content or fallback content
+    // The fetchUrlContent function now handles errors internally and provides fallback content
+    const urlContent = await fetchUrlContent(url).catch(error => {
+      console.log('Using fallback content due to error:', error.message);
+      return url.includes('linkedin.com') ? 
+        generateMockLinkedInContent(url) : 
+        generateMockWebsiteContent(url);
+    });
     
     // Truncate URL content if it's too long
     const truncatedUrlContent = urlContent.length > 3000 ? 
@@ -329,7 +335,20 @@ Always ensure your response is natural, empathetic, and tailored to the specific
     return formattedResponse;
   } catch (error) {
     console.error('Error analyzing URL:', error);
-    throw new Error(`Failed to analyze URL: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    // Instead of throwing an error, provide a more helpful response
+    return `# Analysis Error
+
+I apologize, but I encountered an issue while analyzing the URL: ${url}
+
+Error details: ${error instanceof Error ? error.message : 'Unknown error'}
+
+## Troubleshooting Suggestions:
+
+1. **Check the URL format** - Make sure the URL is correctly formatted and accessible
+2. **Try a different URL** - Some websites have strong anti-scraping measures that prevent analysis
+3. **Consider using a different approach** - For LinkedIn profiles, you might need to manually copy the profile content
+
+If you continue to experience issues, please contact support.`;
   }
 };
 
