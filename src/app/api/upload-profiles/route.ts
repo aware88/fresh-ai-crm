@@ -60,18 +60,30 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData();
     const file = formData.get('file');
     
-    if (!file || !(file instanceof File)) {
-      console.error('No valid file provided in request');
+    if (!file) {
+      console.error('No file provided in request');
       return NextResponse.json(
-        { error: 'No valid file provided' },
+        { error: 'No file provided' },
         { status: 400 }
       );
     }
     
-    console.log('File received:', file.name, file.type, file.size);
+    // Check if file has the necessary properties
+    // TypeScript needs a type assertion here since FormDataEntryValue can be string or File-like
+    const fileObject = file as unknown as { arrayBuffer: () => Promise<ArrayBuffer>; name?: string; size?: number; };
+    
+    if (!('arrayBuffer' in fileObject) || typeof fileObject.arrayBuffer !== 'function') {
+      console.error('Invalid file object received');
+      return NextResponse.json(
+        { error: 'Invalid file object' },
+        { status: 400 }
+      );
+    }
+    
+    console.log('File received:', fileObject.name || 'unknown', 'size:', fileObject.size || 'unknown');
     
     // Read file content
-    const fileBuffer = Buffer.from(await file.arrayBuffer());
+    const fileBuffer = Buffer.from(await fileObject.arrayBuffer());
     const fileContent = fileBuffer.toString();
     
     console.log('File content length:', fileContent.length);
