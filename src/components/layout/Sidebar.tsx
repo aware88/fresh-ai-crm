@@ -1,6 +1,7 @@
 'use client';
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { 
   LayoutDashboard, 
@@ -16,6 +17,8 @@ interface SidebarProps {
 }
 
 export function Sidebar({ className }: SidebarProps) {
+  const pathname = usePathname();
+  
   const navItems = [
     {
       title: "Dashboard",
@@ -63,7 +66,10 @@ export function Sidebar({ className }: SidebarProps) {
                 href={item.href}
                 className={cn(
                   "flex items-center rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground",
-                  item.href === "/dashboard/email" ? "bg-accent" : "transparent"
+                  pathname === item.href || 
+                  (item.href !== "/dashboard" && pathname.startsWith(item.href)) 
+                    ? "bg-accent" 
+                    : "transparent"
                 )}
               >
                 {item.icon}
