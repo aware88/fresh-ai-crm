@@ -3,9 +3,13 @@ export interface Contact {
   firstName: string;
   lastName: string;
   email: string;
+  phone?: string;
   company?: string;
+  position?: string;
   personalityType?: string;
   personalityNotes?: string;
+  notes?: string;
+  lastContact?: string;
   lastInteraction?: string;
   createdAt: string;
   updatedAt: string;

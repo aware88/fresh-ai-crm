@@ -1,7 +1,5 @@
 import OpenAI from 'openai';
 import { getLimitedFormattedDataForPrompt, getAllFormattedDataForPrompt } from '../personality/flexible-data';
-import fs from 'fs';
-import path from 'path';
 import axios from 'axios';
 import * as cheerio from 'cheerio';
 
@@ -29,11 +27,13 @@ export const getOpenAIClient = () => {
 // Function to load user identity if available
 const loadUserIdentity = () => {
   try {
-    const userIdentityPath = path.join(process.cwd(), 'src/data/user_identity.json');
+    // In Next.js, we should use environment variables or API routes instead of direct filesystem access
+    // For now, return a default identity or null
+    // In a real app, this would fetch from an API endpoint or database
     
-    if (fs.existsSync(userIdentityPath)) {
-      const fileContent = fs.readFileSync(userIdentityPath, 'utf8');
-      return JSON.parse(fileContent);
+    // Check if we're on the server side
+    if (typeof window === 'undefined' && process.env.USER_IDENTITY) {
+      return JSON.parse(process.env.USER_IDENTITY);
     }
     
     return null;
