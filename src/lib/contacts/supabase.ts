@@ -9,15 +9,23 @@ const CONTACTS_TABLE = 'contacts';
  */
 export async function fetchContacts(): Promise<Contact[]> {
   try {
+    // Check if we can create a Supabase client
     const supabase = createSupabaseClient();
+    
+    if (!supabase) {
+      console.warn('Could not create Supabase client');
+      return [];
+    }
+    
+    // Try to fetch contacts
     const { data, error } = await supabase
       .from(CONTACTS_TABLE)
       .select('*')
-      .order('createdAt', { ascending: false });
+      .order('createdat', { ascending: false });
     
     if (error) {
       console.error('Error fetching contacts from Supabase:', error);
-      throw error;
+      return [];
     }
     
     return data || [];
@@ -33,6 +41,12 @@ export async function fetchContacts(): Promise<Contact[]> {
 export async function fetchContactById(id: string): Promise<Contact | null> {
   try {
     const supabase = createSupabaseClient();
+    
+    if (!supabase) {
+      console.warn('Could not create Supabase client');
+      return null;
+    }
+    
     const { data, error } = await supabase
       .from(CONTACTS_TABLE)
       .select('*')
@@ -58,6 +72,11 @@ export async function createContactInDb(contact: ContactCreateInput): Promise<Co
   try {
     const supabase = createSupabaseClient();
     
+    if (!supabase) {
+      console.warn('Could not create Supabase client');
+      return null;
+    }
+    
     // Check if contact with this email already exists
     const { data: existingContact } = await supabase
       .from(CONTACTS_TABLE)
@@ -73,8 +92,8 @@ export async function createContactInDb(contact: ContactCreateInput): Promise<Co
     // Create new contact with timestamp
     const newContact = {
       ...contact,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+      createdat: new Date().toISOString(),
+      updatedat: new Date().toISOString()
     };
     
     const { data, error } = await supabase
@@ -85,7 +104,7 @@ export async function createContactInDb(contact: ContactCreateInput): Promise<Co
     
     if (error) {
       console.error('Error creating contact in Supabase:', error);
-      throw error;
+      return null;
     }
     
     return data;
@@ -102,10 +121,15 @@ export async function updateContactInDb(contact: ContactUpdateInput): Promise<Co
   try {
     const supabase = createSupabaseClient();
     
+    if (!supabase) {
+      console.warn('Could not create Supabase client');
+      return null;
+    }
+    
     // Add updated timestamp
     const updatedContact = {
       ...contact,
-      updatedAt: new Date().toISOString()
+      updatedat: new Date().toISOString()
     };
     
     const { data, error } = await supabase
@@ -117,7 +141,7 @@ export async function updateContactInDb(contact: ContactUpdateInput): Promise<Co
     
     if (error) {
       console.error(`Error updating contact with ID ${contact.id}:`, error);
-      throw error;
+      return null;
     }
     
     return data;
@@ -133,6 +157,11 @@ export async function updateContactInDb(contact: ContactUpdateInput): Promise<Co
 export async function deleteContactFromDb(id: string): Promise<boolean> {
   try {
     const supabase = createSupabaseClient();
+    
+    if (!supabase) {
+      console.warn('Could not create Supabase client');
+      return false;
+    }
     
     const { error } = await supabase
       .from(CONTACTS_TABLE)
@@ -159,6 +188,11 @@ export async function ensureContactsTable(): Promise<void> {
   // This is just a simple check - in a real app, you would use migrations
   try {
     const supabase = createSupabaseClient();
+    
+    if (!supabase) {
+      console.warn('Could not create Supabase client');
+      return;
+    }
     
     // Try to query the table to see if it exists
     const { error } = await supabase

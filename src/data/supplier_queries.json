@@ -1,1 +1,31 @@
-[]
+[
+  {
+    "id": "d07aee13-58aa-44ff-957e-099bc5d2bdce",
+    "query": "who has organic chlorella",
+    "results": [
+      {
+        "id": "418590ae-0cdf-4e0f-943a-0f7b6b6c1bd3",
+        "supplierId": "8c8facd8-4bf5-4889-8983-0e07d61044d2",
+        "supplier": {
+          "id": "8c8facd8-4bf5-4889-8983-0e07d61044d2",
+          "name": "Sunrise",
+          "email": "sales05@email.com",
+          "website": "Sunrise",
+          "notes": "gdfgfdgdf",
+          "reliabilityScore": 0,
+          "createdAt": "2025-06-10T15:40:24.914Z",
+          "updatedAt": "2025-06-10T15:40:24.914Z"
+        },
+        "relevanceScore": 100,
+        "productMatch": "who has organic chlorella",
+        "documentReferences": [
+          "13d4e5da-a2c0-4a27-b4ff-34fcb33eeb37"
+        ],
+        "emailReferences": [],
+        "suggestedEmail": "```\nSubject: Inquiry About Organic Chlorella Availability and Details\n\nDear Sunrise Team,\n\nI hope this message finds you well. I am reaching out to inquire about your organic chlorella products, as I am currently sourcing this ingredient for our production needs.\n\nCould you please provide me with the following details:\n- Availability of organic chlorella\n- Price per unit/quantity discounts\n- Minimum order quantities\n- Any relevant quality certifications and product specifications\n\nLooking forward to your prompt response to facilitate our decision-making process.\n\nThank you and best regards,\n\n[Your Name]\n[Your Position]\n[Your Company Name]\n[Contact Information]\n```\nThis email is designed to gather all necessary information while establishing a professional tone for potential business engagement."
+      }
+    ],
+    "timestamp": "2025-06-10T15:49:00.142Z",
+    "aiResponse": "**🔍 Matching Suppliers:**\n- **Supplier Name:** Sunrise\n- **Email:** sales05@email.com\n- **Reliability Score:** Not rated\n- **Relevant Document:** NL Stock List - Sunrise 3_June_2025.pdf - This document is associated with the supplier and may contain information about organic chlorella, though specific details on the product are not provided in the summary.\n\n**📊 Product Analysis:**\n- **Best Match:** Organic Chlorella (assuming based on general product offerings from Sunrise as detailed in the document)\n- **Price Information:** Not available in the summary provided\n- **Quantity/MOQ:** Not available in the summary provided\n- **Quality Specifications:** Not available in the summary provided\n\n**💡 Recommendation:**\n- **Top Recommendation:** Reach out to Sunrise to inquire about organic chlorella. Given that they are the only supplier listed and they have a document suggesting a product list, they are the most likely candidate to provide this product.\n- **Considerations:** Since the reliability score and specific product details are not available, it is recommended to proceed cautiously. Ensure to ask for product specifications, certifications, and samples if needed.\n\n**✉️ Suggested Email Template:**\n```\nSubject: Inquiry About Organic Chlorella Availability and Details\n\nDear Sunrise Team,\n\nI hope this message finds you well. I am reaching out to inquire about your organic chlorella products, as I am currently sourcing this ingredient for our production needs.\n\nCould you please provide me with the following details:\n- Availability of organic chlorella\n- Price per unit/quantity discounts\n- Minimum order quantities\n- Any relevant quality certifications and product specifications\n\nLooking forward to your prompt response to facilitate our decision-making process.\n\nThank you and best regards,\n\n[Your Name]\n[Your Position]\n[Your Company Name]\n[Contact Information]\n```\nThis email is designed to gather all necessary information while establishing a professional tone for potential business engagement."
+  }
+]

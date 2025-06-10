@@ -17,7 +17,7 @@ export default function EmailParser() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [emails, setEmails] = useState<SupplierEmail[]>([]);
   const [emailContent, setEmailContent] = useState<string>('');
-  const [selectedSupplierId, setSelectedSupplierId] = useState<string>('');
+  const [selectedSupplierId, setSelectedSupplierId] = useState<string>('none');
   const [productTags, setProductTags] = useState<string[]>([]);
   const [newProductTag, setNewProductTag] = useState<string>('');
   const [loading, setLoading] = useState(false);
@@ -64,7 +64,11 @@ export default function EmailParser() {
         
         if (matchingSupplier) {
           setSelectedSupplierId(matchingSupplier.id);
+        } else {
+          setSelectedSupplierId('none');
         }
+      } else {
+        setSelectedSupplierId('none');
       }
     } else {
       setPreviewData(null);
@@ -125,13 +129,13 @@ export default function EmailParser() {
       await parseSupplierEmail(
         emailContent,
         productTags,
-        selectedSupplierId || undefined
+        selectedSupplierId === 'none' ? undefined : selectedSupplierId
       );
       
       // Reset form
       setEmailContent('');
       setProductTags([]);
-      setSelectedSupplierId('');
+      setSelectedSupplierId('none');
       setPreviewData(null);
       
       // Reload emails
@@ -232,7 +236,7 @@ export default function EmailParser() {
                   <SelectValue placeholder="Select a supplier" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">None</SelectItem>
+                  <SelectItem value="none">None</SelectItem>
                   {suppliers.map((supplier) => (
                     <SelectItem key={supplier.id} value={supplier.id}>
                       {supplier.name}

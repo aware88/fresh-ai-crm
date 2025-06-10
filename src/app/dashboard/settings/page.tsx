@@ -1,11 +1,19 @@
 import React from 'react';
 import { UserIdentitySettings } from '@/components/settings/UserIdentitySettings';
 import { UnifiedDataUploader } from '@/components/settings/UnifiedDataUploader';
+import { LogoUploader } from '@/components/settings/LogoUploader';
 
 export default function SettingsPage() {
   return (
     <div className="container mx-auto p-6">
       <h1 className="text-3xl font-bold mb-6">Settings</h1>
+      
+      <div className="mb-8">
+        <h2 className="text-2xl font-semibold mb-4 text-gray-800">Company Branding</h2>
+        <div className="grid gap-6 md:grid-cols-1">
+          <LogoUploader />
+        </div>
+      </div>
       
       <div className="mb-8">
         <h2 className="text-2xl font-semibold mb-4 text-gray-800">User Information</h2>

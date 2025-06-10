@@ -2,31 +2,73 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Mail, Building2, BarChart3, Settings, FileText, Users } from 'lucide-react';
+import { Home, Mail, Building2, BarChart3, Settings, FileText, Users, Brain } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
 
 export function Navigation() {
   const pathname = usePathname();
   const [logoPath, setLogoPath] = useState<string | null>(null);
+  const [companyName, setCompanyName] = useState<string | null>(null);
   
-  useEffect(() => {
-    // Fetch the logo path from the API
-    const fetchLogo = async () => {
-      try {
-        const response = await fetch('/api/logo/get');
-        if (response.ok) {
-          const data = await response.json();
-          if (data.logoPath) {
-            setLogoPath(data.logoPath);
+  // Function to load logo and company name from localStorage or API
+  const loadLogoAndCompanyName = () => {
+    // Check for logo in localStorage
+    const savedLogo = localStorage.getItem('companyLogo');
+    if (savedLogo) {
+      setLogoPath(savedLogo);
+    }
+    
+    // Check for company name in localStorage
+    const savedCompanyName = localStorage.getItem('companyName');
+    if (savedCompanyName) {
+      setCompanyName(savedCompanyName);
+    }
+    
+    // If no logo in localStorage, fetch from API as fallback
+    if (!savedLogo) {
+      const fetchLogo = async () => {
+        try {
+          const response = await fetch('/api/logo/get');
+          if (response.ok) {
+            const data = await response.json();
+            if (data.logoPath) {
+              setLogoPath(data.logoPath);
+              localStorage.setItem('companyLogo', data.logoPath);
+            }
           }
+        } catch (error) {
+          console.error('Error fetching logo:', error);
         }
-      } catch (error) {
-        console.error('Error fetching logo:', error);
+      };
+      
+      fetchLogo();
+    }
+  };
+  
+  // Listen for storage events (when localStorage is updated in another tab/component)
+  useEffect(() => {
+    // Initial load
+    loadLogoAndCompanyName();
+    
+    // Create a custom event for same-tab updates
+    const handleStorageChange = (event: StorageEvent) => {
+      if (event.key === 'companyLogo' || event.key === 'companyName') {
+        loadLogoAndCompanyName();
       }
     };
     
-    fetchLogo();
+    // Add event listener for localStorage changes
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Add event listener for our custom event
+    window.addEventListener('localStorageUpdated', loadLogoAndCompanyName);
+    
+    // Cleanup
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('localStorageUpdated', loadLogoAndCompanyName);
+    };
   }, []);
   
   const isActive = (path: string) => {
@@ -38,6 +80,7 @@ export function Navigation() {
     { name: 'Contacts', href: '/dashboard/contacts', icon: Users },
     { name: 'Files', href: '/dashboard/files', icon: FileText },
     { name: 'Email Analysis', href: '/dashboard/email', icon: Mail },
+    { name: 'AI Assistant', href: '/dashboard/assistant', icon: Brain },
     { name: 'Analytics', href: '/dashboard/analytics', icon: BarChart3 },
     { name: 'Settings', href: '/dashboard/settings', icon: Settings },
   ];
@@ -49,16 +92,19 @@ export function Navigation() {
           <div className="flex">
             <div className="flex-shrink-0 flex items-center">
               <Link href="/" className="flex items-center">
-                {logoPath ? (
-                  <div className="h-10 w-auto mr-2 relative">
+                <div className="h-10 w-auto mr-2 relative">
+                  {logoPath ? (
                     <img 
                       src={logoPath} 
                       alt="Company Logo" 
                       className="h-full w-auto object-contain"
                     />
-                  </div>
-                ) : (
-                  <span className="text-2xl font-bold text-blue-600">AI CRM</span>
+                  ) : (
+                    <span className="text-2xl font-bold text-blue-600">AI CRM</span>
+                  )}
+                </div>
+                {companyName && (
+                  <span className="text-lg font-semibold text-gray-800 ml-2">{companyName}</span>
                 )}
               </Link>
             </div>

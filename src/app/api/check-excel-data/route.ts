@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
 import * as XLSX from 'xlsx';
-import { initializeExcelData } from '@/lib/excel/init';
+import { initializeExcelData, createDefaultExcelFile } from '@/lib/excel/init';
 
 export async function GET() {
   try {
@@ -16,10 +16,47 @@ export async function GET() {
       );
     }
     
-    // Check if file exists
-    if (initialized && excelPath && fs.existsSync(excelPath)) {
+    // Check if file exists, create it if it doesn't
+    if (initialized && excelPath) {
+      if (!fs.existsSync(excelPath)) {
+        // Create the Excel file if it doesn't exist
+        console.log('Excel file does not exist, creating it now...');
+        const created = await createDefaultExcelFile(excelPath);
+        if (!created) {
+          console.error('Failed to create Excel file');
+          return NextResponse.json({
+            exists: false,
+            error: 'Failed to create Excel file'
+          }, { status: 500 });
+        }
+        
+        // Verify the file was created
+        if (!fs.existsSync(excelPath)) {
+          console.error('Excel file was not created successfully');
+          return NextResponse.json({
+            exists: false,
+            error: 'Excel file was not created successfully'
+          }, { status: 500 });
+        }
+      }
+      
+      // Double check file exists and has proper permissions
+      try {
+        // Check file permissions
+        fs.accessSync(excelPath, fs.constants.R_OK);
+        console.log(`Excel file exists and is readable at: ${excelPath}`);
+      } catch (err) {
+        console.error(`Excel file permission error: ${err}`);
+        return NextResponse.json({
+          exists: false,
+          error: `Excel file permission error: ${err}`
+        }, { status: 500 });
+      }
+      
+      // Now try to read the file (whether it existed before or we just created it)
       try {
         // Get sheet information
+        console.log(`Reading Excel file from: ${excelPath}`);
         const workbook = XLSX.readFile(excelPath);
         const sheetNames = workbook.SheetNames;
         

@@ -75,26 +75,37 @@ export async function loadContacts(): Promise<Contact[]> {
     return contactsCache;
   }
   
+  // Always prepare mock data as fallback
+  const mockData = [...mockContacts];
+  
   // Check if Supabase is configured
   if (isSupabaseConfigured()) {
     try {
       // Fetch contacts from Supabase
       const contacts = await fetchContactsFromDb();
       
-      // Update cache
-      contactsCache = contacts;
-      return contacts;
+      // If we got valid contacts, use them
+      if (contacts && Array.isArray(contacts) && contacts.length > 0) {
+        contactsCache = contacts;
+        return contacts;
+      } else {
+        // No contacts returned, use mock data
+        console.warn('No contacts found in Supabase, using mock data');
+        contactsCache = mockData;
+        return mockData;
+      }
     } catch (error) {
+      // Log error but don't throw it
       console.error('Error loading contacts from Supabase:', error);
       // Fall back to mock data on error
-      contactsCache = [...mockContacts];
-      return [...mockContacts];
+      contactsCache = mockData;
+      return mockData;
     }
   } else {
     console.warn('Supabase not configured, using mock data');
     // Use mock data if Supabase is not configured
-    contactsCache = [...mockContacts];
-    return [...mockContacts];
+    contactsCache = mockData;
+    return mockData;
   }
 }
 

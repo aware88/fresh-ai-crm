@@ -7,8 +7,10 @@ A minimal Next.js 15 CRM application with AI-powered email analysis using OpenAI
 - 🚀 Built with Next.js 15 and TypeScript
 - 🎨 Modern UI with Tailwind CSS
 - 🤖 AI-powered email analysis using OpenAI API
+- 🧠 Custom AI Assistant for dispute resolution and more
 - 🗄️ Supabase integration for data storage
 - 📱 Responsive design for all devices
+- 🏢 Custom company branding options
 
 ## Getting Started
 
@@ -27,8 +29,11 @@ Create a `.env.local` file in the root directory with the following variables:
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 
-# OpenAI Configuration
+# OpenAI Configuration (Required for Email Analysis and AI Assistant)
 OPENAI_API_KEY=your_openai_api_key
+
+# Optional: Set a higher token limit for complex AI Assistant prompts
+# OPENAI_MAX_TOKENS=2000
 ```
 
 ### Installation
@@ -70,6 +75,16 @@ The email analysis feature uses OpenAI's GPT-4o model to extract insights from c
 - Customer needs and pain points
 - Recommended follow-up actions
 - Urgency level
+
+## AI Assistant
+
+The AI Assistant feature provides a flexible interface for getting AI-powered help with various business tasks:
+
+- **Multiple Templates**: Choose from general assistance, dispute resolution, email drafting, or data analysis templates
+- **Customer Data Integration**: For dispute resolution, include relevant customer context from your CRM
+- **Markdown Formatting**: Responses are formatted with proper headings, lists, and code blocks for readability
+- **Copy to Clipboard**: Easily copy AI responses for use in emails, documents, or other applications
+- **Custom Prompts**: Enter any prompt to get tailored assistance for your specific business needs
 
 ## Deployment
 

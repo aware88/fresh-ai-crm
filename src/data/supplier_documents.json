@@ -1,1 +1,14 @@
-[]
+[
+  {
+    "id": "13d4e5da-a2c0-4a27-b4ff-34fcb33eeb37",
+    "supplierId": "8c8facd8-4bf5-4889-8983-0e07d61044d2",
+    "fileName": "NL Stock List - Sunrise 3_June_2025.pdf",
+    "fileType": "application/pdf",
+    "documentType": "offer",
+    "filePath": "uploads/suppliers/8c8facd8-4bf5-4889-8983-0e07d61044d2/13d4e5da-a2c0-4a27-b4ff-34fcb33eeb37.pdf",
+    "uploadDate": "2025-06-10T15:41:04.212Z",
+    "metadata": {
+      "size": 223077
+    }
+  }
+]

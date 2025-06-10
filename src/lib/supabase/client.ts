@@ -17,8 +17,8 @@ export const createSupabaseClient = () => {
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   
   if (!supabaseUrl || !supabaseAnonKey) {
-    console.error('Missing Supabase environment variables. Please check your .env.local file.');
-    throw new Error('Missing Supabase environment variables');
+    console.warn('Missing Supabase environment variables. Please check your .env.local file.');
+    return null;
   }
   
   try {
@@ -26,7 +26,7 @@ export const createSupabaseClient = () => {
     return supabaseInstance;
   } catch (error) {
     console.error('Failed to create Supabase client:', error);
-    throw new Error('Failed to initialize Supabase client');
+    return null;
   }
 };
 

@@ -1,11 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  swcMinify: true,
-  // Enable the App Router
-  experimental: {
-    appDir: true,
-  },
+  // App Router is now the default in newer Next.js versions
   // Configure webpack to handle Chakra UI properly
   webpack(config) {
     // Grab the existing rule that handles SVG imports
