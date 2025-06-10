@@ -1,119 +1,79 @@
 import { NextResponse } from 'next/server';
-import { 
-  loadContacts, 
-  createContact, 
-  updateContact, 
-  deleteContact, 
-  getContactById 
-} from '@/lib/contacts/data';
-import { ContactCreateInput, ContactUpdateInput } from '@/lib/contacts/types';
+import { loadContacts, createContact, updateContact, deleteContact, isUsingSupabase } from '../../../lib/contacts/data';
+import { Contact, ContactCreateInput, ContactUpdateInput } from '../../../lib/contacts/types';
 
-// GET all contacts
+/**
+ * GET /api/contacts
+ */
 export async function GET() {
   try {
-    const contacts = loadContacts();
-    return NextResponse.json({ contacts });
+    const contacts = await loadContacts();
+    return NextResponse.json({ contacts, usingSupabase: isUsingSupabase() });
   } catch (error) {
-    console.error('Error getting contacts:', error);
-    return NextResponse.json(
-      { error: 'Failed to get contacts' },
-      { status: 500 }
-    );
+    console.error('Error loading contacts:', error);
+    return NextResponse.json({ error: 'Failed to load contacts', contacts: [] }, { status: 500 });
   }
 }
 
-// POST create a new contact
+/**
+ * POST /api/contacts
+ */
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
-    const contactData: ContactCreateInput = body.contact;
-    
-    if (!contactData || !contactData.email || !contactData.firstName) {
-      return NextResponse.json(
-        { error: 'Missing required fields' },
-        { status: 400 }
-      );
-    }
-    
-    const newContact = createContact(contactData);
+    const data = await request.json();
+    const newContact = await createContact(data as ContactCreateInput);
     
     if (!newContact) {
-      return NextResponse.json(
-        { error: 'Contact with this email already exists' },
-        { status: 409 }
-      );
+      return NextResponse.json({ error: 'Contact already exists or invalid data' }, { status: 400 });
     }
     
-    return NextResponse.json({ contact: newContact });
+    return NextResponse.json({ contact: newContact, usingSupabase: isUsingSupabase() });
   } catch (error) {
     console.error('Error creating contact:', error);
-    return NextResponse.json(
-      { error: 'Failed to create contact' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Failed to create contact' }, { status: 500 });
   }
 }
 
-// PUT update an existing contact
+/**
+ * PUT /api/contacts
+ */
 export async function PUT(request: Request) {
   try {
-    const body = await request.json();
-    const contactData: ContactUpdateInput = body.contact;
-    
-    if (!contactData || !contactData.id) {
-      return NextResponse.json(
-        { error: 'Missing contact ID' },
-        { status: 400 }
-      );
-    }
-    
-    const updatedContact = updateContact(contactData);
+    const data = await request.json();
+    const updatedContact = await updateContact(data as ContactUpdateInput);
     
     if (!updatedContact) {
-      return NextResponse.json(
-        { error: 'Contact not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: 'Contact not found or invalid data' }, { status: 404 });
     }
     
-    return NextResponse.json({ contact: updatedContact });
+    return NextResponse.json({ contact: updatedContact, usingSupabase: isUsingSupabase() });
   } catch (error) {
     console.error('Error updating contact:', error);
-    return NextResponse.json(
-      { error: 'Failed to update contact' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Failed to update contact' }, { status: 500 });
   }
 }
 
-// DELETE a contact
+/**
+ * DELETE /api/contacts
+ */
 export async function DELETE(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
     
     if (!id) {
-      return NextResponse.json(
-        { error: 'Missing contact ID' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Missing contact ID' }, { status: 400 });
     }
     
-    const success = deleteContact(id);
+    const success = await deleteContact(id);
     
     if (!success) {
-      return NextResponse.json(
-        { error: 'Contact not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: 'Contact not found' }, { status: 404 });
     }
     
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, usingSupabase: isUsingSupabase() });
   } catch (error) {
     console.error('Error deleting contact:', error);
-    return NextResponse.json(
-      { error: 'Failed to delete contact' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Failed to delete contact' }, { status: 500 });
   }
 }

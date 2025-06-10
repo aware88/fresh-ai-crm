@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Mail, Building2, BarChart3, Settings } from 'lucide-react';
+import { Home, Mail, Building2, BarChart3, Settings, FileText, Users } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
 
@@ -30,13 +30,14 @@ export function Navigation() {
   }, []);
   
   const isActive = (path: string) => {
-    return pathname === path || pathname.startsWith(`${path}/`);
+    return pathname === path || (pathname && pathname.startsWith(`${path}/`));
   };
   
   const navItems = [
     { name: 'Dashboard', href: '/dashboard', icon: Home },
+    { name: 'Contacts', href: '/dashboard/contacts', icon: Users },
+    { name: 'Files', href: '/dashboard/files', icon: FileText },
     { name: 'Email Analysis', href: '/dashboard/email', icon: Mail },
-    { name: 'Suppliers', href: '/suppliers', icon: Building2 },
     { name: 'Analytics', href: '/dashboard/analytics', icon: BarChart3 },
     { name: 'Settings', href: '/dashboard/settings', icon: Settings },
   ];
