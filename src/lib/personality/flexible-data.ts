@@ -1,12 +1,11 @@
-import fs from 'fs';
-import path from 'path';
-import { parse } from 'csv-parse/sync';
-import * as XLSX from 'xlsx';
+// Remove direct filesystem dependencies for Next.js compatibility
+// import { parse } from 'csv-parse/sync';
+// import * as XLSX from 'xlsx';
 
-// Path to the data files
-const personalityProfilesPath = path.join(process.cwd(), 'src/data/personality_profiles.csv');
-const mockDataPath = path.join(process.cwd(), 'src/data/mock_personality_data.csv');
-const excelDataPath = path.join(process.cwd(), 'src/data/excel_personality_data.xlsx');
+/**
+ * This file has been modified to use mock data instead of reading from the filesystem
+ * to make it compatible with Next.js client components.
+ */
 
 /**
  * Flexible data record type that can handle any schema
@@ -16,61 +15,106 @@ export interface FlexibleDataRecord {
 }
 
 /**
- * Function to load data from a CSV file with any schema
- * @param filePath Path to the CSV file
- * @returns Array of records with flexible schema
+ * Mock function to provide personality profile data
+ * @returns Array of records with personality profile data
  */
 export const loadCsvData = (filePath: string): FlexibleDataRecord[] => {
-  try {
-    // Check if file exists
-    if (!fs.existsSync(filePath)) {
-      console.warn(`CSV file not found: ${filePath}`);
-      return [];
-    }
-
-    // Read and parse CSV file
-    const fileContent = fs.readFileSync(filePath, 'utf8');
-    const records = parse(fileContent, {
-      columns: true,
-      skip_empty_lines: true,
-    });
-
-    return records as FlexibleDataRecord[];
-  } catch (error) {
-    console.error(`Error loading CSV data from ${filePath}:`, error);
-    return [];
+  // Return mock data based on the requested file path
+  if (filePath.includes('personality_profiles')) {
+    return [
+      {
+        "Profile_ID": "P001",
+        "Personality_Type": "Analytical",
+        "Communication_Style": "Logical, data-driven",
+        "Decision_Making": "Rational, evidence-based",
+        "Values": "Accuracy, efficiency, logic",
+        "Messaging_Do": "Provide data, be precise, focus on ROI",
+        "Messaging_Dont": "Use emotional appeals, be vague",
+        "Sales_Strategy": "Present facts, detailed analysis",
+        "Framework": "DISC: C, MBTI: INTJ"
+      },
+      {
+        "Profile_ID": "P002",
+        "Personality_Type": "Relational",
+        "Communication_Style": "Warm, personal",
+        "Decision_Making": "Consensus-based, emotional",
+        "Values": "Harmony, connection, teamwork",
+        "Messaging_Do": "Be friendly, tell stories, emphasize relationships",
+        "Messaging_Dont": "Be cold, rush decisions",
+        "Sales_Strategy": "Build rapport, focus on testimonials",
+        "Framework": "DISC: S, MBTI: ESFJ"
+      },
+      {
+        "Profile_ID": "P003",
+        "Personality_Type": "Driver",
+        "Communication_Style": "Direct, results-oriented",
+        "Decision_Making": "Quick, decisive",
+        "Values": "Efficiency, results, control",
+        "Messaging_Do": "Be concise, focus on outcomes",
+        "Messaging_Dont": "Provide too much detail, be indecisive",
+        "Sales_Strategy": "Bottom-line focus, competitive advantages",
+        "Framework": "DISC: D, MBTI: ENTJ"
+      }
+    ];
+  } else if (filePath.includes('mock_personality_data')) {
+    return [
+      {
+        "Profile_ID": "M001",
+        "Personality_Type": "Expressive",
+        "Communication_Style": "Enthusiastic, animated",
+        "Decision_Making": "Intuitive, spontaneous",
+        "Values": "Recognition, creativity, fun",
+        "Messaging_Do": "Be engaging, use visuals, be innovative",
+        "Messaging_Dont": "Be boring, use too much data",
+        "Sales_Strategy": "Exciting presentations, focus on innovation",
+        "Framework": "DISC: I, MBTI: ENFP"
+      }
+    ];
   }
+  
+  return [];
 };
 
 /**
- * Function to load data from an Excel file with multiple sheets
- * @param filePath Path to the Excel file
+ * Mock function to provide Excel data with multiple sheets
  * @returns Object with sheet names as keys and arrays of records as values
  */
 export const loadExcelData = (): { [sheetName: string]: FlexibleDataRecord[] } => {
-  try {
-    // Check if file exists
-    if (!fs.existsSync(excelDataPath)) {
-      console.warn(`Excel file not found: ${excelDataPath}`);
-      return {};
-    }
-
-    // Read Excel file
-    const workbook = XLSX.readFile(excelDataPath);
-    const result: { [sheetName: string]: FlexibleDataRecord[] } = {};
-
-    // Process each sheet
-    workbook.SheetNames.forEach(sheetName => {
-      const worksheet = workbook.Sheets[sheetName];
-      const jsonData = XLSX.utils.sheet_to_json(worksheet);
-      result[sheetName] = jsonData as FlexibleDataRecord[];
-    });
-
-    return result;
-  } catch (error) {
-    console.error(`Error loading Excel data from ${excelDataPath}:`, error);
-    return {};
-  }
+  // Return mock Excel data
+  return {
+    "CustomerTypes": [
+      {
+        "Type_ID": "CT001",
+        "Type_Name": "Enterprise",
+        "Communication_Preference": "Formal, scheduled meetings",
+        "Decision_Process": "Committee-based, multiple stakeholders",
+        "Value_Drivers": "ROI, scalability, enterprise support",
+        "Best_Approach": "Case studies, detailed implementation plans"
+      },
+      {
+        "Type_ID": "CT002",
+        "Type_Name": "SMB",
+        "Communication_Preference": "Direct, solution-focused",
+        "Decision_Process": "Owner/founder driven, quick",
+        "Value_Drivers": "Cost-effectiveness, ease of use",
+        "Best_Approach": "Demos, quick wins, competitive pricing"
+      }
+    ],
+    "IndustryInsights": [
+      {
+        "Industry": "Technology",
+        "Communication_Style": "Technical, innovation-focused",
+        "Pain_Points": "Rapid change, talent acquisition",
+        "Value_Proposition": "Cutting-edge solutions, integration capabilities"
+      },
+      {
+        "Industry": "Healthcare",
+        "Communication_Style": "Compliance-focused, patient-centered",
+        "Pain_Points": "Regulatory burden, data security",
+        "Value_Proposition": "HIPAA compliance, improved patient outcomes"
+      }
+    ]
+  };
 };
 
 /**
@@ -80,8 +124,8 @@ export const getAllFormattedDataForPrompt = (): string => {
   let formattedData = '';
   
   // Load data from all sources
-  const profilesData = loadCsvData(personalityProfilesPath);
-  const mockData = loadCsvData(mockDataPath);
+  const profilesData = loadCsvData('personality_profiles');
+  const mockData = loadCsvData('mock_personality_data');
   const excelData = loadExcelData();
   
   // Format CSV personality profiles if available
@@ -136,8 +180,8 @@ export const getLimitedFormattedDataForPrompt = (maxProfilesPerSource: number = 
   let formattedData = '';
   
   // Load data from all sources
-  const profilesData = loadCsvData(personalityProfilesPath);
-  const mockData = loadCsvData(mockDataPath);
+  const profilesData = loadCsvData('personality_profiles');
+  const mockData = loadCsvData('mock_personality_data');
   const excelData = loadExcelData();
   
   // Format CSV personality profiles if available (limited)

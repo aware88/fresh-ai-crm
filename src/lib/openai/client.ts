@@ -1,8 +1,5 @@
 import OpenAI from 'openai';
 import { getLimitedFormattedDataForPrompt, getAllFormattedDataForPrompt } from '../personality/flexible-data';
-import { getCompanyInfo, generateCompanyContextPrompt } from '../company/websiteScanner';
-import fs from 'fs';
-import path from 'path';
 import axios from 'axios';
 import * as cheerio from 'cheerio';
 
@@ -30,11 +27,13 @@ export const getOpenAIClient = () => {
 // Function to load user identity if available
 const loadUserIdentity = () => {
   try {
-    const userIdentityPath = path.join(process.cwd(), 'src/data/user_identity.json');
+    // In Next.js, we should use environment variables or API routes instead of direct filesystem access
+    // For now, return a default identity or null
+    // In a real app, this would fetch from an API endpoint or database
     
-    if (fs.existsSync(userIdentityPath)) {
-      const fileContent = fs.readFileSync(userIdentityPath, 'utf8');
-      return JSON.parse(fileContent);
+    // Check if we're on the server side
+    if (typeof window === 'undefined' && process.env.USER_IDENTITY) {
+      return JSON.parse(process.env.USER_IDENTITY);
     }
     
     return null;
@@ -249,9 +248,8 @@ export const analyzeUrl = async (url: string) => {
 
 You are assisting ${userIdentity.name} who works at ${userIdentity.company}. Their email is ${userIdentity.email}. When analyzing email threads, focus only on the customer's communication style, not ${userIdentity.name}'s style.` : '';
     
-    // Get company information for context
-    const companyInfo = getCompanyInfo();
-    const companyContext = companyInfo ? generateCompanyContextPrompt(companyInfo) : '';
+    // Company context is no longer available in this version
+    const companyContext = '';
     
     // Fetch content from the URL - this will return either real content or fallback content
     // The fetchUrlContent function now handles errors internally and provides fallback content
@@ -388,18 +386,8 @@ IMPORTANT: When analyzing email threads, identify which emails are from the user
 `;  
     }
     
-    // Get company information for context
-    const companyInfo = getCompanyInfo();
+    // Company context is no longer available in this version
     let companyContextPrompt = '';
-    
-    if (companyInfo) {
-      companyContextPrompt = `
-COMPANY CONTEXT INFORMATION:
-${generateCompanyContextPrompt(companyInfo)}
-
-IMPORTANT: Use this company information to personalize your analysis and response, ensuring they align with the company's values, products/services, and target audience.
-`;
-    }
     
     const systemPrompt = `You are an advanced AI sales assistant specializing in psychological profiling based on written communication, such as emails or LinkedIn messages.
 

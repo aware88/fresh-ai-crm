@@ -59,23 +59,28 @@ export default function ContactsPage() {
         }
         
         const data = await response.json();
-        setContacts(data.contacts || []);
+        // Ensure we're getting an array of contacts
+        const contactsArray = Array.isArray(data.contacts) ? data.contacts : [];
+        setContacts(contactsArray);
         
         // Check if we need to select a specific contact from URL
-        const contactId = searchParams.get('id');
-        if (contactId && data.contacts) {
-          const contact = data.contacts.find((c: Contact) => c.id === contactId);
+        const contactId = searchParams?.get('id');
+        if (contactId && contactsArray.length > 0) {
+          const contact = contactsArray.find((c: Contact) => c.id === contactId);
           if (contact) {
             setSelectedContact(contact);
           }
         }
       } catch (err) {
+        console.error('Error fetching contacts:', err);
         setError(err instanceof Error ? err.message : 'An error occurred');
         toast({
           variant: "destructive",
           title: "Error",
           description: "Failed to load contacts",
         });
+        // Set empty array to prevent filter errors
+        setContacts([]);
       } finally {
         setLoading(false);
       }
