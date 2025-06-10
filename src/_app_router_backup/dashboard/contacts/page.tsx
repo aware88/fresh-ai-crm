@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import { useSearchParams } from 'next/navigation';
 import { 
   Card, 
@@ -47,41 +46,36 @@ export default function ContactsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const searchParams = useSearchParams();
-  const router = useRouter();
 
   // Load contacts
   useEffect(() => {
-    // Fetch contacts from API
     const fetchContacts = async () => {
       try {
+        setLoading(true);
         const response = await fetch('/api/contacts');
+        
         if (!response.ok) {
-          throw new Error(`Error: ${response.status}`);
+          throw new Error('Failed to load contacts');
         }
         
         const data = await response.json();
-        const contactsArray = Array.isArray(data.contacts) ? data.contacts : [];
-        setContacts(contactsArray);
-        
-        // Display whether we're using Supabase or not
-        if (data.usingSupabase) {
-          console.log('Using Supabase for contacts data persistence');
-        } else {
-          console.log('Using in-memory storage for contacts data');
-        }
+        setContacts(data.contacts || []);
         
         // Check if we need to select a specific contact from URL
-        const contactId = searchParams?.get('id');
-        if (contactId && contactsArray.length > 0) {
-          const contact = contactsArray.find((c: Contact) => c.id === contactId);
+        const contactId = searchParams.get('id');
+        if (contactId && data.contacts) {
+          const contact = data.contacts.find((c: Contact) => c.id === contactId);
           if (contact) {
             setSelectedContact(contact);
           }
         }
-      } catch (error) {
-        console.error('Failed to fetch contacts:', error);
-        // Set empty array to prevent filter errors
-        setContacts([]);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'An error occurred');
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to load contacts",
+        });
       } finally {
         setLoading(false);
       }
@@ -231,12 +225,9 @@ export default function ContactsPage() {
                     <TableBody>
                       {filteredContacts.map((contact) => (
                         <TableRow 
-                          key={contact.id} 
+                          key={contact.id}
                           className={`cursor-pointer hover:bg-gray-50 ${selectedContact?.id === contact.id ? 'bg-blue-50' : ''}`}
-                          onClick={() => {
-                            setSelectedContact(contact);
-                            window.history.pushState({}, '', `/dashboard/contacts/${contact.id}`);
-                          }}
+                          onClick={() => setSelectedContact(contact)}
                         >
                           <TableCell className="font-medium">
                             {contact.firstName} {contact.lastName}
@@ -363,17 +354,9 @@ export default function ContactsPage() {
                 <Button variant="outline" className="border-red-200 text-red-600 hover:bg-red-50" onClick={() => handleDeleteContact(selectedContact.id)}>
                   <Trash2 className="h-4 w-4 mr-2" /> Delete
                 </Button>
-                <div className="flex gap-2">
-                  <Button 
-                    variant="outline"
-                    onClick={() => router.push(`/dashboard/contacts/${selectedContact.id}`)}
-                  >
-                    View Details
-                  </Button>
-                  <Button className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white">
-                    <Edit className="h-4 w-4 mr-2" /> Edit Contact
-                  </Button>
-                </div>
+                <Button className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white">
+                  <Edit className="h-4 w-4 mr-2" /> Edit Contact
+                </Button>
               </CardFooter>
             </Card>
           ) : (

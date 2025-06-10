@@ -1,87 +1,117 @@
 import { v4 as uuidv4 } from 'uuid';
 import { Contact, ContactCreateInput, ContactUpdateInput } from './types';
+import { isSupabaseConfigured } from '../supabase/client';
+import {
+  fetchContacts as fetchContactsFromDb,
+  fetchContactById as fetchContactByIdFromDb,
+  createContactInDb,
+  updateContactInDb,
+  deleteContactFromDb,
+  ensureContactsTable
+} from './supabase';
 
 // Cache contacts in memory to reduce API calls
 let contactsCache: Contact[] | null = null;
 
+// Mock data for fallback when Supabase is not configured
+const mockContacts: Contact[] = [
+  {
+    id: '1',
+    firstName: 'John',
+    lastName: 'Doe',
+    email: 'john.doe@example.com',
+    phone: '555-1234',
+    company: 'Acme Inc',
+    position: 'CEO',
+    personalityType: 'Analytical',
+    notes: 'Key decision maker',
+    lastContact: new Date().toISOString(),
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  },
+  {
+    id: '2',
+    firstName: 'Jane',
+    lastName: 'Smith',
+    email: 'jane.smith@example.com',
+    phone: '555-5678',
+    company: 'Tech Solutions',
+    position: 'CTO',
+    personalityType: 'Driver',
+    notes: 'Technical background',
+    lastContact: new Date().toISOString(),
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  },
+  {
+    id: '3',
+    firstName: 'Michael',
+    lastName: 'Johnson',
+    email: 'michael.j@example.com',
+    phone: '555-9012',
+    company: 'Global Corp',
+    position: 'Sales Director',
+    personalityType: 'Expressive',
+    notes: 'Prefers phone calls over emails',
+    lastContact: new Date().toISOString(),
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  }
+];
+
+// Initialize the contacts table when the module is loaded
+if (typeof window !== 'undefined' && isSupabaseConfigured()) {
+  ensureContactsTable().catch(error => {
+    console.error('Failed to initialize contacts table:', error);
+  });
+}
+
 /**
- * Load contacts from API or return mock data
+ * Load contacts from Supabase or fallback to mock data
  */
-export function loadContacts(): Contact[] {
+export async function loadContacts(): Promise<Contact[]> {
   // Return cached contacts if available
   if (contactsCache) {
     return contactsCache;
   }
   
-  // Use mock data instead of making an API call to avoid circular dependency
-  const mockContacts: Contact[] = [
-    {
-      id: '1',
-      firstName: 'John',
-      lastName: 'Doe',
-      email: 'john.doe@example.com',
-      phone: '555-1234',
-      company: 'Acme Inc',
-      position: 'CEO',
-      personalityType: 'Analytical',
-      notes: 'Key decision maker',
-      lastContact: new Date().toISOString(),
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    },
-    {
-      id: '2',
-      firstName: 'Jane',
-      lastName: 'Smith',
-      email: 'jane.smith@example.com',
-      phone: '555-5678',
-      company: 'Tech Solutions',
-      position: 'CTO',
-      personalityType: 'Driver',
-      notes: 'Technical background',
-      lastContact: new Date().toISOString(),
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    },
-    {
-      id: '3',
-      firstName: 'Michael',
-      lastName: 'Johnson',
-      email: 'michael.j@example.com',
-      phone: '555-9012',
-      company: 'Global Corp',
-      position: 'Sales Director',
-      personalityType: 'Expressive',
-      notes: 'Prefers phone calls over emails',
-      lastContact: new Date().toISOString(),
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+  // Check if Supabase is configured
+  if (isSupabaseConfigured()) {
+    try {
+      // Fetch contacts from Supabase
+      const contacts = await fetchContactsFromDb();
+      
+      // Update cache
+      contactsCache = contacts;
+      return contacts;
+    } catch (error) {
+      console.error('Error loading contacts from Supabase:', error);
+      // Fall back to mock data on error
+      contactsCache = [...mockContacts];
+      return [...mockContacts];
     }
-  ];
-  
-  // Update cache
-  contactsCache = mockContacts;
-  return mockContacts;
+  } else {
+    console.warn('Supabase not configured, using mock data');
+    // Use mock data if Supabase is not configured
+    contactsCache = [...mockContacts];
+    return [...mockContacts];
+  }
 }
 
 /**
- * Save contacts via API
+ * Save contacts to Supabase
+ * This is a bulk operation that's not currently used but kept for future use
  */
 async function saveContacts(contacts: Contact[]): Promise<boolean> {
+  // If Supabase is not configured, just update the cache
+  if (!isSupabaseConfigured()) {
+    contactsCache = contacts;
+    return true;
+  }
+  
   try {
-    const response = await fetch('/api/contacts/save', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(contacts),
-    });
-    
-    if (!response.ok) {
-      throw new Error('Failed to save contacts');
-    }
-    
-    // Update cache
+    // In a real implementation, we would use Supabase's upsert functionality
+    // For now, we'll just update the cache
     contactsCache = contacts;
     return true;
   } catch (error) {
@@ -91,106 +121,172 @@ async function saveContacts(contacts: Contact[]): Promise<boolean> {
 }
 
 /**
- * Create a new contact
+ * Create a new contact in Supabase or cache
  */
-export async function createContact(contactData: ContactCreateInput & { lastInteraction?: string }): Promise<Contact | null> {
-  try {
+export async function createContact(contactData: ContactCreateInput): Promise<Contact | null> {
+  // If Supabase is configured, create in database
+  if (isSupabaseConfigured()) {
+    try {
+      const newContact = await createContactInDb(contactData);
+      
+      // Update cache if contact was created successfully
+      if (newContact && contactsCache) {
+        contactsCache = [...contactsCache, newContact];
+      } else if (newContact) {
+        contactsCache = [newContact];
+      }
+      
+      return newContact;
+    } catch (error) {
+      console.error('Error creating contact:', error);
+      return null;
+    }
+  } else {
+    // Fall back to in-memory storage
     const contacts = await loadContacts();
     
-    // Check if contact with same email already exists
-    const existingContact = contacts.find((c: Contact) => c.email.toLowerCase() === contactData.email.toLowerCase());
+    // Check if contact with this email already exists
+    const existingContact = contacts.find(c => c.email === contactData.email);
     if (existingContact) {
-      console.warn(`Contact with email ${contactData.email} already exists`);
       return null;
     }
     
+    // Create new contact
     const newContact: Contact = {
       id: uuidv4(),
-      firstName: contactData.firstName,
-      lastName: contactData.lastName,
-      email: contactData.email,
-      company: contactData.company || '',
-      personalityType: contactData.personalityType || '',
-      personalityNotes: contactData.personalityNotes || '',
+      ...contactData,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      lastInteraction: contactData.lastInteraction || undefined
     };
     
-    contacts.push(newContact);
-    await saveContacts(contacts);
+    // Add to contacts list
+    const updatedContacts = [...contacts, newContact];
+    
+    // Update cache
+    contactsCache = updatedContacts;
     
     return newContact;
-  } catch (error) {
-    console.error('Error creating contact:', error);
-    return null;
   }
 }
 
 /**
- * Update an existing contact
+ * Update an existing contact in Supabase or cache
  */
 export async function updateContact(contactData: ContactUpdateInput): Promise<Contact | null> {
-  try {
+  // If Supabase is configured, update in database
+  if (isSupabaseConfigured()) {
+    try {
+      const updatedContact = await updateContactInDb(contactData);
+      
+      // Update cache if contact was updated successfully
+      if (updatedContact && contactsCache) {
+        const contactIndex = contactsCache.findIndex(c => c.id === contactData.id);
+        if (contactIndex !== -1) {
+          const updatedContacts = [...contactsCache];
+          updatedContacts[contactIndex] = updatedContact;
+          contactsCache = updatedContacts;
+        }
+      }
+      
+      return updatedContact;
+    } catch (error) {
+      console.error(`Error updating contact with ID ${contactData.id}:`, error);
+      return null;
+    }
+  } else {
+    // Fall back to in-memory storage
     const contacts = await loadContacts();
     
-    const index = contacts.findIndex((c: Contact) => c.id === contactData.id);
-    if (index === -1) {
-      console.warn(`Contact with id ${contactData.id} not found`);
+    // Find contact index
+    const contactIndex = contacts.findIndex(c => c.id === contactData.id);
+    if (contactIndex === -1) {
       return null;
     }
     
-    // Create updated contact by merging existing data with updates
+    // Update contact
     const updatedContact: Contact = {
-      ...contacts[index],
+      ...contacts[contactIndex],
       ...contactData,
-      updatedAt: new Date().toISOString()
+      updatedAt: new Date().toISOString(),
     };
     
-    // Replace the contact in the array
-    contacts[index] = updatedContact;
-    await saveContacts(contacts);
+    // Replace in contacts list
+    const updatedContacts = [...contacts];
+    updatedContacts[contactIndex] = updatedContact;
+    
+    // Update cache
+    contactsCache = updatedContacts;
     
     return updatedContact;
-  } catch (error) {
-    console.error('Error updating contact:', error);
-    return null;
   }
 }
 
 /**
- * Delete a contact by ID
+ * Delete a contact from Supabase or cache
  */
 export async function deleteContact(id: string): Promise<boolean> {
-  try {
+  // If Supabase is configured, delete from database
+  if (isSupabaseConfigured()) {
+    try {
+      const success = await deleteContactFromDb(id);
+      
+      // Update cache if contact was deleted successfully
+      if (success && contactsCache) {
+        const contactIndex = contactsCache.findIndex(c => c.id === id);
+        if (contactIndex !== -1) {
+          const updatedContacts = [...contactsCache];
+          updatedContacts.splice(contactIndex, 1);
+          contactsCache = updatedContacts;
+        }
+      }
+      
+      return success;
+    } catch (error) {
+      console.error(`Error deleting contact with ID ${id}:`, error);
+      return false;
+    }
+  } else {
+    // Fall back to in-memory storage
     const contacts = await loadContacts();
-    const filteredContacts = contacts.filter((c: Contact) => c.id !== id);
     
-    // If no contacts were removed, the ID didn't exist
-    if (filteredContacts.length === contacts.length) {
-      console.warn(`Contact with id ${id} not found for deletion`);
+    // Find contact index
+    const contactIndex = contacts.findIndex(c => c.id === id);
+    if (contactIndex === -1) {
       return false;
     }
     
-    await saveContacts(filteredContacts);
+    // Remove from contacts list
+    const updatedContacts = [...contacts];
+    updatedContacts.splice(contactIndex, 1);
+    
+    // Update cache
+    contactsCache = updatedContacts;
+    
     return true;
-  } catch (error) {
-    console.error('Error deleting contact:', error);
-    return false;
   }
 }
 
 /**
- * Get a contact by ID
+ * Get a contact by ID from Supabase or cache
  */
 export async function getContactById(id: string): Promise<Contact | null> {
-  try {
-    const contacts = await loadContacts();
-    const contact = contacts.find((c: Contact) => c.id === id);
-    return contact || null;
-  } catch (error) {
-    console.error('Error getting contact by ID:', error);
-    return null;
+  // Check cache first
+  if (contactsCache) {
+    const cachedContact = contactsCache.find(contact => contact.id === id);
+    if (cachedContact) return cachedContact;
+  }
+  
+  // If Supabase is configured, fetch from database
+  if (isSupabaseConfigured()) {
+    try {
+      return await fetchContactByIdFromDb(id);
+    } catch (error) {
+      console.error(`Error getting contact with ID ${id}:`, error);
+      return null;
+    }
+  } else {
+    // Fall back to mock data
+    return mockContacts.find(contact => contact.id === id) || null;
   }
 }
 
@@ -243,4 +339,18 @@ export async function updateContactLastInteraction(email: string): Promise<Conta
     console.error('Error updating contact last interaction:', error);
     return null;
   }
+}
+
+/**
+ * Check if the contacts module is using Supabase
+ */
+export function isUsingSupabase(): boolean {
+  return isSupabaseConfigured();
+}
+
+/**
+ * Clear contacts cache
+ */
+export function clearContactsCache(): void {
+  contactsCache = null;
 }
