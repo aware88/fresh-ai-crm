@@ -235,7 +235,7 @@ export default function EmailParser() {
                 <SelectTrigger id="supplier">
                   <SelectValue placeholder="Select a supplier" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="z-50 max-h-[300px] overflow-y-auto">
                   <SelectItem value="none">None</SelectItem>
                   {suppliers.map((supplier) => (
                     <SelectItem key={supplier.id} value={supplier.id}>

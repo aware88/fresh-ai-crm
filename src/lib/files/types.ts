@@ -15,8 +15,8 @@ export interface FileMetadata {
   contact_id?: string | null; // Optional association with a contact
   description?: string | null;
   tags?: string[] | null;
-  createdAt: string;
-  updatedAt: string;
+  createdat: string;
+  updatedat: string;
 }
 
 /**

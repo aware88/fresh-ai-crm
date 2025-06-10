@@ -18,13 +18,15 @@ export default function Home() {
               </div>
               <span className="font-bold text-2xl bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">AI CRM</span>
             </div>
-            <div className="hidden md:flex items-center gap-6">
-              <a href="#features" className="text-gray-600 hover:text-blue-600 transition-colors">Features</a>
+            <div className="hidden md:flex items-center gap-4">
               <a href="#science" className="text-gray-600 hover:text-blue-600 transition-colors">Science</a>
+              <a href="#features" className="text-gray-600 hover:text-blue-600 transition-colors">Features</a>
               <a href="#benefits" className="text-gray-600 hover:text-blue-600 transition-colors">Benefits</a>
-              <Link href="/suppliers" className="text-gray-600 hover:text-blue-600 transition-colors">Suppliers</Link>
-              <Link href="/dashboard">
-                <Button variant="outline" className="rounded-full px-4 border-blue-200 text-blue-600 hover:bg-blue-50">Dashboard</Button>
+              <Link href="/signin">
+                <Button variant="ghost" className="text-gray-600 hover:text-blue-600">Sign In</Button>
+              </Link>
+              <Link href="/signup">
+                <Button variant="outline" className="rounded-full px-4 border-blue-200 text-blue-600 hover:bg-blue-50">Sign Up</Button>
               </Link>
             </div>
           </div>
@@ -54,12 +56,17 @@ export default function Home() {
               </p>
               
               <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 pt-4">
-                <Link href="/dashboard" className="w-full sm:w-auto">
+                <Link href="/signup" className="w-full sm:w-auto">
                   <Button size="lg" className="w-full sm:w-auto text-lg py-6 px-10 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 transition-all duration-300 shadow-lg hover:shadow-xl">
-                    Try It Now
+                    Join Beta Access
                   </Button>
                 </Link>
-                <a href="#science" className="flex items-center gap-2 text-blue-600 hover:text-blue-700 transition-colors">
+                <Link href="/signin" className="flex items-center gap-2 text-blue-600 hover:text-blue-700 transition-colors">
+                  Already have an account? Sign In
+                </Link>
+              </div>
+              <div className="mt-4">
+                <a href="#science" className="flex items-center gap-2 text-gray-600 hover:text-blue-600 transition-colors">
                   <span>Learn how it works</span>
                   <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="m6 9 6 6 6-6"/>
@@ -267,12 +274,19 @@ export default function Home() {
         <div className="container mx-auto">
           <div className="max-w-4xl mx-auto bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl shadow-xl p-8 md:p-12 text-white text-center">
             <h2 className="text-3xl md:text-4xl font-bold mb-6">Ready to Upgrade Your Communication?</h2>
-            <p className="text-xl mb-8 opacity-90">Try our AI-powered CRM today and see the difference in your customer relationships.</p>
-            <Link href="/dashboard">
-              <Button size="lg" className="bg-white text-blue-600 hover:bg-blue-50 text-lg py-6 px-10 rounded-full transition-all duration-300 shadow-lg hover:shadow-xl">
-                Get Started Now
-              </Button>
-            </Link>
+            <p className="text-xl mb-8 opacity-90">Join our Beta Program and see the difference in your customer relationships.</p>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+              <Link href="/signup">
+                <Button size="lg" className="bg-white text-blue-600 hover:bg-blue-50 text-lg py-6 px-10 rounded-full transition-all duration-300 shadow-lg hover:shadow-xl">
+                  Join Beta Now
+                </Button>
+              </Link>
+              <Link href="/signin">
+                <Button size="lg" variant="outline" className="border-white text-white hover:bg-blue-700 text-lg py-6 px-10 rounded-full transition-all duration-300">
+                  Sign In
+                </Button>
+              </Link>
+            </div>
           </div>
         </div>
       </section>
@@ -292,14 +306,14 @@ export default function Home() {
               <span className="font-bold text-lg bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">AI CRM</span>
             </div>
             <div className="flex items-center gap-6">
-              <a href="#features" className="text-gray-600 hover:text-blue-600 transition-colors text-sm">Features</a>
               <a href="#science" className="text-gray-600 hover:text-blue-600 transition-colors text-sm">Science</a>
+              <a href="#features" className="text-gray-600 hover:text-blue-600 transition-colors text-sm">Features</a>
               <a href="#benefits" className="text-gray-600 hover:text-blue-600 transition-colors text-sm">Benefits</a>
-              <Link href="/suppliers" className="text-gray-600 hover:text-blue-600 transition-colors text-sm">
-                Suppliers
+              <Link href="/signin" className="text-gray-600 hover:text-blue-600 transition-colors text-sm">
+                Sign In
               </Link>
-              <Link href="/dashboard" className="text-gray-600 hover:text-blue-600 transition-colors text-sm">
-                Dashboard
+              <Link href="/signup" className="text-gray-600 hover:text-blue-600 transition-colors text-sm">
+                Join Beta
               </Link>
             </div>
           </div>
