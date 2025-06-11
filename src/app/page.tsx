@@ -5,31 +5,40 @@ export default function Home() {
   return (
     <div className="flex min-h-screen flex-col bg-gradient-to-b from-blue-50 via-white to-blue-50">
       {/* Enhanced Header */}
-      <header className="w-full py-6 border-b border-gray-100">
-        <div className="container px-4 md:px-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 flex items-center justify-center">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 2a10 10 0 0 1 10 10c0 6-10 10-10 10S2 18 2 12A10 10 0 0 1 12 2Z"></path>
-                  <path d="M12 12v4"></path>
-                  <path d="M12 8h.01"></path>
-                </svg>
-              </div>
-              <span className="font-bold text-2xl bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">AI CRM</span>
-            </div>
-            <div className="hidden md:flex items-center gap-4">
-              <a href="#science" className="text-gray-600 hover:text-blue-600 transition-colors">Science</a>
-              <a href="#features" className="text-gray-600 hover:text-blue-600 transition-colors">Features</a>
-              <a href="#benefits" className="text-gray-600 hover:text-blue-600 transition-colors">Benefits</a>
-              <Link href="/signin">
-                <Button variant="ghost" className="text-gray-600 hover:text-blue-600">Sign In</Button>
-              </Link>
-              <Link href="/signup">
-                <Button variant="outline" className="rounded-full px-4 border-blue-200 text-blue-600 hover:bg-blue-50">Sign Up</Button>
+      <header className="w-full py-4 md:py-6 border-b border-gray-100 bg-white sticky top-0 z-50">
+        <div className="container px-4 mx-auto max-w-7xl">
+          <nav className="flex items-center justify-between w-full">
+            <div className="flex items-center flex-shrink-0">
+              <Link href="/" className="flex items-center space-x-2">
+                <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 flex items-center justify-center flex-shrink-0">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 2a10 10 0 0 1 10 10c0 6-10 10-10 10S2 18 2 12A10 10 0 0 1 12 2Z"></path>
+                    <path d="M12 12v4"></path>
+                    <path d="M12 8h.01"></path>
+                  </svg>
+                </div>
+                <span className="font-bold text-xl md:text-2xl bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">AI CRM</span>
               </Link>
             </div>
-          </div>
+            
+            {/* Desktop Navigation */}
+            <div className="hidden md:flex items-center space-x-1 flex-grow justify-center">
+              <a href="#science" className="px-3 py-2 text-sm font-medium text-gray-600 hover:text-blue-600 transition-colors">Science</a>
+              <a href="#features" className="px-3 py-2 text-sm font-medium text-gray-600 hover:text-blue-600 transition-colors">Features</a>
+              <a href="#benefits" className="px-3 py-2 text-sm font-medium text-gray-600 hover:text-blue-600 transition-colors">Benefits</a>
+            </div>
+            
+            <div className="hidden md:flex items-center space-x-4">
+              <Link href="/signin" className="text-sm font-medium text-gray-600 hover:text-blue-600 px-3 py-2 whitespace-nowrap">
+                Sign In
+              </Link>
+              <Link href="/signup" className="whitespace-nowrap">
+                <Button className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-sm font-medium px-4 py-2 rounded-full transition-all duration-200">
+                  Get Started
+                </Button>
+              </Link>
+            </div>
+          </nav>
         </div>
       </header>
       
@@ -282,7 +291,7 @@ export default function Home() {
                 </Button>
               </Link>
               <Link href="/signin">
-                <Button size="lg" variant="outline" className="border-white text-white hover:bg-blue-700 text-lg py-6 px-10 rounded-full transition-all duration-300">
+                <Button size="lg" className="bg-white text-blue-600 hover:bg-blue-50 text-lg py-6 px-10 rounded-full transition-all duration-300 hover:scale-105">
                   Sign In
                 </Button>
               </Link>
