@@ -2,17 +2,26 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Mail, Building2, BarChart3, Settings, FileText, Users, Brain } from 'lucide-react';
+import { Bell, User, Brain } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
 
-export function Navigation() {
+interface NavigationProps {
+  className?: string;
+}
+
+export function Navigation({ className = '' }: NavigationProps) {
   const pathname = usePathname();
   const [logoPath, setLogoPath] = useState<string | null>(null);
   const [companyName, setCompanyName] = useState<string | null>(null);
   
+  // Check if we're in a browser environment
+  const isBrowser = typeof window !== 'undefined';
+  
   // Function to load logo and company name from localStorage or API
   const loadLogoAndCompanyName = () => {
+    if (!isBrowser) return;
+    
     // Check for logo in localStorage
     const savedLogo = localStorage.getItem('companyLogo');
     if (savedLogo) {
@@ -48,6 +57,8 @@ export function Navigation() {
   
   // Listen for storage events (when localStorage is updated in another tab/component)
   useEffect(() => {
+    if (!isBrowser) return;
+    
     // Initial load
     loadLogoAndCompanyName();
     
@@ -62,146 +73,84 @@ export function Navigation() {
     window.addEventListener('storage', handleStorageChange);
     
     // Add event listener for our custom event
-    window.addEventListener('localStorageUpdated', loadLogoAndCompanyName);
+    window.addEventListener('localStorageUpdated', loadLogoAndCompanyName as EventListener);
     
     // Cleanup
     return () => {
       window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener('localStorageUpdated', loadLogoAndCompanyName);
+      window.removeEventListener('localStorageUpdated', loadLogoAndCompanyName as EventListener);
     };
-  }, []);
+  }, [isBrowser]);
   
-  const isActive = (path: string) => {
-    return pathname === path || (pathname && pathname.startsWith(`${path}/`));
-  };
-  
-  const navItems = [
-    { name: 'Dashboard', href: '/dashboard', icon: Home },
-    { name: 'Contacts', href: '/dashboard/contacts', icon: Users },
-    { name: 'Files', href: '/dashboard/files', icon: FileText },
-    { name: 'Email Analysis', href: '/dashboard/email', icon: Mail },
-    { name: 'AI Assistant', href: '/dashboard/assistant', icon: Brain },
-    { name: 'Analytics', href: '/dashboard/analytics', icon: BarChart3 },
-    { name: 'Settings', href: '/dashboard/settings', icon: Settings },
-  ];
-  
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+
   return (
-    <nav className="bg-white shadow-sm border-b">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between h-16">
-          <div className="flex">
-            <div className="flex-shrink-0 flex items-center">
-              <Link href="/" className="flex items-center">
-                <div className="h-10 w-auto mr-2 relative">
-                  {logoPath ? (
-                    <img 
-                      src={logoPath} 
-                      alt="Company Logo" 
-                      className="h-full w-auto object-contain"
-                    />
-                  ) : (
-                    <div className="flex items-center">
-                      <Brain className="h-6 w-6 text-blue-600 mr-2" />
-                      <span className="text-2xl font-bold text-blue-600">AI CRM</span>
-                    </div>
-                  )}
-                </div>
-                {companyName && (
-                  <span className="text-lg font-semibold text-gray-800 ml-2">{companyName}</span>
-                )}
-              </Link>
-            </div>
-            <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
-              {navItems.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${
-                    isActive(item.href)
-                      ? 'border-blue-500 text-gray-900'
-                      : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
-                  }`}
-                >
-                  <item.icon className="mr-2 h-4 w-4" />
-                  {item.name}
-                </Link>
-              ))}
-            </div>
-          </div>
-          <div className="hidden sm:ml-6 sm:flex sm:items-center">
-            <Link
-              href="/signin"
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-            >
-              Sign In
-            </Link>
-            <div className="ml-3 relative">
-              <div>
-                <button
-                  type="button"
-                  className="bg-white rounded-full flex text-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                  id="user-menu"
-                  aria-expanded="false"
-                  aria-haspopup="true"
-                >
-                  <span className="sr-only">Open user menu</span>
-                  <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-semibold">
-                    U
-                  </div>
-                </button>
-              </div>
-            </div>
-          </div>
-          <div className="-mr-2 flex items-center sm:hidden">
-            <button
-              type="button"
-              className="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500"
-              aria-expanded="false"
-            >
-              <span className="sr-only">Open main menu</span>
-              <svg
-                className="block h-6 w-6"
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                aria-hidden="true"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M4 6h16M4 12h16M4 18h16"
+    <nav className={`bg-white shadow-sm border-b h-16 flex items-center px-4 sm:px-6 ${className}`}>
+      <div className="flex items-center justify-between w-full">
+        <div className="flex items-center">
+          <Link href="/dashboard" className="flex items-center">
+            <div className="h-8 w-auto mr-2 relative">
+              {logoPath ? (
+                <img 
+                  src={logoPath} 
+                  alt="Company Logo" 
+                  className="h-full w-auto object-contain"
                 />
-              </svg>
-            </button>
-          </div>
+              ) : (
+                <div className="flex items-center">
+                  <Brain className="h-6 w-6 text-blue-600 mr-2" />
+                  <span className="text-xl font-bold text-blue-600">AI CRM</span>
+                </div>
+              )}
+            </div>
+            {companyName && (
+              <span className="ml-2 text-base font-medium text-gray-900">
+                {companyName}
+              </span>
+            )}
+          </Link>
         </div>
-      </div>
-      
-      {/* Mobile menu, show/hide based on menu state */}
-      <div className="sm:hidden">
-        <div className="pt-2 pb-3 space-y-1">
-          {navItems.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`${
-                isActive(item.href)
-                  ? 'bg-blue-50 border-blue-500 text-blue-700'
-                  : 'border-transparent text-gray-600 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-800'
-              } block pl-3 pr-4 py-2 border-l-4 text-base font-medium`}
+        <div className="flex items-center space-x-4">
+          <button 
+            type="button" 
+            className="p-2 rounded-full hover:bg-gray-100 relative"
+            aria-label="Notifications"
+          >
+            <Bell className="h-5 w-5 text-gray-600" />
+            <span className="absolute top-2 right-2 h-2 w-2 bg-red-500 rounded-full"></span>
+          </button>
+          
+          <div className="relative">
+            <button 
+              type="button" 
+              className="p-1 rounded-full hover:bg-gray-100"
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+              aria-expanded={isMenuOpen}
+              aria-label="User menu"
             >
-              <div className="flex items-center">
-                <item.icon className="mr-3 h-5 w-5" />
-                {item.name}
+              <div className="h-8 w-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-sm">
+                <User className="h-4 w-4" />
               </div>
-            </Link>
-          ))}
+            </button>
+            
+            {isMenuOpen && (
+              <div className="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5">
+                <div className="py-1">
+                  <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                    Profile
+                  </a>
+                  <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                    Settings
+                  </a>
+                  <a href="#" className="block px-4 py-2 text-sm text-red-600 hover:bg-gray-100">
+                    Sign out
+                  </a>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </nav>
   );
 }
-
-export default Navigation;

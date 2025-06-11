@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -265,7 +267,7 @@ export function FilesList({ contactId, showUploader = true }: FilesListProps) {
                             <span>{formatFileSize(file.size)}</span>
                             <span>•</span>
                             <span>
-                              {formatDistanceToNow(new Date(file.createdAt), { addSuffix: true })}
+                              {formatDistanceToNow(new Date(file.createdat), { addSuffix: true })}
                             </span>
                           </div>
                           {file.description && (

@@ -2,6 +2,9 @@ import React from 'react';
 import { UserIdentitySettings } from '@/components/settings/UserIdentitySettings';
 import { UnifiedDataUploader } from '@/components/settings/UnifiedDataUploader';
 import { LogoUploader } from '@/components/settings/LogoUploader';
+import { FilesSection } from '@/components/settings/FilesSection';
+import { FilesList } from '@/components/files/FilesList';
+import { FileText } from 'lucide-react';
 
 export default function SettingsPage() {
   return (
@@ -18,27 +21,44 @@ export default function SettingsPage() {
       <div className="mb-8">
         <h2 className="text-2xl font-semibold mb-4 text-gray-800">User Information</h2>
         <div className="grid gap-6 md:grid-cols-1">
-        {/* User Identity Settings */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-xl font-semibold mb-4">User Identity</h2>
-          <p className="text-gray-600 mb-4">
-            Set your identity details to help the AI distinguish between your emails and customer emails in conversation threads.
-            This helps the AI focus on analyzing only the customer's communication style.
-          </p>
-          
-          <UserIdentitySettings />
-        </div>
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-xl font-semibold mb-4">User Identity</h2>
+            <p className="text-gray-600 mb-4">
+              Set your identity details to help the AI distinguish between your emails and customer emails in conversation threads.
+              This helps the AI focus on analyzing only the customer's communication style.
+            </p>
+            <UserIdentitySettings />
+          </div>
         </div>
       </div>
       
-      <div className="mb-6">
+      <div className="mb-8">
         <h2 className="text-2xl font-semibold mb-4 text-gray-800">Data Management</h2>
         <p className="text-gray-600 mb-6">
           Upload and manage your data in various formats. The AI will use all available data sources when analyzing emails.
           Choose the format that works best for your needs.
         </p>
-        
         <UnifiedDataUploader />
+      </div>
+
+      <div className="mb-6">
+        <h2 className="text-2xl font-semibold mb-4 text-gray-800">File Management</h2>
+        <p className="text-gray-600 mb-4">
+          Upload, organize, and manage your files
+        </p>
+        
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="text-lg font-semibold flex items-center">
+              <FileText className="h-5 w-5 mr-2" />
+              Files
+            </h3>
+            <FilesSection />
+          </div>
+          <div className="border rounded-lg p-4">
+            <FilesList showUploader={false} />
+          </div>
+        </div>
       </div>
     </div>
   );
