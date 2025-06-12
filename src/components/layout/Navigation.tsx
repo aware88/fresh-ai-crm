@@ -99,7 +99,7 @@ export function Navigation({ className = '' }: NavigationProps) {
               ) : (
                 <div className="flex items-center">
                   <Brain className="h-6 w-6 text-blue-600 mr-2" />
-                  <span className="text-xl font-bold text-blue-600">AI CRM</span>
+                  <span className="text-xl font-bold text-blue-600">CRM Mind</span>
                 </div>
               )}
             </div>

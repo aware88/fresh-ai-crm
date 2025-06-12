@@ -12,7 +12,14 @@ import {
   BarChart,
   Brain,
   Package,
-  Search
+  Search,
+  Warehouse,
+  Package2,
+  PackageOpen,
+  Boxes,
+  ShoppingCart,
+  Receipt,
+  CreditCard
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
@@ -31,14 +38,24 @@ export function Sidebar({ className }: SidebarProps) {
       icon: <LayoutDashboard className="h-5 w-5" />,
     },
     {
-      title: "Email Analysis",
-      href: "/dashboard/email",
-      icon: <Mail className="h-5 w-5" />,
+      title: "Inventory",
+      href: "/dashboard/inventory/products",
+      icon: <Package2 className="h-5 w-5" />,
+    },
+    {
+      title: "Sales",
+      href: "/dashboard/sales/orders",
+      icon: <ShoppingCart className="h-5 w-5" />,
     },
     {
       title: "Supplier Management",
       href: "/dashboard/suppliers",
       icon: <Package className="h-5 w-5" />,
+    },
+    {
+      title: "Email Analysis",
+      href: "/dashboard/email",
+      icon: <Mail className="h-5 w-5" />,
     },
     {
       title: "AI Assistant",
@@ -78,7 +95,7 @@ export function Sidebar({ className }: SidebarProps) {
             <Brain className="h-6 w-6 text-white" />
           </div>
           <h2 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-            AI CRM
+            CRM Mind
           </h2>
         </div>
         <p className="text-xs text-gray-500 mt-1 ml-1">AI-powered customer insights</p>

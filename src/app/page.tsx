@@ -17,7 +17,7 @@ export default function Home() {
                     <path d="M12 8h.01"></path>
                   </svg>
                 </div>
-                <span className="font-bold text-xl md:text-2xl bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">AI CRM</span>
+                <span className="font-bold text-xl md:text-2xl bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">CRM Mind</span>
               </Link>
             </div>
             
@@ -312,7 +312,7 @@ export default function Home() {
                   <path d="M12 8h.01"></path>
                 </svg>
               </div>
-              <span className="font-bold text-lg bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">AI CRM</span>
+              <span className="font-bold text-lg bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">CRM Mind</span>
             </div>
             <div className="flex items-center gap-6">
               <a href="#science" className="text-gray-600 hover:text-blue-600 transition-colors text-sm">Science</a>
@@ -327,7 +327,7 @@ export default function Home() {
             </div>
           </div>
           <div className="mt-6 text-center text-gray-500 text-sm">
-            <p>&copy; {new Date().getFullYear()} AI CRM. All rights reserved.</p>
+            <p>&copy; {new Date().getFullYear()} CRM Mind. All rights reserved.</p>
           </div>
         </div>
       </footer>

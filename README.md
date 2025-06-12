@@ -1,6 +1,6 @@
-# AI CRM Application
+# CRM Mind
 
-A minimal Next.js 15 CRM application with AI-powered email analysis using OpenAI and Supabase integration.
+A powerful AI-driven CRM platform that helps you understand and manage customer relationships with intelligent insights and automation.
 
 ## Features
 
