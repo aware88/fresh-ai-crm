@@ -1,37 +1,51 @@
+/**
+ * OpenAI API Client Module
+ * 
+ * This module provides a singleton OpenAI client and utility functions for interacting with
+ * OpenAI's API, including content analysis for emails and URLs.
+ * 
+ * @module lib/openai/client
+ */
+
 import OpenAI from 'openai';
 import { getLimitedFormattedDataForPrompt, getAllFormattedDataForPrompt } from '../personality/flexible-data';
 import axios from 'axios';
 import * as cheerio from 'cheerio';
 
+// Singleton instance of the OpenAI client
 let openAIClient: OpenAI | null = null;
 
-export const getOpenAIClient = () => {
-  // Create a singleton instance
+/**
+ * Gets or creates a singleton instance of the OpenAI client
+ * @returns {OpenAI} Configured OpenAI client instance
+ * @throws {Error} If OPENAI_API_KEY is not set in environment variables
+ */
+export const getOpenAIClient = (): OpenAI => {
   if (!openAIClient) {
     const apiKey = process.env.OPENAI_API_KEY;
     
     if (!apiKey) {
-      throw new Error('Missing OpenAI API key');
+      throw new Error('Missing OPENAI_API_KEY environment variable');
     }
     
     openAIClient = new OpenAI({
       apiKey,
+      // Add any default configuration here
     });
   }
   
   return openAIClient;
 };
 
-// We now use the flexible data handler from flexible-data.ts
-
-// Function to load user identity if available
-const loadUserIdentity = () => {
+/**
+ * Loads user identity information from environment variables
+ * @returns {Object|null} User identity object or null if not available
+ * @private
+ */
+const loadUserIdentity = (): Record<string, unknown> | null => {
   try {
-    // In Next.js, we should use environment variables or API routes instead of direct filesystem access
-    // For now, return a default identity or null
-    // In a real app, this would fetch from an API endpoint or database
-    
-    // Check if we're on the server side
+    // In a production environment, this would typically fetch from a secure source
+    // like a database or API endpoint. For now, we use environment variables.
     if (typeof window === 'undefined' && process.env.USER_IDENTITY) {
       return JSON.parse(process.env.USER_IDENTITY);
     }

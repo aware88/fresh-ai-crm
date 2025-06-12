@@ -2,51 +2,63 @@
 
 A powerful AI-driven CRM platform that helps you understand and manage customer relationships with intelligent insights and automation.
 
-## Features
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Next.js](https://img.shields.io/badge/Next.js-13+-black?style=flat&logo=next.js&logoColor=white)](https://nextjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-4.9+-3178C6?style=flat&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![OpenAI](https://img.shields.io/badge/OpenAI-412991?style=flat&logo=openai&logoColor=white)](https://openai.com/)
 
-- 🚀 Built with Next.js 15 and TypeScript
-- 🎨 Modern UI with Tailwind CSS
-- 🤖 AI-powered email analysis using OpenAI API
-- 🧠 Custom AI Assistant for dispute resolution and more
-- 🗄️ Supabase integration for data storage
-- 📱 Responsive design for all devices
-- 🏢 Custom company branding options
+## ✨ Features
 
-## Getting Started
+- 🚀 **Modern Stack**: Built with Next.js 15, TypeScript, and Tailwind CSS
+- 🤖 **AI-Powered Insights**: Leverage OpenAI's GPT models for email analysis and customer insights
+- 🔒 **Secure & Protected**: Built-in rate limiting and API usage controls
+- 🛠 **Developer Friendly**: Well-documented codebase with TypeScript support
+- 📱 **Responsive Design**: Works seamlessly across all device sizes
+- 🏢 **Custom Branding**: Easy theming and customization options
+- 📊 **Data Management**: Integrated with Supabase for reliable data storage
+
+## 🚀 Getting Started
 
 ### Prerequisites
 
 - Node.js 18.17 or later
-- OpenAI API key
-- Supabase project and credentials
+- [OpenAI API key](https://platform.openai.com/account/api-keys)
+- [Supabase](https://supabase.com/) project (for database and authentication)
 
-### Environment Setup
+### ⚙️ Environment Setup
 
-Create a `.env.local` file in the root directory with the following variables:
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/yourusername/crm-mind.git
+   cd crm-mind
+   ```
 
-```
-# Supabase Configuration
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+2. Install dependencies:
+   ```bash
+   npm install
+   # or
+   yarn install
+   # or
+   pnpm install
+   ```
 
-# OpenAI Configuration (Required for Email Analysis and AI Assistant)
-OPENAI_API_KEY=your_openai_api_key
+3. Create a `.env.local` file in the root directory with the following variables:
 
-# Optional: Set a higher token limit for complex AI Assistant prompts
-# OPENAI_MAX_TOKENS=2000
-```
+   ```env
+   # Supabase Configuration (Required)
+   NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 
-### Installation
+   # OpenAI Configuration (Required for AI features)
+   OPENAI_API_KEY=your_openai_api_key
 
-```bash
-npm install
-# or
-yarn install
-# or
-pnpm install
-```
+   # Optional Configuration
+   OPENAI_MAX_TOKENS=1000  # Default: 1000
+   RATE_LIMIT_REQUESTS=5   # Max requests per time window (default: 5)
+   RATE_LIMIT_WINDOW=10     # Time window in seconds (default: 10s)
+   ```
 
-### Running the Development Server
+## 🏃‍♂️ Running the Development Server
 
 ```bash
 npm run dev
@@ -78,13 +90,107 @@ The email analysis feature uses OpenAI's GPT-4o model to extract insights from c
 
 ## AI Assistant
 
-The AI Assistant feature provides a flexible interface for getting AI-powered help with various business tasks:
+## 🔄 API Endpoints
 
-- **Multiple Templates**: Choose from general assistance, dispute resolution, email drafting, or data analysis templates
-- **Customer Data Integration**: For dispute resolution, include relevant customer context from your CRM
-- **Markdown Formatting**: Responses are formatted with proper headings, lists, and code blocks for readability
-- **Copy to Clipboard**: Easily copy AI responses for use in emails, documents, or other applications
-- **Custom Prompts**: Enter any prompt to get tailored assistance for your specific business needs
+### Email Analysis
+- **Endpoint**: `POST /api/analyze-email`
+- **Description**: Analyzes email content using OpenAI's GPT-4o model
+- **Rate Limit**: 5 requests per 10 seconds per IP
+- **Request Body**:
+  ```json
+  {
+    "emailContent": "The full text content of the email to analyze"
+  }
+  ```
+- **Response Headers**:
+  - `X-RateLimit-Limit`: Maximum requests allowed in the time window
+  - `X-RateLimit-Remaining`: Remaining requests in the current window
+  - `X-RateLimit-Reset`: Seconds until the rate limit resets
+
+### Custom AI Prompt
+- **Endpoint**: `POST /api/custom-prompt`
+- **Description**: Processes a custom prompt using OpenAI
+- **Rate Limit**: 5 requests per 10 seconds per IP
+- **Request Body**:
+  ```json
+  {
+    "prompt": "Your custom prompt here"
+  }
+  ```
+
+## ⚠️ Rate Limiting
+
+The application implements in-memory rate limiting to prevent abuse and control API costs:
+
+- **Default Limit**: 5 requests per 10 seconds per IP address
+- **Response Headers**: Each response includes rate limit information
+- **Exceeded Limit**: Returns HTTP 429 (Too Many Requests) with a `Retry-After` header
+
+To customize rate limiting, set these environment variables:
+- `RATE_LIMIT_REQUESTS`: Maximum requests per window (default: 5)
+- `RATE_LIMIT_WINDOW`: Time window in seconds (default: 10)
+
+## 🔒 Environment Variables
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `NEXT_PUBLIC_SUPABASE_URL` | ✅ | Your Supabase project URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | ✅ | Your Supabase anon/public key |
+| `OPENAI_API_KEY` | ✅ | Your OpenAI API key |
+| `OPENAI_MAX_TOKENS` | ❌ | Max tokens for responses (default: 1000) |
+| `RATE_LIMIT_REQUESTS` | ❌ | Max requests per time window (default: 5) |
+| `RATE_LIMIT_WINDOW` | ❌ | Time window in seconds (default: 10) |
+
+## 🛡️ Security Considerations
+
+1. **API Keys**: Never commit your `.env.local` file to version control
+2. **Rate Limiting**: Keep rate limits in place to prevent abuse
+3. **Input Validation**: All API endpoints validate input to prevent injection attacks
+4. **Error Handling**: Sensitive error details are not exposed to clients in production
+
+## 📚 Development
+
+### Code Style
+- TypeScript for type safety
+- ESLint and Prettier for code quality
+- JSDoc comments for complex functions
+
+### Testing
+```bash
+# Run tests
+npm test
+
+# Run in watch mode
+npm test -- --watch
+```
+
+### Building for Production
+```bash
+# Build the application
+npm run build
+
+# Start production server
+npm start
+```
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- [Next.js](https://nextjs.org/) - The React Framework
+- [OpenAI](https://openai.com/) - For their powerful AI models
+- [Supabase](https://supabase.com/) - For the open source Firebase alternative
+- [Tailwind CSS](https://tailwindcss.com/) - For utility-first CSS
 
 ## Deployment
 
