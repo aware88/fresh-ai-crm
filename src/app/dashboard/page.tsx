@@ -1,9 +1,10 @@
 'use client';
 
+import { useState, useEffect, useRef } from 'react';
+import Link from 'next/link';
 import { Card, CardContent } from "@/components/ui/card";
-import Link from "next/link";
-import { Mail, Users, BarChart3, Sparkles, Building2, ShoppingBag, Activity, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Mail, Users, BarChart3, Sparkles, Building2, ShoppingBag, Activity, ChevronRight } from "lucide-react";
 
 interface FeatureCardProps {
   title: string;
@@ -18,6 +19,10 @@ interface FeatureCardProps {
   comingSoon?: boolean;
 }
 
+interface FeatureCardPropsWithRef extends Omit<FeatureCardProps, 'onRef'> {
+  onRef?: (el: HTMLDivElement | null) => void;
+}
+
 const FeatureCard = ({ 
   title, 
   description, 
@@ -28,27 +33,35 @@ const FeatureCard = ({
   gradientTo,
   href,
   disabled = false,
-  comingSoon = false
-}: FeatureCardProps) => {
+  comingSoon = false,
+  onRef
+}: FeatureCardPropsWithRef) => {
   if (disabled) {
     return (
       <div className="h-full">
-        <Card className="h-full border border-gray-100 bg-white/60 shadow-sm">
-          <div className="absolute top-2 right-2 z-20">
-            <span className="bg-white/95 px-2 py-0.5 rounded-full text-xs font-medium text-gray-500 shadow-sm border border-gray-200">
+        <Card className="h-full border border-gray-100/50 bg-white/40 backdrop-blur-sm shadow-sm hover:shadow-md transition-all duration-300 rounded-xl overflow-hidden hover:border-transparent hover:ring-1 hover:ring-gray-200/50">
+          <div className="absolute top-3 right-3 z-20">
+            <span className="bg-white/80 backdrop-blur-sm px-2.5 py-1 rounded-full text-xs font-medium text-gray-500 shadow-sm border border-gray-200/50">
               Coming Soon
             </span>
           </div>
           <CardContent className="p-6">
-            <div className="flex items-start">
-              <div className={`p-3 rounded-xl ${iconBg.replace('100', '50')} ${iconColor.replace('600', '400')} mb-4`}>
-                <Icon className="h-5 w-5" />
+            <div className="flex flex-col h-full">
+              <div className="flex items-start">
+                <div className={`p-3 rounded-xl backdrop-blur-sm bg-gradient-to-br from-white/30 to-white/10 ${iconBg.replace('100', '50')} ${iconColor.replace('600', '400')} mb-5 transition-transform duration-300 group-hover:scale-105`}>
+                  <Icon className="h-5 w-5" />
+                </div>
               </div>
-            </div>
-            <h3 className="text-lg font-semibold text-gray-400 mb-2">{title}</h3>
-            <p className="text-gray-400/80 text-sm">{description}</p>
-            <div className="mt-4 flex items-center text-sm font-medium text-gray-400/70">
-              Coming Soon
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-gray-700 mb-2">{title}</h3>
+                <p className="text-gray-500 text-sm leading-relaxed">{description}</p>
+              </div>
+              <div className="mt-6 pt-4 border-t border-gray-100/50">
+                <span className="inline-flex items-center text-sm font-medium text-gray-400">
+                  Coming soon
+                  <ChevronRight className="ml-1 h-4 w-4" />
+                </span>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -57,28 +70,46 @@ const FeatureCard = ({
   }
 
   return (
-    <div className="h-full group">
+    <div className="h-full group" ref={onRef} data-card-hover>
       <Link 
         href={href}
-        className="block h-full no-underline group"
+        className="block h-full no-underline"
         onClick={(e) => e.stopPropagation()}
       >
-        <Card className="h-full border border-gray-100 bg-white shadow-sm transition-all duration-300 overflow-hidden hover:shadow-md group-hover:border-transparent group-hover:ring-2 group-hover:ring-opacity-50 group-hover:ring-blue-500">
+        <Card className="h-full border border-gray-100/50 bg-white/60 backdrop-blur-sm shadow-sm hover:shadow-md transition-all duration-300 rounded-xl overflow-hidden hover:border-transparent hover:ring-1 hover:ring-blue-100/50">
+          {/* Animated gradient background on hover */}
           <div 
-            className="absolute inset-0 bg-gradient-to-br opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" 
-            style={{ background: `linear-gradient(135deg, ${gradientFrom}10 0%, ${gradientTo}10 100%)` }} 
+            className="absolute inset-0 bg-gradient-to-br opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" 
+            style={{ 
+              background: `radial-gradient(circle at var(--mouse-x, 50%) var(--mouse-y, 50%), ${gradientFrom}08 0%, ${gradientTo}08 70%, transparent 150%)`,
+              transition: 'opacity 0.5s ease, background 0.3s ease'
+            }}
           />
+          
+          {/* Subtle shine effect on hover */}
+          <div className="absolute inset-0 bg-gradient-to-r from-white/30 via-white/0 to-white/30 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+          
           <CardContent className="p-6 relative z-10">
-            <div className="flex items-start">
-              <div className={`p-3 rounded-xl ${iconBg} ${iconColor} mb-4`}>
-                <Icon className="h-5 w-5" />
+            <div className="flex flex-col h-full">
+              <div className="flex items-start">
+                <div 
+                  className={`p-3 rounded-xl backdrop-blur-sm bg-gradient-to-br from-white/30 to-white/10 ${iconBg} ${iconColor} mb-5 transition-all duration-300 group-hover:scale-110 group-hover:shadow-md`}
+                >
+                  <Icon className="h-5 w-5" />
+                </div>
               </div>
-            </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">{title}</h3>
-            <p className="text-gray-600 text-sm">{description}</p>
-            <div className="mt-4 flex items-center text-sm font-medium text-blue-600 group-hover:text-blue-700 transition-colors">
-              Get started
-              <ChevronRight className="ml-1 h-4 w-4 transition-transform group-hover:translate-x-1" />
+              
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-gray-800 mb-2 group-hover:text-gray-900 transition-colors">{title}</h3>
+                <p className="text-gray-600 text-sm leading-relaxed group-hover:text-gray-700 transition-colors">{description}</p>
+              </div>
+              
+              <div className="mt-6 pt-4 border-t border-gray-100/50 group-hover:border-gray-200 transition-colors">
+                <span className="inline-flex items-center text-sm font-medium text-blue-600 group-hover:text-blue-700 transition-colors">
+                  Get started
+                  <ChevronRight className="ml-1.5 h-4 w-4 transition-transform group-hover:translate-x-1" />
+                </span>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -88,7 +119,46 @@ const FeatureCard = ({
 };
 
 export default function DashboardPage() {
-  // Removed handlePageClick as it's now handled in the layout
+  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+  const cardsRef = useRef<HTMLDivElement[]>([]);
+
+  // Handle mouse move for card hover effects
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      // Only update if we have cards
+      if (cardsRef.current.length === 0) return;
+      
+      // Find the card under the cursor
+      const card = document.elementFromPoint(e.clientX, e.clientY)?.closest('[data-card-hover]');
+      if (!card) return;
+      
+      // Get the card's position and dimensions
+      const rect = card.getBoundingClientRect();
+      
+      // Calculate mouse position relative to the card (0-1)
+      const x = ((e.clientX - rect.left) / rect.width) * 100;
+      const y = ((e.clientY - rect.top) / rect.height) * 100;
+      
+      // Update the card's CSS variables
+      (card as HTMLElement).style.setProperty('--mouse-x', `${x}%`);
+      (card as HTMLElement).style.setProperty('--mouse-y', `${y}%`);
+    };
+    
+    // Add event listener
+    window.addEventListener('mousemove', handleMouseMove);
+    
+    // Cleanup
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+    };
+  }, []);
+  
+  // Add a card to the refs array
+  const addToRefs = (el: HTMLDivElement | null) => {
+    if (el && !cardsRef.current.includes(el)) {
+      cardsRef.current.push(el);
+    }
+  };
 
   const features: FeatureCardProps[] = [
     {
@@ -196,9 +266,11 @@ export default function DashboardPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {features.map((feature, index) => (
-            <div key={index} className="h-full">
-              <FeatureCard {...feature} />
-            </div>
+            <FeatureCard 
+              key={feature.title} 
+              {...feature} 
+              onRef={addToRefs}
+            />
           ))}
         </div>
       </div>
