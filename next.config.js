@@ -23,17 +23,16 @@ const nextConfig = {
   },
   
   // Configure for Netlify
-  output: 'standalone',
+  output: 'export',  // Use export instead of standalone to avoid prerendering
   trailingSlash: true,
   
   // Disable static generation completely
-  staticPageGenerationTimeout: 0,
-  
-  // Runtime configuration
-  runtime: 'nodejs',
+  staticPageGenerationTimeout: 1,
+  distDir: '.next',
   
   // Disable static optimization
   poweredByHeader: false,
+  generateEtags: false,
   
   // Skip trailing slash redirect
   skipTrailingSlashRedirect: true,
@@ -41,6 +40,17 @@ const nextConfig = {
   // Configure images for Netlify
   images: {
     unoptimized: true,
+  },
+  
+  // Webpack configuration to handle dynamic imports
+  webpack: (config, { isServer }) => {
+    // Ignore critical dependency warnings
+    config.ignoreWarnings = [
+      { module: /node_modules\/@supabase\/realtime-js/ },
+      { message: /Critical dependency: the request of a dependency is an expression/ }
+    ];
+    
+    return config;
   },
 
   /**
