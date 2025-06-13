@@ -26,13 +26,17 @@ const nextConfig = {
   output: 'standalone',
   trailingSlash: true,
   
-  // Enable server components
+  // Disable prerendering to avoid Chakra UI compatibility issues
   experimental: {
-    serverComponents: true,
-    serverActions: true,
     forceSwcTransforms: true,
-    skipTrailingSlashRedirect: true,
+    isrMemoryCacheSize: 0,
   },
+  
+  // Disable static optimization
+  poweredByHeader: false,
+  
+  // Skip trailing slash redirect
+  skipTrailingSlashRedirect: true,
   
   // Configure images for Netlify
   images: {

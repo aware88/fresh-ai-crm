@@ -1,25 +1,22 @@
 import React from 'react';
-import { Box, Container, Heading, SimpleGrid, Text, VStack } from '@chakra-ui/react';
 import LogoUploader from '../../components/settings/LogoUploader';
 import CompanyWebsiteScanner from '../../components/settings/CompanyWebsiteScanner';
 
 const SettingsPage: React.FC = () => {
   return (
-    <Container maxW="container.xl" py={8}>
-      <VStack gap={8} align="stretch">
-        <Box>
-          <Heading mb={2}>Settings</Heading>
-          <Text color="gray.600">
-            Customize your AI CRM system settings
-          </Text>
-        </Box>
+    <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '32px' }}>
+      <div style={{ marginBottom: '32px' }}>
+        <h1>Settings</h1>
+        <p style={{ color: '#666' }}>
+          Customize your AI CRM system settings
+        </p>
+      </div>
 
-        <SimpleGrid columns={{ base: 1, md: 1 }} gap={8}>
-          <LogoUploader />
-          <CompanyWebsiteScanner />
-        </SimpleGrid>
-      </VStack>
-    </Container>
+      <div style={{ display: 'grid', gap: '32px' }}>
+        <LogoUploader />
+        <CompanyWebsiteScanner />
+      </div>
+    </div>
   );
 };
 

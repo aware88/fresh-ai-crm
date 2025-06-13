@@ -4,19 +4,10 @@ import {
   Box,
   Container,
   Heading,
-  Tabs,
-  TabList,
-  TabPanels,
-  Tab,
-  TabPanel,
   Flex,
   Spinner,
   Text,
-  Badge,
-  VStack,
-  HStack,
-  Avatar,
-  Divider
+  Badge
 } from '@chakra-ui/react';
 import { getContactById } from '../../lib/contacts/data';
 import { Contact } from '../../lib/contacts/types';
@@ -79,15 +70,14 @@ export default function ContactProfile() {
     <Container maxW="container.xl" py={10}>
       <Box mb={8}>
         <Flex align="center" mb={6}>
-          <Avatar 
-            size="xl" 
-            name={`${contact.firstName} ${contact.lastName}`} 
+          <Text 
+            fontSize="xl" 
+            fontWeight="bold" 
             mr={6}
-          />
-          <VStack align="start" spacing={1}>
-            <Heading size="lg">
-              {contact.firstName} {contact.lastName}
-            </Heading>
+          >
+            {contact.firstName} {contact.lastName}
+          </Text>
+          <Flex align="start" gap={1}>
             <Text color="gray.600">{contact.email}</Text>
             {contact.company && (
               <Text color="gray.600">{contact.company}</Text>
@@ -97,94 +87,10 @@ export default function ContactProfile() {
                 {contact.personalityType}
               </Badge>
             )}
-          </VStack>
+          </Flex>
         </Flex>
         
-        <Divider my={4} />
-        
-        <Tabs variant="enclosed">
-          <TabList>
-            <Tab>Profile</Tab>
-            <Tab>Interactions</Tab>
-            <Tab>Personality</Tab>
-            <Tab>Dispute Resolver</Tab>
-          </TabList>
-          
-          <TabPanels>
-            <TabPanel>
-              <Box p={4} borderWidth="1px" borderRadius="lg" bg="white" shadow="md">
-                <VStack align="start" spacing={4}>
-                  <Box width="100%">
-                    <Heading size="sm" mb={2}>Contact Information</Heading>
-                    <HStack spacing={8}>
-                      <VStack align="start">
-                        <Text fontWeight="bold">Email</Text>
-                        <Text>{contact.email}</Text>
-                      </VStack>
-                      {contact.company && (
-                        <VStack align="start">
-                          <Text fontWeight="bold">Company</Text>
-                          <Text>{contact.company}</Text>
-                        </VStack>
-                      )}
-                    </HStack>
-                  </Box>
-                  
-                  <Divider />
-                  
-                  <Box width="100%">
-                    <Heading size="sm" mb={2}>Additional Information</Heading>
-                    <Text>
-                      {contact.additionalInfo || 'No additional information available.'}
-                    </Text>
-                  </Box>
-                </VStack>
-              </Box>
-            </TabPanel>
-            
-            <TabPanel>
-              <Box p={4} borderWidth="1px" borderRadius="lg" bg="white" shadow="md">
-                <Heading size="sm" mb={4}>Recent Interactions</Heading>
-                {contact.lastInteractionDate ? (
-                  <Text>
-                    Last interaction: {new Date(contact.lastInteractionDate).toLocaleDateString()}
-                  </Text>
-                ) : (
-                  <Text>No recent interactions recorded.</Text>
-                )}
-              </Box>
-            </TabPanel>
-            
-            <TabPanel>
-              <Box p={4} borderWidth="1px" borderRadius="lg" bg="white" shadow="md">
-                <Heading size="sm" mb={4}>Personality Profile</Heading>
-                {contact.personalityType ? (
-                  <VStack align="start" spacing={4}>
-                    <Box>
-                      <Text fontWeight="bold">Personality Type</Text>
-                      <Badge colorScheme="purple" mt={1}>
-                        {contact.personalityType}
-                      </Badge>
-                    </Box>
-                    
-                    {contact.personalityNotes && (
-                      <Box>
-                        <Text fontWeight="bold">Personality Notes</Text>
-                        <Text mt={1}>{contact.personalityNotes}</Text>
-                      </Box>
-                    )}
-                  </VStack>
-                ) : (
-                  <Text>No personality data available for this contact.</Text>
-                )}
-              </Box>
-            </TabPanel>
-            
-            <TabPanel>
-              <DisputeTab contact={contact} />
-            </TabPanel>
-          </TabPanels>
-        </Tabs>
+        <DisputeTab contact={contact} />
       </Box>
     </Container>
   );

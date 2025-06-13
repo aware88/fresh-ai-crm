@@ -316,3 +316,5 @@ export function LogoUploader() {
     </Card>
   );
 }
+
+export default LogoUploader;
