@@ -6,14 +6,14 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { FileMetadata } from '@/lib/files/types';
 import { FileUploader } from './FileUploader';
-import { FileIcon, Download, Trash2, Pencil, Tag, X } from 'lucide-react';
+import { FileIcon, Download, Trash2, Pencil } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface FilesListProps {
   contactId?: string;
@@ -206,8 +206,8 @@ export function FilesList({ contactId, showUploader = true }: FilesListProps) {
     else return (bytes / 1048576).toFixed(1) + ' MB';
   };
 
-  // Get file icon based on content type
-  const getFileIcon = (contentType: string) => {
+  // Get file icon
+  const getFileIcon = () => {
     return <FileIcon className="h-5 w-5" />;
   };
 
@@ -259,7 +259,7 @@ export function FilesList({ contactId, showUploader = true }: FilesListProps) {
                     >
                       <div className="flex items-center space-x-3">
                         <div className="p-2 bg-gray-100 rounded">
-                          {getFileIcon(file.contentType)}
+                          {getFileIcon()}
                         </div>
                         <div>
                           <h4 className="font-medium">{file.originalName}</h4>
@@ -346,7 +346,7 @@ export function FilesList({ contactId, showUploader = true }: FilesListProps) {
             <div className="space-y-4">
               <div className="flex items-center space-x-3">
                 <div className="p-2 bg-gray-100 rounded">
-                  {getFileIcon(editingFile.contentType)}
+                  {getFileIcon()}
                 </div>
                 <div>
                   <h4 className="font-medium">{editingFile.originalName}</h4>

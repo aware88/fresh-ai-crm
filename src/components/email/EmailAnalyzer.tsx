@@ -3,9 +3,8 @@
 import React, { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
-import { Loader2, Copy, Check, Mail, Brain, Sparkles, Send, Trash2, UserPlus, AlertCircle, User, Globe, Link } from 'lucide-react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Loader2, Copy, Check, Mail, Brain, Sparkles, Send, Trash2, UserPlus, AlertCircle, Globe, Link } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
 import { ToastAction } from '@/components/ui/toast';
 import { updateContactPersonalityFromEmail } from '@/lib/contacts/personality';

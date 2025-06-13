@@ -23,7 +23,6 @@ interface InteractionsListProps {
 export default function InteractionsList({ contactId, contactName }: InteractionsListProps) {
   const [interactions, setInteractions] = useState<Interaction[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<InteractionType | 'all'>('all');
   const { toast } = useToast();
@@ -41,9 +40,8 @@ export default function InteractionsList({ contactId, contactName }: Interaction
         
         const data = await response.json();
         setInteractions(data.interactions || []);
-      } catch (error) {
-        console.error('Failed to fetch interactions:', error);
-        setError('Failed to load interaction history');
+      } catch (_error) {
+        console.error('Failed to fetch interactions:', _error);
         toast({
           variant: "destructive",
           title: "Error",
@@ -85,12 +83,12 @@ export default function InteractionsList({ contactId, contactName }: Interaction
         title: "Interaction deleted",
         description: "The interaction has been removed successfully",
       });
-    } catch (error) {
-      console.error('Failed to delete interaction:', error);
+    } catch (_error) {
+      console.error('Error deleting interaction:', _error);
       toast({
-        variant: "destructive",
         title: "Error",
         description: "Failed to delete interaction",
+        variant: "destructive",
       });
     }
   };
@@ -120,7 +118,7 @@ export default function InteractionsList({ contactId, contactName }: Interaction
   const formatDate = (dateString: string) => {
     try {
       return formatDistanceToNow(new Date(dateString), { addSuffix: true });
-    } catch (error) {
+    } catch {
       return 'Invalid date';
     }
   };
@@ -161,8 +159,6 @@ export default function InteractionsList({ contactId, contactName }: Interaction
           <TabsContent value={activeTab} className="mt-0">
             {loading ? (
               <div className="text-center py-8">Loading interactions...</div>
-            ) : error ? (
-              <div className="text-center py-8 text-red-500">{error}</div>
             ) : filteredInteractions.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
                 No {activeTab !== 'all' ? activeTab : ''} interactions found

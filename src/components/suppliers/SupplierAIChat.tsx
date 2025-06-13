@@ -133,7 +133,7 @@ export default function SupplierAIChat() {
                 <div className="mt-4 space-y-3">
                   <h4 className="font-medium text-gray-700">Top Matching Suppliers:</h4>
                   
-                  {message.results.map((result, index) => {
+                  {message.results.map((result) => {
                     const reliability = formatReliabilityScore(result.supplier.reliabilityScore || 0);
                     
                     return (

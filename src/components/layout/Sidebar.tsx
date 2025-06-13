@@ -107,13 +107,13 @@ export function Sidebar({ className }: SidebarProps) {
     },
     {
       title: 'Calendar',
-      href: '#',
+      href: '#calendar',
       icon: <Calendar className="h-5 w-5" />,
       comingSoon: true
     },
     {
       title: 'Analytics',
-      href: '#',
+      href: '#analytics',
       icon: <BarChart className="h-5 w-5" />,
       comingSoon: true
     },

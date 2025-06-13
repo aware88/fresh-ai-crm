@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Check, Upload, AlertCircle, FileText, Table, Database } from 'lucide-react';
+import { Loader2, Check, Upload, AlertCircle, FileText, Database } from 'lucide-react';
 
 interface FileStatus {
   exists: boolean;

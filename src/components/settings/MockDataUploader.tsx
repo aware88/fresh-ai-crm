@@ -129,7 +129,7 @@ export function MockDataUploader() {
           Mock Data Uploader
         </CardTitle>
         <CardDescription>
-          Upload mock personality data to test the AI's analysis capabilities
+          We'll create realistic sample data to help you test the system.
         </CardDescription>
       </CardHeader>
       

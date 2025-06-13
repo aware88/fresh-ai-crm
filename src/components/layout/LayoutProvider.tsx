@@ -2,6 +2,12 @@
 
 import { usePathname } from 'next/navigation';
 import { useState, useEffect } from 'react';
+// Define a simplified user type that matches our needs
+type User = {
+  id: string;
+  email: string;
+  // Add other user properties as needed
+};
 import { AuthService } from '@/lib/auth/auth-service';
 import PublicLayout from './public/PublicLayout';
 import AuthenticatedLayout from './auth/AuthenticatedLayout';
@@ -16,21 +22,21 @@ interface LayoutProviderProps {
 
 function LayoutProvider({ children }: LayoutProviderProps) {
   const pathname = usePathname() || '/';
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const checkAuth = async () => {
       const authStatus = await AuthService.isAuthenticated();
-      setIsAuthenticated(authStatus);
-      setIsLoading(false);
+      setUser(authStatus ? { id: '1', email: 'user@example.com' } : null);
+      setLoading(false);
     };
 
     checkAuth();
   }, []);
 
   // While checking authentication status, render nothing or a loading screen
-  if (isLoading) {
+  if (loading) {
     return <div className="flex items-center justify-center min-h-screen bg-gray-50">Loading...</div>;
   }
 

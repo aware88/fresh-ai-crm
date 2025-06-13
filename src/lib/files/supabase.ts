@@ -151,7 +151,7 @@ export async function uploadFile(
       : `general/${uniqueFilename}`;
     
     // Upload the file to Supabase Storage
-    const { data: uploadData, error: uploadError } = await supabase
+    const { error: uploadError } = await supabase
       .storage
       .from(STORAGE_BUCKET)
       .upload(filePath, file);

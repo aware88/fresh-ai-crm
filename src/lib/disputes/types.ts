@@ -1,5 +1,3 @@
-import { Contact } from '../contacts/types';
-
 /**
  * Dispute categories
  */

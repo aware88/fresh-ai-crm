@@ -1,25 +1,22 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { useState, useEffect } from 'react';
 import { Bell, User, Brain } from 'lucide-react';
-import { useEffect, useState } from 'react';
-import Image from 'next/image';
 
 interface NavigationProps {
   className?: string;
 }
 
 export function Navigation({ className = '' }: NavigationProps) {
-  const pathname = usePathname();
   const [logoPath, setLogoPath] = useState<string | null>(null);
-  const [companyName, setCompanyName] = useState<string | null>(null);
+  const [companyName, setCompanyName] = useState('CRM Mind');
   
   // Check if we're in a browser environment
   const isBrowser = typeof window !== 'undefined';
   
   // Function to load logo and company name from localStorage or API
-  const loadLogoAndCompanyName = () => {
+  const loadLogoAndCompanyName = async () => {
     if (!isBrowser) return;
     
     // Check for logo in localStorage

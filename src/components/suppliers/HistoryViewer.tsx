@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { SupplierQuery, SupplierQueryResult } from '@/types/supplier';
+import { SupplierQuery } from '@/types/supplier';
 import { fetchQueryHistory, fetchQueryById } from '@/lib/suppliers/api';
 import { formatDate, formatReliabilityScore } from '@/lib/suppliers/utils';
 import { Button } from '@/components/ui/button';

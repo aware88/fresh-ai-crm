@@ -1,7 +1,35 @@
 /**
  * Utility functions for supplier management
  */
-import { Supplier, SupplierDocument, SupplierEmail, SupplierQuery } from '@/types/supplier';
+import { Supplier } from '@/types/supplier';
+
+// Define local interfaces to avoid external dependencies
+interface Document {
+  id: string;
+  name: string;
+  type: string;
+  documentType?: string; // For backward compatibility
+  url: string;
+  uploadedAt: Date;
+  uploadDate?: Date; // Alias for uploadedAt
+  size?: number;
+  mimeType?: string;
+  metadata?: Record<string, unknown>;
+  // Add any other document properties used in the codebase
+}
+
+interface Email {
+  id: string;
+  subject: string;
+  from: string;
+  to: string[];
+  date: Date;
+  receivedDate?: Date; // Alias for date
+  body: string;
+  html?: string;
+  metadata?: Record<string, unknown>;
+  // Add any other email properties used in the codebase
+}
 
 /**
  * Format a date for display
@@ -67,7 +95,7 @@ export const extractProductNames = (text: string): string[] => {
   for (const match of matches) {
     const organic = match[1] ? match[1].trim() + ' ' : '';
     const name = match[2].trim();
-    const strength = match[3].trim();
+    // Extract strength but don't use it - prefix with underscore to indicate it's intentionally unused
     if (name.length > 2) {
       products.push(`${organic}${name} ${match[3]}`);
     }
@@ -86,8 +114,8 @@ export const extractProductNames = (text: string): string[] => {
  */
 export const calculateReliabilityScore = (
   supplier: Supplier,
-  documents: SupplierDocument[],
-  emails: SupplierEmail[]
+  documents: Document[],
+  emails: Email[]
 ): number => {
   let score = 50; // Start with neutral score
   
@@ -98,9 +126,20 @@ export const calculateReliabilityScore = (
   else if (documentCount > 0) score += 5;
   
   // Factor 2: Document types (more diverse document types = more comprehensive relationship)
-  const documentTypes = new Set(documents.map(doc => doc.documentType.toLowerCase()));
-  if (documentTypes.size > 3) score += 10;
-  else if (documentTypes.size > 1) score += 5;
+  const documentTypes = new Set(
+    documents
+      .map(doc => {
+        // Handle both documentType and type properties with null checks
+        if (doc.documentType) return doc.documentType;
+        if (doc.type) return doc.type;
+        return null;
+      })
+      .filter((type): type is string => type !== null) // Filter out null/undefined values
+  );
+  
+  if (documentTypes.size > 3) score += 15;
+  else if (documentTypes.size > 1) score += 10;
+  else if (documentTypes.size > 0) score += 5;
   
   // Factor 3: Email responsiveness
   const emailCount = emails.length;
@@ -112,13 +151,15 @@ export const calculateReliabilityScore = (
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
   
-  const recentDocuments = documents.filter(doc => 
-    new Date(doc.uploadDate) > thirtyDaysAgo
-  );
+  const recentDocuments = documents.filter(doc => {
+    const uploadDate = doc.uploadDate || doc.uploadedAt;
+    return uploadDate && new Date(uploadDate) > thirtyDaysAgo;
+  });
   
-  const recentEmails = emails.filter(email => 
-    new Date(email.receivedDate) > thirtyDaysAgo
-  );
+  const recentEmails = emails.filter(email => {
+    const receivedDate = email.receivedDate || email.date;
+    return receivedDate && new Date(receivedDate) > thirtyDaysAgo;
+  });
   
   if (recentDocuments.length > 0 || recentEmails.length > 0) {
     score += 10;
@@ -168,6 +209,20 @@ export const extractEmailSender = (emailContent: string): {
     };
   }
   
+  try {
+    // Try to extract from the first line
+    const firstLine = emailContent.split('\n')[0];
+    const emailMatch = firstLine.match(/<([^>]+)>/);
+    if (emailMatch && emailMatch[1]) {
+      return {
+        email: emailMatch[1],
+        name: firstLine.split('<')[0].trim() || 'Unknown Sender'
+      };
+    }
+  } catch (error) {
+    console.error('Error extracting email sender from first line:', error);
+  }
+  
   // Fallback: just look for any email address
   const emailRegex = /([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9._-]+)/i;
   const emailMatch = emailContent.match(emailRegex);
@@ -205,7 +260,8 @@ export const extractEmailDate = (emailContent: string): Date => {
   if (match) {
     try {
       return new Date(match[1].trim());
-    } catch (e) {
+    } catch (error) {
+    console.error('Error calculating reliability score:', error);
       return new Date();
     }
   }

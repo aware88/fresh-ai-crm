@@ -1,8 +1,7 @@
+// Basic theme configuration for Chakra UI v3
 import { createSystem } from '@chakra-ui/react';
 
-// Create a basic theme system for Chakra UI v3
-const system = createSystem({
-  // You can customize the theme here if needed
-});
+// Create a basic theme system
+const theme = createSystem();
 
-export default system;
+export default theme;

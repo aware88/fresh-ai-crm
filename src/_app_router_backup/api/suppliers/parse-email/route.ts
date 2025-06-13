@@ -59,7 +59,7 @@ const extractEmailDetails = (emailContent: string) => {
       if (dateMatch) {
         try {
           receivedDate = new Date(dateMatch[1].trim());
-        } catch (e) {
+        } catch (_e) {
           // If date parsing fails, use current date
           receivedDate = new Date();
         }

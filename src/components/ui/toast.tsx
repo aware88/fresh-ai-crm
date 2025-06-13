@@ -47,7 +47,7 @@ export function ToastViewport({ className }: { className?: string }) {
 }
 
 export const Toast = React.forwardRef<HTMLDivElement, ToastProps & ToastComponentProps>(
-  ({ id, title, description, action, variant = "default", open, onOpenChange, className, ...props }, ref) => {
+  ({ title, description, action, variant = "default", open, onOpenChange, className, ...props }, ref) => {
     const variantClassNames = {
       default: "bg-white border-gray-200",
       destructive: "bg-red-50 border-red-200 text-red-800",

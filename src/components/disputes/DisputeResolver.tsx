@@ -18,7 +18,7 @@ import {
   InputRightElement,
   Tooltip
 } from '@chakra-ui/react';
-import { FiUpload, FiFile, FiCheckCircle, FiAlertCircle } from 'react-icons/fi';
+import { FiUpload, FiCheckCircle, FiAlertCircle } from 'react-icons/fi';
 import { 
   DisputeCategory, 
   DisputeSeverity,
@@ -36,8 +36,7 @@ const DisputeResolver: React.FC<DisputeResolverProps> = ({ contact }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [dispute, setDispute] = useState<DisputeDetails | null>(null);
-  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
-  const [uploadedFilePath, setUploadedFilePath] = useState<string>('');
+  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const [formData, setFormData] = useState<Partial<DisputeResolutionRequest>>({
     contactId: contact.id,
     category: DisputeCategory.COMMUNICATION_MISUNDERSTANDING,
@@ -60,7 +59,7 @@ const DisputeResolver: React.FC<DisputeResolverProps> = ({ contact }) => {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      setUploadedFile(file);
+      setUploadedFiles([file]);
       
       // Show file selected toast
       toast({
@@ -86,9 +85,9 @@ const DisputeResolver: React.FC<DisputeResolverProps> = ({ contact }) => {
     try {
       // First upload the file if one is selected
       let filePath = '';
-      if (uploadedFile) {
+      if (uploadedFiles.length > 0) {
         const fileData = new FormData();
-        fileData.append('file', uploadedFile);
+        fileData.append('file', uploadedFiles[0]);
         
         const uploadResponse = await fetch('/api/upload', {
           method: 'POST',
@@ -98,7 +97,6 @@ const DisputeResolver: React.FC<DisputeResolverProps> = ({ contact }) => {
         if (uploadResponse.ok) {
           const uploadResult = await uploadResponse.json();
           filePath = uploadResult.filePath;
-          setUploadedFilePath(filePath);
         } else {
           console.error('File upload failed');
         }
@@ -239,14 +237,14 @@ const DisputeResolver: React.FC<DisputeResolverProps> = ({ contact }) => {
                 />
                 <Input
                   readOnly
-                  value={uploadedFile ? uploadedFile.name : 'No file selected'}
+                  value={uploadedFiles.length > 0 ? uploadedFiles[0].name : 'No file selected'}
                   onClick={triggerFileUpload}
                   cursor="pointer"
                 />
                 <InputRightElement>
                   <Icon
-                    as={uploadedFile ? FiCheckCircle : FiUpload}
-                    color={uploadedFile ? 'green.500' : 'gray.500'}
+                    as={uploadedFiles.length > 0 ? FiCheckCircle : FiUpload}
+                    color={uploadedFiles.length > 0 ? 'green.500' : 'gray.500'}
                     onClick={triggerFileUpload}
                     cursor="pointer"
                   />
@@ -319,14 +317,14 @@ const ResolutionDisplay: React.FC<ResolutionDisplayProps> = ({ dispute, onReset 
       <Heading size="sm" mb={2}>Phrases to Use</Heading>
       <VStack align="start" spacing={1} mb={4}>
         {resolutionStrategy.phrasesToUse.map((phrase, index) => (
-          <Text key={index}>✓ "{phrase}"</Text>
+          <Text key={index}>✓ &quot;{phrase}&quot;</Text>
         ))}
       </VStack>
       
       <Heading size="sm" mb={2}>Phrases to Avoid</Heading>
       <VStack align="start" spacing={1} mb={4}>
         {resolutionStrategy.phrasesToAvoid.map((phrase, index) => (
-          <Text key={index}>✗ "{phrase}"</Text>
+          <Text key={index}>✗ &quot;{phrase}&quot;</Text>
         ))}
       </VStack>
       

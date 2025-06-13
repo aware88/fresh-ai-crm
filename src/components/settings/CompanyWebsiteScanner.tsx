@@ -212,8 +212,7 @@ const CompanyWebsiteScanner: React.FC = () => {
           <div className="mt-4 p-3 bg-blue-50 rounded-md flex items-start">
             <FiInfo className="text-blue-500 mt-1 mr-2 flex-shrink-0" />
             <p className="text-sm">
-              This information will be used to personalize AI responses in dispute resolution, 
-              email analysis, and other AI-powered features.
+              We'll analyze their website and extract key information about their business.
             </p>
           </div>
         </>

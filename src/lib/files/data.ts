@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
-import { FileMetadata, FileMetadataCreateInput, FileMetadataUpdateInput } from './types';
+import { FileMetadata, FileMetadataUpdateInput } from './types';
 import { isSupabaseConfigured } from '../supabase/client';
 import {
   fetchFiles as fetchFilesFromDb,
@@ -27,8 +27,8 @@ const mockFiles: FileMetadata[] = [
     contact_id: '1',
     description: 'Annual contract renewal',
     tags: ['contract', 'legal'],
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
+    createdat: new Date().toISOString(),
+    updatedat: new Date().toISOString()
   },
   {
     id: '2',
@@ -40,8 +40,8 @@ const mockFiles: FileMetadata[] = [
     contact_id: '2',
     description: 'Notes from quarterly review',
     tags: ['meeting', 'notes'],
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
+    createdat: new Date().toISOString(),
+    updatedat: new Date().toISOString()
   }
 ];
 
@@ -177,8 +177,8 @@ export async function uploadFile(
       contact_id: contactId || null,
       description: description || null,
       tags: tags || null,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+      createdat: new Date().toISOString(),
+      updatedat: new Date().toISOString()
     };
     
     // Update mock data
@@ -227,7 +227,7 @@ export async function updateFileMetadata(fileData: FileMetadataUpdateInput): Pro
     const updatedFile: FileMetadata = {
       ...files[fileIndex],
       ...fileData,
-      updatedAt: new Date().toISOString(),
+      updatedat: new Date().toISOString(),
     };
     
     // Replace in files list

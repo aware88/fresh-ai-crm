@@ -37,7 +37,7 @@ export default function Home() {
             <div className="space-y-8 text-center lg:text-left">
               <div>
                 <div className="inline-block px-4 py-1.5 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-full mb-4">
-                  <span className="text-sm font-medium bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">🧠 AI-Powered Psychology</span>
+                  <span className="text-sm font-medium bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">&#x1F916; AI-Powered Psychology</span>
                 </div>
                 <h1 className="text-4xl md:text-6xl font-bold tracking-tight mb-4">
                   <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">The Intelligence</span> Behind Our AI Assistant
@@ -49,7 +49,7 @@ export default function Home() {
               </p>
               
               <p className="text-lg text-gray-600 max-w-xl mx-auto lg:mx-0">
-                That's exactly what our AI was built for. This isn't just another chatbot. It's a trained psychological sales assistant.
+                That&#39;s exactly what our AI was built for. This isn&#39;t just another chatbot. It&#39;s a trained psychological sales assistant.
               </p>
               
               <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 pt-4">
@@ -99,14 +99,14 @@ export default function Home() {
         <div className="container mx-auto">
           <div className="text-center mb-12">
             <div className="inline-block px-4 py-1.5 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-full mb-4">
-              <span className="text-sm font-medium bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">📚 Backed by Research</span>
+              <span className="text-sm font-medium bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">&#x1F4D6; Backed by Research</span>
             </div>
             <h2 className="text-3xl md:text-4xl font-bold mb-4">Trained on <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">Real Science</span>, Not Guesswork</h2>
             <p className="text-xl text-gray-600 max-w-3xl mx-auto">Our system is built from the same principles used by elite coaches, negotiators, and sales leaders — now applied to your inbox.</p>
           </div>
           
           <div className="max-w-4xl mx-auto bg-white rounded-2xl shadow-xl p-8 mb-12">
-            <h3 className="text-2xl font-bold mb-6 text-center">🔥 Core Frameworks That Power It:</h3>
+            <h3 className="text-2xl font-bold mb-6 text-center">&#x1F525; Core Frameworks That Power It:</h3>
             <ul className="space-y-4">
               <li className="flex items-start gap-3">
                 <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0 mt-1">
@@ -130,7 +130,7 @@ export default function Home() {
                     <polyline points="20 6 9 17 4 12"></polyline>
                   </svg>
                 </div>
-                <p className="text-gray-700"><span className="font-semibold">Cialdini's 6 Principles of Influence</span> — the gold standard in persuasion psychology</p>
+                <p className="text-gray-700"><span className="font-semibold">Cialdini&#39;s 6 Principles of Influence</span> — the gold standard in persuasion psychology</p>
               </li>
               <li className="flex items-start gap-3">
                 <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0 mt-1">
@@ -164,7 +164,7 @@ export default function Home() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="p-6 bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300">
               <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mb-4 mx-auto">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 1-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg>
               </div>
               <h3 className="text-xl font-semibold text-center mb-2">Pattern Matching</h3>
               <p className="text-gray-600 text-center">It matches their tone and phrasing to a known psychological profile</p>
@@ -195,7 +195,7 @@ export default function Home() {
           <div className="max-w-4xl mx-auto">
             <div className="text-center mb-12">
               <div className="inline-block px-4 py-1.5 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-full mb-4">
-                <span className="text-sm font-medium bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">🤖 Continuous Learning</span>
+                <span className="text-sm font-medium bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">&#x1F916; Continuous Learning</span>
               </div>
               <h2 className="text-3xl md:text-4xl font-bold mb-4">But It Gets <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">Smarter</span>...</h2>
               <p className="text-xl text-gray-600 max-w-3xl mx-auto">It's Not Magic. It's Pattern Recognition, Powered by Psychology.</p>
@@ -209,7 +209,7 @@ export default function Home() {
             </div>
             
             <div className="text-center mt-16 mb-8">
-              <h3 className="text-2xl font-bold mb-6">🙋 Built for Teams That Want More Wins, Fewer Regrets</h3>
+              <h3 className="text-2xl font-bold mb-6">&#x1F64B; Built for Teams That Want More Wins, Fewer Regrets</h3>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -250,7 +250,7 @@ export default function Home() {
                   </div>
                   <h4 className="font-semibold">Salespeople</h4>
                 </div>
-                <p className="text-gray-600">Who know: "It's not what you say, it's how you say it."</p>
+                <p className="text-gray-600">Who know: &quot;It's not what you say, it's how you say it.&quot;</p>
               </div>
             </div>
           </div>

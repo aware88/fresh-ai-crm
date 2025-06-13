@@ -98,32 +98,42 @@ export default function Home() {
             }}
           >
             <div 
-              className="absolute top-0 -right-1/4 w-[800px] h-[800px] bg-gradient-to-r from-blue-100 to-transparent rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob"
+              className="absolute inset-0 transition-transform duration-700 ease-out will-change-transform"
               style={{
-                transform: 'translate3d(0, 0, 0)',
                 backfaceVisibility: 'hidden',
+                transform: 'translate3d(0, 0, 0)',
                 willChange: 'transform, opacity'
               }}
               aria-hidden="true"
-            />
-            <div 
-              className="absolute -bottom-1/4 -left-1/4 w-[800px] h-[800px] bg-gradient-to-r from-indigo-100 to-transparent rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-2000"
-              style={{
-                transform: 'translate3d(0, 0, 0)',
-                backfaceVisibility: 'hidden',
-                willChange: 'transform, opacity'
-              }}
-              aria-hidden="true"
-            />
-            <div 
-              className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1000px] h-[1000px] bg-gradient-to-r from-purple-100 to-transparent rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-4000"
-              style={{
-                transform: 'translate3d(0, 0, 0)',
-                backfaceVisibility: 'hidden',
-                willChange: 'transform, opacity'
-              }}
-              aria-hidden="true"
-            />
+            >
+              <div 
+                className="absolute top-0 -right-1/4 w-[800px] h-[800px] bg-gradient-to-r from-blue-100 to-transparent rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob"
+                style={{
+                  transform: 'translate3d(0, 0, 0)',
+                  backfaceVisibility: 'hidden',
+                  willChange: 'transform, opacity'
+                }}
+                aria-hidden="true"
+              />
+              <div 
+                className="absolute -bottom-1/4 -left-1/4 w-[800px] h-[800px] bg-gradient-to-r from-indigo-100 to-transparent rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-2000"
+                style={{
+                  transform: 'translate3d(0, 0, 0)',
+                  backfaceVisibility: 'hidden',
+                  willChange: 'transform, opacity'
+                }}
+                aria-hidden="true"
+              />
+              <div 
+                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1000px] h-[1000px] bg-gradient-to-r from-purple-100 to-transparent rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-4000"
+                style={{
+                  transform: 'translate3d(0, 0, 0)',
+                  backfaceVisibility: 'hidden',
+                  willChange: 'transform, opacity'
+                }}
+                aria-hidden="true"
+              />
+            </div>
           </div>
         </div>
       )}
@@ -623,8 +633,7 @@ export default function Home() {
               
               {/* CTA Button */}
               <Button 
-                className="w-full max-w-xs bg-blue-600 hover:bg-blue-700 text-white py-4 px-8 rounded-lg font-medium text-lg"
-                size="lg"
+                className="w-full max-w-xs bg-blue-600 hover:bg-blue-700 text-white py-4 px-6 text-lg font-medium rounded-lg shadow-lg shadow-blue-500/20 hover:shadow-xl hover:shadow-blue-500/30 transition-all duration-300 transform hover:-translate-y-0.5"
               >
                 Join for BETA
               </Button>
@@ -920,7 +929,7 @@ export default function Home() {
           <div className="pt-8 border-t border-gray-200">
             <div className="flex flex-col md:flex-row justify-between items-center">
               <p className="text-sm text-gray-500 mb-4 md:mb-0">
-                © {new Date().getFullYear()} CRM Mind, Inc. All rights reserved.
+                &copy; {new Date().getFullYear()} CRM Mind, Inc. All rights reserved.
               </p>
               <div className="flex flex-wrap justify-center gap-x-6 gap-y-2">
                 {['Privacy Policy', 'Terms of Service', 'Cookie Policy', 'Sitemap'].map((item) => (

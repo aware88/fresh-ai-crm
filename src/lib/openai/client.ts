@@ -401,7 +401,7 @@ IMPORTANT: When analyzing email threads, identify which emails are from the user
     }
     
     // Company context is no longer available in this version
-    let companyContextPrompt = '';
+    const companyContextPrompt = '';
     
     const systemPrompt = `You are an advanced AI sales assistant specializing in psychological profiling based on written communication, such as emails or LinkedIn messages.
 

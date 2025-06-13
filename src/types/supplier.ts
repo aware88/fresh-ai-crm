@@ -22,7 +22,7 @@ export interface SupplierDocument {
   documentType: string; // Offer, CoA, Specification, Invoice
   filePath: string;
   uploadDate: Date;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface SupplierEmail {
@@ -34,7 +34,7 @@ export interface SupplierEmail {
   body: string;
   receivedDate: Date;
   productTags: string[];
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface ProductTag {

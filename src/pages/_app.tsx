@@ -1,9 +1,12 @@
-import { ChakraProvider } from '@chakra-ui/react';
+import { ChakraProvider, createSystem } from '@chakra-ui/react';
 import type { AppProps } from 'next/app';
+
+// Create a basic system for Chakra UI v3
+const system = createSystem();
 
 function MyApp({ Component, pageProps }: AppProps) {
   return (
-    <ChakraProvider>
+    <ChakraProvider value={system}>
       <Component {...pageProps} />
     </ChakraProvider>
   );

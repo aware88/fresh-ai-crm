@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Supplier } from '@/types/supplier';
 import { fetchSuppliers, createSupplier, updateSupplier, deleteSupplier } from '@/lib/suppliers/api';
-import { formatDate, formatReliabilityScore } from '@/lib/suppliers/utils';
+import { formatReliabilityScore } from '@/lib/suppliers/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
