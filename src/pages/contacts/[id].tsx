@@ -1,17 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
-import {
-  Box,
-  Container,
-  Heading,
-  Flex,
-  Spinner,
-  Text,
-  Badge
-} from '@chakra-ui/react';
 import { getContactById } from '../../lib/contacts/data';
 import { Contact } from '../../lib/contacts/types';
-import DisputeTab from '../../components/disputes/DisputeTab';
 
 export default function ContactProfile() {
   const router = useRouter();
@@ -46,52 +36,104 @@ export default function ContactProfile() {
 
   if (loading) {
     return (
-      <Container maxW="container.xl" py={10}>
-        <Flex direction="column" align="center" justify="center" h="50vh">
-          <Spinner size="xl" />
-          <Text mt={4}>Loading contact information...</Text>
-        </Flex>
-      </Container>
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        minHeight: '200px',
+        fontSize: '18px'
+      }}>
+        Loading contact...
+      </div>
     );
   }
 
-  if (error || !contact) {
+  if (error) {
     return (
-      <Container maxW="container.xl" py={10}>
-        <Box p={5} shadow="md" borderWidth="1px" borderRadius="md" bg="red.50">
-          <Heading size="md" color="red.500">Error</Heading>
-          <Text mt={2}>{error || 'Contact information not available'}</Text>
-        </Box>
-      </Container>
+      <div style={{ 
+        maxWidth: '1200px', 
+        margin: '0 auto', 
+        padding: '32px',
+        textAlign: 'center'
+      }}>
+        <h1 style={{ fontSize: '24px', marginBottom: '16px', color: '#dc2626' }}>Error</h1>
+        <p>{error}</p>
+      </div>
+    );
+  }
+
+  if (!contact) {
+    return (
+      <div style={{ 
+        maxWidth: '1200px', 
+        margin: '0 auto', 
+        padding: '32px',
+        textAlign: 'center'
+      }}>
+        <h1 style={{ fontSize: '24px', marginBottom: '16px' }}>Contact Not Found</h1>
+        <p>The requested contact could not be found.</p>
+      </div>
     );
   }
 
   return (
-    <Container maxW="container.xl" py={10}>
-      <Box mb={8}>
-        <Flex align="center" mb={6}>
-          <Text 
-            fontSize="xl" 
-            fontWeight="bold" 
-            mr={6}
-          >
+    <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '32px' }}>
+      <div style={{ 
+        display: 'flex', 
+        flexDirection: 'column', 
+        gap: '24px',
+        backgroundColor: 'white',
+        padding: '24px',
+        borderRadius: '8px',
+        border: '1px solid #e5e7eb'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'start', gap: '16px' }}>
+          <h1 style={{ 
+            fontSize: '28px', 
+            fontWeight: 'bold',
+            marginRight: '24px'
+          }}>
             {contact.firstName} {contact.lastName}
-          </Text>
-          <Flex align="start" gap={1}>
-            <Text color="gray.600">{contact.email}</Text>
+          </h1>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <p style={{ color: '#6b7280' }}>{contact.email}</p>
             {contact.company && (
-              <Text color="gray.600">{contact.company}</Text>
+              <p style={{ color: '#6b7280' }}>{contact.company}</p>
             )}
             {contact.personalityType && (
-              <Badge colorScheme="purple" mt={2}>
+              <span style={{ 
+                display: 'inline-block',
+                backgroundColor: '#a855f7',
+                color: 'white',
+                padding: '4px 8px',
+                borderRadius: '4px',
+                fontSize: '12px',
+                fontWeight: '500',
+                marginTop: '8px'
+              }}>
                 {contact.personalityType}
-              </Badge>
+              </span>
             )}
-          </Flex>
-        </Flex>
+          </div>
+        </div>
         
-        <DisputeTab contact={contact} />
-      </Box>
-    </Container>
+        <div style={{ 
+          padding: '24px',
+          backgroundColor: '#f9fafb',
+          borderRadius: '8px',
+          border: '1px solid #e5e7eb'
+        }}>
+          <h2 style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '16px' }}>
+            Contact Information
+          </h2>
+          <p style={{ marginBottom: '16px' }}>
+            Dispute resolution features are temporarily unavailable during this deployment.
+          </p>
+          <p style={{ fontSize: '14px', color: '#6b7280' }}>
+            Full contact management features will be restored in the next update.
+          </p>
+        </div>
+      </div>
+    </div>
   );
 }

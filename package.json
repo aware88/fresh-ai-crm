@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build && next export",
+    "build": "next build",
     "start": "next start",
     "lint": "next lint",
     "db:seed": "chmod +x ./scripts/seed-database.sh && ./scripts/seed-database.sh",
@@ -13,7 +13,7 @@
     "db:seed:files": "psql $SUPABASE_DB_URL -f scripts/seed-files.sql",
     "netlify:deploy": "netlify deploy --prod",
     "netlify:login": "netlify login",
-    "netlify:build": "next build && next export"
+    "netlify:build": "next build"
   },
   "dependencies": {
     "@chakra-ui/react": "^3.20.0",

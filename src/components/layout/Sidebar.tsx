@@ -17,9 +17,7 @@ import {
   X,
   Menu,
   Package2,
-  ShoppingCart,
-  ChevronDown,
-  ChevronRight
+  ShoppingCart
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -37,36 +35,15 @@ type NavItem = {
   comingSoon?: boolean;
 };
 
-type CollapsibleSection = {
-  title: string;
-  icon: React.ReactNode;
-  items: NavItem[];
-  isOpen: boolean;
-};
-
 export function Sidebar({ className }: SidebarProps) {
   const pathname = usePathname() || '';
   const { isOpen: isMobileMenuOpen, toggleMenu, closeMenu } = useMobileMenu();
   const [searchQuery, setSearchQuery] = useState('');
-  const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({
-    inventory: false,
-    sales: false,
-    other: false,
-    supplier: false
-  });
 
   // Close mobile menu when pathname changes
   useEffect(() => {
     closeMenu();
   }, [pathname, closeMenu]);
-
-  // Toggle collapsible section
-  const toggleSection = (section: string) => {
-    setCollapsedSections(prev => ({
-      ...prev,
-      [section]: !prev[section]
-    }));
-  };
 
   // Navigation items configuration
   const navItems: NavItem[] = [
@@ -132,59 +109,6 @@ export function Sidebar({ className }: SidebarProps) {
       )
     : navItems;
 
-  // Auto-expand sections when searching
-  useEffect(() => {
-    if (searchQuery) {
-      setCollapsedSections({
-        inventory: false,
-        sales: false,
-        other: false,
-        supplier: false
-      });
-    }
-  }, [searchQuery]);
-
-  // Group navigation items into collapsible sections
-  const navSections: CollapsibleSection[] = [
-    {
-      title: 'Main',
-      icon: <LayoutDashboard className="h-4 w-4" />,
-      items: filteredNavItems.filter(item => 
-        ['Dashboard', 'AI Assistant', 'Email Analysis'].includes(item.title)
-      ),
-      isOpen: true
-    },
-    {
-      title: 'Inventory',
-      icon: <Package2 className="h-4 w-4" />,
-      items: filteredNavItems.filter(item => item.title === 'Inventory'),
-      isOpen: searchQuery ? true : !collapsedSections.inventory
-    },
-    {
-      title: 'Sales',
-      icon: <ShoppingCart className="h-4 w-4" />,
-      items: filteredNavItems.filter(item => item.title === 'Sales'),
-      isOpen: searchQuery ? true : !collapsedSections.sales
-    },
-    {
-      title: 'Supplier Management',
-      icon: <Package className="h-4 w-4" />,
-      items: filteredNavItems.filter(item => item.title === 'Supplier Management'),
-      isOpen: searchQuery ? true : !collapsedSections.supplier
-    },
-    {
-      title: 'Other',
-      icon: <Settings className="h-4 w-4" />,
-      items: filteredNavItems.filter(item => 
-        ![
-          'Dashboard', 'Inventory', 'Sales', 'Supplier Management', 
-          'AI Assistant', 'Email Analysis'
-        ].includes(item.title)
-      ),
-      isOpen: searchQuery ? true : !collapsedSections.other
-    }
-  ].filter(section => section.items.length > 0);
-
   // Handle keyboard navigation for menu toggle
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Escape') {
@@ -247,89 +171,58 @@ export function Sidebar({ className }: SidebarProps) {
 
         {/* Navigation */}
         <nav className="flex-1 px-2 py-4 space-y-1.5 overflow-y-auto">
-          {navSections.map((section) => (
-            <div key={section.title} className="mb-2">
-              {section.title !== 'Main' && (
-                <button
-                  onClick={() => toggleSection(section.title.toLowerCase().replace(/\s+/g, ''))}
-                  className="flex items-center w-full px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-                  aria-expanded={section.isOpen}
-                >
-                  <span className="flex items-center">
-                    {section.icon}
-                    <span className="ml-3">{section.title}</span>
+          {filteredNavItems.map((item) => {
+            const isActive = 
+              pathname === item.href || 
+              (item.href !== "/dashboard" && pathname.startsWith(item.href));
+            
+            const itemContent = (
+              <div className="flex items-center">
+                <span className={cn("flex items-center justify-center w-6 h-6 rounded-md", isActive ? "text-primary" : "text-muted-foreground")}>
+                  {item.icon}
+                </span>
+                <span className="ml-3">{item.title}</span>
+                {item.comingSoon && (
+                  <span className="ml-auto text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full">
+                    Soon
                   </span>
-                  {section.isOpen ? (
-                    <ChevronDown className="ml-auto h-4 w-4" />
-                  ) : (
-                    <ChevronRight className="ml-auto h-4 w-4" />
-                  )}
-                </button>
-              )}
-              
-              <div
-                className={cn(
-                  'space-y-1 overflow-hidden transition-all duration-200',
-                  section.isOpen ? 'max-h-96' : 'max-h-0 opacity-0',
-                  section.title === 'Main' && 'pt-0',
-                  section.title !== 'Main' && 'pl-4 border-l-2 border-muted/50 ml-2'
                 )}
-              >
-                {section.items.map((item) => {
-                  const isActive = 
-                    pathname === item.href || 
-                    (item.href !== "/dashboard" && pathname.startsWith(item.href));
-                  
-                  const itemContent = (
-                    <div className="flex items-center">
-                      <span className={cn("flex items-center justify-center w-6 h-6 rounded-md", isActive ? "text-primary" : "text-muted-foreground")}>
-                        {item.icon}
-                      </span>
-                      <span className="ml-3">{item.title}</span>
-                      {item.comingSoon && (
-                        <span className="ml-auto text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full">
-                          Soon
-                        </span>
-                      )}
-                    </div>
-                  );
-
-                  if (item.comingSoon) {
-                    return (
-                      <div
-                        key={item.href}
-                        className={cn(
-                          'px-3 py-2 text-sm font-medium rounded-md transition-colors cursor-not-allowed',
-                          'text-muted-foreground/60 hover:bg-muted/50',
-                          isActive && 'bg-muted/50'
-                        )}
-                        title="Coming soon"
-                      >
-                        {itemContent}
-                      </div>
-                    );
-                  }
-
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      className={cn(
-                        'block px-3 py-2 text-sm font-medium rounded-md transition-colors',
-                        isActive
-                          ? 'bg-primary/10 text-primary font-medium'
-                          : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground',
-                        'focus:outline-none focus:ring-2 focus:ring-primary/20 focus:bg-primary/5'
-                      )}
-                      onClick={closeMenu}
-                    >
-                      {itemContent}
-                    </Link>
-                  );
-                })}
               </div>
-            </div>
-          ))}
+            );
+
+            if (item.comingSoon) {
+              return (
+                <div
+                  key={item.href}
+                  className={cn(
+                    'px-3 py-2 text-sm font-medium rounded-md transition-colors cursor-not-allowed',
+                    'text-muted-foreground/60 hover:bg-muted/50',
+                    isActive && 'bg-muted/50'
+                  )}
+                  title="Coming soon"
+                >
+                  {itemContent}
+                </div>
+              );
+            }
+
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={cn(
+                  'block px-3 py-2 text-sm font-medium rounded-md transition-colors',
+                  isActive
+                    ? 'bg-primary/10 text-primary font-medium'
+                    : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground',
+                  'focus:outline-none focus:ring-2 focus:ring-primary/20 focus:bg-primary/5'
+                )}
+                onClick={closeMenu}
+              >
+                {itemContent}
+              </Link>
+            );
+          })}
         </nav>
       </div>
     </div>

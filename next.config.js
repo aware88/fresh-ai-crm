@@ -22,25 +22,16 @@ const nextConfig = {
     ignoreBuildErrors: true,
   },
   
-  // Configure for Netlify
-  output: 'export',  // Use export instead of standalone to avoid prerendering
-  trailingSlash: true,
-  
-  // Disable static generation completely
-  staticPageGenerationTimeout: 1,
-  distDir: '.next',
-  
-  // Disable static optimization
-  poweredByHeader: false,
-  generateEtags: false,
-  
-  // Skip trailing slash redirect
-  skipTrailingSlashRedirect: true,
-  
-  // Configure images for Netlify
+  // Configure images
   images: {
-    unoptimized: true,
+    domains: ['localhost'],
   },
+  
+  // Additional configuration for server-side deployment
+  
+  // Moved from experimental to root level per Next.js 15.3.3 warnings
+  skipMiddlewareUrlNormalize: true,
+  skipTrailingSlashRedirect: true,
   
   // Webpack configuration to handle dynamic imports
   webpack: (config, { isServer }) => {
