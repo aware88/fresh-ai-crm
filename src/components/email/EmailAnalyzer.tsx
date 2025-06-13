@@ -121,11 +121,33 @@ export function EmailAnalyzer() {
       setAnalysis(data.analysis);
       
       // Extract suggested email from the analysis
-      const emailMatch = data.analysis.match(/\*\*✉️ Suggested Response:\*\*([\s\S]*?)(?:\*\*|$)/);
+      const emailMatch = data.analysis.match(/\*\*✉️ Suggested Response\*\*([\s\S]*?)(?=\*\*|$)/);
       if (emailMatch && emailMatch[1]) {
         // Clean up the extracted email text
-        const cleanedEmail = emailMatch[1].trim();
-        setSuggestedEmail(cleanedEmail);
+        let cleanedEmail = emailMatch[1].trim();
+        
+        // Further clean up - remove any analysis content that might be included
+        // Remove any lines with analysis markers like "Profile Match", "Behavioral Insight", "Strategy"
+        cleanedEmail = cleanedEmail
+          .replace(/\*\*🔍 Profile Match\*\*[\s\S]*?(?=\n\n|$)/g, '')
+          .replace(/\*\*🧠 Behavioral Insight\*\*[\s\S]*?(?=\n\n|$)/g, '')
+          .replace(/\*\*🎯 Strategy\*\*[\s\S]*?(?=\n\n|$)/g, '')
+          .replace(/- Best matches:[\s\S]*?(?=\n\n|$)/g, '')
+          .replace(/- Confidence:[\s\S]*?(?=\n\n|$)/g, '')
+          .replace(/- Why this match:[\s\S]*?(?=\n\n|$)/g, '')
+          .replace(/- Key traits:[\s\S]*?(?=\n\n|$)/g, '')
+          .replace(/- Best tone to use:[\s\S]*?(?=\n\n|$)/g, '')
+          .replace(/- What to emphasize:[\s\S]*?(?=\n\n|$)/g, '')
+          .replace(/- What to avoid:[\s\S]*?(?=\n\n|$)/g, '')
+          .replace(/- If sales:[\s\S]*?(?=\n\n|$)/g, '')
+          .trim();
+        
+        // If we still have content after cleaning, use it
+        if (cleanedEmail) {
+          setSuggestedEmail(cleanedEmail);
+        } else {
+          setSuggestedEmail(null);
+        }
       } else {
         setSuggestedEmail(null);
       }
@@ -148,6 +170,18 @@ export function EmailAnalyzer() {
     setError(null);
     
     try {
+      // First, try to extract basic contact info directly from the email content
+      // This is a simple regex extraction as a fallback before calling the API
+      const nameRegex = /From:\s*([^<\n]+)\s*<|From:\s*([^\n]+)/i;
+      const emailRegex = /<([^>]+@[^>]+)>|From:\s*([^\s]+@[^\s]+)/i;
+      
+      const nameMatch = emailContent.match(nameRegex);
+      const emailMatch = emailContent.match(emailRegex);
+      
+      const extractedName = nameMatch ? (nameMatch[1] || nameMatch[2] || '').trim() : '';
+      const extractedEmail = emailMatch ? (emailMatch[1] || emailMatch[2] || '').trim() : '';
+      
+      // Call the API with the extracted info as a hint
       const response = await fetch('/api/contacts/extract', {
         method: 'POST',
         headers: {
@@ -155,7 +189,9 @@ export function EmailAnalyzer() {
         },
         body: JSON.stringify({ 
           emailContent,
-          personalityAnalysis: analysis || ''
+          personalityAnalysis: analysis || '',
+          extractedName,
+          extractedEmail
         }),
       });
       
@@ -409,9 +445,11 @@ export function EmailAnalyzer() {
         </Card>
       </div>
 
-      {/* Suggested Email Response Area - Only shown when there's a suggested email */}
+      {/* Analysis Results are already shown in the main analysis area above */}
+
+      {/* Suggested Email Response Card - Only show this if we have a suggested email */}
       {suggestedEmail && (
-        <Card className="w-full border-0 shadow-lg bg-gradient-to-b from-white to-blue-50 overflow-hidden">
+        <Card className="w-full border-0 shadow-lg bg-gradient-to-b from-white to-blue-50 overflow-hidden mt-6">
           <CardHeader className="bg-gradient-to-r from-blue-500 to-indigo-600 pb-4">
             <div className="flex justify-between items-center">
               <div className="flex items-center">
@@ -421,7 +459,7 @@ export function EmailAnalyzer() {
                 <div>
                   <CardTitle className="text-white">Suggested Email Response</CardTitle>
                   <CardDescription className="text-blue-100">
-                    Ready-to-use personalized response based on the analysis
+                    Ready to copy and send
                   </CardDescription>
                 </div>
               </div>
@@ -433,7 +471,7 @@ export function EmailAnalyzer() {
               >
                 {copied ? (
                   <>
-                    <Check className="h-4 w-4 mr-1" /> Copied to Clipboard
+                    <Check className="h-4 w-4 mr-1" /> Copied
                   </>
                 ) : (
                   <>
