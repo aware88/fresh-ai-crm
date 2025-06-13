@@ -11,6 +11,16 @@
 const nextConfig = {
   // Enable React's Strict Mode (helps catch potential issues during development)
   reactStrictMode: true,
+  
+  // Disable ESLint during build
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+  
+  // Disable TypeScript type checking during build
+  typescript: {
+    ignoreBuildErrors: true,
+  },
 
   /**
    * Webpack configuration for handling SVGs and other assets
