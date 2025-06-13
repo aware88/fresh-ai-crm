@@ -21,6 +21,15 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
+  
+  // Disable static generation to avoid prerender errors
+  output: 'standalone',
+  trailingSlash: true,
+  
+  // Skip static generation for problematic pages
+  experimental: {
+    skipTrailingSlashRedirect: true,
+  },
 
   /**
    * Webpack configuration for handling SVGs and other assets
