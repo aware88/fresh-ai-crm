@@ -10,7 +10,7 @@
  */
 const nextConfig = {
   // Enable React's Strict Mode (helps catch potential issues during development)
-  reactStrictMode: true,
+  reactStrictMode: false,
   
   // Disable ESLint during build
   eslint: {
@@ -22,13 +22,21 @@ const nextConfig = {
     ignoreBuildErrors: true,
   },
   
-  // Disable static generation to avoid prerender errors
+  // Configure for Netlify
   output: 'standalone',
   trailingSlash: true,
   
-  // Skip static generation for problematic pages
+  // Enable server components
   experimental: {
+    serverComponents: true,
+    serverActions: true,
+    forceSwcTransforms: true,
     skipTrailingSlashRedirect: true,
+  },
+  
+  // Configure images for Netlify
+  images: {
+    unoptimized: true,
   },
 
   /**

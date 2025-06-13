@@ -3,14 +3,17 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack",
+    "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
     "db:seed": "chmod +x ./scripts/seed-database.sh && ./scripts/seed-database.sh",
     "db:seed:contacts": "psql $SUPABASE_DB_URL -f scripts/seed-contacts.sql",
     "db:seed:interactions": "psql $SUPABASE_DB_URL -f scripts/seed-interactions.sql",
-    "db:seed:files": "psql $SUPABASE_DB_URL -f scripts/seed-files.sql"
+    "db:seed:files": "psql $SUPABASE_DB_URL -f scripts/seed-files.sql",
+    "netlify:deploy": "netlify deploy --prod",
+    "netlify:login": "netlify login",
+    "netlify:build": "next build"
   },
   "dependencies": {
     "@chakra-ui/react": "^3.20.0",
@@ -61,6 +64,7 @@
     "autoprefixer": "^10.4.21",
     "eslint": "^9",
     "eslint-config-next": "15.3.3",
+    "netlify-cli": "^21.6.0",
     "postcss": "^8.5.5",
     "tailwindcss": "^3.4.17",
     "typescript": "^5"

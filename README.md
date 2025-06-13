@@ -21,9 +21,92 @@ A powerful AI-driven CRM platform that helps you understand and manage customer 
 
 ### Prerequisites
 
-- Node.js 18.17 or later
+- Node.js 18.0.0 or later
+- npm 9.0.0 or later
+- A Supabase account (for database)
+- An OpenAI API key (for AI features)
+- A Netlify account (for deployment)
+
+### Local Development
+
+1. Clone the repository
+   ```bash
+   git clone https://github.com/yourusername/fresh-ai-crm.git
+   cd fresh-ai-crm
+   ```
+
+2. Install dependencies
+   ```bash
+   npm install
+   ```
+
+3. Set up environment variables
+   ```bash
+   cp .env.example .env.local
+   ```
+   Then update the values in `.env.local` with your actual API keys and configuration.
+
+4. Run the development server
+   ```bash
+   npm run dev
+   ```
+   Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+## 🚀 Deployment
+
+### Netlify Deployment
+
+1. **Prepare your repository**
+   - Push your code to a GitHub, GitLab, or Bitbucket repository
+
+2. **Deploy to Netlify**
+   - Log in to your [Netlify](https://app.netlify.com/) account
+   - Click "Add new site" > "Import an existing project"
+   - Connect to your Git provider and select your repository
+   - Configure the build settings:
+     - Build command: `npm run build`
+     - Publish directory: `.next`
+   - Click "Deploy site"
+
+3. **Set up environment variables**
+   - Go to "Site settings" > "Build & deploy" > "Environment"
+   - Add all the environment variables from your `.env.local` file
+   - Make sure to mark sensitive variables as "Sensitive Variable"
+
+4. **Enable Server-Side Features**
+   - The site should automatically detect and use the `@netlify/plugin-nextjs` plugin
+   - For API routes, no additional configuration is needed as they'll be automatically handled
+
+5. **Custom Domain (Optional)**
+   - Go to "Domain settings" to set up a custom domain
+   - Follow Netlify's instructions for DNS configuration
+
+### Environment Variables
+
+Make sure to set the following environment variables in your Netlify dashboard:
+
+```
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+OPENAI_API_KEY=your_openai_api_key
+NEXT_PUBLIC_SITE_URL=your_netlify_site_url
+```
+
+## 🛠 Development Scripts
+
+- `npm run dev` - Start development server
+- `npm run build` - Build for production
+- `npm start` - Start production server
+- `npm run lint` - Run ESLint
+- `npm run netlify:login` - Log in to Netlify CLI
+- `npm run netlify:deploy` - Deploy to Netlify (production)
+
+### OpenAI, Supabase, and Other Services
+
 - [OpenAI API key](https://platform.openai.com/account/api-keys)
 - [Supabase](https://supabase.com/) project (for database and authentication)
+- [Resend](https://resend.com/) account (for email functionality)
+- [Stripe](https://stripe.com/) account (for payments)
 
 ### ⚙️ Environment Setup
 
