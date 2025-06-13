@@ -7,7 +7,7 @@ export default function FeaturesPage() {
     <div className="container mx-auto px-4 py-8 mt-4">
       <div className="text-center mb-12">
         <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-4">
-          AI CRM Features
+          CRM MIND Features
         </h1>
         <p className="text-xl text-gray-600 max-w-3xl mx-auto">
           Explore our powerful AI-driven tools designed to enhance your customer relationships and optimize your business operations.

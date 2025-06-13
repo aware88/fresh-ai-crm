@@ -42,4 +42,4 @@ CREATE INDEX IF NOT EXISTS contacts_personality_idx ON contacts (personalityType
 -- GRANT SELECT, INSERT, UPDATE, DELETE ON contacts TO authenticated;
 
 -- Add a comment to the table for documentation
-COMMENT ON TABLE contacts IS 'Stores contact information for the Fresh AI CRM system';
+COMMENT ON TABLE contacts IS 'Stores contact information for the CRM MIND system';

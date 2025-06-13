@@ -26,7 +26,7 @@ CREATE INDEX IF NOT EXISTS files_content_type_idx ON files (content_type);
 -- ALTER TABLE files ENABLE ROW LEVEL SECURITY;
 
 -- Add a comment to the table for documentation
-COMMENT ON TABLE files IS 'Stores metadata for files uploaded to the Fresh AI CRM system';
+COMMENT ON TABLE files IS 'Stores metadata for files uploaded to the CRM MIND system';
 
 -- Enable Storage if not already enabled
 -- This requires admin privileges and is typically done through the Supabase dashboard

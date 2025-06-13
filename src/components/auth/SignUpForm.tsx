@@ -55,7 +55,7 @@ export default function SignUpForm() {
       <CardHeader>
         <CardTitle className="text-2xl">Create an Account</CardTitle>
         <CardDescription>
-          Join the Fresh AI CRM beta to get started
+          Join the CRM MIND beta to get started
         </CardDescription>
       </CardHeader>
       <CardContent>

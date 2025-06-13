@@ -28,4 +28,4 @@ CREATE INDEX IF NOT EXISTS interactions_date_idx ON interactions (date);
 -- ALTER TABLE interactions ENABLE ROW LEVEL SECURITY;
 
 -- Add a comment to the table for documentation
-COMMENT ON TABLE interactions IS 'Stores interaction history with contacts for the Fresh AI CRM system';
+COMMENT ON TABLE interactions IS 'Stores interaction history with contacts for the CRM MIND system';

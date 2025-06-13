@@ -51,7 +51,7 @@ export default function LandingPage() {
                 </svg>
               </Box>
               <Heading size="lg" bgGradient="linear(to-r, blue.500, indigo.500)" bgClip="text">
-                AI CRM
+                CRM MIND
               </Heading>
             </Flex>
             <Box display={{ base: 'none', md: 'flex' }} alignItems="center" gap={6}>
@@ -89,13 +89,13 @@ export default function LandingPage() {
               </Text>
             </Box>
             <Heading as="h1" size="3xl" lineHeight="1.2" maxW="3xl" mx="auto">
-              AI-Powered CRM for the
+              AI-Powered CRM MIND for the
               <Box as="span" display="block" bgGradient="linear(to-r, blue.600, indigo.600)" bgClip="text">
                 Modern Sales Team
               </Box>
             </Heading>
             <Text fontSize="xl" color="gray.600" maxW="2xl" mx="auto">
-              Transform your customer relationships with our AI-powered CRM that understands
+              Transform your customer relationships with our AI-powered CRM MIND that understands
               your customers better than ever before.
             </Text>
             <Box pt={4}>
@@ -195,7 +195,7 @@ export default function LandingPage() {
           <VStack gap={6}>
             <Heading as="h2" size="2xl">Ready to transform your sales process?</Heading>
             <Text fontSize="xl" maxW="2xl" mx="auto">
-              Join thousands of sales professionals who are already using our AI-powered CRM to close more deals.
+              Join thousands of sales professionals who are already using our AI-powered CRM MIND to close more deals.
             </Text>
             <Box pt={4}>
               <Link href="/dashboard">
@@ -225,7 +225,7 @@ export default function LandingPage() {
                   <path d="M12 8h.01"></path>
                 </svg>
               </Box>
-              <Text fontWeight="bold" fontSize="lg">AI CRM</Text>
+              <Text fontWeight="bold" fontSize="lg">CRM MIND</Text>
             </Flex>
             <Flex gap={6}>
               <Link href="#features">
@@ -243,7 +243,7 @@ export default function LandingPage() {
             </Flex>
           </Flex>
           <Box mt={8} textAlign="center" color={useColorModeValue('gray.500', 'gray.400')}>
-            <Text>&copy; {new Date().getFullYear()} AI CRM. All rights reserved.</Text>
+            <Text>&copy; {new Date().getFullYear()} CRM MIND. All rights reserved.</Text>
           </Box>
         </Container>
       </Box>

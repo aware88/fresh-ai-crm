@@ -1,14 +1,17 @@
 import React from 'react';
 import type { AppProps } from 'next/app';
+import { ChakraProvider, createSystem } from '@chakra-ui/react';
 import '../styles/globals.css';
 
-/**
- * Main application component that wraps all pages
- * This is a simplified version for deployment that removes Chakra UI
- * to avoid compatibility issues during the build process
- */
+// Create a basic system for Chakra UI v3
+const system = createSystem();
+
 function MyApp({ Component, pageProps }: AppProps) {
-  return <Component {...pageProps} />;
+  return (
+    <ChakraProvider value={system}>
+      <Component {...pageProps} />
+    </ChakraProvider>
+  );
 }
 
 export default MyApp;

@@ -150,7 +150,7 @@ export function Sidebar({ className }: SidebarProps) {
         <div className="flex h-16 items-center px-6 border-b border-gray-100">
           <Link href="/dashboard" className="flex items-center space-x-2">
             <Package2 className="h-6 w-6 text-primary" />
-            <span className="text-lg font-semibold">AI CRM</span>
+            <span className="text-lg font-semibold">CRM MIND</span>
           </Link>
         </div>
 

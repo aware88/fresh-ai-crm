@@ -16,7 +16,7 @@ export default function Home() {
                   <path d="M12 8h.01"></path>
                 </svg>
               </div>
-              <span className="font-bold text-2xl bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">AI CRM</span>
+              <span className="font-bold text-2xl bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">CRM MIND</span>
             </div>
             <div className="hidden md:flex items-center gap-6">
               <a href="#features" className="text-gray-600 hover:text-blue-600 transition-colors">Features</a>
@@ -262,7 +262,7 @@ export default function Home() {
         <div className="container mx-auto">
           <div className="max-w-4xl mx-auto bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl shadow-xl p-8 md:p-12 text-white text-center">
             <h2 className="text-3xl md:text-4xl font-bold mb-6">Ready to Upgrade Your Communication?</h2>
-            <p className="text-xl mb-8 opacity-90">Try our AI-powered CRM today and see the difference in your customer relationships.</p>
+            <p className="text-xl mb-8 opacity-90">Try our AI-powered CRM MIND today and see the difference in your customer relationships.</p>
             <Link href="/dashboard">
               <Button size="lg" className="bg-white text-blue-600 hover:bg-blue-50 text-lg py-6 px-10 rounded-full transition-all duration-300 shadow-lg hover:shadow-xl">
                 Get Started Now
@@ -284,7 +284,7 @@ export default function Home() {
                   <path d="M12 8h.01"></path>
                 </svg>
               </div>
-              <span className="font-bold text-lg bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">AI CRM</span>
+              <span className="font-bold text-lg bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">CRM MIND</span>
             </div>
             <div className="flex items-center gap-6">
               <a href="#features" className="text-gray-600 hover:text-blue-600 transition-colors text-sm">Features</a>
@@ -296,7 +296,7 @@ export default function Home() {
             </div>
           </div>
           <div className="mt-6 text-center text-gray-500 text-sm">
-            <p>&copy; {new Date().getFullYear()} AI CRM. All rights reserved.</p>
+            <p>&copy; {new Date().getFullYear()} CRM MIND. All rights reserved.</p>
           </div>
         </div>
       </footer>
