@@ -36,9 +36,11 @@ const itemVariants = {
 };
 
 export default function Home() {
-  const heroRef = useRef<HTMLDivElement>(null);
   const backgroundRef = useRef<HTMLDivElement>(null);
-  const isInView = useInView(heroRef, { once: true, amount: 0.1 });
+  const [heroInViewRef, isInView] = useInView({
+    triggerOnce: true,
+    threshold: 0.1,
+  });
   const prefersReducedMotion = useReducedMotion?.() ?? false;
   const [isClient, setIsClient] = useState(false);
 
@@ -182,8 +184,7 @@ export default function Home() {
                 {[
                   { name: 'Features', id: 'features' },
                   { name: 'Pricing', id: 'pricing' },
-                  { name: 'Testimonials', id: 'testimonials' },
-                  { name: 'About', id: 'contact' }  // Using contact section as About for now
+                  { name: 'Testimonials', id: 'testimonials' }
                 ].map((item) => (
                   <motion.div key={item.id} variants={itemVariants}>
                     <a 
@@ -238,7 +239,7 @@ export default function Home() {
       {/* Hero Section */}
       <main className="flex-1 pt-32 pb-24 px-4 relative z-10">
         <motion.section 
-          ref={heroRef}
+          ref={heroInViewRef}
           className="container mx-auto max-w-7xl"
           initial="hidden"
           animate={isInView ? "visible" : "hidden"}
@@ -615,13 +616,9 @@ export default function Home() {
               {/* Features */}
               <ul className="space-y-3 mb-8 text-left max-w-md mx-auto">
                 {[
-                  '✓ Up to 20 users',
                   '✓ Advanced analytics',
                   '✓ Priority support',
-                  '✓ 100GB storage',
-                  '✓ API access',
                   '✓ Advanced integrations',
-                  '✓ Up to 10 team members',
                   '✓ Custom branding',
                   '✓ Advanced reporting'
                 ].map((feature, i) => (
