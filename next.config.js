@@ -26,11 +26,11 @@ const nextConfig = {
   output: 'standalone',
   trailingSlash: true,
   
-  // Disable prerendering to avoid Chakra UI compatibility issues
-  experimental: {
-    forceSwcTransforms: true,
-    isrMemoryCacheSize: 0,
-  },
+  // Disable static generation completely
+  staticPageGenerationTimeout: 0,
+  
+  // Runtime configuration
+  runtime: 'nodejs',
   
   // Disable static optimization
   poweredByHeader: false,
