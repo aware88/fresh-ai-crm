@@ -278,27 +278,45 @@ export async function deleteContact(id: string): Promise<boolean> {
 }
 
 /**
- * Get a contact by ID from Supabase or cache
+ * Get a contact by ID from cache, mock data, or Supabase
  */
 export async function getContactById(id: string): Promise<Contact | null> {
-  // Check cache first
-  if (contactsCache) {
-    const cachedContact = contactsCache.find(contact => contact.id === id);
-    if (cachedContact) return cachedContact;
+  console.log(`Looking up contact with ID: ${id}`);
+  
+  // Check mock data first
+  const mockContact = mockContacts.find(contact => contact.id === id);
+  if (mockContact) {
+    console.log(`Found contact ${mockContact.firstName} ${mockContact.lastName} in mock data`);
+    return mockContact;
   }
   
-  // If Supabase is configured, fetch from database
+  // Check cache if available
+  if (contactsCache) {
+    const cachedContact = contactsCache.find(contact => contact.id === id);
+    if (cachedContact) {
+      console.log(`Found contact ${cachedContact.firstName} ${cachedContact.lastName} in cache`);
+      return cachedContact;
+    }
+  }
+  
+  // Only try Supabase if it's properly configured
   if (isSupabaseConfigured()) {
+    console.log('Supabase is configured, trying to fetch from database');
     try {
-      return await fetchContactByIdFromDb(id);
+      const dbContact = await fetchContactByIdFromDb(id);
+      if (dbContact) {
+        console.log(`Found contact ${dbContact.firstName} ${dbContact.lastName} in database`);
+        return dbContact;
+      }
     } catch (error) {
-      console.error(`Error getting contact with ID ${id}:`, error);
-      return null;
+      console.error(`Error getting contact with ID ${id} from database:`, error);
     }
   } else {
-    // Fall back to mock data
-    return mockContacts.find(contact => contact.id === id) || null;
+    console.log('Supabase is not properly configured, using mock data only');
   }
+  
+  console.warn(`Contact with ID ${id} not found in any data source`);
+  return null;
 }
 
 /**

@@ -9,11 +9,14 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const id = params.id;
+    const id = params?.id;
     
     if (!id) {
       return NextResponse.json(
-        { error: 'Contact ID is required' },
+        { 
+          success: false,
+          error: 'Contact ID is required' 
+        },
         { status: 400 }
       );
     }
@@ -22,19 +25,28 @@ export async function GET(
     
     if (!contact) {
       return NextResponse.json(
-        { error: 'Contact not found' },
+        { 
+          success: false,
+          error: `Contact with ID ${id} not found` 
+        },
         { status: 404 }
       );
     }
     
     return NextResponse.json({
-      contact,
-      usingSupabase: isUsingSupabase()
+      success: true,
+      data: {
+        contact,
+        usingSupabase: isUsingSupabase()
+      }
     });
   } catch (error) {
     console.error('Error in GET /api/contacts/[id]:', error);
     return NextResponse.json(
-      { error: 'Failed to load contact' },
+      { 
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to load contact' 
+      },
       { status: 500 }
     );
   }
