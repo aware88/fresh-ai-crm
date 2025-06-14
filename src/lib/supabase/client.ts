@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { createNoAuthClient } from './auth-fix';
 
 // We're deliberately avoiding authentication to prevent the freezing issues
 // that were present in the original Next.js 15.3.3 + Supabase auth project
@@ -22,7 +23,8 @@ export const createSupabaseClient = () => {
   }
   
   try {
-    supabaseInstance = createClient(supabaseUrl, supabaseAnonKey);
+    // Use the auth-fix implementation to prevent refresh token errors
+    supabaseInstance = createNoAuthClient();
     return supabaseInstance;
   } catch (error) {
     console.error('Failed to create Supabase client:', error);

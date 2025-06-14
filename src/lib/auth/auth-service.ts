@@ -13,7 +13,18 @@ export const AuthService = {
       const supabase = createSupabaseClient();
       if (!supabase) return null;
 
-      const { data } = await supabase.auth.getSession();
+      const { data, error } = await supabase.auth.getSession();
+      
+      if (error) {
+        if (error.message.includes('Refresh Token')) {
+          console.warn('Invalid refresh token detected, clearing session');
+          // Clear any invalid session data
+          await this.signOut();
+          return null;
+        }
+        throw error;
+      }
+      
       return data?.session || null;
     } catch (error) {
       console.error('Error getting session:', error);

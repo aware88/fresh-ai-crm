@@ -4,7 +4,7 @@ import { saveContactFromEmail } from '@/lib/contacts/extraction';
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { emailContent, personalityAnalysis } = body;
+    const { emailContent, personalityAnalysis, extractedName, extractedEmail } = body;
     
     if (!emailContent) {
       return NextResponse.json(
@@ -13,7 +13,12 @@ export async function POST(request: Request) {
       );
     }
     
-    const result = await saveContactFromEmail(emailContent, personalityAnalysis || '');
+    const result = await saveContactFromEmail(
+      emailContent, 
+      personalityAnalysis || '',
+      extractedName,
+      extractedEmail
+    );
     
     if (!result.success) {
       return NextResponse.json(

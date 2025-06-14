@@ -128,10 +128,41 @@ If you cannot extract any useful contact information, return null.
  */
 export async function saveContactFromEmail(
   emailContent: string,
-  personalityAnalysis: string
+  personalityAnalysis: string,
+  extractedName?: string,
+  extractedEmail?: string
 ): Promise<{ success: boolean; message: string; contactId?: string }> {
   try {
-    const contactData = await extractContactFromEmail(emailContent, personalityAnalysis);
+    // First try the AI extraction
+    let contactData = await extractContactFromEmail(emailContent, personalityAnalysis);
+    
+    // If AI extraction failed but we have manually extracted info, create a basic contact
+    if (!contactData && extractedEmail) {
+      let firstName = '';
+      let lastName = '';
+      
+      // Try to parse the name if available
+      if (extractedName) {
+        const nameParts = extractedName.split(' ');
+        if (nameParts.length >= 2) {
+          firstName = nameParts[0];
+          lastName = nameParts.slice(1).join(' ');
+        } else {
+          firstName = extractedName;
+        }
+      } else {
+        // Use email as fallback for name
+        firstName = extractedEmail.split('@')[0];
+      }
+      
+      contactData = {
+        firstName,
+        lastName,
+        email: extractedEmail,
+        personalityType: '',
+        personalityNotes: ''
+      };
+    }
     
     if (!contactData) {
       return { 

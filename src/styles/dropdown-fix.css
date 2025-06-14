@@ -1,0 +1,10 @@
+/* Fix for dropdown visibility issues */
+.select-content-fix {
+  z-index: 9999 !important;
+  position: relative;
+}
+
+/* Override any conflicting styles */
+[data-radix-popper-content-wrapper] {
+  z-index: 9999 !important;
+}

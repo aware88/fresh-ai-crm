@@ -112,9 +112,9 @@ export function CustomPromptWindow() {
   // Templates for different use cases
   const templates = {
     general: '',
-    dispute: 'I need help resolving a dispute with a customer. Here are the details:\n\nCustomer complaint: [DESCRIBE COMPLAINT]\n\nOur position: [DESCRIBE YOUR POSITION]\n\nRelevant policies: [LIST ANY RELEVANT POLICIES]\n\nDesired outcome: [WHAT OUTCOME ARE YOU SEEKING]',
-    email: 'Please help me craft a professional email response to the following message:\n\n[PASTE EMAIL HERE]',
-    analysis: 'Please analyze the following information and provide insights:\n\n[PASTE CONTENT HERE]'
+    dispute: 'I need help resolving a dispute with a customer. Here are the details:\n\nCustomer complaint: \n\nOur position: \n\nRelevant policies: \n\nDesired outcome: ',
+    email: 'Please help me craft a professional email response to the following message:\n\n',
+    analysis: 'Please analyze the following information and provide insights:\n\n'
   };
 
   const handleTabChange = (value: string) => {
@@ -215,11 +215,35 @@ ${prompt}`;
   return (
     <div className="space-y-6">
       <Tabs defaultValue="general" value={activeTab} onValueChange={handleTabChange}>
-        <TabsList className="grid grid-cols-4">
-          <TabsTrigger value="general">General Assistant</TabsTrigger>
-          <TabsTrigger value="dispute">Dispute Resolution</TabsTrigger>
-          <TabsTrigger value="email">Email Assistance</TabsTrigger>
-          <TabsTrigger value="analysis">Data Analysis</TabsTrigger>
+        <TabsList className="grid grid-cols-4 p-1 bg-blue-50 rounded-xl shadow-inner border border-blue-100">
+          <TabsTrigger 
+            value="general" 
+            className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white rounded-lg flex items-center justify-center gap-2 transition-all duration-200 hover:bg-blue-100 data-[state=active]:hover:bg-blue-500"
+          >
+            <Brain className="h-4 w-4" />
+            General Assistant
+          </TabsTrigger>
+          <TabsTrigger 
+            value="dispute" 
+            className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white rounded-lg flex items-center justify-center gap-2 transition-all duration-200 hover:bg-blue-100 data-[state=active]:hover:bg-blue-500"
+          >
+            <AlertCircle className="h-4 w-4" />
+            Dispute Resolution
+          </TabsTrigger>
+          <TabsTrigger 
+            value="email" 
+            className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white rounded-lg flex items-center justify-center gap-2 transition-all duration-200 hover:bg-blue-100 data-[state=active]:hover:bg-blue-500"
+          >
+            <FileText className="h-4 w-4" />
+            Email Assistance
+          </TabsTrigger>
+          <TabsTrigger 
+            value="analysis" 
+            className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white rounded-lg flex items-center justify-center gap-2 transition-all duration-200 hover:bg-blue-100 data-[state=active]:hover:bg-blue-500"
+          >
+            <Database className="h-4 w-4" />
+            Data Analysis
+          </TabsTrigger>
         </TabsList>
       </Tabs>
 
@@ -275,25 +299,33 @@ ${prompt}`;
                 
                 {includeContactData && (
                   <div className="mt-2">
+                    <label className="block text-sm font-medium text-blue-700 mb-1">Select a contact</label>
                     <Select 
                       value={selectedContact} 
                       onValueChange={setSelectedContact}
                       disabled={loadingContacts}
                     >
-                      <SelectTrigger className="w-full">
+                      <SelectTrigger className="w-full bg-white border-blue-200 hover:border-blue-400 focus:border-blue-500 shadow-sm">
                         <SelectValue placeholder="Select a contact" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="bg-white shadow-lg border-blue-200 rounded-md overflow-hidden">
                         {loadingContacts ? (
-                          <div className="flex items-center justify-center p-2">
-                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                          <div className="flex items-center justify-center p-4">
+                            <Loader2 className="h-4 w-4 animate-spin mr-2 text-blue-500" />
                             <span className="text-sm">Loading contacts...</span>
                           </div>
                         ) : contacts.map((contact: Contact) => (
-                          <SelectItem key={contact.id} value={contact.id}>
-                            <div className="flex items-center">
-                              <User className="h-4 w-4 mr-2 text-blue-500" />
-                              {contact.firstName} {contact.lastName} ({contact.email})
+                          <SelectItem 
+                            key={contact.id} 
+                            value={contact.id}
+                            className="hover:bg-blue-50 focus:bg-blue-50 cursor-pointer"
+                          >
+                            <div className="flex items-center py-1">
+                              <div className="bg-blue-100 rounded-full p-1 mr-2">
+                                <User className="h-3 w-3 text-blue-600" />
+                              </div>
+                              <span className="font-medium">{contact.firstName} {contact.lastName}</span>
+                              <span className="text-gray-500 text-xs ml-1">({contact.email})</span>
                             </div>
                           </SelectItem>
                         ))}
@@ -301,19 +333,45 @@ ${prompt}`;
                     </Select>
                     
                     {selectedContact && (
-                      <div className="mt-3 text-xs bg-white p-2 rounded border border-gray-200">
-                        <p className="font-medium text-gray-700 mb-1">Contact Information:</p>
+                      <div className="mt-3 bg-white rounded-lg shadow-sm border border-blue-100 overflow-hidden">
+                        <div className="bg-gradient-to-r from-blue-500 to-indigo-600 px-3 py-2">
+                          <p className="font-medium text-white text-sm flex items-center">
+                            <User className="h-3 w-3 mr-1.5" />
+                            Contact Information
+                          </p>
+                        </div>
                         {(() => {
                           const contact = contacts.find((c: Contact) => c.id === selectedContact);
                           return contact ? (
-                            <div className="space-y-1 text-gray-600">
-                              <p><span className="font-medium">Name:</span> {contact.firstName} {contact.lastName}</p>
-                              <p><span className="font-medium">Email:</span> {contact.email}</p>
-                              <p><span className="font-medium">Company:</span> {contact.company || 'N/A'}</p>
-                              <p><span className="font-medium">Position:</span> {contact.position || 'N/A'}</p>
-                              <p><span className="font-medium">Personality:</span> {contact.personalityType || 'Unknown'}</p>
-                              <p><span className="font-medium">Notes:</span> {contact.personalityNotes || contact.notes || 'No additional notes'}</p>
-                              <p><span className="font-medium">Last Contact:</span> {contact.lastContact || 'Unknown'}</p>
+                            <div className="p-3 grid grid-cols-2 gap-2 text-sm">
+                              <div className="flex items-center">
+                                <span className="text-blue-700 font-medium mr-1">Name:</span>
+                                <span className="text-gray-700">{contact.firstName} {contact.lastName}</span>
+                              </div>
+                              <div className="flex items-center">
+                                <span className="text-blue-700 font-medium mr-1">Email:</span>
+                                <span className="text-gray-700">{contact.email}</span>
+                              </div>
+                              <div className="flex items-center">
+                                <span className="text-blue-700 font-medium mr-1">Company:</span>
+                                <span className="text-gray-700">{contact.company || 'N/A'}</span>
+                              </div>
+                              <div className="flex items-center">
+                                <span className="text-blue-700 font-medium mr-1">Position:</span>
+                                <span className="text-gray-700">{contact.position || 'N/A'}</span>
+                              </div>
+                              <div className="flex items-center">
+                                <span className="text-blue-700 font-medium mr-1">Personality:</span>
+                                <span className="text-gray-700">{contact.personalityType || 'Unknown'}</span>
+                              </div>
+                              <div className="flex items-center">
+                                <span className="text-blue-700 font-medium mr-1">Last Contact:</span>
+                                <span className="text-gray-700">{contact.lastContact || 'Unknown'}</span>
+                              </div>
+                              <div className="col-span-2">
+                                <span className="text-blue-700 font-medium block mb-1">Notes:</span>
+                                <p className="text-gray-700 bg-gray-50 p-1.5 rounded text-xs">{contact.personalityNotes || contact.notes || 'No additional notes'}</p>
+                              </div>
                             </div>
                           ) : null;
                         })()}

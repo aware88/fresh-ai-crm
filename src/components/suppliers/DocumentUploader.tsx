@@ -145,21 +145,22 @@ export default function DocumentUploader() {
     <div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
         {/* Left Column - Upload Form */}
-        <div className="bg-blue-50 p-6 rounded-lg border border-blue-100">
-          <h3 className="text-lg font-semibold mb-4">Upload Document</h3>
+        <div className="bg-gradient-to-b from-blue-50 to-white p-6 rounded-lg border border-blue-100 shadow-md">
+          <div className="flex items-center mb-4">
+            <div className="p-2 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full mr-3 shadow-sm">
+              <UploadCloud className="h-4 w-4 text-white" />
+            </div>
+            <h3 className="text-lg font-semibold bg-gradient-to-r from-blue-700 to-indigo-700 bg-clip-text text-transparent">Upload Document</h3>
+          </div>
           
           <div className="space-y-4">
             <div>
-              <Label htmlFor="supplier">Supplier</Label>
-              <Select
-                value={selectedSupplierId}
-                onValueChange={setSelectedSupplierId}
-                disabled={loading || suppliers.length === 0}
-              >
-                <SelectTrigger id="supplier">
+              <Label htmlFor="supplier" className="text-blue-800 font-medium">Supplier</Label>
+              <Select value={selectedSupplierId} onValueChange={setSelectedSupplierId}>
+                <SelectTrigger className="border-blue-200 focus:ring-blue-300">
                   <SelectValue placeholder="Select a supplier" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent position="popper" sideOffset={5}>
                   {suppliers.map((supplier) => (
                     <SelectItem key={supplier.id} value={supplier.id}>
                       {supplier.name}
@@ -170,15 +171,15 @@ export default function DocumentUploader() {
             </div>
             
             <div>
-              <Label htmlFor="documentType">Document Type</Label>
+              <Label htmlFor="documentType" className="text-blue-800 font-medium">Document Type</Label>
               <Select
                 value={selectedDocumentType}
                 onValueChange={setSelectedDocumentType}
               >
-                <SelectTrigger id="documentType">
+                <SelectTrigger id="documentType" className="border-blue-200 focus:ring-blue-300">
                   <SelectValue placeholder="Select document type" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent position="popper" sideOffset={5}>
                   {documentTypes.map((type) => (
                     <SelectItem key={type.value} value={type.value}>
                       {type.label}

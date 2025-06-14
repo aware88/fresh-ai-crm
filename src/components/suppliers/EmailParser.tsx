@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Mail, Plus, X, Clipboard, Search } from 'lucide-react';
+import { Loader2, Mail, Plus, X, Clipboard, Search, AlertCircle, Check, FileText } from 'lucide-react';
 
 export default function EmailParser() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
@@ -183,8 +183,13 @@ export default function EmailParser() {
     <div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
         {/* Left Column - Email Input Form */}
-        <div className="bg-purple-50 p-6 rounded-lg border border-purple-100">
-          <h3 className="text-lg font-semibold mb-4">Paste Email Content</h3>
+        <div className="bg-gradient-to-b from-blue-50 to-white p-6 rounded-lg border border-blue-100 shadow-md">
+          <div className="flex items-center mb-4">
+            <div className="p-2 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full mr-3 shadow-sm">
+              <Mail className="h-4 w-4 text-white" />
+            </div>
+            <h3 className="text-lg font-semibold bg-gradient-to-r from-blue-700 to-indigo-700 bg-clip-text text-transparent">Paste Email Content</h3>
+          </div>
           
           <div className="space-y-4">
             <div className="relative">
@@ -216,29 +221,43 @@ export default function EmailParser() {
             </div>
             
             {previewData && (
-              <div className="bg-white p-4 rounded-md border border-gray-200">
-                <h4 className="font-medium text-sm text-gray-500 mb-2">Email Preview</h4>
-                <div className="space-y-1 text-sm">
-                  <p><strong>From:</strong> {previewData.senderName} &lt;{previewData.senderEmail}&gt;</p>
-                  <p><strong>Subject:</strong> {previewData.subject}</p>
-                  <p><strong>Date:</strong> {formatDate(previewData.date)}</p>
+              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-md border border-blue-100 shadow-sm">
+                <h4 className="font-medium text-sm text-blue-700 mb-2 flex items-center">
+                  <div className="p-1 bg-blue-100 rounded-full mr-2">
+                    <Mail className="h-3 w-3 text-blue-600" />
+                  </div>
+                  Email Preview
+                </h4>
+                <div className="space-y-2 text-sm">
+                  <p className="flex items-start">
+                    <span className="font-medium text-blue-800 w-16">From:</span> 
+                    <span className="text-blue-700">{previewData.senderName} <span className="text-blue-500">&lt;{previewData.senderEmail}&gt;</span></span>
+                  </p>
+                  <p className="flex items-start">
+                    <span className="font-medium text-blue-800 w-16">Subject:</span> 
+                    <span className="text-blue-700">{previewData.subject}</span>
+                  </p>
+                  <p className="flex items-start">
+                    <span className="font-medium text-blue-800 w-16">Date:</span> 
+                    <span className="text-blue-700">{formatDate(previewData.date)}</span>
+                  </p>
                 </div>
               </div>
             )}
             
             <div>
-              <Label htmlFor="supplier">Link to Supplier (Optional)</Label>
+              <Label htmlFor="supplier" className="text-blue-800 font-medium">Link to Supplier (Optional)</Label>
               <Select
                 value={selectedSupplierId}
                 onValueChange={setSelectedSupplierId}
               >
-                <SelectTrigger id="supplier">
+                <SelectTrigger id="supplier" className="border-blue-200 focus:border-blue-500 focus:ring-blue-500 bg-white">
                   <SelectValue placeholder="Select a supplier" />
                 </SelectTrigger>
-                <SelectContent className="z-50 max-h-[300px] overflow-y-auto">
-                  <SelectItem value="none">None</SelectItem>
+                <SelectContent className="z-[100] max-h-[300px] overflow-y-auto border-blue-200 shadow-md">
+                  <SelectItem value="none" className="text-blue-700">None</SelectItem>
                   {suppliers.map((supplier) => (
-                    <SelectItem key={supplier.id} value={supplier.id}>
+                    <SelectItem key={supplier.id} value={supplier.id} className="text-blue-700 hover:bg-blue-50 focus:bg-blue-50">
                       {supplier.name}
                     </SelectItem>
                   ))}
@@ -247,21 +266,21 @@ export default function EmailParser() {
             </div>
             
             <div>
-              <Label>Product Tags</Label>
-              <div className="flex flex-wrap gap-2 mt-2 mb-3">
+              <Label className="text-blue-800 font-medium">Product Tags</Label>
+              <div className="flex flex-wrap gap-2 mt-2 mb-3 p-2 bg-blue-50 rounded-md border border-blue-100 min-h-[40px]">
                 {productTags.map((tag) => (
-                  <Badge key={tag} variant="secondary" className="flex items-center gap-1">
+                  <Badge key={tag} variant="secondary" className="flex items-center gap-1 bg-gradient-to-r from-blue-100 to-indigo-100 text-blue-700 border-blue-200 hover:from-blue-200 hover:to-indigo-200 transition-all duration-200">
                     {tag}
                     <button 
                       onClick={() => handleRemoveProductTag(tag)}
-                      className="text-gray-500 hover:text-gray-700"
+                      className="text-blue-500 hover:text-blue-700 transition-colors"
                     >
                       <X className="h-3 w-3" />
                     </button>
                   </Badge>
                 ))}
                 {productTags.length === 0 && (
-                  <span className="text-sm text-gray-500">No product tags</span>
+                  <span className="text-sm text-blue-500 italic">No product tags detected</span>
                 )}
               </div>
               <div className="flex">
@@ -269,12 +288,12 @@ export default function EmailParser() {
                   placeholder="Add product tag..."
                   value={newProductTag}
                   onChange={(e) => setNewProductTag(e.target.value)}
-                  className="rounded-r-none"
+                  className="rounded-r-none focus:ring-blue-500 focus:border-blue-500"
                 />
                 <Button
                   onClick={handleAddProductTag}
                   disabled={!newProductTag}
-                  className="rounded-l-none"
+                  className="rounded-l-none bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white"
                 >
                   <Plus className="h-4 w-4" />
                 </Button>
@@ -284,7 +303,7 @@ export default function EmailParser() {
             <Button
               onClick={handleParse}
               disabled={!emailContent || parsing}
-              className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700"
+              className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white shadow-md hover:shadow-lg transition-all duration-200"
             >
               {parsing ? (
                 <>
@@ -300,57 +319,83 @@ export default function EmailParser() {
             </Button>
             
             {error && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded flex items-center">
-                <span className="mr-2">⚠️</span> {error}
+              <div className="bg-gradient-to-r from-red-50 to-pink-50 border border-red-100 text-red-700 px-5 py-4 rounded-lg flex items-center shadow-md">
+                <div className="p-2 bg-red-100 rounded-full mr-3">
+                  <AlertCircle className="h-4 w-4 text-red-500" />
+                </div>
+                <div>
+                  <h4 className="font-medium text-red-800">Error</h4>
+                  <p className="text-red-700">{error}</p>
+                </div>
               </div>
             )}
             
             {success && (
-              <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded flex items-center">
-                <span className="mr-2">✅</span> {success}
+              <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-100 text-green-700 px-5 py-4 rounded-lg flex items-center shadow-md">
+                <div className="p-2 bg-green-100 rounded-full mr-3">
+                  <Check className="h-4 w-4 text-green-500" />
+                </div>
+                <div>
+                  <h4 className="font-medium text-green-800">Success</h4>
+                  <p className="text-green-700">{success}</p>
+                </div>
               </div>
             )}
           </div>
         </div>
         
         {/* Right Column - Emails List */}
-        <div>
+        <div className="bg-gradient-to-b from-blue-50 to-white p-6 rounded-lg border border-blue-100 shadow-md">
           <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold">Saved Emails</h3>
+            <div className="flex items-center">
+              <div className="p-2 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full mr-3 shadow-sm">
+                <FileText className="h-4 w-4 text-white" />
+              </div>
+              <h3 className="text-lg font-semibold bg-gradient-to-r from-blue-700 to-indigo-700 bg-clip-text text-transparent">Saved Emails</h3>
+            </div>
             
             <div className="relative">
-              <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-blue-500" />
               <Input
                 placeholder="Search emails..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-8 w-[200px]"
+                className="pl-8 w-[200px] border-blue-200 focus:border-blue-500 focus:ring-blue-500"
               />
             </div>
           </div>
           
           {loading ? (
-            <div className="flex justify-center items-center py-12">
-              <Loader2 className="h-8 w-8 animate-spin text-purple-500" />
-              <span className="ml-2 text-gray-500">Loading emails...</span>
+            <div className="flex flex-col justify-center items-center py-12 bg-gradient-to-b from-blue-50 to-white rounded-lg border border-blue-100">
+              <div className="p-3 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full mb-4 shadow-md">
+                <Loader2 className="h-8 w-8 animate-spin text-white" />
+              </div>
+              <p className="text-blue-700 font-medium">Loading emails...</p>
+              <p className="text-sm text-blue-500 mt-2">This may take a few moments</p>
             </div>
           ) : filteredEmails.length === 0 ? (
-            <div className="text-center py-12 bg-gray-50 rounded-lg border border-gray-200">
-              <p className="text-gray-500">
+            <div className="text-center py-12 border border-blue-100 rounded-lg bg-gradient-to-b from-blue-50 to-white shadow-sm">
+              <div className="flex justify-center mb-6">
+                <div className="p-4 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full shadow-md">
+                  <Mail className="h-8 w-8 text-white" />
+                </div>
+              </div>
+              <h3 className="text-blue-800 font-medium text-lg mb-2">No emails found</h3>
+              <p className="text-blue-600 mb-6 max-w-md mx-auto">
                 {searchTerm 
-                  ? 'No emails match your search.' 
-                  : 'No emails found. Parse your first email to get started.'}
+                  ? 'No emails match your search criteria. Try a different search term.' 
+                  : 'Parse your first email to start tracking supplier communications.'}
               </p>
             </div>
           ) : (
-            <div className="border rounded-lg overflow-hidden">
+            <div className="rounded-lg overflow-hidden shadow-md border border-blue-100">
               <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Sender</TableHead>
-                    <TableHead>Subject</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Products</TableHead>
+                <TableHeader className="bg-gradient-to-r from-blue-500 to-indigo-600">
+                  <TableRow className="hover:bg-transparent border-none">
+                    <TableHead className="text-white font-medium">Sender</TableHead>
+                    <TableHead className="text-white font-medium">Subject</TableHead>
+                    <TableHead className="text-white font-medium">Date</TableHead>
+                    <TableHead className="text-white font-medium">Products</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -358,29 +403,29 @@ export default function EmailParser() {
                     const supplier = suppliers.find(s => s.id === email.supplierId);
                     
                     return (
-                      <TableRow key={email.id}>
-                        <TableCell>
+                      <TableRow key={email.id} className="border-b border-blue-100 hover:bg-blue-50 transition-colors">
+                        <TableCell className="font-medium">
                           <div>
-                            <div className="font-medium">{email.senderName}</div>
-                            <div className="text-sm text-gray-500">{email.senderEmail}</div>
+                            <div className="font-medium text-blue-800">{email.senderName}</div>
+                            <div className="text-sm text-blue-600">{email.senderEmail}</div>
                             {supplier && (
-                              <Badge variant="outline" className="mt-1">
+                              <Badge variant="outline" className="mt-1 border-blue-200 text-blue-700 bg-blue-50">
                                 {supplier.name}
                               </Badge>
                             )}
                           </div>
                         </TableCell>
-                        <TableCell>{email.subject}</TableCell>
-                        <TableCell>{formatDate(email.receivedDate)}</TableCell>
+                        <TableCell className="text-blue-700">{email.subject}</TableCell>
+                        <TableCell className="text-blue-700">{formatDate(email.receivedDate)}</TableCell>
                         <TableCell>
                           <div className="flex flex-wrap gap-1">
                             {email.productTags.map((tag) => (
-                              <Badge key={tag} variant="secondary" className="text-xs">
+                              <Badge key={tag} variant="secondary" className="text-xs bg-gradient-to-r from-blue-100 to-indigo-100 text-blue-700 border-blue-200">
                                 {tag}
                               </Badge>
                             ))}
                             {email.productTags.length === 0 && (
-                              <span className="text-xs text-gray-500">None</span>
+                              <span className="text-xs text-blue-500 italic">None</span>
                             )}
                           </div>
                         </TableCell>
