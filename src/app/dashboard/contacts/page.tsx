@@ -110,7 +110,7 @@ export default function ContactsPage() {
     }
     
     try {
-      const response = await fetch(`/api/contacts?id=${id}`, {
+      const response = await fetch(`/api/contacts/${id}`, {
         method: 'DELETE',
       });
       
@@ -177,7 +177,11 @@ export default function ContactsPage() {
                     </CardDescription>
                   </div>
                 </div>
-                <Button variant="outline" className="border-blue-200 text-blue-700 hover:bg-blue-50">
+                <Button 
+                  variant="outline" 
+                  className="border-blue-200 text-blue-700 hover:bg-blue-50"
+                  onClick={() => router.push('/dashboard/contacts/new')}
+                >
                   <UserPlus className="h-4 w-4 mr-2" /> Add Contact
                 </Button>
               </div>
@@ -254,7 +258,7 @@ export default function ContactsPage() {
                           <TableCell className="text-right">
                             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => {
                               e.stopPropagation();
-                              // Handle edit
+                              router.push(`/dashboard/contacts/${contact.id}/edit`);
                             }}>
                               <Edit className="h-4 w-4 text-gray-500" />
                             </Button>

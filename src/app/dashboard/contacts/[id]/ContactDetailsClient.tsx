@@ -68,11 +68,11 @@ export default function ContactDetailsClient({ id }: ContactDetailsClientProps) 
         
         const result = await response.json();
         
-        if (!result.success || !result.data?.contact) {
+        if (!result.success || !result.data) {
           throw new Error(result.error || 'Invalid contact data received');
         }
         
-        setContact(result.data.contact);
+        setContact(result.data);
       } catch (error) {
         console.error('Failed to fetch contact:', error);
         const errorMessage = error instanceof Error ? error.message : 'Failed to load contact';
@@ -106,7 +106,7 @@ export default function ContactDetailsClient({ id }: ContactDetailsClientProps) 
     }
     
     try {
-      const response = await fetch(`/api/contacts?id=${id}`, {
+      const response = await fetch(`/api/contacts/${id}`, {
         method: 'DELETE',
       });
       

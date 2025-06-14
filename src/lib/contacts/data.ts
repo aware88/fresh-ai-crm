@@ -278,19 +278,12 @@ export async function deleteContact(id: string): Promise<boolean> {
 }
 
 /**
- * Get a contact by ID from cache, mock data, or Supabase
+ * Get a contact by ID from Supabase, cache, or mock data
  */
 export async function getContactById(id: string): Promise<Contact | null> {
   console.log(`Looking up contact with ID: ${id}`);
   
-  // Check mock data first
-  const mockContact = mockContacts.find(contact => contact.id === id);
-  if (mockContact) {
-    console.log(`Found contact ${mockContact.firstName} ${mockContact.lastName} in mock data`);
-    return mockContact;
-  }
-  
-  // Check cache if available
+  // Check cache first for performance
   if (contactsCache) {
     const cachedContact = contactsCache.find(contact => contact.id === id);
     if (cachedContact) {
@@ -299,20 +292,37 @@ export async function getContactById(id: string): Promise<Contact | null> {
     }
   }
   
-  // Only try Supabase if it's properly configured
+  // Try Supabase if it's properly configured
   if (isSupabaseConfigured()) {
-    console.log('Supabase is configured, trying to fetch from database');
+    console.log('Supabase is configured, fetching from database');
     try {
       const dbContact = await fetchContactByIdFromDb(id);
       if (dbContact) {
         console.log(`Found contact ${dbContact.firstName} ${dbContact.lastName} in database`);
+        // Update cache with the fetched contact
+        if (contactsCache) {
+          const existingIndex = contactsCache.findIndex(c => c.id === id);
+          if (existingIndex >= 0) {
+            contactsCache[existingIndex] = dbContact;
+          } else {
+            contactsCache.push(dbContact);
+          }
+        }
         return dbContact;
       }
     } catch (error) {
       console.error(`Error getting contact with ID ${id} from database:`, error);
+      // Don't return null here, try mock data as fallback
     }
   } else {
-    console.log('Supabase is not properly configured, using mock data only');
+    console.warn('Supabase is not properly configured');
+  }
+  
+  // Fall back to mock data if Supabase failed or is not configured
+  const mockContact = mockContacts.find(contact => contact.id === id);
+  if (mockContact) {
+    console.log(`Found contact ${mockContact.firstName} ${mockContact.lastName} in mock data`);
+    return mockContact;
   }
   
   console.warn(`Contact with ID ${id} not found in any data source`);

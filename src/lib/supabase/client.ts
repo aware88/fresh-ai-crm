@@ -48,10 +48,5 @@ export const clientSupabase = () => {
 
 // Helper to check if Supabase is properly configured
 export const isSupabaseConfigured = (): boolean => {
-  // For now, always return false to force using mock data
-  // until we properly set up Supabase authentication
-  return false;
-  
-  // Uncomment this when Supabase is properly configured
-  // return !!(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+  return !!(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
 };

@@ -55,6 +55,9 @@ export async function PUT(request: Request) {
 
 /**
  * DELETE /api/contacts
+ * 
+ * Note: This endpoint is kept for backward compatibility.
+ * New code should use DELETE /api/contacts/[id] instead.
  */
 export async function DELETE(request: Request) {
   try {
@@ -64,6 +67,8 @@ export async function DELETE(request: Request) {
     if (!id) {
       return NextResponse.json({ error: 'Missing contact ID' }, { status: 400 });
     }
+    
+    console.warn('Deprecated API endpoint used: DELETE /api/contacts?id=. Use DELETE /api/contacts/[id] instead.');
     
     const success = await deleteContact(id);
     
