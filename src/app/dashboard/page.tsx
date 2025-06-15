@@ -162,7 +162,7 @@ export default function DashboardPage() {
 
   const features: FeatureCardProps[] = [
     {
-      title: "Email Analysis",
+      title: "Email Analyser",
       description: "Analyze customer emails to understand their personality and get AI-suggested responses.",
       icon: Mail,
       iconBg: "bg-blue-100",
@@ -172,7 +172,7 @@ export default function DashboardPage() {
       href: "/dashboard/email"
     },
     {
-      title: "Supplier Management",
+      title: "Suppliers",
       description: "Manage suppliers, upload documents, and get AI-powered insights for better procurement.",
       icon: Building2,
       iconBg: "bg-purple-100",
@@ -182,14 +182,24 @@ export default function DashboardPage() {
       href: "/dashboard/suppliers"
     },
     {
-      title: "AI Assistant",
-      description: "Get AI-powered assistance for your business needs, from answering questions to generating insights.",
-      icon: Sparkles,
+      title: "Products",
+      description: "Manage your product catalog, inventory, and pricing in one place.",
+      icon: ShoppingBag,
       iconBg: "bg-green-100",
       iconColor: "text-green-600",
       gradientFrom: "#10b981",
       gradientTo: "#3b82f6",
-      href: "/dashboard/assistant"
+      href: "/dashboard/products"
+    },
+    {
+      title: "Orders",
+      description: "Track and manage customer orders, invoices, and fulfillment status.",
+      icon: ShoppingBag,
+      iconBg: "bg-amber-100",
+      iconColor: "text-amber-600",
+      gradientFrom: "#f59e0b",
+      gradientTo: "#ec4899",
+      href: "/dashboard/orders"
     },
     {
       title: "Contacts",
@@ -202,26 +212,14 @@ export default function DashboardPage() {
       href: "/dashboard/contacts"
     },
     {
-      title: "Orders",
-      description: "Track and manage customer orders, invoices, and fulfillment status.",
-      icon: ShoppingBag,
-      iconBg: "bg-amber-100",
-      iconColor: "text-amber-600",
-      gradientFrom: "#f59e0b",
-      gradientTo: "#ec4899",
-      href: "/dashboard/sales/orders"
-    },
-    {
-      title: "Analytics",
-      description: "Track and analyze customer engagement metrics with AI-driven insights.",
-      icon: BarChart3,
-      iconBg: "bg-gray-100",
-      iconColor: "text-gray-600",
-      gradientFrom: "#6b7280",
-      gradientTo: "#1f2937",
-      href: "#",
-      disabled: true,
-      comingSoon: true
+      title: "AI Assistant",
+      description: "Get AI-powered assistance for your business needs, from answering questions to generating insights.",
+      icon: Sparkles,
+      iconBg: "bg-purple-100",
+      iconColor: "text-purple-600",
+      gradientFrom: "#8b5cf6",
+      gradientTo: "#3b82f6",
+      href: "/dashboard/assistant"
     }
   ];
 

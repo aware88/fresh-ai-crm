@@ -53,34 +53,34 @@ export function Sidebar({ className }: SidebarProps) {
       icon: <LayoutDashboard className="h-5 w-5" />,
     },
     {
-      title: 'Inventory',
-      href: '/dashboard/inventory/products',
-      icon: <Package2 className="h-5 w-5" />,
-    },
-    {
-      title: 'Sales',
-      href: '/dashboard/sales/orders',
-      icon: <ShoppingCart className="h-5 w-5" />,
-    },
-    {
-      title: 'Supplier Management',
-      href: '/dashboard/suppliers',
-      icon: <Package className="h-5 w-5" />,
-    },
-    {
-      title: 'Email Analysis',
+      title: 'Email Analyser',
       href: '/dashboard/email',
       icon: <Mail className="h-5 w-5" />,
     },
     {
-      title: 'AI Assistant',
-      href: '/dashboard/assistant',
-      icon: <Brain className="h-5 w-5" />
+      title: 'Suppliers',
+      href: '/dashboard/suppliers',
+      icon: <Package className="h-5 w-5" />,
+    },
+    {
+      title: 'Products',
+      href: '/dashboard/inventory/products',
+      icon: <Package2 className="h-5 w-5" />,
+    },
+    {
+      title: 'Orders',
+      href: '/dashboard/sales/orders',
+      icon: <ShoppingCart className="h-5 w-5" />,
     },
     {
       title: 'Contacts',
       href: '/dashboard/contacts',
       icon: <Users className="h-5 w-5" />,
+    },
+    {
+      title: 'AI Assistant',
+      href: '/dashboard/assistant',
+      icon: <Brain className="h-5 w-5" />
     },
     {
       title: 'Calendar',

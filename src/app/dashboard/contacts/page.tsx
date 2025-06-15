@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import { 
   Card, 
   CardContent, 
@@ -152,12 +153,20 @@ export default function ContactsPage() {
 
   return (
     <div className="space-y-6">
-      {/* Hero Section */}
-      <div className="text-center mb-2">
-        <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Contacts</h1>
-        <p className="mt-2 text-lg text-gray-600 max-w-2xl mx-auto">
-          Manage your contacts and their personality profiles
-        </p>
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Contacts</h1>
+          <p className="text-muted-foreground">
+            Manage your contacts and their interaction history
+          </p>
+        </div>
+        <Link href="/dashboard/contacts/new">
+          <Button>
+            <UserPlus className="mr-2 h-4 w-4" />
+            Add Contact
+          </Button>
+        </Link>
       </div>
       
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

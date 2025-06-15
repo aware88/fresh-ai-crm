@@ -40,13 +40,15 @@ const mockProducts = [
 
 export default function ProductsPage() {
   return (
-    <div className="container mx-auto px-4 py-6">
+    <div className="container mx-auto px-4 py-6 space-y-6">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold">Products</h1>
-          <p className="text-muted-foreground">Manage your inventory items</p>
+          <h1 className="text-2xl font-bold tracking-tight">Products</h1>
+          <p className="text-muted-foreground">
+            Manage your product catalog and inventory
+          </p>
         </div>
-        <Link href="/dashboard/inventory/products/new">
+        <Link href="/dashboard/products/new">
           <Button>
             <PlusCircle className="mr-2 h-4 w-4" />
             Add Product
