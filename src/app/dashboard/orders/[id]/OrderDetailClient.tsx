@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ArrowLeft, Printer, Mail, Edit, Truck, Clock } from "lucide-react";
 import Link from "next/link";
-import { Order, statusVariantMap, paymentStatusVariantMap } from '@/app/dashboard/sales/orders/[id]/types';
+import { Order, statusVariantMap, paymentStatusVariantMap } from './types';
 import { useThemeValues } from '@/lib/theme/theme-utils';
 
 interface OrderDetailClientProps {
@@ -43,7 +43,7 @@ export function OrderDetailClient({ order }: OrderDetailClientProps) {
           asChild
           className={cardHover}
         >
-          <Link href="/dashboard/sales/orders" className="flex items-center">
+          <Link href="/dashboard/orders" className="flex items-center">
             <ArrowLeft className="mr-2 h-4 w-4" />
             <span className={textPrimary}>Back to Orders</span>
           </Link>
@@ -70,7 +70,7 @@ export function OrderDetailClient({ order }: OrderDetailClientProps) {
             asChild
             className="flex-1 sm:flex-none"
           >
-            <Link href={`/dashboard/sales/orders/${order.id}/edit`} className="flex items-center">
+            <Link href={`/dashboard/orders/${order.id}/edit`} className="flex items-center">
               <Edit className="mr-2 h-4 w-4" />
               <span>Edit</span>
             </Link>

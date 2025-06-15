@@ -64,12 +64,12 @@ export function Sidebar({ className }: SidebarProps) {
     },
     {
       title: 'Products',
-      href: '/dashboard/inventory/products',
+      href: '/dashboard/products',
       icon: <Package2 className="h-5 w-5" />,
     },
     {
       title: 'Orders',
-      href: '/dashboard/sales/orders',
+      href: '/dashboard/orders',
       icon: <ShoppingCart className="h-5 w-5" />,
     },
     {

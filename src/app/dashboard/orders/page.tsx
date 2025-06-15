@@ -638,7 +638,7 @@ export default function OrdersPage() {
                   <TableCell className="text-right">
                     <div className="flex justify-end">
                       <Button variant="ghost" size="sm" asChild>
-                        <Link href={`/dashboard/sales/orders/${order.id}`} className="text-foreground">
+                        <Link href={`/dashboard/orders/${order.id}`} className="text-foreground">
                           View
                         </Link>
                       </Button>
