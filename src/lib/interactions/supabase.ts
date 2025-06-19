@@ -1,170 +1,113 @@
+import { supabase } from '@/lib/supabaseClient';
 import { v4 as uuidv4 } from 'uuid';
-import { createSupabaseClient, isSupabaseConfigured } from '../supabase/client';
-import { Interaction, InteractionCreateInput, InteractionUpdateInput } from './types';
+import type { Interaction, InteractionCreateInput, InteractionUpdateInput } from './types';
 
-// Table name in Supabase
-const INTERACTIONS_TABLE = 'interactions';
+const TABLE_NAME = 'interactions';
 
 /**
- * Ensure the interactions table exists in Supabase
- * This is mainly for development and testing
+ * Create a new interaction
  */
-export async function ensureInteractionsTable(): Promise<boolean> {
-  if (!isSupabaseConfigured()) return false;
-  
-  try {
-    const supabase = createSupabaseClient();
-    // Check if the table exists by trying to select from it
-    const { error } = await supabase
-      .from(INTERACTIONS_TABLE)
-      .select('id')
-      .limit(1);
-    
-    if (error) {
-      console.error('Error checking interactions table:', error);
-      return false;
-    }
-    
-    return true;
-  } catch (error) {
-    console.error('Error ensuring interactions table:', error);
-    return false;
-  }
-}
-
-/**
- * Fetch all interactions from Supabase
- */
-export async function fetchInteractions(): Promise<Interaction[]> {
-  const supabase = createSupabaseClient();
-  const { data, error } = await supabase
-    .from(INTERACTIONS_TABLE)
-    .select('*')
-    .order('date', { ascending: false });
-  
-  if (error) {
-    console.error('Error fetching interactions:', error);
-    throw error;
+export async function createInteraction(interactionData: InteractionCreateInput): Promise<Interaction | null> {
+  if (!supabase) {
+    console.error('Supabase client not initialized');
+    return null;
   }
   
-  return data || [];
-}
-
-/**
- * Fetch interactions for a specific contact
- */
-export async function fetchInteractionsByContactId(contactId: string): Promise<Interaction[]> {
-  const supabase = createSupabaseClient();
-  const { data, error } = await supabase
-    .from(INTERACTIONS_TABLE)
-    .select('*')
-    .eq('contact_id', contactId)
-    .order('date', { ascending: false });
-  
-  if (error) {
-    console.error(`Error fetching interactions for contact ${contactId}:`, error);
-    throw error;
-  }
-  
-  return data || [];
-}
-
-/**
- * Fetch a specific interaction by ID
- */
-export async function fetchInteractionById(id: string): Promise<Interaction | null> {
-  const supabase = createSupabaseClient();
-  const { data, error } = await supabase
-    .from(INTERACTIONS_TABLE)
-    .select('*')
-    .eq('id', id)
-    .single();
-  
-  if (error) {
-    console.error(`Error fetching interaction ${id}:`, error);
-    throw error;
-  }
-  
-  return data || null;
-}
-
-/**
- * Create a new interaction in Supabase
- */
-export async function createInteractionInDb(interactionData: InteractionCreateInput): Promise<Interaction | null> {
-  const supabase = createSupabaseClient();
-  
-  // Generate a UUID for the new interaction
-  const id = uuidv4();
-  
-  // Prepare the interaction data with timestamps
-  const now = new Date().toISOString();
-  const newInteraction: Interaction = {
-    id,
+  // Prepare the new interaction with required fields
+  const newInteraction = {
     ...interactionData,
-    date: interactionData.date || now,
-    createdAt: now,
-    updatedAt: now
+    id: uuidv4(),
+    interaction_date: interactionData.interaction_date || new Date().toISOString(),
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
   };
   
-  // Insert into Supabase
   const { data, error } = await supabase
-    .from(INTERACTIONS_TABLE)
+    .from(TABLE_NAME)
     .insert(newInteraction)
     .select()
     .single();
   
   if (error) {
     console.error('Error creating interaction:', error);
-    throw error;
+    return null;
   }
   
-  return data || null;
+  return data;
 }
 
 /**
- * Update an existing interaction in Supabase
+ * Get interactions by contact ID
  */
-export async function updateInteractionInDb(interactionData: InteractionUpdateInput): Promise<Interaction | null> {
-  const supabase = createSupabaseClient();
+export async function getInteractionsByContactId(contactId: string): Promise<Interaction[]> {
+  if (!supabase) {
+    console.error('Supabase client not initialized');
+    return [];
+  }
   
-  // Prepare the update data with updated timestamp
+  const { data, error } = await supabase
+    .from(TABLE_NAME)
+    .select('*')
+    .eq('contact_id', contactId)
+    .order('interaction_date', { ascending: false });
+  
+  if (error) {
+    console.error('Error fetching interactions:', error);
+    return [];
+  }
+  
+  return data || [];
+}
+
+/**
+ * Update an interaction
+ */
+export async function updateInteraction(updates: InteractionUpdateInput): Promise<Interaction | null> {
+  if (!supabase) {
+    console.error('Supabase client not initialized');
+    return null;
+  }
+  
+  const { id, ...updatesWithoutId } = updates;
+  
+  // Add updated_at timestamp
   const updateData = {
-    ...interactionData,
-    updatedAt: new Date().toISOString()
+    ...updatesWithoutId,
+    updated_at: new Date().toISOString()
   };
   
-  // Update in Supabase
   const { data, error } = await supabase
-    .from(INTERACTIONS_TABLE)
+    .from(TABLE_NAME)
     .update(updateData)
-    .eq('id', interactionData.id)
+    .eq('id', id)
     .select()
     .single();
   
   if (error) {
-    console.error(`Error updating interaction ${interactionData.id}:`, error);
-    throw error;
+    console.error('Error updating interaction:', error);
+    return null;
   }
   
-  return data || null;
+  return data;
 }
 
 /**
- * Delete an interaction from Supabase
+ * Delete an interaction
  */
-export async function deleteInteractionFromDb(id: string): Promise<boolean> {
-  const supabase = createSupabaseClient();
+export async function deleteInteraction(id: string): Promise<boolean> {
+  if (!supabase) {
+    console.error('Supabase client not initialized');
+    return false;
+  }
   
-  // Delete from Supabase
   const { error } = await supabase
-    .from(INTERACTIONS_TABLE)
+    .from(TABLE_NAME)
     .delete()
     .eq('id', id);
   
   if (error) {
-    console.error(`Error deleting interaction ${id}:`, error);
-    throw error;
+    console.error('Error deleting interaction:', error);
+    return false;
   }
   
   return true;

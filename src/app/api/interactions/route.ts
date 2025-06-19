@@ -5,9 +5,11 @@ import {
   createInteraction, 
   updateInteraction, 
   deleteInteraction,
+  getInteractionById,
   isUsingSupabase
 } from '@/lib/interactions/data';
-import { InteractionCreateInput, InteractionUpdateInput } from '@/lib/interactions/types';
+import { Interaction, InteractionCreateInput, InteractionUpdateInput } from '@/lib/interactions/types';
+import { getUserId } from '@/lib/supabaseClient';
 
 /**
  * GET /api/interactions - Get all interactions
@@ -15,6 +17,17 @@ import { InteractionCreateInput, InteractionUpdateInput } from '@/lib/interactio
  */
 export async function GET(request: NextRequest) {
   try {
+    // Get the authenticated user ID
+    const userId = await getUserId();
+    
+    // In production, we should require authentication
+    if (!userId && process.env.NODE_ENV === 'production') {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+    
     const { searchParams } = new URL(request.url);
     const contactId = searchParams.get('contactId');
     
@@ -43,12 +56,23 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
+    // Get the authenticated user ID
+    const userId = await getUserId();
+    
+    // In production, we should require authentication
+    if (!userId && process.env.NODE_ENV === 'production') {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+    
     const data = await request.json();
     
     // Validate required fields
-    if (!data.contact_id || !data.type || !data.subject || !data.content) {
+    if (!data.contact_id || !data.type || !data.title) {
       return NextResponse.json(
-        { error: 'Missing required fields' },
+        { error: 'Missing required fields. Required: contact_id, type, title' },
         { status: 400 }
       );
     }
@@ -56,12 +80,22 @@ export async function POST(request: NextRequest) {
     const interactionData: InteractionCreateInput = {
       contact_id: data.contact_id,
       type: data.type,
+      title: data.title,
+      content: data.content || '',
       subject: data.subject,
-      content: data.content,
-      sentiment: data.sentiment,
-      personalityInsights: data.personalityInsights,
-      date: data.date
+      interaction_date: data.interaction_date || new Date().toISOString(),
+      metadata: data.metadata || {},
+      created_by: userId || data.created_by // Use authenticated user ID if available
     };
+    
+    // Validate interaction type
+    const validTypes = ['email', 'call', 'meeting', 'note', 'other'];
+    if (!validTypes.includes(interactionData.type)) {
+      return NextResponse.json(
+        { error: 'Invalid interaction type. Must be one of: email, call, meeting, note, other' },
+        { status: 400 }
+      );
+    }
     
     const newInteraction = await createInteraction(interactionData);
     
@@ -79,7 +113,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Error in POST /api/interactions:', error);
     return NextResponse.json(
-      { error: 'Failed to create interaction' },
+      { error: error instanceof Error ? error.message : 'Failed to create interaction' },
       { status: 500 }
     );
   }
@@ -90,6 +124,17 @@ export async function POST(request: NextRequest) {
  */
 export async function PUT(request: NextRequest) {
   try {
+    // Get the authenticated user ID
+    const userId = await getUserId();
+    
+    // In production, we should require authentication
+    if (!userId && process.env.NODE_ENV === 'production') {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+    
     const data = await request.json();
     
     // Validate required fields
@@ -100,16 +145,33 @@ export async function PUT(request: NextRequest) {
       );
     }
     
+    // First, get the existing interaction to ensure it exists
+    const existingInteraction = await getInteractionById(data.id);
+    if (!existingInteraction) {
+      return NextResponse.json(
+        { error: 'Interaction not found' },
+        { status: 404 }
+      );
+    }
+    
     const interactionData: InteractionUpdateInput = {
       id: data.id,
-      contact_id: data.contact_id,
-      type: data.type,
-      subject: data.subject,
-      content: data.content,
-      sentiment: data.sentiment,
-      personalityInsights: data.personalityInsights,
-      date: data.date
+      ...(data.contact_id && { contact_id: data.contact_id }),
+      ...(data.type && { type: data.type }),
+      ...(data.title && { title: data.title }),
+      ...(data.content !== undefined && { content: data.content }),
+      ...(data.sentiment !== undefined && { sentiment: data.sentiment }),
+      ...(data.interaction_date && { interaction_date: data.interaction_date }),
+      ...(data.metadata && { metadata: { ...existingInteraction.metadata, ...data.metadata } })
     };
+    
+    // Validate interaction type if provided
+    if (data.type && !['email', 'call', 'meeting', 'note', 'other'].includes(data.type)) {
+      return NextResponse.json(
+        { error: 'Invalid interaction type. Must be one of: email, call, meeting, note, other' },
+        { status: 400 }
+      );
+    }
     
     const updatedInteraction = await updateInteraction(interactionData);
     
@@ -138,6 +200,17 @@ export async function PUT(request: NextRequest) {
  */
 export async function DELETE(request: NextRequest) {
   try {
+    // Get the authenticated user ID
+    const userId = await getUserId();
+    
+    // In production, we should require authentication
+    if (!userId && process.env.NODE_ENV === 'production') {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+    
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
     
@@ -145,6 +218,15 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json(
         { error: 'Missing interaction ID' },
         { status: 400 }
+      );
+    }
+    
+    // First, check if the interaction exists
+    const existingInteraction = await getInteractionById(id);
+    if (!existingInteraction) {
+      return NextResponse.json(
+        { error: 'Interaction not found' },
+        { status: 404 }
       );
     }
     

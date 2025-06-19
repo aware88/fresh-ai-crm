@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { createSupabaseClient } from '@/lib/supabase/client';
+import { supabase } from '@/lib/supabaseClient';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
@@ -24,7 +24,6 @@ export default function SignInForm() {
     setError(null);
 
     try {
-      const supabase = createSupabaseClient();
       if (!supabase) {
         throw new Error('Supabase client not initialized');
       }

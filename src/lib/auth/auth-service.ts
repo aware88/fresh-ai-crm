@@ -1,4 +1,4 @@
-import { createSupabaseClient } from '../supabase/client';
+import { supabase } from '../supabaseClient';
 import { User, Session } from '@supabase/supabase-js';
 
 /**
@@ -10,7 +10,6 @@ export const AuthService = {
    */
   async getSession(): Promise<Session | null> {
     try {
-      const supabase = createSupabaseClient();
       if (!supabase) return null;
 
       const { data, error } = await supabase.auth.getSession();
@@ -37,7 +36,6 @@ export const AuthService = {
    */
   async getUser(): Promise<User | null> {
     try {
-      const supabase = createSupabaseClient();
       if (!supabase) return null;
 
       const { data } = await supabase.auth.getUser();
@@ -53,7 +51,6 @@ export const AuthService = {
    */
   async signOut(): Promise<boolean> {
     try {
-      const supabase = createSupabaseClient();
       if (!supabase) return false;
 
       const { error } = await supabase.auth.signOut();

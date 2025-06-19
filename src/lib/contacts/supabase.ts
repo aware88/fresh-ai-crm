@@ -1,6 +1,15 @@
-import { createSupabaseClient } from '../supabase/client';
+import { supabase } from '../supabaseClient';
 import { Contact, ContactCreateInput, ContactUpdateInput } from './types';
 import { v4 as uuidv4 } from 'uuid';
+
+// Check if Supabase client is available
+const isSupabaseAvailable = () => {
+  if (!supabase) {
+    console.warn('Supabase client not available');
+    return false;
+  }
+  return true;
+};
 
 // Table name for contacts in Supabase
 const CONTACTS_TABLE = 'contacts';
@@ -10,11 +19,8 @@ const CONTACTS_TABLE = 'contacts';
  */
 export async function fetchContacts(): Promise<Contact[]> {
   try {
-    // Check if we can create a Supabase client
-    const supabase = createSupabaseClient();
-    
-    if (!supabase) {
-      console.warn('Could not create Supabase client');
+    // Check if Supabase client is available
+    if (!isSupabaseAvailable()) {
       return [];
     }
     
@@ -83,10 +89,7 @@ export async function fetchContacts(): Promise<Contact[]> {
  */
 export async function fetchContactById(id: string): Promise<Contact | null> {
   try {
-    const supabase = createSupabaseClient();
-    
-    if (!supabase) {
-      console.error('Supabase client not available');
+    if (!isSupabaseAvailable()) {
       return null;
     }
     
@@ -142,10 +145,7 @@ export async function fetchContactById(id: string): Promise<Contact | null> {
  */
 export async function createContactInDb(contact: ContactCreateInput): Promise<Contact | null> {
   try {
-    const supabase = createSupabaseClient();
-    
-    if (!supabase) {
-      console.warn('Could not create Supabase client');
+    if (!isSupabaseAvailable()) {
       return null;
     }
     
@@ -210,10 +210,7 @@ export async function createContactInDb(contact: ContactCreateInput): Promise<Co
  */
 export async function updateContactInDb(contact: ContactUpdateInput): Promise<Contact | null> {
   try {
-    const supabase = createSupabaseClient();
-    
-    if (!supabase) {
-      console.warn('Could not create Supabase client');
+    if (!isSupabaseAvailable()) {
       return null;
     }
     
@@ -277,10 +274,7 @@ export async function updateContactInDb(contact: ContactUpdateInput): Promise<Co
  */
 export async function deleteContactFromDb(id: string): Promise<boolean> {
   try {
-    const supabase = createSupabaseClient();
-    
-    if (!supabase) {
-      console.warn('Could not create Supabase client');
+    if (!isSupabaseAvailable()) {
       return false;
     }
     
@@ -308,10 +302,7 @@ export async function deleteContactFromDb(id: string): Promise<boolean> {
 export async function ensureContactsTable(): Promise<void> {
   // This is just a simple check - in a real app, you would use migrations
   try {
-    const supabase = createSupabaseClient();
-    
-    if (!supabase) {
-      console.warn('Could not create Supabase client');
+    if (!isSupabaseAvailable()) {
       return;
     }
     

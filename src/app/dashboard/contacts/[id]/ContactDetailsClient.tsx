@@ -25,11 +25,11 @@ import {
   ChevronLeft,
   Edit,
   Trash2,
-  FileText
+  FileText,
 } from 'lucide-react';
 import { Contact } from '@/lib/contacts/types';
 import InteractionsList from '@/components/interactions/InteractionsList';
-import { FilesList } from '@/components/files/FilesList';
+import FilesSection from '@/components/files/FilesSection';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface ContactDetailsClientProps {
@@ -309,30 +309,20 @@ export default function ContactDetailsClient({ id }: ContactDetailsClientProps) 
                 <CardHeader>
                   <CardTitle>Interactions</CardTitle>
                   <CardDescription>
-                    Recent interactions with {contact.firstName}
+                    Recent interactions with {contact?.firstName}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <InteractionsList 
                     contactId={id} 
-                    contactName={`${contact.firstName} ${contact.lastName}`} 
+                    contactName={`${contact?.firstName} ${contact?.lastName}`} 
                   />
                 </CardContent>
               </Card>
             </TabsContent>
             
             <TabsContent value="files" className="mt-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Files</CardTitle>
-                  <CardDescription>
-                    Files shared with {contact.firstName}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <FilesList contactId={id} />
-                </CardContent>
-              </Card>
+              <FilesSection contactId={id} />
             </TabsContent>
           </Tabs>
           

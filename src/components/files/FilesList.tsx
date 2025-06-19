@@ -5,8 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { FileMetadata } from '@/lib/files/types';
-import { FileUploader } from './FileUploader';
+import FileUploader from './FileUploader';
 import { FileIcon, Download, Trash2, Pencil } from 'lucide-react';
+import { supabase } from '@/lib/supabaseClient';
 import { formatDistanceToNow } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -101,32 +102,41 @@ export function FilesList({ contactId, showUploader = true }: FilesListProps) {
   };
 
   // Handle file download
-  const handleDownloadFile = async (fileId: string, fileName: string) => {
+  const handleDownloadFile = async (fileId: string, filename: string) => {
     try {
-      const response = await fetch(`/api/files/url?id=${encodeURIComponent(fileId)}`);
+      // Get the file URL from Supabase Storage
+      const { data: fileData, error: fileError } = await supabase
+        .from('files')
+        .select('path')
+        .eq('id', fileId)
+        .single();
       
-      if (!response.ok) {
-        throw new Error('Failed to get file URL');
+      if (fileError || !fileData) {
+        throw new Error('File not found');
       }
       
-      const data = await response.json();
+      // Get the download URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('files')
+        .getPublicUrl(fileData.path);
       
-      if (!data.url) {
-        throw new Error('File URL not found');
-      }
+      // Create a temporary link and trigger the download
+      const a = document.createElement('a');
+      a.href = publicUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
       
-      // Create a temporary link and trigger download
-      const link = document.createElement('a');
-      link.href = data.url;
-      link.download = fileName;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      toast({
+        title: 'Download started',
+        description: 'Your file download has started.',
+      });
     } catch (error) {
       console.error('Error downloading file:', error);
       toast({
         title: 'Download failed',
-        description: 'Failed to download the file. Please try again.',
+        description: 'Failed to download file. Please try again.',
         variant: 'destructive',
       });
     }
@@ -262,12 +272,12 @@ export function FilesList({ contactId, showUploader = true }: FilesListProps) {
                           {getFileIcon()}
                         </div>
                         <div>
-                          <h4 className="font-medium">{file.originalName}</h4>
+                          <h4 className="font-medium">{file.original_name}</h4>
                           <div className="flex items-center text-sm text-gray-500 space-x-2">
                             <span>{formatFileSize(file.size)}</span>
                             <span>•</span>
                             <span>
-                              {formatDistanceToNow(new Date(file.createdat), { addSuffix: true })}
+                              {formatDistanceToNow(new Date(file.created_at), { addSuffix: true })}
                             </span>
                           </div>
                           {file.description && (
@@ -295,7 +305,7 @@ export function FilesList({ contactId, showUploader = true }: FilesListProps) {
                         <Button 
                           variant="ghost" 
                           size="icon"
-                          onClick={() => handleDownloadFile(file.id, file.originalName)}
+                          onClick={() => handleDownloadFile(file.id, file.original_name)}
                         >
                           <Download className="h-4 w-4" />
                         </Button>
@@ -349,7 +359,7 @@ export function FilesList({ contactId, showUploader = true }: FilesListProps) {
                   {getFileIcon()}
                 </div>
                 <div>
-                  <h4 className="font-medium">{editingFile.originalName}</h4>
+                  <h4 className="font-medium">{editingFile.original_name}</h4>
                   <p className="text-sm text-gray-500">
                     {formatFileSize(editingFile.size)}
                   </p>

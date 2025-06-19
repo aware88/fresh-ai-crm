@@ -1,89 +1,48 @@
+import { 
+  Interaction, 
+  InteractionDB,
+  InteractionCreateInput, 
+  InteractionUpdateInput,
+  normalizeInteraction,
+  denormalizeInteraction
+} from './types';
+import { supabase, isSupabaseConfigured, getUserId } from '@/lib/supabaseClient';
 import { v4 as uuidv4 } from 'uuid';
-import { Interaction, InteractionCreateInput, InteractionUpdateInput } from './types';
-import { isSupabaseConfigured } from '../supabase/client';
-import {
-  fetchInteractions as fetchInteractionsFromDb,
-  fetchInteractionsByContactId as fetchInteractionsByContactIdFromDb,
-  fetchInteractionById as fetchInteractionByIdFromDb,
-  createInteractionInDb,
-  updateInteractionInDb,
-  deleteInteractionFromDb,
-  ensureInteractionsTable
-} from './supabase';
+
+// For testing purposes only - should be removed in production
+function testUserId(): string {
+  return process.env.NODE_ENV === 'development' ? '00000000-0000-0000-0000-000000000000' : '';
+}
+
+const TABLE_NAME = 'interactions';
 
 // Cache interactions in memory to reduce API calls
 let interactionsCache: Interaction[] | null = null;
 
-// Mock data for fallback when Supabase is not configured
-const mockInteractions: Interaction[] = [
-  {
-    id: '1',
-    contact_id: '1', // John Doe
-    type: 'email',
-    subject: 'Initial Contact',
-    content: 'Hello John, I wanted to reach out about our new product...',
-    sentiment: 'positive',
-    personalityInsights: JSON.stringify({
-      traits: ['analytical', 'detail-oriented'],
-      communication_style: 'formal'
-    }),
-    date: new Date().toISOString(),
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  },
-  {
-    id: '2',
-    contact_id: '2', // Jane Smith
-    type: 'call',
-    subject: 'Technical Discussion',
-    content: 'Discussed technical requirements and integration options',
-    sentiment: 'neutral',
-    personalityInsights: JSON.stringify({
-      traits: ['driver', 'technical'],
-      communication_style: 'direct'
-    }),
-    date: new Date().toISOString(),
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  }
-];
-
-// Initialize the interactions table when the module is loaded
-if (typeof window !== 'undefined' && isSupabaseConfigured()) {
-  ensureInteractionsTable().catch(error => {
-    console.error('Failed to initialize interactions table:', error);
-  });
-}
-
 /**
- * Load all interactions from Supabase or fallback to mock data
+ * Load all interactions from Supabase
  */
 export async function loadInteractions(): Promise<Interaction[]> {
-  // Return cached interactions if available
-  if (interactionsCache) {
-    return interactionsCache;
+  if (!isSupabaseConfigured() || !supabase) {
+    console.error('Supabase is not configured');
+    return [];
   }
-  
-  // Check if Supabase is configured
-  if (isSupabaseConfigured()) {
-    try {
-      // Fetch interactions from Supabase
-      const interactions = await fetchInteractionsFromDb();
-      
-      // Update cache
-      interactionsCache = interactions;
-      return interactions;
-    } catch (error) {
-      console.error('Error loading interactions from Supabase:', error);
-      // Fall back to mock data on error
-      interactionsCache = [...mockInteractions];
-      return [...mockInteractions];
-    }
-  } else {
-    console.warn('Supabase not configured, using mock interactions data');
-    // Use mock data if Supabase is not configured
-    interactionsCache = [...mockInteractions];
-    return [...mockInteractions];
+
+  try {
+    const { data, error } = await supabase
+      .from(TABLE_NAME)
+      .select('*')
+      .order('interaction_date', { ascending: false });
+    
+    if (error) throw error;
+    
+    // Normalize the data from DB format to application format
+    const normalizedData = (data || []).map(item => normalizeInteraction(item as InteractionDB));
+    interactionsCache = normalizedData;
+    return normalizedData;
+  } catch (error) {
+    console.error('Failed to load interactions:', error);
+    return [];
   }
 }
 
@@ -91,185 +50,180 @@ export async function loadInteractions(): Promise<Interaction[]> {
  * Load interactions for a specific contact
  */
 export async function loadInteractionsByContactId(contactId: string): Promise<Interaction[]> {
-  // Check if Supabase is configured
-  if (isSupabaseConfigured()) {
-    try {
-      // Fetch interactions from Supabase
-      return await fetchInteractionsByContactIdFromDb(contactId);
-    } catch (error) {
-      console.error(`Error loading interactions for contact ${contactId} from Supabase:`, error);
-      // Fall back to mock data on error
-      return mockInteractions.filter(interaction => interaction.contact_id === contactId);
-    }
-  } else {
-    console.warn('Supabase not configured, using mock interactions data');
-    // Use mock data if Supabase is not configured
-    return mockInteractions.filter(interaction => interaction.contact_id === contactId);
+  if (!contactId || !isSupabaseConfigured() || !supabase) {
+    console.error('Missing contact ID or Supabase is not configured');
+    return [];
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from(TABLE_NAME)
+      .select('*')
+      .eq('contact_id', contactId)
+      .order('interaction_date', { ascending: false });
+    
+    if (error) throw error;
+    
+    // Normalize the data from DB format to application format
+    return (data || []).map(item => normalizeInteraction(item as InteractionDB));
+  } catch (error) {
+    console.error(`Failed to load interactions for contact ${contactId}:`, error);
+    return [];
   }
 }
 
 /**
- * Create a new interaction in Supabase or cache
+ * Create a new interaction
  */
 export async function createInteraction(interactionData: InteractionCreateInput): Promise<Interaction | null> {
-  // If Supabase is configured, create in database
-  if (isSupabaseConfigured()) {
-    try {
-      const newInteraction = await createInteractionInDb(interactionData);
-      
-      // Update cache if interaction was created successfully
-      if (newInteraction && interactionsCache) {
-        interactionsCache = [...interactionsCache, newInteraction];
-      } else if (newInteraction) {
-        interactionsCache = [newInteraction];
-      }
-      
-      return newInteraction;
-    } catch (error) {
-      console.error('Error creating interaction:', error);
-      return null;
-    }
-  } else {
-    // Fall back to in-memory storage
-    const interactions = await loadInteractions();
+  if (!isSupabaseConfigured() || !supabase) {
+    console.error('Supabase is not configured');
+    return null;
+  }
+
+  try {
+    // Get the current user ID for created_by field
+    const userId = await getUserId();
     
-    // Create new interaction
-    const newInteraction: Interaction = {
+    if (!userId && !interactionData.created_by) {
+      throw new Error('User ID is required for creating interactions. Please sign in.');
+    }
+    
+    // Create a normalized interaction first
+    const now = new Date().toISOString();
+    const normalizedInteraction: Interaction = {
+      ...interactionData as any,
       id: uuidv4(),
-      ...interactionData,
-      date: interactionData.date || new Date().toISOString(),
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      interaction_date: interactionData.interaction_date || now,
+      created_at: now,
+      updated_at: now,
+      // Ensure created_by is always set - this is critical for RLS policies
+      created_by: interactionData.created_by || userId || testUserId()
     };
+
+    // Convert to database format
+    const dbInteraction = denormalizeInteraction(normalizedInteraction);
     
-    // Add to interactions list
-    const updatedInteractions = [...interactions, newInteraction];
+    // Add date field (duplicate of interaction_date)
+    if (dbInteraction.interaction_date) {
+      dbInteraction.date = dbInteraction.interaction_date;
+    }
+
+    const { data, error } = await supabase
+      .from(TABLE_NAME)
+      .insert(dbInteraction)
+      .select()
+      .single();
     
-    // Update cache
-    interactionsCache = updatedInteractions;
+    if (error) throw error;
     
-    return newInteraction;
+    // Invalidate cache
+    interactionsCache = null;
+    
+    // Return normalized data
+    return normalizeInteraction(data as InteractionDB);
+  } catch (error) {
+    console.error('Failed to create interaction:', error);
+    return null;
   }
 }
 
 /**
- * Update an existing interaction in Supabase or cache
+ * Update an existing interaction
  */
-export async function updateInteraction(interactionData: InteractionUpdateInput): Promise<Interaction | null> {
-  // If Supabase is configured, update in database
-  if (isSupabaseConfigured()) {
-    try {
-      const updatedInteraction = await updateInteractionInDb(interactionData);
-      
-      // Update cache if interaction was updated successfully
-      if (updatedInteraction && interactionsCache) {
-        const interactionIndex = interactionsCache.findIndex(i => i.id === interactionData.id);
-        if (interactionIndex !== -1) {
-          const updatedInteractions = [...interactionsCache];
-          updatedInteractions[interactionIndex] = updatedInteraction;
-          interactionsCache = updatedInteractions;
-        }
-      }
-      
-      return updatedInteraction;
-    } catch (error) {
-      console.error(`Error updating interaction with ID ${interactionData.id}:`, error);
-      return null;
-    }
-  } else {
-    // Fall back to in-memory storage
-    const interactions = await loadInteractions();
+export async function updateInteraction(updates: InteractionUpdateInput): Promise<Interaction | null> {
+  if (!updates.id || !isSupabaseConfigured() || !supabase) {
+    console.error('Missing interaction ID or Supabase is not configured');
+    return null;
+  }
+
+  try {
+    const { id, ...updateData } = updates;
     
-    // Find interaction index
-    const interactionIndex = interactions.findIndex(i => i.id === interactionData.id);
-    if (interactionIndex === -1) {
-      return null;
-    }
-    
-    // Update interaction
-    const updatedInteraction: Interaction = {
-      ...interactions[interactionIndex],
-      ...interactionData,
-      updatedAt: new Date().toISOString(),
+    // Create a normalized update with the current time
+    const normalizedUpdate: Partial<Interaction> = {
+      ...updateData,
+      updated_at: new Date().toISOString(),
     };
     
-    // Replace in interactions list
-    const updatedInteractions = [...interactions];
-    updatedInteractions[interactionIndex] = updatedInteraction;
+    // Convert to database format
+    const dbUpdate = denormalizeInteraction(normalizedUpdate);
     
-    // Update cache
-    interactionsCache = updatedInteractions;
+    // Update date field if interaction_date is being updated
+    if (dbUpdate.interaction_date) {
+      dbUpdate.date = dbUpdate.interaction_date;
+    }
     
-    return updatedInteraction;
+    const { data, error } = await supabase
+      .from(TABLE_NAME)
+      .update(dbUpdate)
+      .eq('id', id)
+      .select()
+      .single();
+    
+    if (error) throw error;
+    
+    // Invalidate cache
+    interactionsCache = null;
+    
+    // Return normalized data
+    return normalizeInteraction(data as InteractionDB);
+  } catch (error) {
+    console.error(`Failed to update interaction ${updates.id}:`, error);
+    return null;
   }
 }
 
 /**
- * Delete an interaction from Supabase or cache
+ * Delete an interaction
  */
 export async function deleteInteraction(id: string): Promise<boolean> {
-  // If Supabase is configured, delete from database
-  if (isSupabaseConfigured()) {
-    try {
-      const success = await deleteInteractionFromDb(id);
-      
-      // Update cache if interaction was deleted successfully
-      if (success && interactionsCache) {
-        const interactionIndex = interactionsCache.findIndex(i => i.id === id);
-        if (interactionIndex !== -1) {
-          const updatedInteractions = [...interactionsCache];
-          updatedInteractions.splice(interactionIndex, 1);
-          interactionsCache = updatedInteractions;
-        }
-      }
-      
-      return success;
-    } catch (error) {
-      console.error(`Error deleting interaction with ID ${id}:`, error);
-      return false;
-    }
-  } else {
-    // Fall back to in-memory storage
-    const interactions = await loadInteractions();
+  if (!id || !isSupabaseConfigured() || !supabase) {
+    console.error('Missing interaction ID or Supabase is not configured');
+    return false;
+  }
+
+  try {
+    const { error } = await supabase
+      .from(TABLE_NAME)
+      .delete()
+      .eq('id', id);
     
-    // Find interaction index
-    const interactionIndex = interactions.findIndex(i => i.id === id);
-    if (interactionIndex === -1) {
-      return false;
-    }
+    if (error) throw error;
     
-    // Remove from interactions list
-    const updatedInteractions = [...interactions];
-    updatedInteractions.splice(interactionIndex, 1);
-    
-    // Update cache
-    interactionsCache = updatedInteractions;
+    // Invalidate cache
+    interactionsCache = null;
     
     return true;
+  } catch (error) {
+    console.error(`Failed to delete interaction ${id}:`, error);
+    return false;
   }
 }
 
 /**
- * Get an interaction by ID from Supabase or cache
+ * Get an interaction by ID
  */
 export async function getInteractionById(id: string): Promise<Interaction | null> {
-  // Check cache first
-  if (interactionsCache) {
-    const cachedInteraction = interactionsCache.find(interaction => interaction.id === id);
-    if (cachedInteraction) return cachedInteraction;
+  if (!id || !isSupabaseConfigured() || !supabase) {
+    console.error('Missing interaction ID or Supabase is not configured');
+    return null;
   }
-  
-  // If Supabase is configured, fetch from database
-  if (isSupabaseConfigured()) {
-    try {
-      return await fetchInteractionByIdFromDb(id);
-    } catch (error) {
-      console.error(`Error getting interaction with ID ${id}:`, error);
-      return null;
-    }
-  } else {
-    // Fall back to mock data
-    return mockInteractions.find(interaction => interaction.id === id) || null;
+
+  try {
+    const { data, error } = await supabase
+      .from(TABLE_NAME)
+      .select('*')
+      .eq('id', id)
+      .single();
+    
+    if (error) throw error;
+    
+    // Return normalized data
+    return data ? normalizeInteraction(data as InteractionDB) : null;
+  } catch (error) {
+    console.error(`Failed to fetch interaction ${id}:`, error);
+    return null;
   }
 }
 
@@ -284,5 +238,5 @@ export function clearInteractionsCache(): void {
  * Check if the interactions module is using Supabase
  */
 export function isUsingSupabase(): boolean {
-  return isSupabaseConfigured();
+  return isSupabaseConfigured() && supabase !== null;
 }

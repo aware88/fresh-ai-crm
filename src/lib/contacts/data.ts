@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import { Contact, ContactCreateInput, ContactUpdateInput } from './types';
-import { isSupabaseConfigured } from '../supabase/client';
+import { isSupabaseConfigured } from '../supabaseClient';
 import {
   fetchContacts as fetchContactsFromDb,
   fetchContactById as fetchContactByIdFromDb,

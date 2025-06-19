@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { Bell, User, Brain } from 'lucide-react';
-import { createSupabaseClient } from '@/lib/supabase/client';
+import { supabase } from '@/lib/supabaseClient';
 
 interface NavigationProps {
   className?: string;
@@ -143,11 +143,9 @@ export function Navigation({ className = '' }: NavigationProps) {
                   </Link>
                   <button 
                     onClick={async () => {
-                      const supabase = createSupabaseClient();
-                      if (supabase) {
-                        await supabase.auth.signOut();
-                        window.location.href = '/dashboard';
-                      }
+                      if (!supabase) return;
+                      await supabase.auth.signOut();
+                      window.location.href = '/dashboard';
                     }}
                     className="w-full text-left block px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
                   >

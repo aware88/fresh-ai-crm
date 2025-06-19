@@ -8,15 +8,16 @@
 export interface FileMetadata {
   id: string;
   filename: string;
-  originalName: string;
-  contentType: string;
+  original_name: string;
+  content_type: string;
   size: number;
   path: string;
   contact_id?: string | null; // Optional association with a contact
   description?: string | null;
   tags?: string[] | null;
-  createdat: string;
-  updatedat: string;
+  created_by?: string; // UUID of the user who created the file
+  created_at: string;
+  updated_at: string;
 }
 
 /**

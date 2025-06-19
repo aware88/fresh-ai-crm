@@ -17,7 +17,8 @@ import {
   X,
   Menu,
   Package2,
-  ShoppingCart
+  ShoppingCart,
+  MessageSquare
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -76,6 +77,11 @@ export function Sidebar({ className }: SidebarProps) {
       title: 'Contacts',
       href: '/dashboard/contacts',
       icon: <Users className="h-5 w-5" />,
+    },
+    {
+      title: 'Interactions',
+      href: '/dashboard/interactions',
+      icon: <MessageSquare className="h-5 w-5" />,
     },
     {
       title: 'AI Assistant',

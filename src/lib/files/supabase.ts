@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
-import { createSupabaseClient } from '../supabase/client';
+import { supabase } from '../supabaseClient';
 import { FileMetadata, FileMetadataCreateInput, FileMetadataUpdateInput } from './types';
 
 // Constants
@@ -11,7 +11,10 @@ const STORAGE_BUCKET = 'crm-files';
  */
 export async function ensureFilesTable(): Promise<boolean> {
   try {
-    const supabase = createSupabaseClient();
+    if (!supabase) {
+      console.warn('Supabase client not available');
+      return false;
+    }
     
     // Check if the table exists by querying it
     const { error } = await supabase
@@ -34,7 +37,7 @@ export async function ensureFilesTable(): Promise<boolean> {
       return false;
     }
     
-    const bucketExists = buckets?.some(bucket => bucket.name === STORAGE_BUCKET);
+    const bucketExists = buckets?.some((bucket: { name: string }) => bucket.name === STORAGE_BUCKET);
     
     if (!bucketExists) {
       // Create the bucket if it doesn't exist
@@ -65,8 +68,6 @@ export async function ensureFilesTable(): Promise<boolean> {
  */
 export async function fetchFiles(): Promise<FileMetadata[]> {
   try {
-    const supabase = createSupabaseClient();
-    
     const { data, error } = await supabase
       .from(FILES_TABLE)
       .select('*')
@@ -88,8 +89,6 @@ export async function fetchFiles(): Promise<FileMetadata[]> {
  */
 export async function fetchFileById(id: string): Promise<FileMetadata | null> {
   try {
-    const supabase = createSupabaseClient();
-    
     const { data, error } = await supabase
       .from(FILES_TABLE)
       .select('*')
@@ -112,8 +111,6 @@ export async function fetchFileById(id: string): Promise<FileMetadata | null> {
  */
 export async function fetchFilesByContactId(contactId: string): Promise<FileMetadata[]> {
   try {
-    const supabase = createSupabaseClient();
-    
     const { data, error } = await supabase
       .from(FILES_TABLE)
       .select('*')
@@ -141,8 +138,6 @@ export async function uploadFile(
   tags?: string[]
 ): Promise<FileMetadata | null> {
   try {
-    const supabase = createSupabaseClient();
-    
     // Generate a unique filename to prevent collisions
     const fileExtension = file.name.split('.').pop() || '';
     const uniqueFilename = `${uuidv4()}.${fileExtension}`;
@@ -201,8 +196,6 @@ export async function uploadFile(
  */
 export async function updateFileMetadata(fileData: FileMetadataUpdateInput): Promise<FileMetadata | null> {
   try {
-    const supabase = createSupabaseClient();
-    
     const { data, error } = await supabase
       .from(FILES_TABLE)
       .update({
@@ -229,8 +222,6 @@ export async function updateFileMetadata(fileData: FileMetadataUpdateInput): Pro
  */
 export async function deleteFile(id: string): Promise<boolean> {
   try {
-    const supabase = createSupabaseClient();
-    
     // First, get the file path from metadata
     const { data: fileData, error: fetchError } = await supabase
       .from(FILES_TABLE)
@@ -278,7 +269,10 @@ export async function deleteFile(id: string): Promise<boolean> {
  */
 export async function getFileUrl(path: string): Promise<string | null> {
   try {
-    const supabase = createSupabaseClient();
+    if (!supabase) {
+      console.warn('Supabase client not available');
+      return null;
+    }
     
     const { data, error } = await supabase
       .storage

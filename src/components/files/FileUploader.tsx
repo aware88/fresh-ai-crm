@@ -8,16 +8,22 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
 import { FileMetadata } from '@/lib/files/types';
-import { UploadCloud, X, FileIcon, File } from 'lucide-react';
+import { UploadCloud, X, FileIcon } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 
 interface FileUploaderProps {
   contactId?: string;
   onUploadComplete?: (file: FileMetadata) => void;
   onUploadError?: (error: string) => void;
+  onUploadSuccess?: () => void;
 }
 
-export function FileUploader({ contactId, onUploadComplete, onUploadError }: FileUploaderProps) {
+const FileUploader: React.FC<FileUploaderProps> = ({
+  contactId,
+  onUploadComplete,
+  onUploadError,
+  onUploadSuccess,
+}) => {
   const [file, setFile] = useState<File | null>(null);
   const [description, setDescription] = useState('');
   const [tags, setTags] = useState('');
@@ -109,20 +115,27 @@ export function FileUploader({ contactId, onUploadComplete, onUploadError }: Fil
 
       const data = await response.json();
       
-      toast({
-        title: 'File uploaded successfully',
-        description: `${file.name} has been uploaded.`,
-      });
-
-      // Reset form
+      // Handle successful upload
+      setUploading(false);
+      setProgress(0);
       setFile(null);
       setDescription('');
       setTags('');
       
-      // Call callback if provided
-      if (onUploadComplete && data.file) {
+      // Call callbacks if provided
+      if (onUploadComplete) {
         onUploadComplete(data.file);
       }
+      
+      if (onUploadSuccess) {
+        onUploadSuccess();
+      }
+      
+      // Show success toast
+      toast({
+        title: 'File uploaded successfully',
+        description: 'Your file has been uploaded and is now available.',
+      });
     } catch (error) {
       console.error('Error uploading file:', error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to upload file';
@@ -257,4 +270,6 @@ export function FileUploader({ contactId, onUploadComplete, onUploadError }: Fil
       </div>
     </Card>
   );
-}
+};
+
+export default FileUploader;

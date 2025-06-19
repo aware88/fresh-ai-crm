@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import { FileMetadata, FileMetadataUpdateInput } from './types';
-import { isSupabaseConfigured } from '../supabase/client';
+import { isSupabaseConfigured } from '../supabaseClient';
 import {
   fetchFiles as fetchFilesFromDb,
   fetchFileById as fetchFileByIdFromDb,

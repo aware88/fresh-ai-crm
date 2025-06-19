@@ -1,4 +1,4 @@
-import { EmailAnalyzer } from "@/components/email/EmailAnalyzer";
+import EmailAnalyserClient from "@/app/dashboard/email-analyser/EmailAnalyserClient";
 
 export default function EmailAnalyserPage() {
   return (
@@ -6,11 +6,11 @@ export default function EmailAnalyserPage() {
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Email Analyser</h1>
         <p className="text-muted-foreground">
-          Analyze emails to extract insights and action items
+          Automatically fetch, analyze, and manage your emails
         </p>
       </div>
       
-      <EmailAnalyzer />
+      <EmailAnalyserClient />
     </div>
   );
 }

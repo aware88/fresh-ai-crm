@@ -4,6 +4,7 @@ import "./globals.css";
 import "@/styles/dropdown-fix.css";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import LayoutProvider from "@/components/layout/LayoutProvider";
+import AuthProvider from "@/components/auth/AuthProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -28,9 +29,11 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning className="light">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased bg-white text-black`}>
-        <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
-          <LayoutProvider>{children}</LayoutProvider>
-        </ThemeProvider>
+        <AuthProvider>
+          <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
+            <LayoutProvider>{children}</LayoutProvider>
+          </ThemeProvider>
+        </AuthProvider>
       </body>
     </html>
   );
