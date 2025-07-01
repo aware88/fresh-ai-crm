@@ -1,21 +1,62 @@
-# CRM Mind
+# Fresh AI CRM
 
-A powerful AI-driven CRM platform that helps you understand and manage customer relationships with intelligent insights and automation.
+A powerful AI-driven CRM platform with integrated inventory management and alerting system for modern businesses.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Next.js](https://img.shields.io/badge/Next.js-13+-black?style=flat&logo=next.js&logoColor=white)](https://nextjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-4.9+-3178C6?style=flat&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![OpenAI](https://img.shields.io/badge/OpenAI-412991?style=flat&logo=openai&logoColor=white)](https://openai.com/)
+[![Test Status](https://github.com/yourusername/fresh-ai-crm/actions/workflows/tests.yml/badge.svg)](https://github.com/yourusername/fresh-ai-crm/actions)
+[![Coverage Status](https://coveralls.io/repos/github/yourusername/fresh-ai-crm/badge.svg?branch=main)](https://coveralls.io/github/yourusername/fresh-ai-crm?branch=main)
 
 ## ✨ Features
 
+### Core CRM
 - 🚀 **Modern Stack**: Built with Next.js 15, TypeScript, and Tailwind CSS
 - 🤖 **AI-Powered Insights**: Leverage OpenAI's GPT models for email analysis and customer insights
-- 🔒 **Secure & Protected**: Built-in rate limiting and API usage controls
-- 🛠 **Developer Friendly**: Well-documented codebase with TypeScript support
 - 📱 **Responsive Design**: Works seamlessly across all device sizes
 - 🏢 **Custom Branding**: Easy theming and customization options
-- 📊 **Data Management**: Integrated with Supabase for reliable data storage
+
+### Metakocka Integration
+
+- **Order Management**: Comprehensive order handling with Metakocka sync
+  - View and filter orders by status
+  - Bulk sync operations
+  - Real-time sync status updates
+  - Detailed order views
+- **Inventory Sync**: Keep product inventory in sync with Metakocka
+  - Automatic stock level updates
+  - Low stock alerts
+  - Multi-location inventory support
+- **Sales Documents**: Full sales document lifecycle management
+  - Create, view, and manage sales documents
+  - Status tracking and updates
+  - Bidirectional synchronization
+
+### Inventory Management
+- 🚨 **Real-time Alerts**: Get instant notifications when inventory levels are low
+- 🔔 **Multi-channel Notifications**: Receive alerts via email, SMS, or in-app
+- 📊 **Inventory Analytics**: Track stock levels and alert history
+- ⚙️ **Custom Thresholds**: Set custom alert thresholds for each product
+
+### Integrations
+- 🔄 **Metakocka Integration**: Bidirectional sync of contacts, products, and sales documents
+- 📧 **Email Integration**: Connect with Resend, SendGrid, or other email providers
+- 📱 **SMS Notifications**: Twilio integration for SMS alerts
+
+### Developer Experience
+- 🛠 **Developer Friendly**: Well-documented codebase with TypeScript support
+- 🧪 **Comprehensive Testing**: Unit, integration, and end-to-end tests
+- 📚 **API Documentation**: Auto-generated API documentation
+- 🔒 **Secure & Protected**: Built-in rate limiting and API usage controls
+
+## 📚 Documentation
+
+For detailed documentation on specific features, see:
+
+- [Metakocka Integration](/docs/integrations/metakocka/README.md)
+- [Order Management](/docs/integrations/metakocka/OrderDashboard.md)
+- [API Reference](/docs/API.md)
 
 ## 🚀 Getting Started
 
@@ -23,9 +64,12 @@ A powerful AI-driven CRM platform that helps you understand and manage customer 
 
 - Node.js 18.0.0 or later
 - npm 9.0.0 or later
-- A Supabase account (for database)
+- PostgreSQL 13 or later (for local development)
+- A Supabase account (for production database)
 - An OpenAI API key (for AI features)
 - A Netlify account (for deployment)
+- Email service (Resend, SendGrid, etc.)
+- Optional: SMS service (Twilio) for SMS alerts
 
 ### Local Development
 
@@ -46,11 +90,21 @@ A powerful AI-driven CRM platform that helps you understand and manage customer 
    ```
    Then update the values in `.env.local` with your actual API keys and configuration.
 
-4. Run the development server
+4. Run database migrations
+   ```bash
+   npm run db:migrate
+   ```
+
+5. Run the development server
    ```bash
    npm run dev
    ```
    Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+6. Start the alert processor
+   ```bash
+   npm run alert-processor:dev
+   ```
 
 ## 🚀 Deployment
 
@@ -90,14 +144,41 @@ NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 OPENAI_API_KEY=your_openai_api_key
 NEXT_PUBLIC_SITE_URL=your_netlify_site_url
+RESEND_API_KEY=your_resend_api_key
+ALERT_EMAIL_FROM=alerts@yourdomain.com
+TWILIO_ACCOUNT_SID=your_twilio_sid
+TWILIO_AUTH_TOKEN=your_twilio_token
+TWILIO_PHONE_NUMBER=+1234567890
 ```
 
 ## 🛠 Development Scripts
 
+### Core Commands
 - `npm run dev` - Start development server
 - `npm run build` - Build for production
 - `npm start` - Start production server
 - `npm run lint` - Run ESLint
+- `npm run format` - Format code with Prettier
+
+### Database
+- `npm run db:migrate` - Run database migrations
+- `npm run db:migrate:create` - Create a new migration
+- `npm run db:migrate:status` - Check migration status
+- `npm run db:seed:dev` - Seed development database
+
+### Alert System
+- `npm run alert-processor` - Start the alert processor
+- `npm run alert-processor:dev` - Start the alert processor in development mode
+- `npm run test:alerts` - Run alert-related tests
+
+### Testing
+- `npm test` - Run all tests
+- `npm run test:unit` - Run unit tests
+- `npm run test:integration` - Run integration tests
+- `npm run test:e2e` - Run end-to-end tests
+- `npm run test:coverage` - Generate test coverage report
+
+### Deployment
 - `npm run netlify:login` - Log in to Netlify CLI
 - `npm run netlify:deploy` - Deploy to Netlify (production)
 
@@ -139,6 +220,11 @@ NEXT_PUBLIC_SITE_URL=your_netlify_site_url
    OPENAI_MAX_TOKENS=1000  # Default: 1000
    RATE_LIMIT_REQUESTS=5   # Max requests per time window (default: 5)
    RATE_LIMIT_WINDOW=10     # Time window in seconds (default: 10s)
+   RESEND_API_KEY=your_resend_api_key
+   ALERT_EMAIL_FROM=alerts@yourdomain.com
+   TWILIO_ACCOUNT_SID=your_twilio_sid
+   TWILIO_AUTH_TOKEN=your_twilio_token
+   TWILIO_PHONE_NUMBER=+1234567890
    ```
 
 ## 🏃‍♂️ Running the Development Server
@@ -155,13 +241,47 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 
 ## Project Structure
 
-- `/src/app` - Next.js App Router pages
-- `/src/components` - Reusable UI components
-- `/src/lib` - Utility functions and API clients
-  - `/lib/supabase` - Supabase client configuration
-  - `/lib/openai` - OpenAI client and analysis functions
+```
+├── .github/                 # GitHub workflows and templates
+├── components/              # Reusable UI components
+│   ├── alerts/              # Alert-related components
+│   ├── common/              # Common UI components
+│   └── layout/              # Layout components
+├── config/                  # Application configuration
+├── docs/                    # Project documentation
+├── hooks/                   # Custom React hooks
+├── lib/                     # Library code
+│   ├── api/                 # API clients
+│   ├── auth/                # Authentication logic
+│   ├── db/                  # Database access layer
+│   ├── services/            # Business logic services
+│   └── utils/               # Utility functions
+├── migrations/              # Database migrations
+├── pages/                   # Next.js pages
+│   ├── api/                 # API routes
+│   └── ...                  # Other pages
+├── public/                  # Static files
+├── scripts/                 # Utility scripts
+├── styles/                  # Global styles
+├── test/                    # Test files
+│   ├── e2e/                 # End-to-end tests
+│   ├── integration/         # Integration tests
+│   └── unit/                # Unit tests
+└── types/                   # TypeScript type definitions
+```
 
-## Email Analysis
+## Key Features
+
+### Inventory Alerts
+
+Get real-time notifications when inventory levels are low:
+
+- **Custom Thresholds**: Set different alert levels for each product
+- **Multi-channel Notifications**: Receive alerts via email, SMS, or in-app
+- **Alert History**: View past alerts and their status
+- **Acknowledgment System**: Mark alerts as resolved when addressed
+
+### Email Analysis
 
 The email analysis feature uses OpenAI's GPT-4o model to extract insights from customer emails, including:
 
@@ -172,6 +292,37 @@ The email analysis feature uses OpenAI's GPT-4o model to extract insights from c
 - Urgency level
 
 ## AI Assistant
+
+## 🔄 Metakocka Integration
+
+The CRM includes comprehensive integration with Metakocka ERP system, featuring:
+
+### Bidirectional Synchronization
+- **Contacts**: Sync contacts between CRM and Metakocka with mapping and status tracking
+- **Products**: Sync products with pricing, inventory, and metadata
+- **Sales Documents**: Sync invoices, quotes, and other sales documents bidirectionally
+
+### UI Components
+- Sync buttons for individual and bulk operations
+- Status indicators showing sync state
+- Unsynced item counters
+- Detailed sync history
+
+### Error Management
+- Structured error logging and tracking
+- Retry logic with exponential backoff
+- Error resolution workflow
+- Comprehensive error statistics
+
+### Testing
+- Comprehensive test scripts for all sync operations
+- End-to-end verification tests
+- Environment-based test configuration
+
+### Documentation
+- [Metakocka Integration Guide](./docs/metakocka-integration.md)
+- [Bidirectional Sales Document Sync](./docs/bidirectional-sales-document-sync.md)
+- [Error Log Management](./docs/metakocka-error-log-management.md)
 
 ## 🔄 API Endpoints
 
@@ -223,6 +374,11 @@ To customize rate limiting, set these environment variables:
 | `OPENAI_MAX_TOKENS` | ❌ | Max tokens for responses (default: 1000) |
 | `RATE_LIMIT_REQUESTS` | ❌ | Max requests per time window (default: 5) |
 | `RATE_LIMIT_WINDOW` | ❌ | Time window in seconds (default: 10) |
+| `RESEND_API_KEY` | ✅ | Your Resend API key |
+| `ALERT_EMAIL_FROM` | ✅ | Email address for sending alerts |
+| `TWILIO_ACCOUNT_SID` | ❌ | Your Twilio account SID |
+| `TWILIO_AUTH_TOKEN` | ❌ | Your Twilio auth token |
+| `TWILIO_PHONE_NUMBER` | ❌ | Your Twilio phone number |
 
 ## 🛡️ Security Considerations
 
@@ -230,6 +386,15 @@ To customize rate limiting, set these environment variables:
 2. **Rate Limiting**: Keep rate limits in place to prevent abuse
 3. **Input Validation**: All API endpoints validate input to prevent injection attacks
 4. **Error Handling**: Sensitive error details are not exposed to clients in production
+
+## 📚 Documentation
+
+For detailed documentation, please refer to the following files:
+
+- [DEVELOPER_GUIDE.md](./docs/DEVELOPER_GUIDE.md) - Getting started guide for developers
+- [TESTING.md](./docs/TESTING.md) - Testing guide and best practices
+- [DATABASE.md](./docs/DATABASE.md) - Database schema and migration guide
+- [API_REFERENCE.md](./docs/API_REFERENCE.md) - API documentation
 
 ## 📚 Development
 
@@ -258,15 +423,25 @@ npm start
 
 ## 🤝 Contributing
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+We welcome contributions from the community! Here's how you can help:
+
+1. **Report Bugs**: File an issue on our [issue tracker](https://github.com/yourusername/fresh-ai-crm/issues)
+2. **Suggest Features**: Open a feature request issue
+3. **Submit Code**: Open a pull request with your changes
+4. **Improve Documentation**: Help us make our docs better
+
+Please read our [Contributing Guide](CONTRIBUTING.md) for details on our code of conduct and the development process.
 
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- Built with [Next.js](https://nextjs.org/)
+- Database powered by [Supabase](https://supabase.com/)
+- AI features powered by [OpenAI](https://openai.com/)
+- Icons from [Lucide](https://lucide.dev/)
 
 ## 🙏 Acknowledgments
 
