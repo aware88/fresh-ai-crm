@@ -12,6 +12,10 @@ export interface Supplier {
   notes?: string;
   createdAt: Date;
   updatedAt: Date;
+  contact_name?: string;
+  address?: string;
+  product_categories?: string[];
+  created_by?: string;
 }
 
 export interface SupplierDocument {

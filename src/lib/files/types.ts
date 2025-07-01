@@ -25,6 +25,20 @@ export interface FileMetadata {
  */
 export interface FileMetadataCreateInput {
   filename: string;
+  original_name: string; // Changed from originalName to match database schema
+  content_type: string; // Changed from contentType to match database schema
+  size: number;
+  path: string;
+  contact_id?: string | null;
+  description?: string | null;
+  tags?: string[] | null;
+}
+
+/**
+ * Legacy interface for backward compatibility
+ */
+export interface FileMetadataCreateInputLegacy {
+  filename: string;
   originalName: string;
   contentType: string;
   size: number;
@@ -38,6 +52,21 @@ export interface FileMetadataCreateInput {
  * Input for updating an existing file metadata record
  */
 export interface FileMetadataUpdateInput {
+  id: string;
+  filename?: string;
+  original_name?: string; // Changed from originalName to match database schema
+  content_type?: string; // Changed from contentType to match database schema
+  size?: number;
+  path?: string;
+  contact_id?: string | null;
+  description?: string | null;
+  tags?: string[] | null;
+}
+
+/**
+ * Legacy interface for backward compatibility
+ */
+export interface FileMetadataUpdateInputLegacy {
   id: string;
   filename?: string;
   originalName?: string;

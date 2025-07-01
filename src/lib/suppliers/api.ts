@@ -18,12 +18,11 @@ export const fetchSuppliers = async (): Promise<Supplier[]> => {
  * Fetch a supplier by ID
  */
 export const fetchSupplierById = async (id: string): Promise<Supplier> => {
-  const suppliers = await fetchSuppliers();
-  const supplier = suppliers.find(s => s.id === id);
-  if (!supplier) {
+  const response = await fetch(`/api/suppliers?id=${id}`);
+  if (!response.ok) {
     throw new Error('Supplier not found');
   }
-  return supplier;
+  return response.json();
 };
 
 /**
@@ -93,7 +92,7 @@ export const uploadSupplierDocument = async (
   formData.append('supplierId', supplierId);
   formData.append('documentType', documentType);
   
-  const response = await fetch('/api/suppliers/upload-document', {
+  const response = await fetch('/api/suppliers/documents', {
     method: 'POST',
     body: formData,
   });
@@ -110,7 +109,7 @@ export const uploadSupplierDocument = async (
  * Fetch documents for a supplier
  */
 export const fetchSupplierDocuments = async (supplierId: string): Promise<SupplierDocument[]> => {
-  const response = await fetch(`/api/suppliers/upload-document?supplierId=${supplierId}`);
+  const response = await fetch(`/api/suppliers/documents?supplierId=${supplierId}`);
   
   if (!response.ok) {
     const error = await response.json();
@@ -121,28 +120,52 @@ export const fetchSupplierDocuments = async (supplierId: string): Promise<Suppli
 };
 
 /**
- * Parse and save an email
+ * Delete a document
  */
-export const parseSupplierEmail = async (
-  emailContent: string,
+export const deleteSupplierDocument = async (documentId: string): Promise<void> => {
+  const response = await fetch(`/api/suppliers/documents?id=${documentId}`, {
+    method: 'DELETE',
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || 'Failed to delete document');
+  }
+};
+
+/**
+ * Create and save an email
+ */
+export const createSupplierEmail = async (
+  supplierId: string,
+  senderEmail: string,
+  subject: string,
+  body: string,
+  senderName?: string,
+  receivedDate?: string,
   productTags: string[] = [],
-  supplierId?: string
+  metadata: Record<string, any> = {}
 ): Promise<SupplierEmail> => {
-  const response = await fetch('/api/suppliers/parse-email', {
+  const response = await fetch('/api/suppliers/emails', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      emailContent,
-      productTags,
       supplierId,
+      senderEmail,
+      senderName,
+      subject,
+      body,
+      receivedDate,
+      productTags,
+      metadata
     }),
   });
   
   if (!response.ok) {
     const error = await response.json();
-    throw new Error(error.error || 'Failed to parse email');
+    throw new Error(error.error || 'Failed to create email');
   }
   
   return response.json();
@@ -151,9 +174,8 @@ export const parseSupplierEmail = async (
 /**
  * Fetch emails for a supplier
  */
-export const fetchSupplierEmails = async (supplierId?: string): Promise<SupplierEmail[]> => {
-  const url = supplierId ? `/api/suppliers/parse-email?supplierId=${supplierId}` : '/api/suppliers/parse-email';
-  const response = await fetch(url);
+export const fetchSupplierEmails = async (supplierId: string): Promise<SupplierEmail[]> => {
+  const response = await fetch(`/api/suppliers/emails?supplierId=${supplierId}`);
   
   if (!response.ok) {
     const error = await response.json();
@@ -164,14 +186,35 @@ export const fetchSupplierEmails = async (supplierId?: string): Promise<Supplier
 };
 
 /**
+ * Delete a supplier email
+ */
+export const deleteSupplierEmail = async (emailId: string): Promise<void> => {
+  const response = await fetch(`/api/suppliers/emails?id=${emailId}`, {
+    method: 'DELETE',
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || 'Failed to delete email');
+  }
+};
+
+/**
  * Submit a query to the AI assistant
+ * The enhanced version now includes product and pricing data in the AI context
  */
 export const querySupplierAI = async (query: string): Promise<{
   queryId: string;
   results: SupplierQueryResult[];
   aiResponse: string;
+  contextData?: {
+    products?: any[];
+    pricing?: any[];
+    documents?: any[];
+  };
 }> => {
-  const response = await fetch('/api/suppliers/query', {
+  // First, submit the query to create it
+  const response = await fetch('/api/suppliers/queries', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -184,14 +227,39 @@ export const querySupplierAI = async (query: string): Promise<{
     throw new Error(error.error || 'Failed to process query');
   }
   
-  return response.json();
+  const queryResponse = await response.json();
+  const queryId = queryResponse.id;
+  
+  // Then immediately fetch the query with its results
+  const queryDetailsResponse = await fetch(`/api/suppliers/queries?id=${queryId}`);
+  
+  if (!queryDetailsResponse.ok) {
+    throw new Error('Failed to fetch query results');
+  }
+  
+  const queryDetails = await queryDetailsResponse.json();
+  
+  // Extract context data if available
+  const contextData = queryDetails.contextData || {
+    products: [],
+    pricing: [],
+    documents: []
+  };
+  
+  // Return in the format expected by the SupplierAIChat component
+  return {
+    queryId: queryId,
+    results: queryDetails.results || [],
+    aiResponse: queryResponse.aiResponse || queryDetails.query?.ai_response || 'No response available',
+    contextData
+  };
 };
 
 /**
  * Fetch query history
  */
 export const fetchQueryHistory = async (): Promise<SupplierQuery[]> => {
-  const response = await fetch('/api/suppliers/query');
+  const response = await fetch('/api/suppliers/queries');
   
   if (!response.ok) {
     const error = await response.json();
@@ -204,8 +272,11 @@ export const fetchQueryHistory = async (): Promise<SupplierQuery[]> => {
 /**
  * Fetch a specific query by ID
  */
-export const fetchQueryById = async (queryId: string): Promise<SupplierQuery> => {
-  const response = await fetch(`/api/suppliers/query?id=${queryId}`);
+export const fetchQueryById = async (queryId: string): Promise<{
+  query: SupplierQuery;
+  results: SupplierQueryResult[];
+}> => {
+  const response = await fetch(`/api/suppliers/queries?id=${queryId}`);
   
   if (!response.ok) {
     const error = await response.json();
@@ -213,4 +284,18 @@ export const fetchQueryById = async (queryId: string): Promise<SupplierQuery> =>
   }
   
   return response.json();
+};
+
+/**
+ * Delete a query
+ */
+export const deleteQuery = async (queryId: string): Promise<void> => {
+  const response = await fetch(`/api/suppliers/queries?id=${queryId}`, {
+    method: 'DELETE',
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || 'Failed to delete query');
+  }
 };

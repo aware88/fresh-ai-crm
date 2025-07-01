@@ -202,6 +202,18 @@ export default function DashboardPage() {
       href: "/dashboard/orders"
     },
     {
+      title: "Analytics",
+      description: "View key metrics and insights about your business performance.",
+      icon: BarChart3,
+      iconBg: "bg-indigo-100",
+      iconColor: "text-indigo-600",
+      gradientFrom: "#6366f1",
+      gradientTo: "#3b82f6",
+      href: "/dashboard/analytics",
+      disabled: false,
+      comingSoon: false
+    },
+    {
       title: "Contacts",
       description: "View and manage your customer contacts and their interaction history.",
       icon: Users,

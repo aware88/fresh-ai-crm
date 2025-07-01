@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/components/ui/use-toast';
-import { Inbox, RefreshCw, Loader2, User, Mail, Eye, Calendar, Clock, ArrowUpRight, Filter, ChevronRight, MessageSquare, CheckCircle2, AlertCircle, Search, Send } from 'lucide-react';
+import { Inbox, RefreshCw, Loader2, User, Mail, Eye, Calendar, Clock, ArrowUpRight, Filter, ChevronRight, MessageSquare, CheckCircle2, AlertCircle, Search, Send, Database } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { formatDistanceToNow, format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
@@ -19,6 +19,10 @@ import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import { MetakockaEmailInfo } from '@/components/emails/MetakockaEmailInfo';
+import { MetakockaEmailResponse } from '@/components/emails/MetakockaEmailResponse';
+import { getEmailAIContext } from '@/lib/integrations/metakocka/email-response-api';
+import { ViewSwitcher, EmailView } from '@/components/emails/ViewSwitcher';
 
 interface Contact {
   id: string;
@@ -64,7 +68,7 @@ export default function EmailAnalyserClient() {
   const [generatingResponse, setGeneratingResponse] = useState<boolean>(false);
   
   // Additional state variables
-  const [activeView, setActiveView] = useState<'inbox' | 'analysis' | 'response'>('inbox');
+  const [activeView, setActiveView] = useState<EmailView>('inbox');
   const [suggestedResponse, setSuggestedResponse] = useState<string>('');
   const [stats, setStats] = useState<{ processed: number; errors: number }>({ 
     processed: 0, 
@@ -891,6 +895,30 @@ export default function EmailAnalyserClient() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
+                {selectedEmail && (
+                  <div className="flex flex-col h-full">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setSelectedEmail(null)}
+                        >
+                          <ChevronRight className="h-4 w-4 mr-1 rotate-180" />
+                          Back
+                        </Button>
+                        <div className="text-sm text-muted-foreground">
+                          {formatDate(selectedEmail.created_at)}
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <ViewSwitcher 
+                      activeView={activeView} 
+                      onViewChange={setActiveView} 
+                    />
+                  </div>
+                )}
                 {!suggestedResponse ? (
                   <div className="text-center py-8">
                     <MessageSquare className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
@@ -933,6 +961,45 @@ export default function EmailAnalyserClient() {
                     </div>
                   </>
                 )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+      
+      {/* Metakocka View */}
+      {activeView === 'metakocka' && selectedEmail && (
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Metakocka Integration</CardTitle>
+              <CardDescription>
+                View Metakocka data related to this email and generate AI responses with Metakocka context
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-6">
+                {/* Metakocka Email Info Component */}
+                <div className="mb-6">
+                  <h3 className="text-lg font-medium mb-2">Related Metakocka Data</h3>
+                  <MetakockaEmailInfo emailId={selectedEmail.id} />
+                </div>
+                
+                {/* Metakocka AI Response Component */}
+                <div>
+                  <h3 className="text-lg font-medium mb-2">Generate AI Response with Metakocka Context</h3>
+                  <MetakockaEmailResponse 
+                    emailId={selectedEmail.id} 
+                    onResponseGenerated={(response) => {
+                      setSuggestedResponse(response);
+                      setActiveView('response');
+                      toast({
+                        title: "Response Generated",
+                        description: "AI response with Metakocka context has been generated.",
+                      });
+                    }} 
+                  />
+                </div>
               </div>
             </CardContent>
           </Card>

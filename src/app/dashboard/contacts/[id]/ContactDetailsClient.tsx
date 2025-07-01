@@ -31,6 +31,8 @@ import { Contact } from '@/lib/contacts/types';
 import InteractionsList from '@/components/interactions/InteractionsList';
 import FilesSection from '@/components/files/FilesSection';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { SyncContactButton } from '@/components/contacts/SyncContactButton';
+import { getContactSyncStatus } from '@/lib/integrations/metakocka/contact-sync-api';
 
 interface ContactDetailsClientProps {
   id: string;
@@ -40,10 +42,15 @@ export default function ContactDetailsClient({ id }: ContactDetailsClientProps) 
   const [contact, setContact] = useState<Contact | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [syncStatus, setSyncStatus] = useState<{
+    synced: boolean;
+    metakockaId?: string;
+    lastSynced?: string;
+  }>({ synced: false });
   const router = useRouter();
   const { toast } = useToast();
 
-  // Load contact details
+  // Load contact details and sync status
   useEffect(() => {
     // Skip if no ID is available
     if (!id) {
@@ -52,27 +59,43 @@ export default function ContactDetailsClient({ id }: ContactDetailsClientProps) 
       return;
     }
 
-    const fetchContact = async () => {
+    const fetchData = async () => {
       try {
         setLoading(true);
         setError(null);
         
-        const response = await fetch(`/api/contacts/${id}`);
+        // Fetch contact details
+        const contactResponse = await fetch(`/api/contacts/${id}`);
         
-        if (!response.ok) {
-          if (response.status === 404) {
+        if (!contactResponse.ok) {
+          if (contactResponse.status === 404) {
             throw new Error('Contact not found');
           }
-          throw new Error(`Error: ${response.status}`);
+          throw new Error(`Error: ${contactResponse.status}`);
         }
         
-        const result = await response.json();
+        const contactResult = await contactResponse.json();
         
-        if (!result.success || !result.data) {
-          throw new Error(result.error || 'Invalid contact data received');
+        if (!contactResult.success || !contactResult.data) {
+          throw new Error(contactResult.error || 'Invalid contact data received');
         }
         
-        setContact(result.data);
+        setContact(contactResult.data);
+        
+        // Fetch sync status
+        try {
+          const syncStatusResponse = await getContactSyncStatus(id);
+          if (syncStatusResponse.success && syncStatusResponse.data) {
+            setSyncStatus({
+              synced: syncStatusResponse.data.synced,
+              metakockaId: syncStatusResponse.data.metakocka_id,
+              lastSynced: syncStatusResponse.data.last_synced,
+            });
+          }
+        } catch (syncError) {
+          console.error('Failed to fetch sync status:', syncError);
+          // Don't show toast for sync status errors, just log them
+        }
       } catch (error) {
         console.error('Failed to fetch contact:', error);
         const errorMessage = error instanceof Error ? error.message : 'Failed to load contact';
@@ -87,7 +110,7 @@ export default function ContactDetailsClient({ id }: ContactDetailsClientProps) 
       }
     };
     
-    fetchContact();
+    fetchData();
   }, [id, toast]);
 
   // Delete a contact
@@ -292,6 +315,56 @@ export default function ContactDetailsClient({ id }: ContactDetailsClientProps) 
                 <Trash2 className="h-4 w-4 mr-2" />
                 Delete
               </Button>
+            </div>
+            
+            <Separator className="my-4" />
+            
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium">Metakocka Integration</p>
+                  <p className="text-xs text-gray-500">
+                    {syncStatus.synced 
+                      ? `Synced ${syncStatus.lastSynced ? formatDate(syncStatus.lastSynced) : ''}` 
+                      : 'Not synced'}
+                  </p>
+                </div>
+                <div className="flex space-x-2">
+                  <SyncContactButton 
+                    contactId={id}
+                    direction="to-metakocka"
+                    variant="outline"
+                    size="sm"
+                    onSyncComplete={(result) => {
+                      // Update sync status after successful sync
+                      if (result.success) {
+                        setSyncStatus({
+                          synced: true,
+                          metakockaId: result.metakockaId,
+                          lastSynced: new Date().toISOString(),
+                        });
+                      }
+                    }}
+                  />
+                  {syncStatus.synced && syncStatus.metakockaId && (
+                    <SyncContactButton 
+                      metakockaId={syncStatus.metakockaId}
+                      direction="from-metakocka"
+                      variant="outline"
+                      size="sm"
+                      onSyncComplete={() => {
+                        // Refresh contact data after sync from Metakocka
+                        router.refresh();
+                      }}
+                    />
+                  )}
+                </div>
+              </div>
+              {syncStatus.synced && syncStatus.metakockaId && (
+                <div className="text-xs text-gray-500">
+                  <p>Metakocka ID: {syncStatus.metakockaId}</p>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>

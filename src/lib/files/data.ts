@@ -20,28 +20,28 @@ const mockFiles: FileMetadata[] = [
   {
     id: '1',
     filename: 'contract-2023.pdf',
-    originalName: 'Contract 2023.pdf',
-    contentType: 'application/pdf',
+    original_name: 'Contract 2023.pdf',
+    content_type: 'application/pdf',
     size: 1024000,
     path: 'contacts/1/contract-2023.pdf',
     contact_id: '1',
     description: 'Annual contract renewal',
     tags: ['contract', 'legal'],
-    createdat: new Date().toISOString(),
-    updatedat: new Date().toISOString()
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
   },
   {
     id: '2',
     filename: 'meeting-notes.docx',
-    originalName: 'Meeting Notes.docx',
-    contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    original_name: 'Meeting Notes.docx',
+    content_type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     size: 256000,
     path: 'contacts/2/meeting-notes.docx',
     contact_id: '2',
     description: 'Notes from quarterly review',
     tags: ['meeting', 'notes'],
-    createdat: new Date().toISOString(),
-    updatedat: new Date().toISOString()
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
   }
 ];
 
@@ -170,15 +170,15 @@ export async function uploadFile(
     const newFile: FileMetadata = {
       id: uuidv4(),
       filename: uniqueFilename,
-      originalName: file.name,
-      contentType: file.type,
+      original_name: file.name,
+      content_type: file.type,
       size: file.size,
       path: filePath,
       contact_id: contactId || null,
       description: description || null,
       tags: tags || null,
-      createdat: new Date().toISOString(),
-      updatedat: new Date().toISOString()
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
     };
     
     // Update mock data
@@ -227,7 +227,7 @@ export async function updateFileMetadata(fileData: FileMetadataUpdateInput): Pro
     const updatedFile: FileMetadata = {
       ...files[fileIndex],
       ...fileData,
-      updatedat: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
     };
     
     // Replace in files list

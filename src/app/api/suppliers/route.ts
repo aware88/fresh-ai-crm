@@ -1,34 +1,53 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { initializeSupplierData } from '@/lib/suppliers/init';
-import fs from 'fs';
-import path from 'path';
-import { v4 as uuidv4 } from 'uuid';
+import { supabase } from '@/lib/supabaseClient';
 import { Supplier } from '@/types/supplier';
+import { initializeSupplierData } from '@/lib/suppliers/init';
 
-// Path to store supplier data
-const suppliersPath = path.join(process.cwd(), 'src/data/suppliers.json');
-const dataDir = path.join(process.cwd(), 'src/data');
-
-// Initialize suppliers file if it doesn't exist
-const initSuppliersFile = () => {
-  // Ensure data directory exists
-  if (!fs.existsSync(dataDir)) {
-    fs.mkdirSync(dataDir, { recursive: true });
-  }
-  
-  if (!fs.existsSync(suppliersPath)) {
-    fs.writeFileSync(suppliersPath, JSON.stringify([]));
-  }
+// Keep the initialization function for backward compatibility
+// but we'll use Supabase for data storage now
+const initSupabaseConnection = async () => {
+  // This is a placeholder for any initialization that might be needed
+  // We'll keep the initializeSupplierData call for backward compatibility
+  await initializeSupplierData();
 };
 
 // Get all suppliers
 export async function GET() {
-  // Ensure data files are initialized
-  await initializeSupplierData();
+  await initSupabaseConnection();
   try {
-    initSuppliersFile();
-    const suppliersData = fs.readFileSync(suppliersPath, 'utf8');
-    const suppliers = JSON.parse(suppliersData);
+    // Get the current user's ID
+    const { data: userData, error: userError } = await supabase.auth.getUser();
+    
+    if (userError) {
+      console.error('Error getting user:', userError);
+      return NextResponse.json(
+        { error: 'Authentication error' },
+        { status: 401 }
+      );
+    }
+    
+    const userId = userData.user?.id;
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'User not authenticated' },
+        { status: 401 }
+      );
+    }
+    
+    // Fetch suppliers from Supabase
+    const { data: suppliers, error } = await supabase
+      .from('suppliers')
+      .select('*')
+      .eq('created_by', userId);
+    
+    if (error) {
+      console.error('Error fetching suppliers from Supabase:', error);
+      return NextResponse.json(
+        { error: 'Failed to fetch suppliers' },
+        { status: 500 }
+      );
+    }
+    
     return NextResponse.json(suppliers);
   } catch (error) {
     console.error('Error fetching suppliers:', error);
@@ -41,8 +60,7 @@ export async function GET() {
 
 // Create a new supplier
 export async function POST(request: NextRequest) {
-  // Ensure data files are initialized
-  await initializeSupplierData();
+  await initSupabaseConnection();
   try {
     const { name, email, phone, website, notes } = await request.json();
     
@@ -53,35 +71,84 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    initSuppliersFile();
-    const suppliersData = fs.readFileSync(suppliersPath, 'utf8');
-    const suppliers: Supplier[] = JSON.parse(suppliersData);
+    // Get the current user's ID
+    const { data: userData, error: userError } = await supabase.auth.getUser();
+    
+    if (userError) {
+      console.error('Error getting user:', userError);
+      return NextResponse.json(
+        { error: 'Authentication error' },
+        { status: 401 }
+      );
+    }
+    
+    const userId = userData.user?.id;
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'User not authenticated' },
+        { status: 401 }
+      );
+    }
     
     // Check if supplier with same email already exists
-    const existingSupplier = suppliers.find(s => s.email === email);
-    if (existingSupplier) {
+    const { data: existingSuppliers, error: checkError } = await supabase
+      .from('suppliers')
+      .select('id')
+      .eq('email', email)
+      .eq('created_by', userId);
+    
+    if (checkError) {
+      console.error('Error checking existing supplier:', checkError);
       return NextResponse.json(
-        { error: 'Supplier with this email already exists', supplierId: existingSupplier.id },
+        { error: 'Failed to check existing supplier' },
+        { status: 500 }
+      );
+    }
+    
+    if (existingSuppliers && existingSuppliers.length > 0) {
+      return NextResponse.json(
+        { error: 'Supplier with this email already exists', supplierId: existingSuppliers[0].id },
         { status: 409 }
       );
     }
     
-    const newSupplier: Supplier = {
-      id: uuidv4(),
-      name,
-      email,
-      phone,
-      website,
-      notes,
-      reliabilityScore: 0,
-      createdAt: new Date(),
-      updatedAt: new Date()
+    // Create new supplier in Supabase
+    const { data: newSupplier, error: insertError } = await supabase
+      .from('suppliers')
+      .insert({
+        name,
+        email,
+        phone,
+        website,
+        notes,
+        reliability_score: 0,
+        created_by: userId
+      })
+      .select()
+      .single();
+    
+    if (insertError) {
+      console.error('Error creating supplier in Supabase:', insertError);
+      return NextResponse.json(
+        { error: 'Failed to create supplier' },
+        { status: 500 }
+      );
+    }
+    
+    // Map the database column names to our interface property names
+    const mappedSupplier: Supplier = {
+      id: newSupplier.id,
+      name: newSupplier.name,
+      email: newSupplier.email,
+      phone: newSupplier.phone,
+      website: newSupplier.website,
+      notes: newSupplier.notes,
+      reliabilityScore: newSupplier.reliability_score,
+      createdAt: new Date(newSupplier.created_at),
+      updatedAt: new Date(newSupplier.updated_at)
     };
     
-    suppliers.push(newSupplier);
-    fs.writeFileSync(suppliersPath, JSON.stringify(suppliers, null, 2));
-    
-    return NextResponse.json(newSupplier);
+    return NextResponse.json(mappedSupplier);
   } catch (error) {
     console.error('Error creating supplier:', error);
     return NextResponse.json(
@@ -93,8 +160,7 @@ export async function POST(request: NextRequest) {
 
 // Update an existing supplier by ID
 export async function PUT(request: NextRequest) {
-  // Ensure data files are initialized
-  await initializeSupplierData();
+  await initSupabaseConnection();
   try {
     const { id, name, email, phone, website, notes, reliabilityScore } = await request.json();
     
@@ -105,35 +171,79 @@ export async function PUT(request: NextRequest) {
       );
     }
     
-    initSuppliersFile();
-    const suppliersData = fs.readFileSync(suppliersPath, 'utf8');
-    let suppliers: Supplier[] = JSON.parse(suppliersData);
+    // Get the current user's ID
+    const { data: userData, error: userError } = await supabase.auth.getUser();
     
-    // Find supplier by ID
-    const supplierIndex = suppliers.findIndex(s => s.id === id);
-    if (supplierIndex === -1) {
+    if (userError) {
+      console.error('Error getting user:', userError);
+      return NextResponse.json(
+        { error: 'Authentication error' },
+        { status: 401 }
+      );
+    }
+    
+    const userId = userData.user?.id;
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'User not authenticated' },
+        { status: 401 }
+      );
+    }
+    
+    // Check if supplier exists and belongs to the user
+    const { data: existingSupplier, error: checkError } = await supabase
+      .from('suppliers')
+      .select('*')
+      .eq('id', id)
+      .eq('created_by', userId)
+      .single();
+    
+    if (checkError) {
+      console.error('Error checking supplier existence:', checkError);
       return NextResponse.json(
         { error: 'Supplier not found' },
         { status: 404 }
       );
     }
     
-    // Update supplier
-    const updatedSupplier: Supplier = {
-      ...suppliers[supplierIndex],
-      name,
-      email,
-      phone,
-      website,
-      notes,
-      reliabilityScore: reliabilityScore !== undefined ? reliabilityScore : suppliers[supplierIndex].reliabilityScore,
-      updatedAt: new Date()
+    // Update supplier in Supabase
+    const { data: updatedSupplier, error: updateError } = await supabase
+      .from('suppliers')
+      .update({
+        name,
+        email,
+        phone,
+        website,
+        notes,
+        reliability_score: reliabilityScore !== undefined ? reliabilityScore : existingSupplier.reliability_score
+      })
+      .eq('id', id)
+      .eq('created_by', userId)
+      .select()
+      .single();
+    
+    if (updateError) {
+      console.error('Error updating supplier in Supabase:', updateError);
+      return NextResponse.json(
+        { error: 'Failed to update supplier' },
+        { status: 500 }
+      );
+    }
+    
+    // Map the database column names to our interface property names
+    const mappedSupplier: Supplier = {
+      id: updatedSupplier.id,
+      name: updatedSupplier.name,
+      email: updatedSupplier.email,
+      phone: updatedSupplier.phone,
+      website: updatedSupplier.website,
+      notes: updatedSupplier.notes,
+      reliabilityScore: updatedSupplier.reliability_score,
+      createdAt: new Date(updatedSupplier.created_at),
+      updatedAt: new Date(updatedSupplier.updated_at)
     };
     
-    suppliers[supplierIndex] = updatedSupplier;
-    fs.writeFileSync(suppliersPath, JSON.stringify(suppliers, null, 2));
-    
-    return NextResponse.json(updatedSupplier);
+    return NextResponse.json(mappedSupplier);
   } catch (error) {
     console.error('Error updating supplier:', error);
     return NextResponse.json(
@@ -145,8 +255,7 @@ export async function PUT(request: NextRequest) {
 
 // Delete a supplier by ID
 export async function DELETE(request: NextRequest) {
-  // Ensure data files are initialized
-  await initializeSupplierData();
+  await initSupabaseConnection();
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
@@ -158,22 +267,55 @@ export async function DELETE(request: NextRequest) {
       );
     }
     
-    initSuppliersFile();
-    const suppliersData = fs.readFileSync(suppliersPath, 'utf8');
-    let suppliers: Supplier[] = JSON.parse(suppliersData);
+    // Get the current user's ID
+    const { data: userData, error: userError } = await supabase.auth.getUser();
     
-    // Find supplier by ID
-    const supplierIndex = suppliers.findIndex(s => s.id === id);
-    if (supplierIndex === -1) {
+    if (userError) {
+      console.error('Error getting user:', userError);
+      return NextResponse.json(
+        { error: 'Authentication error' },
+        { status: 401 }
+      );
+    }
+    
+    const userId = userData.user?.id;
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'User not authenticated' },
+        { status: 401 }
+      );
+    }
+    
+    // Check if supplier exists and belongs to the user
+    const { data: existingSupplier, error: checkError } = await supabase
+      .from('suppliers')
+      .select('id')
+      .eq('id', id)
+      .eq('created_by', userId)
+      .single();
+    
+    if (checkError) {
+      console.error('Error checking supplier existence:', checkError);
       return NextResponse.json(
         { error: 'Supplier not found' },
         { status: 404 }
       );
     }
     
-    // Remove supplier
-    suppliers.splice(supplierIndex, 1);
-    fs.writeFileSync(suppliersPath, JSON.stringify(suppliers, null, 2));
+    // Delete supplier from Supabase
+    const { error: deleteError } = await supabase
+      .from('suppliers')
+      .delete()
+      .eq('id', id)
+      .eq('created_by', userId);
+    
+    if (deleteError) {
+      console.error('Error deleting supplier from Supabase:', deleteError);
+      return NextResponse.json(
+        { error: 'Failed to delete supplier' },
+        { status: 500 }
+      );
+    }
     
     return NextResponse.json({ success: true });
   } catch (error) {

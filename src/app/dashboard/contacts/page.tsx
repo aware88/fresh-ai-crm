@@ -4,6 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { SyncAllContactsButton } from '@/components/contacts/SyncAllContactsButton';
+import { SyncContactButton } from '@/components/contacts/SyncContactButton';
 import { 
   Card, 
   CardContent, 
@@ -83,6 +85,7 @@ export default function ContactsPage() {
         console.error('Failed to fetch contacts:', error);
         // Set empty array to prevent filter errors
         setContacts([]);
+        setError('Failed to load contacts');
       } finally {
         setLoading(false);
       }
@@ -152,21 +155,38 @@ export default function ContactsPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col space-y-6 p-6">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Contacts</h1>
-          <p className="text-muted-foreground">
-            Manage your contacts and their interaction history
-          </p>
+      <div className="flex justify-between items-center">
+        <div className="flex-1">
+          <h1 className="text-2xl font-semibold">Contacts</h1>
+          <p className="text-gray-500">Manage your contacts and their personality profiles</p>
         </div>
-        <Link href="/dashboard/contacts/new">
-          <Button>
-            <UserPlus className="mr-2 h-4 w-4" />
-            Add Contact
+        <div className="flex gap-2">
+          <SyncAllContactsButton 
+            variant="outline"
+            size="sm"
+            className="mr-2"
+            onSyncComplete={(result) => {
+              if (result.success) {
+                toast({
+                  title: 'Contacts synced',
+                  description: `Successfully synced ${result.created + result.updated} contacts with Metakocka`,
+                });
+                // Refresh the page to show updated sync status
+                router.refresh();
+              }
+            }}
+          >
+            Sync All to Metakocka
+          </SyncAllContactsButton>
+          <Button asChild className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white">
+            <Link href="/dashboard/contacts/new">
+              <UserPlus className="h-4 w-4 mr-2" />
+              New Contact
+            </Link>
           </Button>
-        </Link>
+        </div>
       </div>
       
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -248,7 +268,7 @@ export default function ContactsPage() {
                           className={`cursor-pointer hover:bg-gray-50 ${selectedContact?.id === contact.id ? 'bg-blue-50' : ''}`}
                           onClick={() => {
                             setSelectedContact(contact);
-                            window.history.pushState({}, '', `/dashboard/contacts/${contact.id}`);
+                            window.history.pushState({}, '', `/dashboard/contacts?id=${contact.id}`);
                           }}
                         >
                           <TableCell className="font-medium">
@@ -331,6 +351,21 @@ export default function ContactsPage() {
                       {selectedContact.personalityType}
                     </Badge>
                   )}
+                  <div className="mt-2">
+                    <SyncContactButton
+                      contactId={selectedContact.id}
+                      variant="outline"
+                      size="sm"
+                      onSyncComplete={(result) => {
+                        if (result.success) {
+                          toast({
+                            title: 'Contact synced',
+                            description: 'Contact was successfully synced with Metakocka',
+                          });
+                        }
+                      }}
+                    />
+                  </div>
                 </div>
                 
                 <Separator />
@@ -373,12 +408,12 @@ export default function ContactsPage() {
                 </div>
               </CardContent>
               <CardFooter className="flex justify-between p-4 border-t">
-                <Button variant="outline" className="border-red-200 text-red-600 hover:bg-red-50" onClick={() => handleDeleteContact(selectedContact.id)}>
+                <Button variant="default" className="border-red-200 text-red-600 hover:bg-red-50" onClick={() => handleDeleteContact(selectedContact.id)}>
                   <Trash2 className="h-4 w-4 mr-2" /> Delete
                 </Button>
                 <div className="flex gap-2">
                   <Button 
-                    variant="outline"
+                    variant="default"
                     onClick={() => router.push(`/dashboard/contacts/${selectedContact.id}`)}
                   >
                     View Details

@@ -1,0 +1,94 @@
+-- Migration: Create Metakocka Integration Logs Table
+-- Description: Creates a table to store persistent logs for the Metakocka integration
+-- This enables better error tracking, troubleshooting, and analytics for the integration
+
+BEGIN;
+
+-- Create the metakocka_integration_logs table
+CREATE TABLE IF NOT EXISTS metakocka_integration_logs (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  level TEXT NOT NULL,
+  category TEXT NOT NULL,
+  message TEXT NOT NULL,
+  context JSONB,
+  user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  tenant_id UUID,
+  resolved BOOLEAN DEFAULT FALSE,
+  resolution_notes TEXT,
+  resolution_timestamp TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Add indexes for common query patterns
+CREATE INDEX IF NOT EXISTS idx_metakocka_logs_timestamp ON metakocka_integration_logs(timestamp);
+CREATE INDEX IF NOT EXISTS idx_metakocka_logs_level ON metakocka_integration_logs(level);
+CREATE INDEX IF NOT EXISTS idx_metakocka_logs_category ON metakocka_integration_logs(category);
+CREATE INDEX IF NOT EXISTS idx_metakocka_logs_user_id ON metakocka_integration_logs(user_id);
+CREATE INDEX IF NOT EXISTS idx_metakocka_logs_tenant_id ON metakocka_integration_logs(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_metakocka_logs_resolved ON metakocka_integration_logs(resolved);
+
+-- Add RLS policies for multi-tenant isolation
+ALTER TABLE metakocka_integration_logs ENABLE ROW LEVEL SECURITY;
+
+-- Policy: Users can only view their own logs or logs for their tenant
+CREATE POLICY metakocka_logs_select_policy ON metakocka_integration_logs
+  FOR SELECT USING (
+    auth.uid() = user_id OR 
+    tenant_id IN (
+      SELECT tenant_id FROM user_tenants WHERE user_id = auth.uid()
+    )
+  );
+
+-- Policy: Users can only insert logs for themselves or their tenant
+CREATE POLICY metakocka_logs_insert_policy ON metakocka_integration_logs
+  FOR INSERT WITH CHECK (
+    auth.uid() = user_id OR 
+    tenant_id IN (
+      SELECT tenant_id FROM user_tenants WHERE user_id = auth.uid()
+    )
+  );
+
+-- Policy: Users can only update their own logs or logs for their tenant
+CREATE POLICY metakocka_logs_update_policy ON metakocka_integration_logs
+  FOR UPDATE USING (
+    auth.uid() = user_id OR 
+    tenant_id IN (
+      SELECT tenant_id FROM user_tenants WHERE user_id = auth.uid()
+    )
+  );
+
+-- Add a trigger to automatically update the updated_at timestamp
+CREATE OR REPLACE FUNCTION update_metakocka_logs_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER update_metakocka_logs_updated_at_trigger
+BEFORE UPDATE ON metakocka_integration_logs
+FOR EACH ROW
+EXECUTE FUNCTION update_metakocka_logs_updated_at();
+
+-- Create a view for recent errors (last 7 days)
+CREATE OR REPLACE VIEW recent_metakocka_errors AS
+SELECT *
+FROM metakocka_integration_logs
+WHERE 
+  level = 'error' AND
+  timestamp >= NOW() - INTERVAL '7 days'
+ORDER BY timestamp DESC;
+
+-- Create a view for unresolved errors
+CREATE OR REPLACE VIEW unresolved_metakocka_errors AS
+SELECT *
+FROM metakocka_integration_logs
+WHERE 
+  level = 'error' AND
+  resolved = FALSE
+ORDER BY timestamp DESC;
+
+COMMIT;

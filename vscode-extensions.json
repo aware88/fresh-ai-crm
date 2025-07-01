@@ -1,0 +1,76 @@
+{
+  "recommendations": [
+    // EditorConfig
+    "editorconfig.editorconfig",
+    
+    // JavaScript and TypeScript
+    "dbaeumer.vscode-eslint",
+    "esbenp.prettier-vscode",
+    "bradlc.vscode-tailwindcss",
+    "streetsidesoftware.code-spell-checker",
+    "usernamehw.errorlens",
+    "visualstudioexptteam.vscodeintellicode",
+    
+    // React
+    "dsznajder.es7-react-js-snippets",
+    "burkeholland.simple-react-snippets",
+    
+    // Git
+    "eamodio.gitlens",
+    "mhutchie.git-graph",
+    
+    // Testing
+    "firsttris.vscode-jest-runner",
+    "orta.vscode-jest",
+    
+    // Database
+    "mtxr.sqltools",
+    "mtxr.sqltools-driver-pg",
+    
+    // Docker
+    "ms-azuretools.vscode-docker",
+    
+    // Markdown
+    "yzhang.markdown-all-in-one",
+    "davidanson.vscode-markdownlint",
+    
+    // REST Client
+    "humao.rest-client",
+    
+    // SVG
+    "jock.svg",
+    
+    // Path Intellisense
+    "christian-kohler.path-intellisense",
+    
+    // Import Cost
+    "wix.vscode-import-cost",
+    
+    // Error Lens
+    "usernamehw.errorlens",
+    
+    // ESLint
+    "dbaeumer.vscode-eslint",
+    
+    // Prettier
+    "esbenp.prettier-vscode",
+    
+    // Tailwind CSS
+    "bradlc.vscode-tailwindcss",
+    
+    // GitLens
+    "eamodio.gitlens",
+    
+    // Jest Runner
+    "firsttris.vscode-jest-runner",
+    
+    // SQLTools
+    "mtxr.sqltools",
+    
+    // Docker
+    "ms-azuretools.vscode-docker",
+    
+    // Markdown All in One
+    "yzhang.markdown-all-in-one"
+  ]
+}

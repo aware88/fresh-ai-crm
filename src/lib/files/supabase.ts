@@ -71,7 +71,7 @@ export async function fetchFiles(): Promise<FileMetadata[]> {
     const { data, error } = await supabase
       .from(FILES_TABLE)
       .select('*')
-      .order('createdat', { ascending: false });
+      .order('created_at', { ascending: false });
     
     if (error) {
       throw error;
@@ -115,7 +115,7 @@ export async function fetchFilesByContactId(contactId: string): Promise<FileMeta
       .from(FILES_TABLE)
       .select('*')
       .eq('contact_id', contactId)
-      .order('createdat', { ascending: false });
+      .order('created_at', { ascending: false });
     
     if (error) {
       throw error;
@@ -158,8 +158,8 @@ export async function uploadFile(
     // Create metadata record in the database
     const fileMetadata: FileMetadataCreateInput = {
       filename: uniqueFilename,
-      originalName: file.name,
-      contentType: file.type,
+      original_name: file.name,
+      content_type: file.type,
       size: file.size,
       path: filePath,
       contact_id: contactId || null,
@@ -172,8 +172,8 @@ export async function uploadFile(
       .insert([{
         ...fileMetadata,
         id: uuidv4(),
-        createdat: new Date().toISOString(),
-        updatedat: new Date().toISOString()
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
       }])
       .select()
       .single();
@@ -200,7 +200,7 @@ export async function updateFileMetadata(fileData: FileMetadataUpdateInput): Pro
       .from(FILES_TABLE)
       .update({
         ...fileData,
-        updatedat: new Date().toISOString()
+        updated_at: new Date().toISOString()
       })
       .eq('id', fileData.id)
       .select()

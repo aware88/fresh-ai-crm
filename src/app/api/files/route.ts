@@ -75,7 +75,7 @@ export async function PUT(request: NextRequest) {
     const fileData: FileMetadataUpdateInput = {
       id: data.id,
       filename: data.filename,
-      originalName: data.originalName,
+      original_name: data.original_name,
       description: data.description,
       tags: data.tags,
       contact_id: data.contact_id

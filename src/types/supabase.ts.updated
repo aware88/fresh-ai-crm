@@ -1,0 +1,429 @@
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[]
+
+export interface Database {
+  public: {
+    Tables: {
+      products: {
+        Row: {
+          id: string
+          created_at: string
+          name: string
+          description: string | null
+          category: string | null
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          created_at?: string
+          name: string
+          description?: string | null
+          category?: string | null
+          user_id: string
+        }
+        Update: {
+          id?: string
+          created_at?: string
+          name?: string
+          description?: string | null
+          category?: string | null
+          user_id?: string
+        }
+      }
+      suppliers: {
+        Row: {
+          id: string
+          created_at: string
+          name: string
+          email: string | null
+          phone: string | null
+          address: string | null
+          website: string | null
+          notes: string | null
+          reliabilityScore: number | null
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          created_at?: string
+          name: string
+          email?: string | null
+          phone?: string | null
+          address?: string | null
+          website?: string | null
+          notes?: string | null
+          reliabilityScore?: number | null
+          user_id: string
+        }
+        Update: {
+          id?: string
+          created_at?: string
+          name?: string
+          email?: string | null
+          phone?: string | null
+          address?: string | null
+          website?: string | null
+          notes?: string | null
+          reliabilityScore?: number | null
+          user_id?: string
+        }
+      }
+      contacts: {
+        Row: {
+          id: string
+          firstname: string
+          lastname: string
+          email: string
+          phone: string | null
+          company: string | null
+          position: string | null
+          notes: string | null
+          personalitytype: string | null
+          personalitynotes: string | null
+          status: string
+          createdat: string
+          updatedat: string
+          lastcontact: string | null
+          full_name: string | null
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          firstname: string
+          lastname: string
+          email: string
+          phone?: string | null
+          company?: string | null
+          position?: string | null
+          notes?: string | null
+          personalitytype?: string | null
+          personalitynotes?: string | null
+          status?: string
+          createdat?: string
+          updatedat?: string
+          lastcontact?: string | null
+          full_name?: string | null
+          user_id: string
+        }
+        Update: {
+          id?: string
+          firstname?: string
+          lastname?: string
+          email?: string
+          phone?: string | null
+          company?: string | null
+          position?: string | null
+          notes?: string | null
+          personalitytype?: string | null
+          personalitynotes?: string | null
+          status?: string
+          createdat?: string
+          updatedat?: string
+          lastcontact?: string | null
+          full_name?: string | null
+          user_id?: string
+        }
+      }
+      supplier_documents: {
+        Row: {
+          id: string
+          created_at: string
+          supplier_id: string
+          name: string
+          file_path: string
+          file_type: string
+          file_size: number
+          created_by: string
+          document_type: string | null
+          metadata: Json | null
+          // New columns from migration 56
+          processing_status: string
+          extracted_data: Json
+          processing_metadata: Json
+          processing_error: string | null
+          processed_at: string | null
+          reviewed_by: string | null
+          reviewed_at: string | null
+        }
+        Insert: {
+          id?: string
+          created_at?: string
+          supplier_id: string
+          name: string
+          file_path: string
+          file_type: string
+          file_size: number
+          created_by: string
+          document_type?: string | null
+          metadata?: Json | null
+          // New columns from migration 56
+          processing_status?: string
+          extracted_data?: Json
+          processing_metadata?: Json
+          processing_error?: string | null
+          processed_at?: string | null
+          reviewed_by?: string | null
+          reviewed_at?: string | null
+        }
+        Update: {
+          id?: string
+          created_at?: string
+          supplier_id?: string
+          name?: string
+          file_path?: string
+          file_type?: string
+          file_size?: number
+          created_by?: string
+          document_type?: string | null
+          metadata?: Json | null
+          // New columns from migration 56
+          processing_status?: string
+          extracted_data?: Json
+          processing_metadata?: Json
+          processing_error?: string | null
+          processed_at?: string | null
+          reviewed_by?: string | null
+          reviewed_at?: string | null
+        }
+      }
+      supplier_emails: {
+        Row: {
+          id: string
+          created_at: string
+          supplier_id: string
+          subject: string
+          body: string
+          sent_at: string | null
+          user_id: string
+          processed: boolean
+        }
+        Insert: {
+          id?: string
+          created_at?: string
+          supplier_id: string
+          subject: string
+          body: string
+          sent_at?: string | null
+          user_id: string
+          processed?: boolean
+        }
+        Update: {
+          id?: string
+          created_at?: string
+          supplier_id?: string
+          subject?: string
+          body?: string
+          sent_at?: string | null
+          user_id?: string
+          processed?: boolean
+        }
+      }
+      supplier_pricing: {
+        Row: {
+          id: string
+          created_at: string
+          supplier_id: string
+          product_id: string
+          price: number
+          currency: string
+          unit: string | null
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          created_at?: string
+          supplier_id: string
+          product_id: string
+          price: number
+          currency: string
+          unit?: string | null
+          user_id: string
+        }
+        Update: {
+          id?: string
+          created_at?: string
+          supplier_id?: string
+          product_id?: string
+          price?: number
+          currency?: string
+          unit?: string | null
+          user_id?: string
+        }
+      }
+      supplier_queries: {
+        Row: {
+          id: string
+          created_at: string
+          query: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          created_at?: string
+          query: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          created_at?: string
+          query?: string
+          user_id?: string
+        }
+      }
+      supplier_query_results: {
+        Row: {
+          id: string
+          created_at: string
+          query_id: string
+          supplier_id: string
+          match_reason: string | null
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          created_at?: string
+          query_id: string
+          supplier_id: string
+          match_reason?: string | null
+          user_id: string
+        }
+        Update: {
+          id?: string
+          created_at?: string
+          query_id?: string
+          supplier_id?: string
+          match_reason?: string | null
+          user_id?: string
+        }
+      }
+      metakocka_credentials: {
+        Row: {
+          id: string
+          user_id: string
+          company_id: string
+          secret_key: string
+          api_endpoint: string
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          company_id: string
+          secret_key: string
+          api_endpoint?: string
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          company_id?: string
+          secret_key?: string
+          api_endpoint?: string
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      metakocka_product_mappings: {
+        Row: {
+          id: string
+          user_id: string
+          product_id: string
+          metakocka_id: string
+          metakocka_code: string | null
+          last_synced_at: string
+          created_at: string
+          updated_at: string
+          sync_status: string
+          sync_error: string | null
+          metadata: Json | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          product_id: string
+          metakocka_id: string
+          metakocka_code?: string | null
+          last_synced_at?: string
+          created_at?: string
+          updated_at?: string
+          sync_status?: string
+          sync_error?: string | null
+          metadata?: Json | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          product_id?: string
+          metakocka_id?: string
+          metakocka_code?: string | null
+          last_synced_at?: string
+          created_at?: string
+          updated_at?: string
+          sync_status?: string
+          sync_error?: string | null
+          metadata?: Json | null
+        }
+      }
+      metakocka_contact_mappings: {
+        Row: {
+          id: string
+          user_id: string
+          contact_id: string
+          metakocka_id: string
+          metakocka_code: string | null
+          last_synced_at: string
+          created_at: string
+          updated_at: string
+          sync_status: string
+          sync_error: string | null
+          metadata: Json | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          contact_id: string
+          metakocka_id: string
+          metakocka_code?: string | null
+          last_synced_at?: string
+          created_at?: string
+          updated_at?: string
+          sync_status?: string
+          sync_error?: string | null
+          metadata?: Json | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          contact_id?: string
+          metakocka_id?: string
+          metakocka_code?: string | null
+          last_synced_at?: string
+          created_at?: string
+          updated_at?: string
+          sync_status?: string
+          sync_error?: string | null
+          metadata?: Json | null
+        }
+      }
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      [_ in never]: never
+    }
+    Enums: {
+      [_ in never]: never
+    }
+  }
+}

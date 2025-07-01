@@ -24,7 +24,7 @@ export default function FilesPage() {
     setShowUploadDialog(false);
     toast({
       title: 'File uploaded',
-      description: `${file.originalName} has been uploaded successfully.`,
+      description: `${file.original_name} has been uploaded successfully.`,
     });
   };
 

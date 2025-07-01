@@ -272,4 +272,6 @@ const FileUploader: React.FC<FileUploaderProps> = ({
   );
 };
 
+// Export both as default and named export for backward compatibility
 export default FileUploader;
+export { FileUploader };

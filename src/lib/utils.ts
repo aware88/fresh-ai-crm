@@ -28,3 +28,27 @@ export function formatDate(dateString: string | Date, options: Intl.DateTimeForm
   
   return new Intl.DateTimeFormat('en-US', defaultOptions).format(date);
 }
+
+/**
+ * Format a number as currency
+ * @param amount Amount to format
+ * @param currency Currency code (default: USD)
+ * @param locale Locale for formatting (default: en-US)
+ * @returns Formatted currency string
+ */
+export function formatCurrency(amount: number | string, currency: string = 'USD', locale: string = 'en-US') {
+  if (amount === null || amount === undefined) return '';
+  
+  // Convert to number if string
+  const numericAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
+  
+  // Handle NaN
+  if (isNaN(numericAmount)) return '';
+  
+  return new Intl.NumberFormat(locale, {
+    style: 'currency',
+    currency: currency,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(numericAmount);
+}
