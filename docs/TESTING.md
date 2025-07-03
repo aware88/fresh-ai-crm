@@ -1,6 +1,6 @@
 # Testing Guide
 
-This document provides guidance on testing the Fresh AI CRM application, with a focus on the inventory alert system.
+This document provides guidance on testing the CRM Mind application, with a focus on the inventory alert system.
 
 ## Table of Contents
 - [Running Tests](#running-tests)
@@ -80,12 +80,68 @@ npm run test:coverage
 # Run a specific test file
 npm test -- tests/integration/inventory-alerts.test.ts
 
+# Run RBAC tests
+npm test -- tests/rbac.test.ts
+
 # Run tests matching a pattern
 npm test -- -t "inventory alerts"
 ```
 
+## RBAC Testing
+
+### Test Files
+- `tests/rbac.test.ts` - Tests for Role-Based Access Control functionality
+
+### Testing RBAC Components
+
+The RBAC test suite verifies the following functionality:
+
+1. **Role Management**
+   - Creating roles with proper attributes
+   - Retrieving role information
+   - Updating role details
+   - Deleting roles
+
+2. **Permission Management**
+   - Assigning permissions to roles
+   - Removing permissions from roles
+   - Verifying permission checks
+
+3. **User Role Management**
+   - Assigning roles to users
+   - Removing roles from users
+   - Retrieving a user's roles
+
+### Test Data
+
+Test data is automatically created in the `beforeEach` block of each test suite:
+
+- Test organization ID: `org-123`
+- Test role: `test-role`
+- Test permission ID: `perm-456`
+- Test user ID: `user-123`
+
+### Mocking Strategy
+
+The test suite uses Jest mocks to simulate the Supabase client and its methods. Key mocks include:
+
+- `createMockQueryBuilder`: Creates a mock query builder with common methods
+- `createMockSupabase`: Creates a mock Supabase client instance
+- `createMockRoleService`: Creates a mock RoleService with all necessary methods
+
+### Running RBAC Tests
+
+```bash
+# Run all RBAC tests
+npm test -- tests/rbac.test.ts
+
+# Run with coverage
+npm test -- tests/rbac.test.ts --coverage
+```
+
 #### Test Environment
-Integration tests require the following environment variables to be set in a `.env.test` file:
+
+RBAC tests require the following environment variables to be set in a `.env.test` file:
 
 ```env
 NEXT_PUBLIC_SUPABASE_URL=your_test_supabase_url
