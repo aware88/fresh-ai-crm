@@ -1,0 +1,47 @@
+{
+  "name": "ai-memory",
+  "version": "1.0.0",
+  "description": "AI Memory System for Fresh AI CRM",
+  "main": "memory.service.js",
+  "type": "commonjs",
+  "scripts": {
+    "test": "jest --verbose --coverage",
+    "test:watch": "jest --watch",
+    "test:ci": "jest --ci --coverage"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.0",
+    "dotenv": "^16.3.1",
+    "openai": "^4.17.0"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.11",
+    "jest": "^29.7.0",
+    "jest-environment-jsdom": "^29.7.0"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "testMatch": [
+      "**/*.test.js"
+    ],
+    "collectCoverageFrom": [
+      "memory.service.js"
+    ],
+    "coveragePathIgnorePatterns": [
+      "/node_modules/",
+      "/coverage/",
+      "/test-helpers.cjs/",
+      "/test.config.cjs/",
+      "/jest.setup.js/",
+      "/run-tests.js/"
+    ],
+    "coverageThreshold": {
+      "global": {
+        "branches": 65,
+        "functions": 75,
+        "lines": 70,
+        "statements": 65
+      }
+    }
+  }
+}

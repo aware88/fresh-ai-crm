@@ -1,6 +1,6 @@
-# Contributing to Fresh AI CRM
+# Contributing to CRM Mind
 
-Thank you for your interest in contributing to Fresh AI CRM! We welcome all contributions, whether they're bug reports, feature requests, documentation improvements, or code contributions.
+Thank you for your interest in contributing to CRM Mind! We welcome all contributions, whether they're bug reports, feature requests, documentation improvements, or code contributions.
 
 ## Table of Contents
 - [Code of Conduct](#code-of-conduct)

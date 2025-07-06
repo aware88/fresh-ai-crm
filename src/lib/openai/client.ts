@@ -410,7 +410,7 @@ If you continue to experience issues, please contact support.`;
   }
 };
 
-export const analyzeEmail = async (emailContent: string) => {
+export const analyzeEmail = async (emailContent: string, salesTacticsContext?: string) => {
   try {
     const openai = getOpenAIClient();
     
@@ -435,6 +435,17 @@ IMPORTANT: When analyzing email threads, identify which emails are from the user
     
     // Company context is no longer available in this version
     const companyContextPrompt = '';
+    
+    // Add sales tactics context if available
+    const salesTacticsPrompt = salesTacticsContext ? `
+### 📊 SALES TACTICS TO INCORPORATE
+
+The following sales tactics have been selected based on the recipient's personality profile and are most likely to be effective. Incorporate these naturally into your response:
+
+${salesTacticsContext}
+
+IMPORTANT: Do not explicitly mention these tactics in your response. Instead, subtly incorporate the principles and approaches they suggest. Your response should sound completely natural and human, not like you're following a formula.
+` : '';
     
     const systemPrompt = `You are a senior AI communication assistant trained in psychological profiling, behavioral sales, and human-centered messaging. You are used across business roles, including sales, support, recruitment, and supplier management.
 
@@ -463,6 +474,8 @@ Before analysis, you must study all profiles from all available datasets:
 3. **Live Interaction Context** (optional) – email threads, LinkedIn links, website copy, or PDF excerpts provided by the user.
 
 **You MUST reference these datasets explicitly when making your match.**${userIdentityPrompt}
+
+${salesTacticsPrompt}
 
 ---
 
@@ -511,6 +524,7 @@ A natural, 100% human-sounding message you would send as a reply — short, tail
 - How the message aligns with the identified profile  
 - Why this approach is likely to succeed  
 - If multiple profiles were combined, how and why  
+- If sales tactics were incorporated, which ones and how they were applied  
 
 ---
 

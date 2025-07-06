@@ -1,6 +1,6 @@
 # Developer Guide
 
-Welcome to the Fresh AI CRM project! This guide will help you set up your development environment and get started with the codebase.
+Welcome to the CRM Mind project! This guide will help you set up your development environment and get started with the codebase.
 
 ## Table of Contents
 - [Prerequisites](#prerequisites)

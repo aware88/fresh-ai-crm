@@ -1,6 +1,6 @@
 # Metakocka Email Integration
 
-This document provides a detailed overview of the email integration with Metakocka in the Fresh AI CRM system.
+This document provides a detailed overview of the email integration with Metakocka in the CRM Mind system.
 
 ## Overview
 

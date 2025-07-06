@@ -1,6 +1,6 @@
 # Metakocka Integration Recent Changes
 
-This document tracks the recent changes and updates to the Metakocka integration with the Fresh AI CRM system.
+This document tracks the recent changes and updates to the Metakocka integration with the CRM Mind system.
 
 ## Overview
 

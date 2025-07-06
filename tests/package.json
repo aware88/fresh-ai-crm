@@ -1,0 +1,14 @@
+{
+  "name": "fresh-ai-crm-tests",
+  "version": "1.0.0",
+  "description": "Tests for Fresh AI CRM",
+  "type": "module",
+  "scripts": {
+    "test": "node organization-setup-test.mjs"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.0",
+    "dotenv": "^16.3.1",
+    "node-fetch": "^3.3.2"
+  }
+}

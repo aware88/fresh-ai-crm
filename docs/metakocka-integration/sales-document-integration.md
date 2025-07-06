@@ -1,6 +1,6 @@
 # Metakocka Sales Document Integration
 
-This document provides a detailed overview of the sales document integration between the Fresh AI CRM system and Metakocka ERP.
+This document provides a detailed overview of the sales document integration between the CRM Mind system and Metakocka ERP.
 
 ## Overview
 

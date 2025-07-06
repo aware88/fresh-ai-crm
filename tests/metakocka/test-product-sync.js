@@ -2,7 +2,7 @@
  * Test script for Metakocka product synchronization
  * 
  * This script tests the bidirectional product synchronization between
- * Fresh AI CRM and Metakocka.
+ * CRM Mind and Metakocka.
  * 
  * Tests:
  * 1. Single product sync (CRM → Metakocka)

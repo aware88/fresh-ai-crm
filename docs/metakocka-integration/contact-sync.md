@@ -1,13 +1,13 @@
 # Metakocka Contact Synchronization
 
-This document describes the bidirectional contact synchronization between Fresh AI CRM and Metakocka.
+This document describes the bidirectional contact synchronization between CRM Mind and Metakocka.
 
 ## Overview
 
-The contact synchronization feature allows contacts to be synchronized between Fresh AI CRM and Metakocka in both directions:
+The contact synchronization feature allows contacts to be synchronized between CRM Mind and Metakocka in both directions:
 
-1. **CRM → Metakocka**: Sync contacts from Fresh AI CRM to Metakocka
-2. **Metakocka → CRM**: Sync partners from Metakocka to Fresh AI CRM
+1. **CRM → Metakocka**: Sync contacts from CRM Mind to Metakocka
+2. **Metakocka → CRM**: Sync partners from Metakocka to CRM Mind
 
 ## Architecture
 

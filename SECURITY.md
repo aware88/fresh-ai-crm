@@ -15,7 +15,7 @@ We release patches for security vulnerabilities. Which versions are eligible for
 
 **Please do not report security vulnerabilities through public GitHub issues.**
 
-If you believe you've found a security vulnerability in Fresh AI CRM, we appreciate your help in disclosing it to us in a responsible manner. Please follow these steps to report a security issue:
+If you believe you've found a security vulnerability in CRM Mind, we appreciate your help in disclosing it to us in a responsible manner. Please follow these steps to report a security issue:
 
 1. **Email Us**: Send an email to [security@yourdomain.com](mailto:security@yourdomain.com) with the details of the vulnerability.
 

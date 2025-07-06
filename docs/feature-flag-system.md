@@ -46,8 +46,8 @@ Features are organized into three tiers:
 3. **Premium Tier**
    - `ai_automation` - AI-powered automation features
    - `email_marketing` - Advanced email marketing capabilities
-   - `white_label` - Remove Fresh AI CRM branding
-   - `api_access` - Access to the Fresh AI CRM API
+   - `white_label` - Remove CRM Mind branding
+   - `api_access` - Access to the CRM Mind API
 
 ## Usage
 

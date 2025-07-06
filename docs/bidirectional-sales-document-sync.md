@@ -2,12 +2,12 @@
 
 ## Overview
 
-The bidirectional sales document synchronization feature allows you to keep sales documents in sync between Fresh AI CRM and Metakocka. This document explains how to use this feature, its capabilities, and how to troubleshoot common issues.
+The bidirectional sales document synchronization feature allows you to keep sales documents in sync between CRM Mind and Metakocka. This document explains how to use this feature, its capabilities, and how to troubleshoot common issues.
 
 ## Features
 
-- **CRM to Metakocka Sync**: Push sales documents from Fresh AI CRM to Metakocka
-- **Metakocka to CRM Sync**: Pull sales documents from Metakocka to Fresh AI CRM
+- **CRM to Metakocka Sync**: Push sales documents from CRM Mind to Metakocka
+- **Metakocka to CRM Sync**: Pull sales documents from Metakocka to CRM Mind
 - **Bulk Synchronization**: Sync multiple documents at once
 - **Sync Status Tracking**: Monitor the sync status of each document
 - **Error Handling**: Robust error handling with detailed logs

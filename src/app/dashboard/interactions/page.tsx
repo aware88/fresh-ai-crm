@@ -5,7 +5,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import AllInteractionsList from '@/components/interactions/AllInteractionsList';
 
 export const metadata: Metadata = {
-  title: 'Interactions | Fresh AI CRM',
+  title: 'Interactions | CRM Mind',
   description: 'View and manage all interactions with contacts',
 };
 

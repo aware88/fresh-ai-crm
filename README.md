@@ -1,4 +1,4 @@
-# Fresh AI CRM
+# CRM Mind
 
 A powerful AI-driven CRM platform with integrated inventory management and alerting system for modern businesses.
 
@@ -11,9 +11,10 @@ A powerful AI-driven CRM platform with integrated inventory management and alert
 
 ## ✨ Features
 
-### Core CRM
+### CRM Mind
 - 🚀 **Modern Stack**: Built with Next.js 15, TypeScript, and Tailwind CSS
 - 🤖 **AI-Powered Insights**: Leverage OpenAI's GPT models for email analysis and customer insights
+- 📧 **Email Queue System**: Robust system for processing, analyzing, and reviewing incoming emails
 - 📱 **Responsive Design**: Works seamlessly across all device sizes
 - 🏢 **Custom Branding**: Easy theming and customization options
 
@@ -56,6 +57,7 @@ For detailed documentation on specific features, see:
 
 - [Metakocka Integration](/docs/integrations/metakocka/README.md)
 - [Order Management](/docs/integrations/metakocka/OrderDashboard.md)
+- [Email Queue System](/docs/email-queue-system.md)
 - [API Reference](/docs/API.md)
 
 ## 🚀 Getting Started
@@ -281,6 +283,16 @@ Get real-time notifications when inventory levels are low:
 - **Alert History**: View past alerts and their status
 - **Acknowledgment System**: Mark alerts as resolved when addressed
 
+### Email Queue System
+
+The email queue system provides a structured approach to handling incoming emails with AI-powered analysis:
+
+- **Queue Management**: Add, process, and monitor emails in a priority queue
+- **AI Analysis**: Extract insights from emails using OpenAI's GPT-4o model
+- **Review Process**: Manual review workflow for emails requiring human attention
+- **Metakocka Integration**: Enrich email context with Metakocka data
+- **Priority Levels**: Process urgent emails first with customizable priority settings
+
 ### Email Analysis
 
 The email analysis feature uses OpenAI's GPT-4o model to extract insights from customer emails, including:
@@ -295,7 +307,7 @@ The email analysis feature uses OpenAI's GPT-4o model to extract insights from c
 
 ## 🔄 Metakocka Integration
 
-The CRM includes comprehensive integration with Metakocka ERP system, featuring:
+CRM Mind includes comprehensive integration with Metakocka ERP system, featuring:
 
 ### Bidirectional Synchronization
 - **Contacts**: Sync contacts between CRM and Metakocka with mapping and status tracking
@@ -391,10 +403,14 @@ To customize rate limiting, set these environment variables:
 
 For detailed documentation, please refer to the following files:
 
+- [SYSTEM_OVERVIEW.md](./docs/SYSTEM_OVERVIEW.md) - Complete system architecture and components
 - [DEVELOPER_GUIDE.md](./docs/DEVELOPER_GUIDE.md) - Getting started guide for developers
 - [TESTING.md](./docs/TESTING.md) - Testing guide and best practices
 - [DATABASE.md](./docs/DATABASE.md) - Database schema and migration guide
 - [API_REFERENCE.md](./docs/API_REFERENCE.md) - API documentation
+- [ORGANIZATION_BRANDING.md](./docs/organization-branding.md) - White-label customization guide
+- [FEATURE_FLAG_SYSTEM.md](./docs/feature-flag-system.md) - Feature flag management
+- [METAKOCKA_INTEGRATION.md](./docs/metakocka-integration.md) - Metakocka ERP integration
 
 ## 📚 Development
 

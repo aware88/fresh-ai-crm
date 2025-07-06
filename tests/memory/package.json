@@ -1,0 +1,18 @@
+{
+  "name": "memory-tests",
+  "version": "1.0.0",
+  "description": "Tests for the Fresh AI CRM memory integration",
+  "type": "module",
+  "scripts": {
+    "test": "node test-agent-memory-integration.js",
+    "mock-server": "node mock-server.js",
+    "test-with-mock": "node test-agent-memory-integration.js --mock"
+  },
+  "dependencies": {
+    "dotenv": "^16.0.3",
+    "node-fetch": "^3.3.0",
+    "uuid": "^9.0.0",
+    "express": "^4.18.2",
+    "cors": "^2.8.5"
+  }
+}

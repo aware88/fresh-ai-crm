@@ -1,6 +1,6 @@
 # Metakocka Order Management Integration
 
-This directory contains React UI components for the Metakocka order management system integration within the Fresh AI CRM project.
+This directory contains React UI components for the Metakocka order management system integration within the CRM Mind project.
 
 ## Components Overview
 

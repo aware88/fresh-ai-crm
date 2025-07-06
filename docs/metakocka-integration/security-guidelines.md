@@ -1,6 +1,6 @@
 # Metakocka Integration Security Guidelines
 
-This document outlines the security best practices and considerations for the Metakocka integration with Fresh AI CRM.
+This document outlines the security best practices and considerations for the Metakocka integration with CRM Mind.
 
 ## Multi-tenant Data Isolation
 

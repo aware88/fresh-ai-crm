@@ -1,6 +1,6 @@
 # Metakocka Integration Documentation
 
-This documentation provides a comprehensive overview of the Metakocka ERP integration with the Fresh AI CRM system. The integration enables seamless data flow between the CRM and Metakocka ERP, enhancing customer relationship management with real-time business data.
+This documentation provides a comprehensive overview of the Metakocka ERP integration with the CRM Mind system. The integration enables seamless data flow between the CRM and Metakocka ERP, enhancing customer relationship management with real-time business data.
 
 ## Table of Contents
 
@@ -17,7 +17,7 @@ This documentation provides a comprehensive overview of the Metakocka ERP integr
 
 ## Overview
 
-The Metakocka integration connects the Fresh AI CRM system with the Metakocka ERP platform, providing a unified view of customer data, sales documents, products, and interactions. This integration enables:
+The Metakocka integration connects the CRM Mind system with the Metakocka ERP platform, providing a unified view of customer data, sales documents, products, and interactions. This integration enables:
 
 - Bidirectional contact synchronization
 - Sales document creation and management

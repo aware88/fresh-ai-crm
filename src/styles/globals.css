@@ -3,9 +3,28 @@
 @tailwind utilities;
 
 :root {
+  /* Base theme variables */
   --foreground-rgb: 0, 0, 0;
   --background-start-rgb: 255, 255, 255;
   --background-end-rgb: 255, 255, 255;
+  
+  /* Branding theme variables with defaults */
+  --primary-color: #0f172a;
+  --secondary-color: #64748b;
+  --accent-color: #2563eb;
+  --font-family: 'Inter', system-ui, sans-serif;
+  
+  /* Component-specific variables */
+  --header-bg: var(--primary-color);
+  --sidebar-bg: var(--primary-color);
+  --button-primary-bg: var(--accent-color);
+  --button-primary-text: white;
+  --button-secondary-bg: transparent;
+  --button-secondary-text: var(--secondary-color);
+  --button-secondary-border: var(--secondary-color);
+  --card-border: #e2e8f0;
+  --input-border: #cbd5e1;
+  --input-focus-ring: var(--accent-color);
 }
 
 @media (prefers-color-scheme: dark) {

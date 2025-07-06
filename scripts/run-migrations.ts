@@ -25,7 +25,7 @@ async function runMigrations() {
   console.log('Starting database migrations...');
   
   // Read all migration files
-  const migrationsDir = path.join(process.cwd(), 'sql-migrations');
+  const migrationsDir = path.join(process.cwd(), 'migrations');
   const migrationFiles = fs.readdirSync(migrationsDir)
     .filter(file => file.endsWith('.sql'))
     .sort(); // Sort to run in order

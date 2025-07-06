@@ -1,6 +1,6 @@
 # Metakocka Integration Tests
 
-This directory contains test scripts for verifying the Metakocka integration functionality in Fresh AI CRM.
+This directory contains test scripts for verifying the Metakocka integration functionality in CRM Mind.
 
 ## Setup
 

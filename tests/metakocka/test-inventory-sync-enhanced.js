@@ -2,7 +2,7 @@
  * Metakocka Inventory Sync Test Script (Enhanced)
  * 
  * This script tests the enhanced inventory synchronization functionality between
- * Fresh AI CRM and Metakocka, including:
+ * CRM Mind and Metakocka, including:
  * 
  * 1. Syncing all product inventory data from Metakocka
  * 2. Syncing individual product inventory data

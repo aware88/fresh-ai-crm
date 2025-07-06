@@ -1,0 +1,19 @@
+# Test environment variables for Metakocka integration tests
+
+# Authentication token for API requests
+AUTH_TOKEN=your_auth_token_here
+
+# Sales document ID from the CRM database for testing
+DOCUMENT_ID=your_document_id_here
+
+# Product ID from the CRM database for testing
+PRODUCT_ID=your_product_id_here
+
+# Metakocka ID for reverse sync testing (optional)
+METAKOCKA_ID=your_metakocka_id_here
+
+# Base URL for the API (default: http://localhost:3000)
+API_BASE_URL=http://localhost:3000
+
+# Enable debug logging (true/false)
+DEBUG=true

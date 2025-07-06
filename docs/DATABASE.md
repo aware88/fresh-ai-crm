@@ -1,6 +1,6 @@
 # Database Guide
 
-This document provides comprehensive information about the Fresh AI CRM database schema, migrations, and best practices.
+This document provides comprehensive information about the CRM Mind database schema, migrations, and best practices.
 
 ## Table of Contents
 - [Database Schema](#database-schema)

@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document provides a comprehensive guide to the Stripe integration in Fresh AI CRM for subscription management. The integration allows organizations to subscribe to different plans, manage their subscriptions, and process payments securely through Stripe.
+This document provides a comprehensive guide to the Stripe integration in CRM Mind for subscription management. The integration allows organizations to subscribe to different plans, manage their subscriptions, and process payments securely through Stripe.
 
 ## Architecture
 

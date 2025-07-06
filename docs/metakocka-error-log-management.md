@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Metakocka Error Log Management system provides a comprehensive solution for tracking, analyzing, and resolving integration errors between Fresh AI CRM and the Metakocka ERP system. This document outlines the features, usage, and technical details of the error log management system.
+The Metakocka Error Log Management system provides a comprehensive solution for tracking, analyzing, and resolving integration errors between CRM Mind and the Metakocka ERP system. This document outlines the features, usage, and technical details of the error log management system.
 
 ## Features
 

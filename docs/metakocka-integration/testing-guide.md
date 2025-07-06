@@ -1,6 +1,6 @@
 # Metakocka Integration Testing Guide
 
-This document provides comprehensive instructions for testing all aspects of the Metakocka integration with the Fresh AI CRM system.
+This document provides comprehensive instructions for testing all aspects of the Metakocka integration with the CRM Mind system.
 
 ## Overview
 

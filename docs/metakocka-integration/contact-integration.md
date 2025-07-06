@@ -1,6 +1,6 @@
 # Metakocka Contact Integration
 
-This document provides a detailed overview of the contact integration between the Fresh AI CRM system and Metakocka ERP.
+This document provides a detailed overview of the contact integration between the CRM Mind system and Metakocka ERP.
 
 ## Overview
 

@@ -3,11 +3,14 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { usePathname } from "next/navigation";
+import NotificationCenter from "@/components/notifications/NotificationCenter";
+import { useSession } from "next-auth/react";
 
 export function Header() {
   const pathname = usePathname() || '';
   const isHomePage = pathname === '/';
   const isDashboard = pathname.startsWith('/dashboard');
+  const { data: session } = useSession();
   
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60">
@@ -75,16 +78,34 @@ export function Header() {
           )}
         </nav>
         <div className="flex items-center gap-2">
-          <Link href="/signin" className="mr-2">
-            <Button variant="ghost" className="text-gray-700 hover:bg-gray-100/80">
-              Sign In
-            </Button>
-          </Link>
-          <Link href="/signup">
-            <Button className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold">
-              Join Beta Free - Limited Time
-            </Button>
-          </Link>
+          {session ? (
+            <>
+              <NotificationCenter />
+              <Link href="/dashboard" className="mr-2">
+                <Button variant="ghost" className="text-gray-700 hover:bg-gray-100/80">
+                  Dashboard
+                </Button>
+              </Link>
+              <Link href="/settings/profile">
+                <Button className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold">
+                  My Account
+                </Button>
+              </Link>
+            </>
+          ) : (
+            <>
+              <Link href="/signin" className="mr-2">
+                <Button variant="ghost" className="text-gray-700 hover:bg-gray-100/80">
+                  Sign In
+                </Button>
+              </Link>
+              <Link href="/signup">
+                <Button className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold">
+                  Join Beta Free - Limited Time
+                </Button>
+              </Link>
+            </>
+          )}
         </div>
       </div>
     </header>

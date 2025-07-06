@@ -1,6 +1,6 @@
-# Stripe Integration Plan for Fresh AI CRM
+# Stripe Integration Plan for CRM Mind
 
-This document outlines the plan for integrating Stripe payment processing with the Fresh AI CRM subscription system.
+This document outlines the plan for integrating Stripe payment processing with the CRM Mind subscription system.
 
 ## Phase 1: Setup and Configuration
 

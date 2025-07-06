@@ -1,6 +1,6 @@
 # Metakocka Order Management UI Tests
 
-This document describes the UI tests for the Metakocka order management integration in Fresh AI CRM.
+This document describes the UI tests for the Metakocka order management integration in CRM Mind.
 
 ## Test Overview
 
@@ -44,7 +44,7 @@ npm run test:e2e -- tests/metakocka/order-ui-tests.ts
 
 These tests require:
 
-1. A running instance of the Fresh AI CRM application
+1. A running instance of the CRM Mind application
 2. A test user account with access to the Metakocka integration
 3. Test data in both the CRM and Metakocka systems
 4. Valid API credentials for the Metakocka API

@@ -6,18 +6,37 @@ global.TextEncoder = TextEncoder as any;
 global.TextDecoder = TextDecoder as any;
 
 // Mock the Supabase client
-jest.mock('@/lib/supabase/client', () => ({
-  createClient: jest.fn().mockImplementation(() => ({
-    from: jest.fn().mockReturnThis(),
-    select: jest.fn().mockReturnThis(),
-    insert: jest.fn().mockReturnThis(),
-    update: jest.fn().mockReturnThis(),
-    delete: jest.fn().mockReturnThis(),
-    eq: jest.fn().mockReturnThis(),
-    single: jest.fn().mockResolvedValue({ data: null, error: null }),
-    data: [],
-    error: null,
+export const mockFrom = jest.fn().mockReturnThis();
+export const mockSelect = jest.fn().mockReturnThis();
+export const mockInsert = jest.fn().mockReturnThis();
+export const mockUpdate = jest.fn().mockReturnThis();
+export const mockDelete = jest.fn().mockReturnThis();
+export const mockEq = jest.fn().mockReturnThis();
+export const mockSingle = jest.fn().mockResolvedValue({ data: null, error: null });
+
+jest.mock('../src/lib/supabaseClient', () => ({
+  supabase: {
+    from: mockFrom,
+    select: mockSelect,
+    insert: mockInsert,
+    update: mockUpdate,
+    delete: mockDelete,
+    eq: mockEq,
+    single: mockSingle,
+    rpc: jest.fn().mockReturnThis(),
+  },
+  getSupabaseWithAuth: jest.fn().mockImplementation(() => ({
+    from: mockFrom,
+    select: mockSelect,
+    insert: mockInsert,
+    update: mockUpdate,
+    delete: mockDelete,
+    eq: mockEq,
+    single: mockSingle,
   })),
+  isSupabaseConfigured: jest.fn().mockReturnValue(true),
+  getUserId: jest.fn().mockResolvedValue('test-user-123'),
+  getUser: jest.fn().mockResolvedValue({ id: 'test-user-123', email: 'test@example.com' }),
 }));
 
 // Mock environment variables

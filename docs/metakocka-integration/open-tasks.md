@@ -1,6 +1,6 @@
 # Metakocka Integration Open Tasks
 
-This document outlines the remaining tasks and future enhancements for the Metakocka integration with the Fresh AI CRM system.
+This document outlines the remaining tasks and future enhancements for the Metakocka integration with the CRM Mind system.
 
 ## Overview
 
@@ -184,4 +184,4 @@ Progress on these tasks will be tracked in the project management system. Regula
 
 ## Conclusion
 
-The Metakocka integration has made significant progress, but there are still opportunities for enhancement and improvement. By addressing these open tasks, we can create a more robust, user-friendly, and feature-rich integration between the Fresh AI CRM system and Metakocka ERP.
+The Metakocka integration has made significant progress, but there are still opportunities for enhancement and improvement. By addressing these open tasks, we can create a more robust, user-friendly, and feature-rich integration between the CRM Mind system and Metakocka ERP.

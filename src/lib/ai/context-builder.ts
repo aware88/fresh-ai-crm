@@ -12,7 +12,10 @@ import {
   getDocumentProcessingContext,
   getAIQueryContext
 } from './data-aggregator';
-import { getMetakockaDataForAIContext } from '@/lib/integrations/metakocka/metakocka-ai-integration';
+import { 
+  getMetakockaDataForAIContext,
+  getOrderDetailsForAI
+} from '@/lib/integrations/metakocka/metakocka-ai-integration';
 
 /**
  * Build context for document processing
@@ -45,9 +48,15 @@ export async function buildDocumentProcessingContext(documentId: string) {
   
   // Get Metakocka data if available
   let metakockaContext = null;
+  let orderContext = null;
   if (context.document?.created_by) {
     try {
       metakockaContext = await getMetakockaDataForAIContext(context.document.created_by);
+      
+      // If this is an order document, get detailed order data
+      if (context.document.document_type === 'order') {
+        orderContext = await getOrderDetailsForAI(context.document.id, context.document.created_by);
+      }
     } catch (error) {
       console.error('Error fetching Metakocka data for AI context:', error);
     }
@@ -60,6 +69,7 @@ export async function buildDocumentProcessingContext(documentId: string) {
     contactContext,
     interactionContext,
     metakockaContext,
+    orderContext,
     processingInstructions: getProcessingInstructions(context)
   };
 }
@@ -92,9 +102,15 @@ export async function buildQueryProcessingContext(queryId: string) {
   
   // Get Metakocka data if available
   let metakockaContext = null;
+  let orderContext = null;
   if (context.query?.created_by) {
     try {
       metakockaContext = await getMetakockaDataForAIContext(context.query.created_by);
+      
+      // If this query is related to an order, get detailed order data
+      if (context.query.order_id) {
+        orderContext = await getOrderDetailsForAI(context.query.order_id, context.query.created_by);
+      }
     } catch (error) {
       console.error('Error fetching Metakocka data for AI query context:', error);
     }
@@ -104,7 +120,8 @@ export async function buildQueryProcessingContext(queryId: string) {
     query: context.query,
     supplierContext,
     previousQueries,
-    metakockaContext
+    metakockaContext,
+    orderContext
   };
 }
 

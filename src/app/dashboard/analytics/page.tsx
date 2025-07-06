@@ -24,10 +24,12 @@ import {
   ShoppingBag, 
   Users, 
   Building2,
-  RefreshCw
+  RefreshCw,
+  CreditCard
 } from 'lucide-react';
 
 import { fetchAnalytics, fetchSupplierDistribution, fetchProductDistribution, fetchPriceTrends } from '@/lib/analytics/api';
+import SubscriptionAnalytics from '@/components/analytics/SubscriptionAnalytics';
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
 
@@ -70,6 +72,7 @@ const StatCard = ({ title, value, description, icon, trend, trendValue }: StatCa
 export default function AnalyticsDashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("overview");
+  const [organizationId, setOrganizationId] = useState<string>('');
   const [analyticsData, setAnalyticsData] = useState({
     counts: {
       suppliers: 0,
@@ -95,8 +98,15 @@ export default function AnalyticsDashboard() {
       setError(null);
       
       try {
-        // Fetch all data in parallel
-        const [analytics, suppliers, products, pricing] = await Promise.all([
+        // Get session data to retrieve organization ID
+        const sessionRes = await fetch('/api/auth/session');
+        const session = await sessionRes.json();
+        
+        if (session?.user?.organizationId) {
+          setOrganizationId(session.user.organizationId);
+        }
+        
+        const [analytics, supplierDist, productDist, priceTrends] = await Promise.all([
           fetchAnalytics(),
           fetchSupplierDistribution(),
           fetchProductDistribution(),
@@ -104,12 +114,12 @@ export default function AnalyticsDashboard() {
         ]);
         
         setAnalyticsData(analytics);
-        setSupplierData(suppliers);
-        setProductData(products);
-        setPriceData(pricing);
-      } catch (err) {
+        setSupplierData(supplierDist);
+        setProductData(productDist);
+        setPriceData(priceTrends);
+      } catch (err: any) {
         console.error('Error loading analytics data:', err);
-        setError('Failed to load analytics data. Please try again.');
+        setError(err.message || 'Failed to load analytics data. Please try again.');
       } finally {
         setIsLoading(false);
       }
@@ -164,9 +174,10 @@ export default function AnalyticsDashboard() {
         </div>
       )}
 
-      <Tabs defaultValue={activeTab} onValueChange={setActiveTab} className="space-y-4">
+      <Tabs defaultValue="overview" className="space-y-4" onValueChange={setActiveTab}>
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="subscriptions">Subscriptions</TabsTrigger>
           <TabsTrigger value="suppliers">Suppliers</TabsTrigger>
           <TabsTrigger value="products">Products</TabsTrigger>
           <TabsTrigger value="pricing">Pricing</TabsTrigger>
@@ -176,65 +187,42 @@ export default function AnalyticsDashboard() {
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <StatCard
               title="Total Suppliers"
-              value={analyticsData.counts.suppliers.toString()}
-              description="Active suppliers in your network"
-              icon={<Building2 className="h-5 w-5" />}
-              trend="up"
-              trendValue="Updated today"
+              value={analyticsData.counts.suppliers}
+              description="Total number of suppliers"
+              icon={<Building2 className="h-4 w-4" />}
+              trend="neutral"
+              trendValue="All time"
             />
             <StatCard
               title="Total Products"
-              value={analyticsData.counts.products.toString()}
-              description="Products in your catalog"
-              icon={<ShoppingBag className="h-5 w-5" />}
-              trend="up"
-              trendValue="Updated today"
+              value={analyticsData.counts.products}
+              description="Total number of products"
+              icon={<ShoppingBag className="h-4 w-4" />}
+              trend="neutral"
+              trendValue="All time"
             />
             <StatCard
               title="Average Price"
               value={`$${analyticsData.pricing.average.toFixed(2)}`}
               description="Average product price"
-              icon={<DollarSign className="h-5 w-5" />}
+              icon={<DollarSign className="h-4 w-4" />}
               trend="neutral"
-              trendValue="Updated today"
+              trendValue="All products"
             />
             <StatCard
-              title="Documents"
-              value={analyticsData.counts.documents.toString()}
-              description="Documents in the system"
-              icon={<Users className="h-5 w-5" />}
+              title="Total Documents"
+              value={analyticsData.counts.documents}
+              description="Total number of documents"
+              icon={<Users className="h-4 w-4" />}
               trend="neutral"
-              trendValue="Updated today"
+              trendValue="All time"
             />
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
-            <Card className="col-span-1">
+            <Card>
               <CardHeader>
-                <CardTitle>Top Suppliers</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="h-80">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart
-                      data={supplierData}
-                      margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="name" />
-                      <YAxis />
-                      <Tooltip />
-                      <Legend />
-                      <Bar dataKey="count" fill="#3b82f6" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="col-span-1">
-              <CardHeader>
-                <CardTitle>Product Categories</CardTitle>
+                <CardTitle>Product Distribution</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="h-80">
@@ -261,6 +249,18 @@ export default function AnalyticsDashboard() {
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+        
+        <TabsContent value="subscriptions" className="space-y-4">
+          {organizationId ? (
+            <SubscriptionAnalytics organizationId={organizationId} />
+          ) : (
+            <Card>
+              <CardContent className="pt-6">
+                <p className="text-muted-foreground">Organization ID not available. Please refresh the page.</p>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         <TabsContent value="suppliers" className="space-y-4">

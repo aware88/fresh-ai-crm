@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Fresh AI CRM system integrates with Metakocka ERP to provide a unified platform for AI-driven communication and business operations. This integration enables bidirectional synchronization of products, contacts, and sales documents, as well as AI-enhanced email processing with Metakocka context.
+The CRM Mind system integrates with Metakocka ERP to provide a unified platform for AI-driven communication and business operations. This integration enables bidirectional synchronization of products, contacts, and sales documents, as well as AI-enhanced email processing with Metakocka context.
 
 ## Core Components
 

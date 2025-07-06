@@ -1,6 +1,6 @@
 # Metakocka Integration Architecture
 
-This document provides a detailed overview of the architecture for the Metakocka ERP integration with the Fresh AI CRM system.
+This document provides a detailed overview of the architecture for the Metakocka ERP integration with the CRM Mind system.
 
 ## System Architecture
 
@@ -8,7 +8,7 @@ The Metakocka integration follows a modular, layered architecture designed for f
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                      Fresh AI CRM Frontend                      │
+│                      CRM Mind Frontend                      │
 └───────────────────────────────┬─────────────────────────────────┘
                                 │
 ┌───────────────────────────────▼─────────────────────────────────┐

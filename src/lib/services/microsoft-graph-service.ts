@@ -1,0 +1,163 @@
+import { Client } from '@microsoft/microsoft-graph-client';
+import { AuthProvider } from '@microsoft/microsoft-graph-client/authProviders/authProvider';
+
+/**
+ * Custom auth provider implementation for Microsoft Graph client
+ */
+class MicrosoftGraphAuthProvider implements AuthProvider {
+  private accessToken: string;
+
+  constructor(accessToken: string) {
+    this.accessToken = accessToken;
+  }
+
+  /**
+   * Returns the access token for Microsoft Graph API calls
+   */
+  getAccessToken(): Promise<string> {
+    return Promise.resolve(this.accessToken);
+  }
+}
+
+/**
+ * Service for interacting with Microsoft Graph API
+ */
+export class MicrosoftGraphService {
+  private client: Client;
+
+  /**
+   * Creates a new Microsoft Graph service instance
+   * @param accessToken - The Microsoft Graph access token
+   */
+  constructor(accessToken: string) {
+    const authProvider = new MicrosoftGraphAuthProvider(accessToken);
+    this.client = Client.initWithMiddleware({
+      authProvider,
+    });
+  }
+
+  /**
+   * Fetches emails from the user's mailbox
+   * @param options - Query options
+   * @returns List of emails
+   */
+  async getEmails(options: { top?: number; skip?: number; filter?: string } = {}) {
+    const { top = 10, skip = 0, filter = '' } = options;
+    
+    try {
+      const result = await this.client
+        .api('/me/messages')
+        .top(top)
+        .skip(skip)
+        .filter(filter)
+        .select('id,subject,bodyPreview,receivedDateTime,from,toRecipients,ccRecipients,hasAttachments,importance,isRead')
+        .orderby('receivedDateTime DESC')
+        .get();
+        
+      return result.value;
+    } catch (error) {
+      console.error('Error fetching emails:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Fetches a single email by ID
+   * @param messageId - The email message ID
+   * @returns Email message details
+   */
+  async getEmail(messageId: string) {
+    try {
+      return await this.client
+        .api(`/me/messages/${messageId}`)
+        .select('id,subject,body,receivedDateTime,from,toRecipients,ccRecipients,bccRecipients,hasAttachments,attachments,importance,isRead')
+        .expand('attachments')
+        .get();
+    } catch (error) {
+      console.error(`Error fetching email ${messageId}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Sends an email
+   * @param message - The email message to send
+   */
+  async sendEmail(message: any) {
+    try {
+      return await this.client
+        .api('/me/sendMail')
+        .post({ message });
+    } catch (error) {
+      console.error('Error sending email:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Marks an email as read
+   * @param messageId - The email message ID
+   */
+  async markAsRead(messageId: string) {
+    try {
+      return await this.client
+        .api(`/me/messages/${messageId}`)
+        .update({ isRead: true });
+    } catch (error) {
+      console.error(`Error marking email ${messageId} as read:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Fetches calendar events
+   * @param options - Query options
+   * @returns List of calendar events
+   */
+  async getCalendarEvents(options: { startDateTime?: string; endDateTime?: string; top?: number } = {}) {
+    const { startDateTime, endDateTime, top = 10 } = options;
+    
+    try {
+      let request = this.client
+        .api('/me/calendar/events')
+        .top(top)
+        .select('id,subject,bodyPreview,start,end,location,organizer,attendees,isAllDay')
+        .orderby('start/dateTime ASC');
+        
+      if (startDateTime && endDateTime) {
+        request = request.filter(`start/dateTime ge '${startDateTime}' and end/dateTime le '${endDateTime}'`);
+      }
+      
+      const result = await request.get();
+      return result.value;
+    } catch (error) {
+      console.error('Error fetching calendar events:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Fetches contacts from the user's address book
+   * @param options - Query options
+   * @returns List of contacts
+   */
+  async getContacts(options: { top?: number; skip?: number; filter?: string } = {}) {
+    const { top = 10, skip = 0, filter = '' } = options;
+    
+    try {
+      const result = await this.client
+        .api('/me/contacts')
+        .top(top)
+        .skip(skip)
+        .filter(filter)
+        .select('id,displayName,emailAddresses,businessPhones,mobilePhone,jobTitle,companyName')
+        .orderby('displayName ASC')
+        .get();
+        
+      return result.value;
+    } catch (error) {
+      console.error('Error fetching contacts:', error);
+      throw error;
+    }
+  }
+}

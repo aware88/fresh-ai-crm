@@ -2,13 +2,13 @@
 
 ## Overview
 
-This guide provides detailed instructions for testing the Metakocka integration with the Fresh AI CRM system. The integration includes bidirectional synchronization of products, contacts, and sales documents, as well as AI-enhanced email processing with Metakocka context.
+This guide provides detailed instructions for testing the Metakocka integration with the CRM Mind system. The integration includes bidirectional synchronization of products, contacts, and sales documents, as well as AI-enhanced email processing with Metakocka context.
 
 ## Prerequisites
 
 Before running the tests, ensure you have:
 
-1. A running instance of the Fresh AI CRM application
+1. A running instance of the CRM Mind application
 2. Valid Metakocka credentials (company ID and secret key)
 3. Test data in both systems (products, contacts, sales documents, emails)
 4. Node.js installed for running the test scripts

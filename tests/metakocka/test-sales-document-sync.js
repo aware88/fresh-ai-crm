@@ -2,7 +2,7 @@
  * Test script for Metakocka sales document synchronization
  * 
  * This script tests the bidirectional sales document synchronization between
- * Fresh AI CRM and Metakocka.
+ * CRM Mind and Metakocka.
  * 
  * Tests:
  * 1. Single sales document sync (CRM → Metakocka)

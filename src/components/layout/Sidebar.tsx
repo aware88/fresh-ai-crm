@@ -96,9 +96,8 @@ export function Sidebar({ className }: SidebarProps) {
     },
     {
       title: 'Analytics',
-      href: '#analytics',
-      icon: <BarChart className="h-5 w-5" />,
-      comingSoon: true
+      href: '/dashboard/analytics',
+      icon: <BarChart className="h-5 w-5" />
     },
     {
       title: 'Settings',

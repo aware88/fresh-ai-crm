@@ -3,7 +3,8 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { supabase } from '@/lib/supabaseClient';
 import { getEmailAIContext } from '@/lib/integrations/metakocka/email-context-builder';
-import { getServiceToken } from '@/lib/auth/serviceToken';
+import { generateServiceToken } from '@/lib/auth/serviceToken';
+import { analyzeEmail } from '@/lib/openai/client';
 
 // GET /api/emails/ai-context?emailId=xxx
 // Get AI context for a specific email
@@ -70,7 +71,7 @@ export async function POST(req: NextRequest) {
   try {
     // Check for service token in header
     const serviceTokenHeader = req.headers.get('x-service-token');
-    const isServiceRequest = serviceTokenHeader && serviceTokenHeader === getServiceToken();
+    const isServiceRequest = serviceTokenHeader && serviceTokenHeader === generateServiceToken();
     
     let userId: string;
     
@@ -142,33 +143,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Import OpenAI client
-    const openai = (await import('@/lib/email/openaiClient')).default;
+    // Prepare the email content with subject and body
+    const emailContent = `Subject: ${email.subject}\n\n${email.raw_content}`;
     
-    // Generate AI response using the context
-    const response = await openai.chat.completions.create({
-      model: "gpt-4",
-      messages: [
-        { 
-          role: "system", 
-          content: `You are an AI assistant helping with email responses. Use the following context about the email and related Metakocka data to provide a helpful, accurate response.
-          
-${aiContext}
-
-The email subject is: "${email.subject}"
-
-The email content is:
-${email.raw_content.substring(0, 4000)}${email.raw_content.length > 4000 ? '...(truncated)' : ''}
-
-Respond in a professional, helpful manner. Be concise but thorough. Include specific details from the context when relevant.`
-        },
-        { role: "user", content: prompt }
-      ],
-      temperature: 0.7,
-      max_tokens: 1000
-    });
-    
-    const aiResponse = response.choices[0].message.content;
+    // Generate AI response using the analyzeEmail function with sales tactics context
+    const aiResponse = await analyzeEmail(emailContent, aiContext);
     
     // Save the AI response to the database
     const { data: savedResponse, error: saveError } = await supabase

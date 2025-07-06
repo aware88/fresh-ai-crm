@@ -1,7 +1,7 @@
 /**
  * Orders Page
  * 
- * Main page for order management in the Fresh AI CRM
+ * Main page for order management in the CRM Mind
  */
 
 'use client';

@@ -636,6 +636,65 @@ export interface Database {
           organization_id?: string | null
         }
       }
+      organization_branding: {
+        Row: {
+          id: string
+          organization_id: string
+          logo_url: string | null
+          primary_color: string | null
+          secondary_color: string | null
+          accent_color: string | null
+          font_family: string | null
+          custom_css: string | null
+          custom_domain: string | null
+          favicon_url: string | null
+          email_header_image_url: string | null
+          email_footer_text: string | null
+          login_background_url: string | null
+          created_at: string
+          updated_at: string
+          created_by: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          id?: string
+          organization_id: string
+          logo_url?: string | null
+          primary_color?: string | null
+          secondary_color?: string | null
+          accent_color?: string | null
+          font_family?: string | null
+          custom_css?: string | null
+          custom_domain?: string | null
+          favicon_url?: string | null
+          email_header_image_url?: string | null
+          email_footer_text?: string | null
+          login_background_url?: string | null
+          created_at?: string
+          updated_at?: string
+          created_by?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          id?: string
+          organization_id?: string
+          logo_url?: string | null
+          primary_color?: string | null
+          secondary_color?: string | null
+          accent_color?: string | null
+          font_family?: string | null
+          custom_css?: string | null
+          custom_domain?: string | null
+          favicon_url?: string | null
+          email_header_image_url?: string | null
+          email_footer_text?: string | null
+          login_background_url?: string | null
+          created_at?: string
+          updated_at?: string
+          created_by?: string | null
+          updated_by?: string | null
+        }
+      },
       metakocka_sales_document_mappings: {
         Row: {
           id: string
