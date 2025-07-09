@@ -89,9 +89,18 @@ export default function EmailAnalyserClient() {
   const loadEmails = async () => {
     setLoading(true);
     setError(null);
+    
+    // Check if Supabase client is available
+    if (!supabase) {
+      setError('Database connection not available. Please refresh the page.');
+      setLoading(false);
+      return;
+    }
+    
     try {
+      // First try to load from emails table with a left join to contacts
       try {
-        // First try to load from emails table with a left join to contacts
+        console.log('Attempting to load emails from emails table...');
         const { data: emailsData, error: emailsError } = await supabase
           .from('emails')
           .select(`
@@ -114,8 +123,21 @@ export default function EmailAnalyserClient() {
           .order('created_at', { ascending: false })
           .limit(5);
 
-        if (emailsError) throw emailsError;
-        if (!emailsData) return;
+        if (emailsError) {
+          // Log specific database error details
+          console.error('Database error when loading emails:', {
+            code: emailsError.code,
+            message: emailsError.message,
+            details: emailsError.details,
+            hint: emailsError.hint
+          });
+          throw emailsError;
+        }
+        
+        if (!emailsData || emailsData.length === 0) {
+          console.log('No email data returned from database');
+          throw new Error('No emails found in the emails table');
+        }
 
         console.log('Loading emails from emails table:', emailsData.length);
         
@@ -180,14 +202,128 @@ export default function EmailAnalyserClient() {
         
         setEmails(validEmails);
       } catch (error) {
-        console.error('Error loading emails:', error);
-        setError('Failed to load emails. Please try again.');
-      } finally {
-        setLoading(false);
+        console.error('Error loading emails from emails table:', error instanceof Error ? error.message : String(error));
+        // Log more details if it's a database error
+        if (error && typeof error === 'object' && 'code' in error) {
+          console.error('Database error details:', {
+            code: error.code,
+            details: 'details' in error ? error.details : 'No details',
+            hint: 'hint' in error ? error.hint : 'No hint'
+          });
+        }
+        // Don't set error here, we'll try the fallback method
       }
       
       // Fall back to loading from contacts with notes
       console.log('Emails table not found or empty, loading from contacts notes');
+      try {
+        const { data, error } = await supabase
+          .from('contacts')
+          .select(`
+            id,
+            firstname,
+            lastname,
+            email,
+            notes,
+            lastcontact,
+            createdat
+          `)
+          .not('notes', 'is', null)
+          .order('lastcontact', { ascending: false })
+          .limit(5);
+
+        if (error) {
+          console.error('Database error when loading contacts:', {
+            code: error.code,
+            message: error.message,
+            details: error.details,
+            hint: error.hint
+          });
+          throw new Error(`Failed to fetch contacts with emails: ${error.message}`);
+        }
+        
+        if (!data || data.length === 0) {
+          console.log('No contacts with notes found');
+          setEmails([]);
+
+      console.log('Loading emails from emails table:', emailsData.length);
+      
+      // Define a type for the raw email data from the database
+      type RawEmail = {
+        id: string;
+        subject: string | null;
+        sender: string | null;
+        recipient: string | null;
+        raw_content: string | null;
+        analysis: string | null;
+        contact_id: string | null;
+        created_at: string | null;
+        updated_at: string | null;
+        contacts: Array<{
+          id: string;
+          firstname: string | null;
+          lastname: string | null;
+          email: string;
+        }> | null;
+      };
+      
+      // Format the data to match our expected structure
+      const validEmails: EmailWithContacts[] = [];
+      
+      for (const email of emailsData) {
+        if (!email) continue;
+        
+        try {
+          const rawEmail = email as unknown as RawEmail;
+          const contacts: Contact[] = [];
+          
+          if (rawEmail.contacts && rawEmail.contacts.length > 0) {
+            for (const contact of rawEmail.contacts) {
+              if (!contact) continue;
+              contacts.push({
+                id: contact.id,
+                full_name: [contact.firstname, contact.lastname].filter(Boolean).join(' ').trim() || contact.email,
+                email: contact.email,
+                first_name: contact.firstname || undefined,
+                last_name: contact.lastname || undefined
+              });
+            }
+          }
+          
+          const emailWithContacts: EmailWithContacts = {
+            id: rawEmail.id || '',
+            subject: rawEmail.subject || '(No subject)',
+            sender: rawEmail.sender || 'unknown@example.com',
+            raw_content: rawEmail.raw_content || '',
+            analysis: rawEmail.analysis || '',
+            created_at: rawEmail.created_at || new Date().toISOString(),
+            contact_id: rawEmail.contact_id || undefined,
+            contacts
+          };
+          
+          validEmails.push(emailWithContacts);
+        } catch (err) {
+          console.error('Error processing email:', email.id, err);
+        }
+      }
+      
+      setEmails(validEmails);
+    } catch (error) {
+      console.error('Error loading emails from emails table:', error instanceof Error ? error.message : String(error));
+      // Log more details if it's a database error
+      if (error && typeof error === 'object' && 'code' in error) {
+        console.error('Database error details:', {
+          code: error.code,
+          details: 'details' in error ? error.details : 'No details',
+          hint: 'hint' in error ? error.hint : 'No hint'
+        });
+      }
+      // Don't set error here, we'll try the fallback method
+    }
+    
+    // Fall back to loading from contacts with notes
+    console.log('Emails table not found or empty, loading from contacts notes');
+    try {
       const { data, error } = await supabase
         .from('contacts')
         .select(`
@@ -204,7 +340,19 @@ export default function EmailAnalyserClient() {
         .limit(5);
 
       if (error) {
+        console.error('Database error when loading contacts:', {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint
+        });
         throw new Error(`Failed to fetch contacts with emails: ${error.message}`);
+      }
+      
+      if (!data || data.length === 0) {
+        console.log('No contacts with notes found');
+        setEmails([]);
+        return;
       }
 
       // Convert contact notes to email-like objects
@@ -241,11 +389,132 @@ export default function EmailAnalyserClient() {
       }, []);
 
       setEmails(convertedEmails);
+    } catch (contactErr) {
+      console.error('Error loading contacts with notes:', contactErr);
+      throw contactErr; // Re-throw to be caught by the outer catch block
+    }
+  } catch (err: any) {
+    console.error('Error loading emails:', err instanceof Error ? err.message : String(err));
+    setError(err instanceof Error ? err.message : 'Failed to load emails. Please check your connection and try again.');
+  } finally {
+    setLoading(false);
+  }
+};
+
+// Function to process new emails
+const processEmails = async () => {
+  setProcessing(true);
+  setError(null);
+  setSuccess(null);
+  
+  // Check if Supabase client is available
+  if (!supabase) {
+    setError('Database connection not available. Please refresh the page.');
+    setProcessing(false);
+    return;
+  }
+  
+  // Check if user is authenticated
+  if (status === 'loading') {
+    console.log('Session still loading, waiting...');
+    setProcessing(false);
+    return;
+  }
+  
+  try {
+    // Get Supabase session as a fallback
+    let authToken = null;
+    const { data: { session: supabaseSession } } = await supabase.auth.getSession();
+    if (supabaseSession?.access_token) {
+      authToken = supabaseSession.access_token;
+      console.log('Got Supabase auth token');
+    } else {
+      console.log('No Supabase session available');
+    }
+    
+    if (status === 'unauthenticated' && !authToken) {
+      console.log('No authentication method available, redirecting to sign in');
+      toast({
+        title: 'Authentication required',
+        description: 'Please sign in to process emails',
+        variant: 'destructive',
+      });
+      router.push('/signin');
+      setProcessing(false);
+      return;
+    }
+  
+    console.log('NextAuth session status:', status);
+    console.log('NextAuth session data:', session);
+    
+    // Show processing status updates to user
+    setSuccess('Connecting to email server... (Test mode: processing only the most recent unread email)');
+    
+    // Set up a timeout indicator for long-running processes
+    const processingUpdates = [
+      { message: 'Fetching emails...', delay: 3000 },
+      { message: 'Analyzing emails...', delay: 8000 },
+      { message: 'Still working...', delay: 15000 },
+      { message: 'This is taking longer than expected...', delay: 25000 }
+    ];
+    
+    // Set up the processing status updates
+    const updateTimers = processingUpdates.map(update => {
+      return setTimeout(() => {
+        if (processing) { // Only update if still processing
+          setSuccess(update.message);
+        }
+      }, update.delay);
+    });
+    
+    // Trigger server-side email processing via API route with proper headers
+    console.log('Making API call to process emails...');
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 45000); // Client-side timeout after 45s
+      
+      const res = await fetch('/api/emails/process', { 
+        method: 'POST', 
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ authToken }),
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+      console.log('API response status:', res.status);
+      
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        const errorMessage = errorData.message || `Server error: ${res.status}`;
+        console.error('Email processing failed:', errorMessage);
+        setError(errorMessage);
+        setProcessing(false);
+        return;
+      }
+      
+      const data = await res.json();
+      console.log('Email processing result:', data);
+      
+      const processedEmails = data.emails || [];
+      const processedCount = data.processed || processedEmails.length || 0;
+      const errorCount = data.errors || 0;
+      
+      setSuccess(`Successfully processed ${processedCount} emails with ${errorCount} errors`);
+      setEmails(prev => [...processedEmails, ...prev]);
+      setLastProcessed(new Date().toISOString());
+      setStats({
+        processed: processedCount,
+        errors: errorCount
+      });
+      
+      // Clear all timeout timers
+      updateTimers.forEach(clearTimeout);
     } catch (err: any) {
-      console.error('Error loading emails:', err);
-      setError(err.message || 'Failed to load emails');
-    } finally {
-      setLoading(false);
+      if (err?.name === 'AbortError') {
+        setError('Email processing timed out. Please try again later.');
     }
   };
 
@@ -254,6 +523,13 @@ export default function EmailAnalyserClient() {
     setProcessing(true);
     setError(null);
     setSuccess(null);
+    
+    // Check if Supabase client is available
+    if (!supabase) {
+      setError('Database connection not available. Please refresh the page.');
+      setProcessing(false);
+      return;
+    }
     
     // Check if user is authenticated
     if (status === 'loading') {
@@ -357,13 +633,15 @@ export default function EmailAnalyserClient() {
         if (err?.name === 'AbortError') {
           setError('Email processing timed out. Please try again later.');
         } else {
-          setError(err.message || 'An error occurred during email processing');
-          console.error('Error processing emails (inner catch):', err);
+          const errorMessage = err instanceof Error ? err.message : String(err);
+          setError(errorMessage || 'An error occurred during email processing');
+          console.error('Error processing emails (inner catch):', errorMessage);
         }
       }
     } catch (error: any) {
-      setError(error.message || 'An error occurred while processing emails');
-      console.error('Error processing emails (outer catch):', error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      setError(errorMessage || 'An error occurred while processing emails');
+      console.error('Error processing emails (outer catch):', errorMessage);
     } finally {
       setProcessing(false);
     }

@@ -87,7 +87,7 @@ export function Navigation({ className = '' }: NavigationProps) {
       <div className="flex items-center justify-between w-full">
         <div className="flex items-center">
           <Link href="/dashboard" className="flex items-center">
-            <div className="h-8 w-auto mr-2 relative">
+            <div className="h-8 w-8 flex items-center justify-center">
               {logoPath ? (
                 <img 
                   src={logoPath} 
@@ -95,10 +95,7 @@ export function Navigation({ className = '' }: NavigationProps) {
                   className="h-full w-auto object-contain"
                 />
               ) : (
-                <div className="flex items-center">
-                  <Brain className="h-6 w-6 text-blue-600 mr-2" />
-                  <span className="text-xl font-bold text-blue-600">CRM Mind</span>
-                </div>
+                <Brain className="h-6 w-6 text-blue-600" />
               )}
             </div>
             {companyName && (

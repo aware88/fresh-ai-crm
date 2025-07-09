@@ -54,7 +54,7 @@ export function Sidebar({ className }: SidebarProps) {
       icon: <LayoutDashboard className="h-5 w-5" />,
     },
     {
-      title: 'Email Analyser',
+      title: 'Email',
       href: '/dashboard/email',
       icon: <Mail className="h-5 w-5" />,
     },
@@ -151,11 +151,10 @@ export function Sidebar({ className }: SidebarProps) {
         role="navigation"
         aria-label="Main navigation"
       >
-        {/* Logo and Brand */}
-        <div className="flex h-16 items-center px-6 border-b border-gray-100">
-          <Link href="/dashboard" className="flex items-center space-x-2">
-            <Package2 className="h-6 w-6 text-primary" />
-            <span className="text-lg font-semibold">CRM MIND</span>
+        {/* Logo */}
+        <div className="flex h-16 items-center justify-center border-b border-gray-100">
+          <Link href="/dashboard" className="flex items-center justify-center w-10 h-10 rounded-full bg-primary/10">
+            <Package2 className="h-5 w-5 text-primary" />
           </Link>
         </div>
 

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabaseClient';
 import { Supplier } from '@/types/supplier';
 import { initializeSupplierData } from '@/lib/suppliers/init';
+import { getServerSession } from '@/lib/auth';
 
 // Keep the initialization function for backward compatibility
 // but we'll use Supabase for data storage now
@@ -15,18 +16,18 @@ const initSupabaseConnection = async () => {
 export async function GET() {
   await initSupabaseConnection();
   try {
-    // Get the current user's ID
-    const { data: userData, error: userError } = await supabase.auth.getUser();
+    // Get the current user's session
+    const session = await getServerSession();
     
-    if (userError) {
-      console.error('Error getting user:', userError);
+    if (!session?.user) {
+      console.error('Error getting user: Auth session missing!');
       return NextResponse.json(
         { error: 'Authentication error' },
         { status: 401 }
       );
     }
     
-    const userId = userData.user?.id;
+    const userId = session.user.id;
     if (!userId) {
       return NextResponse.json(
         { error: 'User not authenticated' },
@@ -71,18 +72,18 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // Get the current user's ID
-    const { data: userData, error: userError } = await supabase.auth.getUser();
+    // Get the current user's session
+    const session = await getServerSession();
     
-    if (userError) {
-      console.error('Error getting user:', userError);
+    if (!session?.user) {
+      console.error('Error getting user: Auth session missing!');
       return NextResponse.json(
         { error: 'Authentication error' },
         { status: 401 }
       );
     }
     
-    const userId = userData.user?.id;
+    const userId = session.user.id;
     if (!userId) {
       return NextResponse.json(
         { error: 'User not authenticated' },
@@ -171,18 +172,18 @@ export async function PUT(request: NextRequest) {
       );
     }
     
-    // Get the current user's ID
-    const { data: userData, error: userError } = await supabase.auth.getUser();
+    // Get the current user's session
+    const session = await getServerSession();
     
-    if (userError) {
-      console.error('Error getting user:', userError);
+    if (!session?.user) {
+      console.error('Error getting user: Auth session missing!');
       return NextResponse.json(
         { error: 'Authentication error' },
         { status: 401 }
       );
     }
     
-    const userId = userData.user?.id;
+    const userId = session.user.id;
     if (!userId) {
       return NextResponse.json(
         { error: 'User not authenticated' },
@@ -199,9 +200,9 @@ export async function PUT(request: NextRequest) {
       .single();
     
     if (checkError) {
-      console.error('Error checking supplier existence:', checkError);
+      console.error('Error checking existing supplier:', checkError);
       return NextResponse.json(
-        { error: 'Supplier not found' },
+        { error: 'Supplier not found or access denied' },
         { status: 404 }
       );
     }
@@ -215,7 +216,7 @@ export async function PUT(request: NextRequest) {
         phone,
         website,
         notes,
-        reliability_score: reliabilityScore !== undefined ? reliabilityScore : existingSupplier.reliability_score
+        reliability_score: reliabilityScore || existingSupplier.reliability_score
       })
       .eq('id', id)
       .eq('created_by', userId)
@@ -267,18 +268,18 @@ export async function DELETE(request: NextRequest) {
       );
     }
     
-    // Get the current user's ID
-    const { data: userData, error: userError } = await supabase.auth.getUser();
+    // Get the current user's session
+    const session = await getServerSession();
     
-    if (userError) {
-      console.error('Error getting user:', userError);
+    if (!session?.user) {
+      console.error('Error getting user: Auth session missing!');
       return NextResponse.json(
         { error: 'Authentication error' },
         { status: 401 }
       );
     }
     
-    const userId = userData.user?.id;
+    const userId = session.user.id;
     if (!userId) {
       return NextResponse.json(
         { error: 'User not authenticated' },
@@ -295,9 +296,9 @@ export async function DELETE(request: NextRequest) {
       .single();
     
     if (checkError) {
-      console.error('Error checking supplier existence:', checkError);
+      console.error('Error checking existing supplier:', checkError);
       return NextResponse.json(
-        { error: 'Supplier not found' },
+        { error: 'Supplier not found or access denied' },
         { status: 404 }
       );
     }

@@ -3,6 +3,7 @@
 import { CacheProvider } from '@chakra-ui/next-js';
 import { ChakraProvider, createSystem } from '@chakra-ui/react';
 import { ColorModeScript } from '@chakra-ui/color-mode';
+import { SessionProvider } from 'next-auth/react';
 
 // Create a default system for Chakra UI
 const defaultSystem = createSystem({
@@ -21,11 +22,13 @@ export function Providers({
   children: React.ReactNode 
 }) {
   return (
-    <CacheProvider>
-      <ChakraProvider value={defaultSystem}>
-        <ColorModeScript initialColorMode="light" />
-        {children}
-      </ChakraProvider>
-    </CacheProvider>
+    <SessionProvider>
+      <CacheProvider>
+        <ChakraProvider value={defaultSystem}>
+          <ColorModeScript initialColorMode="light" />
+          {children}
+        </ChakraProvider>
+      </CacheProvider>
+    </SessionProvider>
   );
 }

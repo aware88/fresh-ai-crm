@@ -1,15 +1,24 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
-import EmailList from './EmailList';
+import { EmailList } from './EmailList';
 import EmailDetail from './EmailDetail';
-import { Alert, Button } from '@/components/ui';
+import EmailCompose from './EmailCompose';
+import { Alert } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { FaEnvelope, FaRobot, FaSync, FaTrash, FaArchive } from 'react-icons/fa';
 
-export default function OutlookClient() {
+interface OutlookClientProps {
+  onAnalyzeEmail?: (emailId: string) => void;
+  onSalesAgent?: (emailId: string) => void;
+}
+
+export default function OutlookClient({ onAnalyzeEmail, onSalesAgent }: OutlookClientProps) {
   const { data: session, status } = useSession();
   const [selectedEmailId, setSelectedEmailId] = useState<string | null>(null);
   const [view, setView] = useState<'list' | 'detail' | 'compose'>('list');
+  const [emailData, setEmailData] = useState<any>(null); // Store the selected email data
   
   // Handle authentication state
   if (status === 'loading') {
@@ -19,11 +28,11 @@ export default function OutlookClient() {
   if (status === 'unauthenticated' || !session) {
     return (
       <div className="p-8 text-center">
-        <Alert type="warning">
-          <p>You need to sign in with Microsoft to access your emails.</p>
+        <Alert variant="destructive">
+          <p>You need to sign in to access your emails.</p>
         </Alert>
-        <Button className="mt-4" onClick={() => window.location.href = '/api/auth/signin/microsoft'}>
-          Sign in with Microsoft
+        <Button className="mt-4" onClick={() => window.location.href = '/api/auth/outlook/connect'}>
+          Connect Outlook Account
         </Button>
       </div>
     );
@@ -39,64 +48,187 @@ export default function OutlookClient() {
   const handleBackToList = () => {
     setView('list');
     setSelectedEmailId(null);
+    setEmailData(null);
   };
 
   // Handle compose new email
   const handleComposeNew = () => {
     setView('compose');
     setSelectedEmailId(null);
+    setEmailData(null);
   };
 
   // Handle reply, reply all, forward
   const handleReply = () => {
-    // Implement reply functionality
-    console.log('Reply to email:', selectedEmailId);
+    if (emailData) {
+      setView('compose');
+      // Pass the original email data for reply
+    }
   };
 
   const handleReplyAll = () => {
-    // Implement reply all functionality
-    console.log('Reply all to email:', selectedEmailId);
+    if (emailData) {
+      setView('compose');
+      // Pass the original email data for reply all
+    }
   };
 
   const handleForward = () => {
-    // Implement forward functionality
-    console.log('Forward email:', selectedEmailId);
+    if (emailData) {
+      setView('compose');
+      // Pass the original email data for forward
+    }
   };
+
+  // Handle email deletion
+  const handleDelete = async () => {
+    if (!selectedEmailId) return;
+    
+    try {
+      // Call API to delete email
+      const response = await fetch(`/api/emails/${selectedEmailId}`, {
+        method: 'DELETE',
+        credentials: 'include', // Include cookies in the request
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (response.ok) {
+        handleBackToList();
+      }
+    } catch (error) {
+      console.error('Error deleting email:', error);
+    }
+  };
+
+  // Handle AI analysis
+  const handleAnalyze = () => {
+    if (selectedEmailId && onAnalyzeEmail) {
+      onAnalyzeEmail(selectedEmailId);
+    }
+  };
+
+  // Handle AI sales agent
+  const handleSalesAgent = () => {
+    if (selectedEmailId && onSalesAgent) {
+      onSalesAgent(selectedEmailId);
+    }
+  };
+
+  // Update email data when an email is selected
+  useEffect(() => {
+    if (selectedEmailId && view === 'detail') {
+      // Fetch email data
+      const fetchEmailData = async () => {
+        try {
+          const response = await fetch(`/api/emails/${selectedEmailId}`, {
+            credentials: 'include', // Include cookies in the request
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          });
+          if (response.ok) {
+            const data = await response.json();
+            setEmailData(data.data);
+          }
+        } catch (error) {
+          console.error('Error fetching email data:', error);
+        }
+      };
+      
+      fetchEmailData();
+    }
+  }, [selectedEmailId, view]);
 
   return (
     <div className="outlook-client">
       <div className="flex justify-between items-center mb-4 p-4 bg-white shadow">
-        <h1 className="text-2xl font-bold">Outlook</h1>
+        <h1 className="text-xl font-bold flex items-center">
+          <FaEnvelope className="mr-2" /> {view === 'list' ? 'Inbox' : view === 'detail' ? 'Email' : 'Compose'}
+        </h1>
         <div className="space-x-2">
-          <Button onClick={handleComposeNew} variant="primary">
-            New Email
-          </Button>
+          {view === 'list' && (
+            <Button onClick={handleComposeNew} variant="default" className="bg-blue-600 hover:bg-blue-700">
+              New Email
+            </Button>
+          )}
+          
           {view === 'detail' && (
-            <Button onClick={handleBackToList} variant="outline">
-              Back to Inbox
+            <div className="flex space-x-2">
+              <Button onClick={handleReply} variant="outline" size="sm">
+                Reply
+              </Button>
+              <Button onClick={handleReplyAll} variant="outline" size="sm">
+                Reply All
+              </Button>
+              <Button onClick={handleForward} variant="outline" size="sm">
+                Forward
+              </Button>
+              <Button onClick={handleDelete} variant="outline" size="sm" className="text-red-600 border-red-200 hover:bg-red-50">
+                <FaTrash className="mr-1" /> Delete
+              </Button>
+              <Button onClick={handleBackToList} variant="outline" size="sm">
+                Back to Inbox
+              </Button>
+            </div>
+          )}
+          
+          {view === 'compose' && (
+            <Button onClick={handleBackToList} variant="outline" size="sm">
+              Cancel
             </Button>
           )}
         </div>
       </div>
 
-      <div className="p-4">
+      <div className="p-0">
         {view === 'list' && (
-          <EmailList onEmailSelect={handleEmailSelect} />
+          <div className="email-list-container">
+            <EmailList onEmailSelect={handleEmailSelect} />
+          </div>
         )}
 
         {view === 'detail' && selectedEmailId && (
-          <EmailDetail 
-            messageId={selectedEmailId} 
-            onReply={handleReply}
-            onReplyAll={handleReplyAll}
-            onForward={handleForward}
-          />
+          <div className="relative">
+            <EmailDetail 
+              messageId={selectedEmailId} 
+              onReply={handleReply}
+              onReplyAll={handleReplyAll}
+              onForward={handleForward}
+            />
+            
+            {/* AI Action Buttons */}
+            <div className="fixed bottom-6 right-6 flex flex-col space-y-2">
+              <Button 
+                className="rounded-full w-12 h-12 flex items-center justify-center bg-blue-600 hover:bg-blue-700 shadow-lg"
+                title="Re-analyze Email"
+                onClick={handleAnalyze}
+              >
+                <FaSync className="h-5 w-5" />
+              </Button>
+              <Button 
+                className="rounded-full w-12 h-12 flex items-center justify-center bg-green-600 hover:bg-green-700 shadow-lg"
+                title="AI Sales Agent"
+                onClick={handleSalesAgent}
+              >
+                <FaRobot className="h-5 w-5" />
+              </Button>
+            </div>
+          </div>
         )}
 
         {view === 'compose' && (
           <div className="bg-white p-6 rounded shadow">
-            <h2 className="text-xl font-semibold mb-4">Compose New Email</h2>
-            <p className="text-gray-500">Email composition form will be implemented here.</p>
+            <EmailCompose 
+              mode="new" 
+              originalEmail={emailData} 
+              onClose={handleBackToList} 
+              onSend={async () => {
+                // Handle send email
+                handleBackToList();
+              }} 
+            />
           </div>
         )}
       </div>

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabaseClient';
 import { initializeSupplierData } from '@/lib/suppliers/init';
+import { getServerSession } from '@/lib/auth';
 
 // Initialize Supabase connection
 const initSupabaseConnection = async () => {
@@ -22,18 +23,18 @@ export async function GET(request: NextRequest) {
       );
     }
     
-    // Get the current user's ID
-    const { data: userData, error: userError } = await supabase.auth.getUser();
+    // Get the current user's session
+    const session = await getServerSession();
     
-    if (userError) {
-      console.error('Error getting user:', userError);
+    if (!session?.user) {
+      console.error('Error getting user: Auth session missing!');
       return NextResponse.json(
         { error: 'Authentication error' },
         { status: 401 }
       );
     }
     
-    const userId = userData.user?.id;
+    const userId = session.user.id;
     if (!userId) {
       return NextResponse.json(
         { error: 'User not authenticated' },
@@ -80,24 +81,18 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // Get the current user's ID
-    const { data: userData, error: userError } = await supabase.auth.getUser();
+    // Get the current user's session
+    const session = await getServerSession();
     
-    if (userError) {
-      console.error('Error getting user:', userError);
+    if (!session?.user) {
+      console.error('Error getting user: Auth session missing!');
       return NextResponse.json(
         { error: 'Authentication error' },
         { status: 401 }
       );
     }
     
-    const userId = userData.user?.id;
-    if (!userId) {
-      return NextResponse.json(
-        { error: 'User not authenticated' },
-        { status: 401 }
-      );
-    }
+    const userId = session.user.id;
     
     // Check if supplier exists and belongs to the user
     const { data: supplier, error: supplierError } = await supabase
@@ -164,24 +159,18 @@ export async function DELETE(request: NextRequest) {
       );
     }
     
-    // Get the current user's ID
-    const { data: userData, error: userError } = await supabase.auth.getUser();
+    // Get the current user's session
+    const session = await getServerSession();
     
-    if (userError) {
-      console.error('Error getting user:', userError);
+    if (!session?.user) {
+      console.error('Error getting user: Auth session missing!');
       return NextResponse.json(
         { error: 'Authentication error' },
         { status: 401 }
       );
     }
     
-    const userId = userData.user?.id;
-    if (!userId) {
-      return NextResponse.json(
-        { error: 'User not authenticated' },
-        { status: 401 }
-      );
-    }
+    const userId = session.user.id;
     
     // Check if email exists and belongs to the user
     const { data: email, error: checkError } = await supabase

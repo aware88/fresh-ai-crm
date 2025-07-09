@@ -133,7 +133,7 @@ export default function SignUpForm() {
       <CardHeader>
         <CardTitle className="text-2xl">Create an Account</CardTitle>
         <CardDescription>
-          Join Fresh AI CRM to get started
+          Join CRM Mind to get started
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -239,7 +239,7 @@ export default function SignUpForm() {
                       title="Only lowercase letters, numbers, and hyphens are allowed"
                     />
                     <p className="text-xs text-muted-foreground">
-                      This will be used in your organization's URL: fresh-ai-crm.com/{orgSlug || 'your-org'}
+                      This will be used in your organization's URL: crm-mind.com/{orgSlug || 'your-org'}
                     </p>
                   </div>
                   

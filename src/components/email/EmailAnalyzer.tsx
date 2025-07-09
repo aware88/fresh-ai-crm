@@ -266,7 +266,7 @@ export function EmailAnalyzer() {
               )}
             </div>
             <div>
-              <CardTitle>{inputMode === 'email' ? 'Email Analyzer' : 'URL Analyzer'}</CardTitle>
+              <CardTitle>{inputMode === 'email' ? 'Email' : 'URL Analyzer'}</CardTitle>
               <CardDescription>
                 {inputMode === 'email' 
                   ? 'Paste an email to analyze personality and get tailored response suggestions'

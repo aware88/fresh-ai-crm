@@ -108,6 +108,56 @@ export class MicrosoftGraphService {
       throw error;
     }
   }
+  
+  /**
+   * Marks an email as unread
+   * @param messageId - The email message ID
+   */
+  async markAsUnread(messageId: string) {
+    try {
+      return await this.client
+        .api(`/me/messages/${messageId}`)
+        .update({ isRead: false });
+    } catch (error) {
+      console.error(`Error marking email ${messageId} as unread:`, error);
+      throw error;
+    }
+  }
+  
+  /**
+   * Deletes an email by moving it to the deleted items folder
+   * @param messageId - The email message ID
+   */
+  async deleteEmail(messageId: string) {
+    try {
+      return await this.client
+        .api(`/me/messages/${messageId}/move`)
+        .post({
+          destinationId: 'deleteditems'
+        });
+    } catch (error) {
+      console.error(`Error deleting email ${messageId}:`, error);
+      throw error;
+    }
+  }
+  
+  /**
+   * Moves an email to a specified folder
+   * @param messageId - The email message ID
+   * @param folderId - The destination folder ID
+   */
+  async moveEmail(messageId: string, folderId: string) {
+    try {
+      return await this.client
+        .api(`/me/messages/${messageId}/move`)
+        .post({
+          destinationId: folderId
+        });
+    } catch (error) {
+      console.error(`Error moving email ${messageId} to folder ${folderId}:`, error);
+      throw error;
+    }
+  }
 
   /**
    * Fetches calendar events

@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Email Workflow Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        h1, h2 {
+            color: #333;
+        }
+        .test-section {
+            margin-bottom: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .test-button {
+            background-color: #4CAF50;
+            border: none;
+            color: white;
+            padding: 10px 15px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin: 4px 2px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        .test-button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .result {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #f5f5f5;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .success {
+            color: green;
+        }
+        .error {
+            color: red;
+        }
+        #emailId {
+            width: 100%;
+            padding: 8px;
+            margin: 8px 0;
+            box-sizing: border-box;
+        }
+        .test-all {
+            background-color: #2196F3;
+        }
+    </style>
+</head>
+<body>
+    <h1>Email Workflow Test</h1>
+    <p>This page helps test the email functionality in the CRM Mind. Make sure you're logged in to the CRM in another tab before running these tests.</p>
+    
+    <div class="test-section">
+        <h2>Test Configuration</h2>
+        <label for="emailId">Email ID (will be auto-populated after fetching emails):</label>
+        <input type="text" id="emailId" placeholder="Enter an email ID or leave empty to use the first email">
+    </div>
+    
+    <div class="test-section">
+        <h2>1. Fetch Emails</h2>
+        <button id="fetchEmailsBtn" class="test-button">Fetch Emails</button>
+        <div id="fetchEmailsResult" class="result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>2. Fetch Email Details</h2>
+        <button id="fetchEmailDetailsBtn" class="test-button" disabled>Fetch Email Details</button>
+        <div id="fetchEmailDetailsResult" class="result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>3. Mark Email as Read/Unread</h2>
+        <button id="markEmailBtn" class="test-button" disabled>Mark Email Read/Unread</button>
+        <div id="markEmailResult" class="result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>4. Send Test Email</h2>
+        <button id="sendEmailBtn" class="test-button">Send Test Email</button>
+        <div id="sendEmailResult" class="result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>5. Test AI Analysis</h2>
+        <button id="aiAnalysisBtn" class="test-button" disabled>Test AI Analysis</button>
+        <div id="aiAnalysisResult" class="result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>6. Delete Email</h2>
+        <button id="deleteEmailBtn" class="test-button" disabled>Delete Email</button>
+        <div id="deleteEmailResult" class="result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Run All Tests</h2>
+        <button id="runAllBtn" class="test-button test-all">Run All Tests</button>
+        <div id="runAllResult" class="result"></div>
+    </div>
+
+    <script>
+        // Test data
+        const testData = {
+            emailId: '',
+            
+            // Test email for sending
+            testEmail: {
+                subject: 'Test Email from CRM Mind',
+                content: '<p>This is a test email sent from the CRM Mind.</p>',
+                contentType: 'HTML',
+                toRecipients: ['test@example.com'], // Replace with a real email address
+            },
+            
+            // Test AI analysis prompt
+            testAIPrompt: 'Analyze this email and suggest a response strategy.'
+        };
+
+        // Step 1: Fetch emails
+        async function testFetchEmails() {
+            const resultElement = document.getElementById('fetchEmailsResult');
+            resultElement.textContent = 'Testing: Fetch Emails...';
+            resultElement.className = 'result';
+            
+            try {
+                const response = await fetch('/api/emails?top=10');
+                const result = await response.json();
+                
+                if (result.data && Array.isArray(result.data)) {
+                    resultElement.innerHTML = `<span class="success">✅ Successfully fetched emails: ${result.data.length}</span>`;
+                    
+                    // Save the first email ID for further tests if none was provided
+                    const emailIdInput = document.getElementById('emailId');
+                    if (!emailIdInput.value && result.data.length > 0) {
+                        testData.emailId = result.data[0].id;
+                        emailIdInput.value = testData.emailId;
+                        resultElement.innerHTML += `<br>Using email ID for tests: ${testData.emailId}`;
+                        
+                        // Enable the buttons that require an email ID
+                        document.getElementById('fetchEmailDetailsBtn').disabled = false;
+                        document.getElementById('markEmailBtn').disabled = false;
+                        document.getElementById('aiAnalysisBtn').disabled = false;
+                        document.getElementById('deleteEmailBtn').disabled = false;
+                    }
+                    
+                    return true;
+                } else {
+                    resultElement.innerHTML = `<span class="error">❌ Failed to fetch emails: ${JSON.stringify(result)}</span>`;
+                    return false;
+                }
+            } catch (error) {
+                resultElement.innerHTML = `<span class="error">❌ Error fetching emails: ${error.message}</span>`;
+                return false;
+            }
+        }
+
+        // Step 2: Fetch email details
+        async function testFetchEmailDetails() {
+            const resultElement = document.getElementById('fetchEmailDetailsResult');
+            resultElement.textContent = 'Testing: Fetch Email Details...';
+            resultElement.className = 'result';
+            
+            const emailId = document.getElementById('emailId').value || testData.emailId;
+            if (!emailId) {
+                resultElement.innerHTML = `<span class="error">❌ No email ID provided. Please fetch emails first or enter an email ID manually.</span>`;
+                return false;
+            }
+            
+            try {
+                const response = await fetch(`/api/emails/${emailId}`);
+                const result = await response.json();
+                
+                if (result.data && result.data.id) {
+                    resultElement.innerHTML = `<span class="success">✅ Successfully fetched email details: "${result.data.subject}"</span>`;
+                    return true;
+                } else {
+                    resultElement.innerHTML = `<span class="error">❌ Failed to fetch email details: ${JSON.stringify(result)}</span>`;
+                    return false;
+                }
+            } catch (error) {
+                resultElement.innerHTML = `<span class="error">❌ Error fetching email details: ${error.message}</span>`;
+                return false;
+            }
+        }
+
+        // Step 3: Mark email as read/unread
+        async function testMarkEmailReadUnread() {
+            const resultElement = document.getElementById('markEmailResult');
+            resultElement.textContent = 'Testing: Mark Email as Read/Unread...';
+            resultElement.className = 'result';
+            
+            const emailId = document.getElementById('emailId').value || testData.emailId;
+            if (!emailId) {
+                resultElement.innerHTML = `<span class="error">❌ No email ID provided. Please fetch emails first or enter an email ID manually.</span>`;
+                return false;
+            }
+            
+            try {
+                // Mark as read
+                let response = await fetch(`/api/emails/${emailId}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ isRead: true })
+                });
+                let result = await response.json();
+                
+                if (result.success) {
+                    resultElement.innerHTML = `<span class="success">✅ Successfully marked email as read</span>`;
+                } else {
+                    resultElement.innerHTML = `<span class="error">❌ Failed to mark email as read: ${JSON.stringify(result)}</span>`;
+                    return false;
+                }
+                
+                // Mark as unread
+                response = await fetch(`/api/emails/${emailId}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ isRead: false })
+                });
+                result = await response.json();
+                
+                if (result.success) {
+                    resultElement.innerHTML += `<br><span class="success">✅ Successfully marked email as unread</span>`;
+                    return true;
+                } else {
+                    resultElement.innerHTML += `<br><span class="error">❌ Failed to mark email as unread: ${JSON.stringify(result)}</span>`;
+                    return false;
+                }
+            } catch (error) {
+                resultElement.innerHTML = `<span class="error">❌ Error updating email read status: ${error.message}</span>`;
+                return false;
+            }
+        }
+
+        // Step 4: Send a test email
+        async function testSendEmail() {
+            const resultElement = document.getElementById('sendEmailResult');
+            resultElement.textContent = 'Testing: Send Email...';
+            resultElement.className = 'result';
+            
+            try {
+                const response = await fetch('/api/emails/send', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(testData.testEmail)
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    resultElement.innerHTML = `<span class="success">✅ Successfully sent test email</span>`;
+                    return true;
+                } else {
+                    resultElement.innerHTML = `<span class="error">❌ Failed to send test email: ${JSON.stringify(result)}</span>`;
+                    return false;
+                }
+            } catch (error) {
+                resultElement.innerHTML = `<span class="error">❌ Error sending test email: ${error.message}</span>`;
+                return false;
+            }
+        }
+
+        // Step 5: Test AI analysis
+        async function testAIAnalysis() {
+            const resultElement = document.getElementById('aiAnalysisResult');
+            resultElement.textContent = 'Testing: AI Analysis...';
+            resultElement.className = 'result';
+            
+            const emailId = document.getElementById('emailId').value || testData.emailId;
+            if (!emailId) {
+                resultElement.innerHTML = `<span class="error">❌ No email ID provided. Please fetch emails first or enter an email ID manually.</span>`;
+                return false;
+            }
+            
+            try {
+                // Get AI context
+                let response = await fetch(`/api/emails/ai-context?emailId=${emailId}`);
+                let result = await response.json();
+                
+                if (result.success && result.data) {
+                    resultElement.innerHTML = `<span class="success">✅ Successfully fetched AI context</span>`;
+                } else {
+                    resultElement.innerHTML = `<span class="error">❌ Failed to fetch AI context: ${JSON.stringify(result)}</span>`;
+                    return false;
+                }
+                
+                // Generate AI response
+                response = await fetch('/api/emails/ai-context', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        emailId: emailId,
+                        prompt: testData.testAIPrompt
+                    })
+                });
+                result = await response.json();
+                
+                if (result.success && result.data && result.data.response) {
+                    resultElement.innerHTML += `<br><span class="success">✅ Successfully generated AI response</span>`;
+                    resultElement.innerHTML += `<br>AI Response: ${result.data.response.substring(0, 100)}...`;
+                    return true;
+                } else {
+                    resultElement.innerHTML += `<br><span class="error">❌ Failed to generate AI response: ${JSON.stringify(result)}</span>`;
+                    return false;
+                }
+            } catch (error) {
+                resultElement.innerHTML = `<span class="error">❌ Error testing AI analysis: ${error.message}</span>`;
+                return false;
+            }
+        }
+
+        // Step 6: Delete email
+        async function testDeleteEmail() {
+            const resultElement = document.getElementById('deleteEmailResult');
+            resultElement.textContent = 'Testing: Delete Email...';
+            resultElement.className = 'result';
+            
+            const emailId = document.getElementById('emailId').value || testData.emailId;
+            if (!emailId) {
+                resultElement.innerHTML = `<span class="error">❌ No email ID provided. Please fetch emails first or enter an email ID manually.</span>`;
+                return false;
+            }
+            
+            try {
+                const response = await fetch(`/api/emails/${emailId}`, {
+                    method: 'DELETE'
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    resultElement.innerHTML = `<span class="success">✅ Successfully deleted email</span>`;
+                    return true;
+                } else {
+                    resultElement.innerHTML = `<span class="error">❌ Failed to delete email: ${JSON.stringify(result)}</span>`;
+                    return false;
+                }
+            } catch (error) {
+                resultElement.innerHTML = `<span class="error">❌ Error deleting email: ${error.message}</span>`;
+                return false;
+            }
+        }
+
+        // Run all tests
+        async function runAllTests() {
+            const resultElement = document.getElementById('runAllResult');
+            resultElement.textContent = '=== Starting Email Workflow Tests ===';
+            resultElement.className = 'result';
+            
+            const testResults = {
+                fetchEmails: await testFetchEmails(),
+                fetchEmailDetails: await testFetchEmailDetails(),
+                markEmailReadUnread: await testMarkEmailReadUnread(),
+                sendEmail: await testSendEmail(),
+                aiAnalysis: await testAIAnalysis(),
+                deleteEmail: await testDeleteEmail()
+            };
+            
+            let summary = '\n=== Email Workflow Test Results ===\n';
+            for (const [test, result] of Object.entries(testResults)) {
+                summary += `${result ? '✅' : '❌'} ${test}\n`;
+            }
+            
+            const passedTests = Object.values(testResults).filter(Boolean).length;
+            const totalTests = Object.values(testResults).length;
+            
+            summary += `\nPassed ${passedTests}/${totalTests} tests`;
+            resultElement.textContent += summary;
+            
+            return passedTests === totalTests;
+        }
+
+        // Set up event listeners
+        document.getElementById('fetchEmailsBtn').addEventListener('click', testFetchEmails);
+        document.getElementById('fetchEmailDetailsBtn').addEventListener('click', testFetchEmailDetails);
+        document.getElementById('markEmailBtn').addEventListener('click', testMarkEmailReadUnread);
+        document.getElementById('sendEmailBtn').addEventListener('click', testSendEmail);
+        document.getElementById('aiAnalysisBtn').addEventListener('click', testAIAnalysis);
+        document.getElementById('deleteEmailBtn').addEventListener('click', testDeleteEmail);
+        document.getElementById('runAllBtn').addEventListener('click', runAllTests);
+        
+        // Update email ID when input changes
+        document.getElementById('emailId').addEventListener('change', function() {
+            testData.emailId = this.value;
+            
+            // Enable buttons if an email ID is provided
+            const hasEmailId = !!this.value;
+            document.getElementById('fetchEmailDetailsBtn').disabled = !hasEmailId;
+            document.getElementById('markEmailBtn').disabled = !hasEmailId;
+            document.getElementById('aiAnalysisBtn').disabled = !hasEmailId;
+            document.getElementById('deleteEmailBtn').disabled = !hasEmailId;
+        });
+    </script>
+</body>
+</html>

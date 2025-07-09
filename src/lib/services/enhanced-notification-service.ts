@@ -69,7 +69,7 @@ export class EnhancedNotificationService extends NotificationService {
           }
           
           // Add footer
-          emailBody += `<p style="color: #6B7280; font-size: 12px; margin-top: 20px;">This is an automated notification from Fresh AI CRM.</p>`;
+          emailBody += `<p style="color: #6B7280; font-size: 12px; margin-top: 20px;">This is an automated notification from CRM Mind.</p>`;
         }
         
         // Queue email

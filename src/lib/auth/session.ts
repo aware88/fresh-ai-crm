@@ -12,8 +12,7 @@ import { NextRequest } from 'next/server';
  * Get the current user session from a request
  */
 export async function getSession() {
-  const cookieStore = cookies();
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   
   const { data: { session } } = await supabase.auth.getSession();
   return session;
@@ -23,8 +22,7 @@ export async function getSession() {
  * Get the current user ID from a request
  */
 export async function getUID() {
-  const cookieStore = cookies();
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   
   const { data: { session } } = await supabase.auth.getSession();
   return session?.user?.id;

@@ -365,25 +365,4 @@ export default function NotificationCenter() {
   );
 }
 
-// Custom hook for handling clicks outside of an element
-if (!('useOnClickOutside' in window)) {
-  // @ts-ignore - Add the hook if it doesn't exist
-  window.useOnClickOutside = (ref: React.RefObject<HTMLElement>, handler: (event: MouseEvent | TouchEvent) => void) => {
-    useEffect(() => {
-      const listener = (event: MouseEvent | TouchEvent) => {
-        if (!ref.current || ref.current.contains(event.target as Node)) {
-          return;
-        }
-        handler(event);
-      };
-
-      document.addEventListener('mousedown', listener);
-      document.addEventListener('touchstart', listener);
-
-      return () => {
-        document.removeEventListener('mousedown', listener);
-        document.removeEventListener('touchstart', listener);
-      };
-    }, [ref, handler]);
-  };
-}
+// We're using the imported useOnClickOutside hook from @/hooks/use-on-click-outside

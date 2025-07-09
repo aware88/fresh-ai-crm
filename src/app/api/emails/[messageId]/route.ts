@@ -54,9 +54,11 @@ export async function PATCH(
     
     // Handle different update operations
     if (body.isRead !== undefined) {
-      await graphService.client
-        .api(`/me/messages/${messageId}`)
-        .update({ isRead: body.isRead });
+      if (body.isRead === true) {
+        await graphService.markAsRead(messageId);
+      } else {
+        await graphService.markAsUnread(messageId);
+      }
     }
     
     return NextResponse.json({ success: true });
@@ -64,6 +66,38 @@ export async function PATCH(
     console.error('Error updating email:', error);
     return NextResponse.json(
       { error: 'Failed to update email', message: error.message },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * DELETE handler for deleting/moving an email to deleted items folder
+ */
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: { messageId: string } }
+) {
+  try {
+    const session = await getServerSession();
+    
+    if (!session?.accessToken) {
+      return NextResponse.json({ error: 'Unauthorized or missing Microsoft Graph access token' }, { status: 401 });
+    }
+    
+    const { messageId } = params;
+    
+    // Create Microsoft Graph service
+    const graphService = new MicrosoftGraphService(session.accessToken);
+    
+    // Delete the email (move to deleted items folder)
+    await graphService.deleteEmail(messageId);
+    
+    return NextResponse.json({ success: true, message: 'Email moved to deleted items' });
+  } catch (error: any) {
+    console.error('Error deleting email:', error);
+    return NextResponse.json(
+      { error: 'Failed to delete email', message: error.message },
       { status: 500 }
     );
   }

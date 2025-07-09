@@ -38,7 +38,7 @@ export class TwoFactorAuthService {
     const secretKey = authenticator.generateSecret();
     
     // Create a QR code URI for the user
-    const serviceName = 'Fresh AI CRM';
+    const serviceName = 'CRM Mind';
     const otpauth = authenticator.keyuri(email, serviceName, secretKey);
     
     // Store the secret key in the database

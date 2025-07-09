@@ -2,8 +2,8 @@ import { Metadata } from 'next';
 import CalendarView from '@/components/calendar/CalendarView';
 
 export const metadata: Metadata = {
-  title: 'Calendar - Fresh AI CRM',
-  description: 'Microsoft Graph Calendar integration for Fresh AI CRM',
+  title: 'Calendar - CRM Mind',
+  description: 'Microsoft Graph Calendar integration for CRM Mind',
 };
 
 export default function CalendarPage() {

@@ -2,8 +2,8 @@ import { Metadata } from 'next';
 import ContactsList from '@/components/contacts/ContactsList';
 
 export const metadata: Metadata = {
-  title: 'Microsoft Contacts - Fresh AI CRM',
-  description: 'Microsoft Graph Contacts integration for Fresh AI CRM',
+  title: 'Microsoft Contacts - CRM Mind',
+  description: 'Microsoft Graph Contacts integration for CRM Mind',
 };
 
 export default function ContactsPage() {

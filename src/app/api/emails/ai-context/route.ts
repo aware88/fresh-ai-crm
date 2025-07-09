@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { getServerSession } from '@/lib/auth';
 import { supabase } from '@/lib/supabaseClient';
 import { getEmailAIContext } from '@/lib/integrations/metakocka/email-context-builder';
 import { generateServiceToken } from '@/lib/auth/serviceToken';
@@ -11,23 +10,15 @@ import { analyzeEmail } from '@/lib/openai/client';
 export async function GET(req: NextRequest) {
   try {
     // Get the session using getServerSession
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.email) {
+    const session = await getServerSession();
+    if (!session?.user) {
       return NextResponse.json(
         { success: false, message: 'Unauthorized - Please sign in' }, 
         { status: 401 }
       );
     }
-
-    // Get the user ID from the session
-    const { data: userData, error: userError } = await supabase.auth.getUser();
-    if (userError || !userData?.user?.id) {
-      return NextResponse.json(
-        { success: false, message: 'Error fetching user data' }, 
-        { status: 401 }
-      );
-    }
-    const userId = userData.user.id;
+    
+    const userId = session.user.id;
 
     // Get the email ID from the query parameters
     const url = new URL(req.url);
@@ -89,22 +80,15 @@ export async function POST(req: NextRequest) {
       }
     } else {
       // For user requests, get the user ID from the session
-      const session = await getServerSession(authOptions);
-      if (!session?.user?.email) {
+      const session = await getServerSession();
+      if (!session?.user) {
         return NextResponse.json(
           { success: false, message: 'Unauthorized - Please sign in' }, 
           { status: 401 }
         );
       }
       
-      const { data: userData, error: userError } = await supabase.auth.getUser();
-      if (userError || !userData?.user?.id) {
-        return NextResponse.json(
-          { success: false, message: 'Error fetching user data' }, 
-          { status: 401 }
-        );
-      }
-      userId = userData.user.id;
+      userId = session.user.id;
     }
 
     // Parse the request body

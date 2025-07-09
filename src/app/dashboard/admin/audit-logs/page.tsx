@@ -3,7 +3,7 @@ import AuditLogViewer from '@/components/admin/AuditLogViewer';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 export const metadata: Metadata = {
-  title: 'Audit Logs | Fresh AI CRM',
+  title: 'Audit Logs | CRM Mind',
   description: 'View and search security audit logs for system activities',
 };
 

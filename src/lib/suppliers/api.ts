@@ -7,9 +7,16 @@ import { Supplier, SupplierDocument, SupplierEmail, SupplierQuery, SupplierQuery
  * Fetch all suppliers
  */
 export const fetchSuppliers = async (): Promise<Supplier[]> => {
-  const response = await fetch('/api/suppliers');
+  const response = await fetch('/api/suppliers', {
+    credentials: 'include', // Include cookies in the request
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  });
   if (!response.ok) {
-    throw new Error('Failed to fetch suppliers');
+    const errorData = await response.json().catch(() => ({}));
+    console.error('Supplier fetch error:', errorData);
+    throw new Error(`Failed to fetch suppliers: ${response.status}`);
   }
   return response.json();
 };
@@ -18,9 +25,16 @@ export const fetchSuppliers = async (): Promise<Supplier[]> => {
  * Fetch a supplier by ID
  */
 export const fetchSupplierById = async (id: string): Promise<Supplier> => {
-  const response = await fetch(`/api/suppliers?id=${id}`);
+  const response = await fetch(`/api/suppliers?id=${id}`, {
+    credentials: 'include', // Include cookies in the request
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  });
   if (!response.ok) {
-    throw new Error('Supplier not found');
+    const errorData = await response.json().catch(() => ({}));
+    console.error('Supplier fetch error:', errorData);
+    throw new Error(`Supplier not found: ${response.status}`);
   }
   return response.json();
 };
@@ -31,6 +45,7 @@ export const fetchSupplierById = async (id: string): Promise<Supplier> => {
 export const createSupplier = async (supplierData: Omit<Supplier, 'id' | 'createdAt' | 'updatedAt'>): Promise<Supplier> => {
   const response = await fetch('/api/suppliers', {
     method: 'POST',
+    credentials: 'include', // Include cookies in the request
     headers: {
       'Content-Type': 'application/json',
     },
@@ -39,7 +54,8 @@ export const createSupplier = async (supplierData: Omit<Supplier, 'id' | 'create
   
   if (!response.ok) {
     const error = await response.json();
-    throw new Error(error.error || 'Failed to create supplier');
+    console.error('Supplier creation error:', error);
+    throw new Error(error.error || `Failed to create supplier: ${response.status}`);
   }
   
   return response.json();
@@ -51,6 +67,7 @@ export const createSupplier = async (supplierData: Omit<Supplier, 'id' | 'create
 export const updateSupplier = async (supplier: Supplier): Promise<Supplier> => {
   const response = await fetch('/api/suppliers', {
     method: 'PUT',
+    credentials: 'include', // Include cookies in the request
     headers: {
       'Content-Type': 'application/json',
     },
@@ -59,7 +76,8 @@ export const updateSupplier = async (supplier: Supplier): Promise<Supplier> => {
   
   if (!response.ok) {
     const error = await response.json();
-    throw new Error(error.error || 'Failed to update supplier');
+    console.error('Supplier update error:', error);
+    throw new Error(error.error || `Failed to update supplier: ${response.status}`);
   }
   
   return response.json();
@@ -71,11 +89,16 @@ export const updateSupplier = async (supplier: Supplier): Promise<Supplier> => {
 export const deleteSupplier = async (id: string): Promise<void> => {
   const response = await fetch(`/api/suppliers?id=${id}`, {
     method: 'DELETE',
+    credentials: 'include', // Include cookies in the request
+    headers: {
+      'Content-Type': 'application/json',
+    }
   });
   
   if (!response.ok) {
     const error = await response.json();
-    throw new Error(error.error || 'Failed to delete supplier');
+    console.error('Supplier deletion error:', error);
+    throw new Error(error.error || `Failed to delete supplier: ${response.status}`);
   }
 };
 
@@ -94,12 +117,14 @@ export const uploadSupplierDocument = async (
   
   const response = await fetch('/api/suppliers/documents', {
     method: 'POST',
+    credentials: 'include', // Include cookies in the request
     body: formData,
   });
   
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || 'Failed to upload document');
+    const error = await response.json().catch(() => ({}));
+    console.error('Document upload error:', error);
+    throw new Error(error.error || `Failed to upload document: ${response.status}`);
   }
   
   return response.json();
@@ -109,11 +134,17 @@ export const uploadSupplierDocument = async (
  * Fetch documents for a supplier
  */
 export const fetchSupplierDocuments = async (supplierId: string): Promise<SupplierDocument[]> => {
-  const response = await fetch(`/api/suppliers/documents?supplierId=${supplierId}`);
+  const response = await fetch(`/api/suppliers/documents?supplierId=${supplierId}`, {
+    credentials: 'include', // Include cookies in the request
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  });
   
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || 'Failed to fetch supplier documents');
+    const error = await response.json().catch(() => ({}));
+    console.error('Document fetch error:', error);
+    throw new Error(error.error || `Failed to fetch supplier documents: ${response.status}`);
   }
   
   return response.json();
@@ -125,11 +156,16 @@ export const fetchSupplierDocuments = async (supplierId: string): Promise<Suppli
 export const deleteSupplierDocument = async (documentId: string): Promise<void> => {
   const response = await fetch(`/api/suppliers/documents?id=${documentId}`, {
     method: 'DELETE',
+    credentials: 'include', // Include cookies in the request
+    headers: {
+      'Content-Type': 'application/json'
+    }
   });
   
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || 'Failed to delete document');
+    const error = await response.json().catch(() => ({}));
+    console.error('Document deletion error:', error);
+    throw new Error(error.error || `Failed to delete document: ${response.status}`);
   }
 };
 
@@ -148,6 +184,7 @@ export const createSupplierEmail = async (
 ): Promise<SupplierEmail> => {
   const response = await fetch('/api/suppliers/emails', {
     method: 'POST',
+    credentials: 'include', // Include cookies in the request
     headers: {
       'Content-Type': 'application/json',
     },
@@ -164,8 +201,9 @@ export const createSupplierEmail = async (
   });
   
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || 'Failed to create email');
+    const error = await response.json().catch(() => ({}));
+    console.error('Email creation error:', error);
+    throw new Error(error.error || `Failed to create email: ${response.status}`);
   }
   
   return response.json();
@@ -175,11 +213,17 @@ export const createSupplierEmail = async (
  * Fetch emails for a supplier
  */
 export const fetchSupplierEmails = async (supplierId: string): Promise<SupplierEmail[]> => {
-  const response = await fetch(`/api/suppliers/emails?supplierId=${supplierId}`);
+  const response = await fetch(`/api/suppliers/emails?supplierId=${supplierId}`, {
+    credentials: 'include', // Include cookies in the request
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  });
   
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || 'Failed to fetch supplier emails');
+    const error = await response.json().catch(() => ({}));
+    console.error('Email fetch error:', error);
+    throw new Error(error.error || `Failed to fetch supplier emails: ${response.status}`);
   }
   
   return response.json();
@@ -191,11 +235,16 @@ export const fetchSupplierEmails = async (supplierId: string): Promise<SupplierE
 export const deleteSupplierEmail = async (emailId: string): Promise<void> => {
   const response = await fetch(`/api/suppliers/emails?id=${emailId}`, {
     method: 'DELETE',
+    credentials: 'include', // Include cookies in the request
+    headers: {
+      'Content-Type': 'application/json'
+    }
   });
   
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || 'Failed to delete email');
+    const error = await response.json().catch(() => ({}));
+    console.error('Email deletion error:', error);
+    throw new Error(error.error || `Failed to delete email: ${response.status}`);
   }
 };
 
@@ -216,6 +265,7 @@ export const querySupplierAI = async (query: string): Promise<{
   // First, submit the query to create it
   const response = await fetch('/api/suppliers/queries', {
     method: 'POST',
+    credentials: 'include', // Include cookies in the request
     headers: {
       'Content-Type': 'application/json',
     },
@@ -223,18 +273,26 @@ export const querySupplierAI = async (query: string): Promise<{
   });
   
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || 'Failed to process query');
+    const error = await response.json().catch(() => ({}));
+    console.error('AI query error:', error);
+    throw new Error(error.error || `Failed to process query: ${response.status}`);
   }
   
   const queryResponse = await response.json();
   const queryId = queryResponse.id;
   
   // Then immediately fetch the query with its results
-  const queryDetailsResponse = await fetch(`/api/suppliers/queries?id=${queryId}`);
+  const queryDetailsResponse = await fetch(`/api/suppliers/queries?id=${queryId}`, {
+    credentials: 'include', // Include cookies in the request
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  });
   
   if (!queryDetailsResponse.ok) {
-    throw new Error('Failed to fetch query results');
+    const errorData = await queryDetailsResponse.json().catch(() => ({}));
+    console.error('AI query results error:', errorData);
+    throw new Error(`Failed to fetch query results: ${queryDetailsResponse.status}`);
   }
   
   const queryDetails = await queryDetailsResponse.json();
@@ -298,4 +356,31 @@ export const deleteQuery = async (queryId: string): Promise<void> => {
     const error = await response.json();
     throw new Error(error.error || 'Failed to delete query');
   }
+};
+
+/**
+ * Parse an email to extract supplier information
+ */
+export const parseSupplierEmail = async (emailContent: string): Promise<{
+  senderName?: string;
+  senderEmail: string;
+  subject: string;
+  receivedDate?: string;
+  productTags: string[];
+  body: string;
+}> => {
+  const response = await fetch('/api/suppliers/parse-email', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ emailContent }),
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || 'Failed to parse email');
+  }
+  
+  return response.json();
 };

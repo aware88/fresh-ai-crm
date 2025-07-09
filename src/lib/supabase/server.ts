@@ -1,24 +1,27 @@
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
-import { type SupabaseClient } from '@supabase/supabase-js';
+import { createServerClient as createServerClientBase } from '@supabase/ssr';
 import { Database } from '../../types/supabase';
 
-// Create a Supabase client for server components
-export const createServerClient = () => {
-  const cookieStore = cookies();
-  
-  return createSupabaseClient<Database>(
+/**
+ * Create a Supabase client for use in server components
+ */
+export const createServerClient = async () => {
+  const cookieStore = await cookies();
+
+  return createServerClientBase<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
-      auth: {
-        persistSession: false,
-        autoRefreshToken: false,
-        detectSessionInUrl: false,
-      },
-      global: {
-        headers: {
-          cookie: cookieStore.toString(),
+      cookies: {
+        get(name: string) {
+          return cookieStore.get(name)?.value;
+        },
+        set(name: string, value: string, options: any) {
+          cookieStore.set({ name, value, ...options });
+        },
+        remove(name: string, options: any) {
+          cookieStore.set({ name, value: '', ...options });
         },
       },
     }

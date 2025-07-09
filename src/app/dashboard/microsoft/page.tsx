@@ -2,8 +2,8 @@ import { Metadata } from 'next';
 import MicrosoftGraphNav from '@/components/navigation/MicrosoftGraphNav';
 
 export const metadata: Metadata = {
-  title: 'Microsoft 365 Integration - Fresh AI CRM',
-  description: 'Microsoft Graph API integration for Fresh AI CRM',
+  title: 'Microsoft 365 Integration - CRM Mind',
+  description: 'Microsoft Graph API integration for CRM Mind',
 };
 
 export default function MicrosoftDashboardPage() {
@@ -21,7 +21,7 @@ export default function MicrosoftDashboardPage() {
           
           <p className="mb-4">
             The Microsoft 365 integration provides seamless access to your Outlook email, calendar, and contacts
-            directly within Fresh AI CRM. This integration leverages the Microsoft Graph API to provide a
+            directly within CRM Mind. This integration leverages the Microsoft Graph API to provide a
             comprehensive experience without leaving the CRM environment.
           </p>
           

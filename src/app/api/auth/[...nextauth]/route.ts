@@ -1,6 +1,8 @@
 import { NextAuthOptions } from 'next-auth';
 import { SupabaseAdapter } from '@auth/supabase-adapter';
 import NextAuth from 'next-auth';
+import CredentialsProvider from 'next-auth/providers/credentials';
+import { supabase } from '@/lib/supabaseClient';
 
 const authOptions: NextAuthOptions = {
   adapter: SupabaseAdapter({
@@ -25,6 +27,46 @@ const authOptions: NextAuthOptions = {
     },
   },
   providers: [
+    CredentialsProvider({
+      name: 'Credentials',
+      credentials: {
+        email: { label: 'Email', type: 'email' },
+        password: { label: 'Password', type: 'password' }
+      },
+      async authorize(credentials) {
+        if (!credentials?.email || !credentials?.password) {
+          throw new Error('Email and password required');
+        }
+        
+        try {
+          // Authenticate with Supabase
+          const { data, error } = await supabase.auth.signInWithPassword({
+            email: credentials.email,
+            password: credentials.password,
+          });
+          
+          if (error) {
+            console.error('Supabase auth error:', error.message);
+            throw new Error(error.message);
+          }
+          
+          if (!data?.user) {
+            throw new Error('No user found');
+          }
+          
+          // Return user data in the format NextAuth expects
+          return {
+            id: data.user.id,
+            email: data.user.email,
+            name: data.user.user_metadata?.full_name || data.user.email?.split('@')[0],
+            image: data.user.user_metadata?.avatar_url,
+          };
+        } catch (error) {
+          console.error('Auth error:', error);
+          throw new Error('Authentication failed');
+        }
+      }
+    }),
     {
       id: 'supabase',
       name: 'Supabase',
@@ -70,8 +112,8 @@ const authOptions: NextAuthOptions = {
     },
   },
   pages: {
-    signIn: '/signin',
-    error: '/signin',
+    signIn: '/tests/simple-login',
+    error: '/tests/simple-login',
   },
   debug: process.env.NODE_ENV === 'development',
 };

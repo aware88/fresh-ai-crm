@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
-import { Spinner, Alert } from '@/components/ui';
+import { Alert } from '@/components/ui/alert';
+import { Spinner } from '@/components/ui/spinner';
 
 interface Email {
   id: string;
@@ -20,7 +21,11 @@ interface Email {
   importance: 'normal' | 'high' | 'low';
 }
 
-export default function EmailList() {
+interface EmailListProps {
+  onEmailSelect?: (emailId: string) => void;
+}
+
+export function EmailList({ onEmailSelect }: EmailListProps = {}) {
   const { data: session } = useSession();
   const [emails, setEmails] = useState<Email[]>([]);
   const [loading, setLoading] = useState(true);
@@ -37,7 +42,12 @@ export default function EmailList() {
       
       try {
         setLoading(true);
-        const response = await fetch('/api/emails?top=20');
+        const response = await fetch('/api/emails?top=20', {
+          credentials: 'include', // Include cookies in the request
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
         
         if (!response.ok) {
           throw new Error(`Error fetching emails: ${response.statusText}`);
@@ -60,12 +70,18 @@ export default function EmailList() {
   const handleEmailClick = async (emailId: string) => {
     setSelectedEmailId(emailId);
     
+    // Call the parent's onEmailSelect if provided
+    if (onEmailSelect) {
+      onEmailSelect(emailId);
+    }
+    
     // Mark email as read if it's not already read
     const email = emails.find(e => e.id === emailId);
     if (email && !email.isRead) {
       try {
         await fetch(`/api/emails/${emailId}`, {
           method: 'PATCH',
+          credentials: 'include', // Include cookies in the request
           headers: {
             'Content-Type': 'application/json',
           },
@@ -83,7 +99,7 @@ export default function EmailList() {
   };
 
   if (loading) return <Spinner />;
-  if (error) return <Alert type="error">{error}</Alert>;
+  if (error) return <Alert variant="destructive">{error}</Alert>;
 
   return (
     <div className="email-list">
@@ -97,6 +113,7 @@ export default function EmailList() {
               key={email.id} 
               className={`py-3 px-4 cursor-pointer hover:bg-gray-50 ${email.isRead ? 'bg-white' : 'bg-blue-50'}`}
               onClick={() => handleEmailClick(email.id)}
+              data-email-id={email.id}
             >
               <div className="flex flex-col">
                 <div className="flex justify-between">

@@ -2,7 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
-import { Spinner, Alert, Button } from '@/components/ui';
+import { Alert } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { Spinner } from '@/components/ui/spinner';
 import EmailComments from './EmailComments';
 import EmailAttachments from './EmailAttachments';
 import EmailLanguageDetection from './EmailLanguageDetection';
@@ -69,7 +71,12 @@ export default function EmailDetail({ messageId, onReply, onReplyAll, onForward 
       
       try {
         setLoading(true);
-        const response = await fetch(`/api/emails/${messageId}`);
+        const response = await fetch(`/api/emails/${messageId}`, {
+          credentials: 'include', // Include cookies in the request
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
         
         if (!response.ok) {
           throw new Error(`Error fetching email: ${response.statusText}`);
@@ -90,8 +97,8 @@ export default function EmailDetail({ messageId, onReply, onReplyAll, onForward 
   }, [session, messageId]);
 
   if (loading) return <Spinner />;
-  if (error) return <Alert type="error">{error}</Alert>;
-  if (!email) return <Alert type="info">Email not found</Alert>;
+  if (error) return <Alert variant="destructive">{error}</Alert>;
+  if (!email) return <Alert>Email not found</Alert>;
 
   return (
     <div className="email-detail bg-white rounded-lg shadow p-6">

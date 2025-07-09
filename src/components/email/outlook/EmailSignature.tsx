@@ -43,7 +43,7 @@ export default function EmailSignature({ onSelect, compact = false }: EmailSigna
             content: `<div style="font-family: Arial, sans-serif; color: #333;">
               <p>Best regards,</p>
               <p><strong>${session?.user?.name || 'Your Name'}</strong></p>
-              <p>Fresh AI CRM</p>
+              <p>CRM Mind</p>
               <p>Email: ${session?.user?.email || 'your.email@example.com'}</p>
               <p>Phone: +1 (555) 123-4567</p>
             </div>`,
