@@ -23,10 +23,10 @@ This project and everyone participating in it is governed by our [Code of Conduc
 
 ### Reporting Bugs
 
-Bugs are tracked as [GitHub issues](https://github.com/yourusername/fresh-ai-crm/issues). Before creating a new issue:
+Bugs are tracked as [GitHub issues](https://github.com/yourusername/crm-mind/issues). Before creating a new issue:
 
-1. **Check if the issue has already been reported** by searching under [Issues](https://github.com/yourusername/fresh-ai-crm/issues).
-2. If you're unable to find an open issue addressing the problem, [open a new one](https://github.com/yourusername/fresh-ai-crm/issues/new/choose).
+1. **Check if the issue has already been reported** by searching under [Issues](https://github.com/yourusername/crm-mind/issues).
+2. If you're unable to find an open issue addressing the problem, [open a new one](https://github.com/yourusername/crm-mind/issues/new/choose).
 
 When creating a bug report, please include the following information:
 
@@ -41,16 +41,16 @@ When creating a bug report, please include the following information:
 
 We welcome suggestions for new features and improvements. Before submitting an enhancement suggestion:
 
-1. Check if a similar suggestion already exists in the [issues](https://github.com/yourusername/fresh-ai-crm/issues).
-2. If not, [open a new issue](https://github.com/yourusername/fresh-ai-crm/issues/new/choose) and select the "Feature request" template.
+1. Check if a similar suggestion already exists in the [issues](https://github.com/yourusername/crm-mind/issues).
+2. If not, [open a new issue](https://github.com/yourusername/crm-mind/issues/new/choose) and select the "Feature request" template.
 
 ### Your First Code Contribution
 
 1. **Fork the repository** on GitHub.
 2. **Clone the forked repository** to your local machine:
    ```bash
-   git clone https://github.com/yourusername/fresh-ai-crm.git
-   cd fresh-ai-crm
+   git clone https://github.com/yourusername/crm-mind.git
+   cd crm-mind
    ```
 3. **Set up the development environment** (see [Development Environment Setup](#development-environment-setup)).
 4. **Create a new branch** for your changes:
@@ -92,8 +92,8 @@ When submitting a pull request:
 
 1. **Fork and clone the repository**
    ```bash
-   git clone https://github.com/yourusername/fresh-ai-crm.git
-   cd fresh-ai-crm
+   git clone https://github.com/yourusername/crm-mind.git
+   cd crm-mind
    ```
 
 2. **Install dependencies**

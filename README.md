@@ -6,8 +6,8 @@ A powerful AI-driven CRM platform with integrated inventory management and alert
 [![Next.js](https://img.shields.io/badge/Next.js-13+-black?style=flat&logo=next.js&logoColor=white)](https://nextjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-4.9+-3178C6?style=flat&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![OpenAI](https://img.shields.io/badge/OpenAI-412991?style=flat&logo=openai&logoColor=white)](https://openai.com/)
-[![Test Status](https://github.com/yourusername/fresh-ai-crm/actions/workflows/tests.yml/badge.svg)](https://github.com/yourusername/fresh-ai-crm/actions)
-[![Coverage Status](https://coveralls.io/repos/github/yourusername/fresh-ai-crm/badge.svg?branch=main)](https://coveralls.io/github/yourusername/fresh-ai-crm?branch=main)
+[![Test Status](https://github.com/yourusername/crm-mind/actions/workflows/tests.yml/badge.svg)](https://github.com/yourusername/crm-mind/actions)
+[![Coverage Status](https://coveralls.io/repos/github/yourusername/crm-mind/badge.svg?branch=main)](https://coveralls.io/github/yourusername/crm-mind?branch=main)
 
 ## ✨ Features
 
@@ -77,8 +77,8 @@ For detailed documentation on specific features, see:
 
 1. Clone the repository
    ```bash
-   git clone https://github.com/yourusername/fresh-ai-crm.git
-   cd fresh-ai-crm
+   git clone https://github.com/yourusername/crm-mind.git
+   cd crm-mind
    ```
 
 2. Install dependencies
@@ -441,7 +441,7 @@ npm start
 
 We welcome contributions from the community! Here's how you can help:
 
-1. **Report Bugs**: File an issue on our [issue tracker](https://github.com/yourusername/fresh-ai-crm/issues)
+1. **Report Bugs**: File an issue on our [issue tracker](https://github.com/yourusername/crm-mind/issues)
 2. **Suggest Features**: Open a feature request issue
 3. **Submit Code**: Open a pull request with your changes
 4. **Improve Documentation**: Help us make our docs better

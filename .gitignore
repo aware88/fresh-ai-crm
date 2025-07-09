@@ -110,3 +110,4 @@ logs
 # Database
 *.sqlite
 *.sqlite3
+cookies.txt
