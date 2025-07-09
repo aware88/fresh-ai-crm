@@ -28,8 +28,8 @@ Before you begin, ensure you have the following installed:
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/your-org/fresh-ai-crm.git
-   cd fresh-ai-crm
+   git clone https://github.com/your-org/crm-mind.git
+   cd crm-mind
    ```
 
 2. **Install dependencies**

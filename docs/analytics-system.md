@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Fresh AI CRM Analytics System provides comprehensive insights into various aspects of the CRM platform, including general metrics, subscription analytics, supplier distribution, product distribution, and price trends. The system is designed to help organizations make data-driven decisions by visualizing key performance indicators and trends.
+The CRM Mind Analytics System provides comprehensive insights into various aspects of the CRM platform, including general metrics, subscription analytics, supplier distribution, product distribution, and price trends. The system is designed to help organizations make data-driven decisions by visualizing key performance indicators and trends.
 
 ## Architecture
 

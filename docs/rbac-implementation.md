@@ -1,6 +1,6 @@
 # Role-Based Access Control (RBAC) Implementation
 
-This document describes the enhanced RBAC system implemented for Fresh AI CRM.
+This document describes the enhanced RBAC system implemented for CRM Mind.
 
 ## Overview
 

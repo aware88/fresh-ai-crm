@@ -2,7 +2,7 @@
 
 ## Introduction
 
-The Fresh AI CRM's Memory System enables our AI assistants to remember important information, learn from past interactions, and provide increasingly personalized assistance over time. This guide explains how the memory system works and how you can get the most value from it in your daily workflow.
+The CRM Mind's Memory System enables our AI assistants to remember important information, learn from past interactions, and provide increasingly personalized assistance over time. This guide explains how the memory system works and how you can get the most value from it in your daily workflow.
 
 ## What is the AI Memory System?
 

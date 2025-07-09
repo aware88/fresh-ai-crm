@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document outlines the approach for integrating Microsoft Graph API to create a full Outlook replacement email client within Fresh AI CRM. The integration will enable users to access their Outlook emails, calendar, and contacts directly within the CRM, with additional Metakocka-specific features.
+This document outlines the approach for integrating Microsoft Graph API to create a full Outlook replacement email client within CRM Mind. The integration will enable users to access their Outlook emails, calendar, and contacts directly within the CRM, with additional Metakocka-specific features.
 
 ## Integration Approaches
 
@@ -66,7 +66,7 @@ We've identified two potential approaches for the Outlook integration:
 
 ## Integration with Existing Authentication System
 
-The Fresh AI CRM currently uses NextAuth.js with Supabase adapter for authentication. We'll need to:
+The CRM Mind currently uses NextAuth.js with Supabase adapter for authentication. We'll need to:
 
 1. Add Microsoft Graph as an OAuth provider in NextAuth.js configuration
 2. Store Microsoft Graph access tokens securely

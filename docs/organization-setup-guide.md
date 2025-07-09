@@ -1,12 +1,12 @@
-# Organization Setup Guide for Fresh AI CRM
+# Organization Setup Guide for CRM Mind
 
 ## Overview
 
-Fresh AI CRM supports both individual users and organization-based multi-tenant usage. This document outlines the implementation of the streamlined organization setup process, including sign-up flow, role assignments, and subscription management.
+CRM Mind supports both individual users and organization-based multi-tenant usage. This document outlines the implementation of the streamlined organization setup process, including sign-up flow, role assignments, and subscription management.
 
 ## User Types and Access Models
 
-Fresh AI CRM supports two primary user types:
+CRM Mind supports two primary user types:
 
 1. **Individual Users**: Single-user accounts with personal workspaces
 2. **Organization Users**: Users belonging to an organization with role-based access control
@@ -60,7 +60,7 @@ When a user signs up as an organization admin, the following happens behind the 
 
 ## Role-Based Access Control
 
-Fresh AI CRM implements a comprehensive role-based access control system:
+CRM Mind implements a comprehensive role-based access control system:
 
 ### Default Roles
 
@@ -155,4 +155,4 @@ The organization setup flow is implemented through the following components:
 
 ## Conclusion
 
-The streamlined organization setup process simplifies the onboarding experience for both individual users and organizations. By integrating user creation, organization setup, and role assignment into a single flow, Fresh AI CRM provides a seamless experience that gets users up and running quickly while maintaining proper security and access controls.
+The streamlined organization setup process simplifies the onboarding experience for both individual users and organizations. By integrating user creation, organization setup, and role assignment into a single flow, CRM Mind provides a seamless experience that gets users up and running quickly while maintaining proper security and access controls.

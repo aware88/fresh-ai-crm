@@ -1,7 +1,7 @@
 # Role-Based Access Control (RBAC) System
 
 ## Overview
-This document provides an overview of the RBAC implementation in the Fresh AI CRM system. The RBAC system controls access to resources based on the roles assigned to users.
+This document provides an overview of the RBAC implementation in the CRM Mind system. The RBAC system controls access to resources based on the roles assigned to users.
 
 ## Database Schema
 

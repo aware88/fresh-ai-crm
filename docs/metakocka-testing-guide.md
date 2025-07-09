@@ -18,8 +18,8 @@ Before running the tests, ensure you have:
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/aware88/fresh-ai-crm.git
-cd fresh-ai-crm
+git clone https://github.com/aware88/crm-mind.git
+cd crm-mind
 npm install
 ```
 
@@ -36,7 +36,7 @@ cp product-sync-test.env.sample .env
 ### 3. Start the Application Server
 
 ```bash
-cd /path/to/fresh-ai-crm
+cd /path/to/crm-mind
 npm run dev
 ```
 

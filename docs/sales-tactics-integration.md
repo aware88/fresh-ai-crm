@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document outlines the integration of the `sales_tactics` dataset into the Fresh AI CRM backend's AI email response system. The integration enhances AI-generated emails with psychologically informed sales tactics based on personality profiles and email content.
+This document outlines the integration of the `sales_tactics` dataset into the CRM Mind backend's AI email response system. The integration enhances AI-generated emails with psychologically informed sales tactics based on personality profiles and email content.
 
 ## Components
 

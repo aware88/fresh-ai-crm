@@ -10,7 +10,7 @@
 1. **Clone the repository**
    ```bash
    git clone <repository-url>
-   cd fresh-ai-crm
+   cd crm-mind
    ```
 
 2. **Install dependencies**

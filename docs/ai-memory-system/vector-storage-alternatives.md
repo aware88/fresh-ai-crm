@@ -2,7 +2,7 @@
 
 ## Current Implementation
 
-The Fresh AI CRM currently uses a PostgreSQL-based solution for storing and retrieving vector embeddings:
+The CRM Mind currently uses a PostgreSQL-based solution for storing and retrieving vector embeddings:
 
 - Embeddings are stored as JSON arrays in the `embedding_json` column
 - Cosine similarity is calculated using either:
@@ -111,4 +111,4 @@ As the system grows, several limitations may become apparent:
 
 ## Conclusion
 
-The current JSON-based approach provides a viable solution for the immediate needs of the Fresh AI CRM. It will work well for small to medium datasets (hundreds to a few thousand memories) but will require optimization as the system scales. By following the recommended improvements and planning for future architecture changes, the AI Memory System can evolve to handle larger datasets while maintaining performance and reliability.
+The current JSON-based approach provides a viable solution for the immediate needs of the CRM Mind. It will work well for small to medium datasets (hundreds to a few thousand memories) but will require optimization as the system scales. By following the recommended improvements and planning for future architecture changes, the AI Memory System can evolve to handle larger datasets while maintaining performance and reliability.

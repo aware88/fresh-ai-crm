@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Fresh AI CRM notification system provides a comprehensive solution for delivering timely and relevant notifications to users through multiple channels. The system supports both in-app notifications and email notifications, with user-configurable preferences for each notification type.
+The CRM Mind notification system provides a comprehensive solution for delivering timely and relevant notifications to users through multiple channels. The system supports both in-app notifications and email notifications, with user-configurable preferences for each notification type.
 
 ## System Components
 

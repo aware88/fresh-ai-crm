@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Metakocka Outlook Email Client is a comprehensive replacement for Microsoft Outlook within the Fresh AI CRM system. This implementation provides a seamless email experience integrated with CRM data, enabling users to manage all their email communication without leaving the CRM environment.
+The Metakocka Outlook Email Client is a comprehensive replacement for Microsoft Outlook within the CRM Mind system. This implementation provides a seamless email experience integrated with CRM data, enabling users to manage all their email communication without leaving the CRM environment.
 
 ## Features
 
@@ -120,7 +120,7 @@ npm test -- -t "Email Client"
 
 ## Contributors
 
-- Fresh AI CRM Development Team
+- CRM Mind Development Team
 
 ## License
 

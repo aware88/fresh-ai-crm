@@ -2,7 +2,7 @@
 
 ## Introduction
 
-This technical guide provides detailed information on how to implement, integrate with, and extend the AI Memory System within the Fresh AI CRM platform. It's intended for developers who need to work with the memory system or build features that leverage its capabilities.
+This technical guide provides detailed information on how to implement, integrate with, and extend the AI Memory System within the CRM Mind platform. It's intended for developers who need to work with the memory system or build features that leverage its capabilities.
 
 ## System Architecture
 
@@ -441,4 +441,4 @@ private debug(message: string, data?: any) {
 
 ## Conclusion
 
-The AI Memory System provides a powerful foundation for building intelligent, learning AI features in the Fresh AI CRM. By following this implementation guide, you can effectively integrate with and extend the system to create increasingly personalized and effective AI experiences.
+The AI Memory System provides a powerful foundation for building intelligent, learning AI features in the CRM Mind. By following this implementation guide, you can effectively integrate with and extend the system to create increasingly personalized and effective AI experiences.

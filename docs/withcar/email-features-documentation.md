@@ -1,6 +1,6 @@
 # Metakocka Outlook Email Client Documentation
 
-This document provides comprehensive documentation for the Metakocka Outlook replacement email client implemented within Fresh AI CRM. The implementation spans four sprints, each focusing on specific feature sets to create a complete email solution that fully replaces Outlook for users within the CRM.
+This document provides comprehensive documentation for the Metakocka Outlook replacement email client implemented within CRM Mind. The implementation spans four sprints, each focusing on specific feature sets to create a complete email solution that fully replaces Outlook for users within the CRM.
 
 ## Table of Contents
 
@@ -15,7 +15,7 @@ This document provides comprehensive documentation for the Metakocka Outlook rep
 
 ## Overview
 
-The Metakocka Outlook replacement email client is a comprehensive solution that integrates directly with Microsoft Graph API to provide a full-featured email experience within the Fresh AI CRM. The client supports all essential email functionality while adding CRM-specific features like contact enrichment, sales document linking, and AI-powered assistance.
+The Metakocka Outlook replacement email client is a comprehensive solution that integrates directly with Microsoft Graph API to provide a full-featured email experience within the CRM Mind. The client supports all essential email functionality while adding CRM-specific features like contact enrichment, sales document linking, and AI-powered assistance.
 
 ### Key Features
 

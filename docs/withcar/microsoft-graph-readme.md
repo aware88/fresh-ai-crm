@@ -1,8 +1,8 @@
-# Microsoft Graph Integration for Fresh AI CRM
+# Microsoft Graph Integration for CRM Mind
 
 ## Overview
 
-This document provides a comprehensive guide to the Microsoft Graph API integration implemented in Fresh AI CRM. The integration enables users to access and manage their Microsoft 365 resources (email, calendar, contacts) directly within the CRM, creating a seamless experience that eliminates the need to switch between applications.
+This document provides a comprehensive guide to the Microsoft Graph API integration implemented in CRM Mind. The integration enables users to access and manage their Microsoft 365 resources (email, calendar, contacts) directly within the CRM, creating a seamless experience that eliminates the need to switch between applications.
 
 ## Features
 

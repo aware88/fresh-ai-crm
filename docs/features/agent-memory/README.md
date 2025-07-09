@@ -1,7 +1,7 @@
 # Agent Memory System
 
 ## Overview
-The Agent Memory System enables Fresh AI CRM agents to maintain context across conversations, remember important details, and provide more personalized interactions with contacts.
+The Agent Memory System enables CRM Mind agents to maintain context across conversations, remember important details, and provide more personalized interactions with contacts.
 
 ## Features
 
@@ -18,6 +18,15 @@ The Agent Memory System enables Fresh AI CRM agents to maintain context across c
 ### 3. Analytics
 - Memory usage statistics
 - Contact memory insights
+
+## Database Integration
+The Agent Memory System uses PostgreSQL with Supabase as the database backend. For detailed information about database setup, schema, and maintenance, see the [Database Documentation](./DATABASE.md).
+
+Key database features:
+- Row-level security for data protection
+- Efficient indexing for fast memory retrieval
+- Support for vector similarity search
+- Automated migrations
 - Performance metrics
 
 ## Database Schema

@@ -1,8 +1,8 @@
-# Metakocka & Outlook Integration Plan for Fresh AI CRM
+# Metakocka & Outlook Integration Plan for CRM Mind
 
 ## Overview
 
-This document outlines the implementation plan for enhancing Fresh AI CRM with comprehensive Metakocka integration and creating a full-featured email client to replace Outlook.
+This document outlines the implementation plan for enhancing CRM Mind with comprehensive Metakocka integration and creating a full-featured email client to replace Outlook.
 
 ## Current Implementation Status
 

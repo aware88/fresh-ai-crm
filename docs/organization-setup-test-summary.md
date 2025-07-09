@@ -49,7 +49,7 @@ This test provides a quick way to verify the setup from the user's perspective w
 
 ### Prerequisites
 
-- Running Fresh AI CRM application
+- Running CRM Mind application
 - Configured environment variables:
   - `NEXT_PUBLIC_SUPABASE_URL`
   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`

@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document details the technical implementation of the streamlined organization setup process in Fresh AI CRM. It covers the code changes, API endpoints, and integration points required to support both individual users and organization-based multi-tenant usage.
+This document details the technical implementation of the streamlined organization setup process in CRM Mind. It covers the code changes, API endpoints, and integration points required to support both individual users and organization-based multi-tenant usage.
 
 ## Architecture Components
 
@@ -249,7 +249,7 @@ During organization creation, the selected subscription plan is assigned to the 
 
 ## Multi-tenant Data Isolation
 
-The Fresh AI CRM system maintains strict multi-tenant data isolation through:
+The CRM Mind system maintains strict multi-tenant data isolation through:
 
 1. **Row-Level Security (RLS)**: Database policies that restrict data access based on user and organization
 2. **Organization Context**: API endpoints include organization context in requests
@@ -284,4 +284,4 @@ Potential future enhancements to the organization setup process include:
 
 ## Conclusion
 
-The streamlined organization setup implementation provides a seamless experience for users to create and manage organizations within Fresh AI CRM. By integrating user creation, organization setup, and role assignment into a single flow, the system reduces friction and improves the onboarding experience while maintaining proper security and access controls.
+The streamlined organization setup implementation provides a seamless experience for users to create and manage organizations within CRM Mind. By integrating user creation, organization setup, and role assignment into a single flow, the system reduces friction and improves the onboarding experience while maintaining proper security and access controls.

@@ -2,7 +2,7 @@
 
 ## Introduction
 
-The AI Memory System is a core component of the Fresh AI CRM's intelligent agent infrastructure. It enables AI agents to store, retrieve, and learn from past interactions and decisions, creating a continuously improving system that delivers increasingly personalized and effective assistance over time.
+The AI Memory System is a core component of the CRM Mind's intelligent agent infrastructure. It enables AI agents to store, retrieve, and learn from past interactions and decisions, creating a continuously improving system that delivers increasingly personalized and effective assistance over time.
 
 Unlike simple data storage, this system is designed to facilitate true learning by:
 

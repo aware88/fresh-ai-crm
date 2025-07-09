@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document provides detailed information about the API endpoints available in the AI Memory System. These endpoints allow you to store, search, connect, and manage AI memories within the Fresh AI CRM platform.
+This document provides detailed information about the API endpoints available in the AI Memory System. These endpoints allow you to store, search, connect, and manage AI memories within the CRM Mind platform.
 
 ## Authentication
 
