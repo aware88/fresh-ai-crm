@@ -3,7 +3,7 @@
 /**
  * Bulk Nutrition Logo Upload Script
  * 
- * This script uploads a logo for the Bulk Nutrition organization in the Fresh AI CRM system.
+ * This script uploads a logo for the Bulk Nutrition organization in the CRM Mind system.
  * It handles file upload to your storage provider and updates the organization's branding.
  * 
  * Usage:

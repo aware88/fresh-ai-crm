@@ -1,7 +1,7 @@
 {
-  "name": "fresh-ai-crm-tests",
+  "name": "crm-mind-tests",
   "version": "1.0.0",
-  "description": "Tests for Fresh AI CRM",
+  "description": "Tests for CRM Mind",
   "type": "module",
   "scripts": {
     "test": "node organization-setup-test.mjs"

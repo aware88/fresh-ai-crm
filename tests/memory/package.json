@@ -1,7 +1,7 @@
 {
   "name": "memory-tests",
   "version": "1.0.0",
-  "description": "Tests for the Fresh AI CRM memory integration",
+  "description": "Tests for the CRM Mind memory integration",
   "type": "module",
   "scripts": {
     "test": "node test-agent-memory-integration.js",

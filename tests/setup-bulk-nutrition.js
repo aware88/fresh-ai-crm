@@ -3,7 +3,7 @@
 /**
  * Bulk Nutrition Organization Setup Script
  * 
- * This script sets up the Bulk Nutrition organization in the Fresh AI CRM system.
+ * This script sets up the Bulk Nutrition organization in the CRM Mind system.
  * It creates the organization, configures branding, sets up subscription, and creates an admin user.
  * 
  * Usage:

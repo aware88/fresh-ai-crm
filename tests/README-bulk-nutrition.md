@@ -1,12 +1,12 @@
 # Bulk Nutrition Organization Setup
 
-This directory contains scripts to set up and verify the Bulk Nutrition organization in the Fresh AI CRM system. These scripts help you create the organization, configure branding, set up an admin user, and verify RBAC policies.
+This directory contains scripts to set up and verify the Bulk Nutrition organization in the CRM Mind system. These scripts help you create the organization, configure branding, set up an admin user, and verify RBAC policies.
 
 ## Prerequisites
 
 Before running these scripts, make sure you have:
 
-1. A running instance of the Fresh AI CRM application
+1. A running instance of the CRM Mind application
 2. An admin user with appropriate permissions
 3. The Bulk Nutrition logo file (PNG format)
 4. Node.js and npm installed
@@ -145,7 +145,7 @@ If admin user creation fails:
 
 ## Multi-Tenant Architecture
 
-The Fresh AI CRM system uses a multi-tenant architecture with the following characteristics:
+The CRM Mind system uses a multi-tenant architecture with the following characteristics:
 
 1. **Data Isolation**: Organizations are isolated by `organization_id`
 2. **RBAC System**: Users have roles and permissions within organizations

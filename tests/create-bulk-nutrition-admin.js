@@ -3,7 +3,7 @@
 /**
  * Bulk Nutrition Admin User Creation Script
  * 
- * This script creates an admin user for the Bulk Nutrition organization in the Fresh AI CRM system.
+ * This script creates an admin user for the Bulk Nutrition organization in the CRM Mind system.
  * It assigns the appropriate roles and permissions to the user.
  * 
  * Usage:
