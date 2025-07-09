@@ -11,7 +11,49 @@
 require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
+const https = require('https');
 const { createClient } = require('@supabase/supabase-js');
+
+// Helper function for making HTTP requests
+function makeHttpRequest(url, options, data) {
+  return new Promise((resolve, reject) => {
+    const req = https.request(url, options, (res) => {
+      let responseData = '';
+      
+      res.on('data', (chunk) => {
+        responseData += chunk;
+      });
+      
+      res.on('end', () => {
+        if (res.statusCode >= 200 && res.statusCode < 300) {
+          try {
+            const parsedData = JSON.parse(responseData);
+            resolve({ ok: true, data: parsedData });
+          } catch (e) {
+            resolve({ ok: true, data: responseData });
+          }
+        } else {
+          reject({
+            ok: false,
+            status: res.statusCode,
+            statusText: res.statusMessage,
+            data: responseData
+          });
+        }
+      });
+    });
+    
+    req.on('error', (error) => {
+      reject(error);
+    });
+    
+    if (data) {
+      req.write(JSON.stringify(data));
+    }
+    
+    req.end();
+  });
+}
 
 // Configure Supabase client
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -37,20 +79,45 @@ async function applyMigrations() {
   
   for (const migrationFile of migrationFiles) {
     try {
-      console.log(`\n📄 Processing migration: ${migrationFile}`);
+      console.log(`\n📝 Processing migration: ${migrationFile}`);
       
       // Read migration file
       const filePath = path.join(process.cwd(), migrationFile);
       const sql = fs.readFileSync(filePath, 'utf8');
       
-      // Execute SQL
+      // Execute SQL directly
       console.log('⚙️ Executing SQL...');
-      const { error } = await supabase.rpc('exec_sql', { sql });
       
-      if (error) {
-        console.error(`❌ Error applying migration ${migrationFile}:`);
-        console.error(error);
-        process.exit(1);
+      try {
+        // Try using the Supabase SQL method (available in newer versions)
+        await supabase.sql(sql);
+      } catch (sqlError) {
+        console.log('⚠️ Direct SQL execution failed, trying alternative method...');
+        
+        try {
+          // Try using the REST API
+          const urlObj = new URL(`${supabaseUrl}/rest/v1/sql`);
+          const response = await makeHttpRequest(urlObj, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'apikey': supabaseServiceKey,
+              'Authorization': `Bearer ${supabaseServiceKey}`,
+              'Prefer': 'params=single-object'
+            }
+          }, { query: sql });
+          
+          if (!response.ok) {
+            throw new Error(`Failed with status: ${response.status}, ${response.data}`);
+          }
+        } catch (restError) {
+          console.error(`❌ Error applying migration ${migrationFile} via REST API:`);
+          console.error(restError);
+          console.error('\nPlease run the migrations manually using the Supabase dashboard SQL editor.');
+          console.error('\nSQL to run:\n');
+          console.error(sql);
+          process.exit(1);
+        }
       }
       
       console.log(`✅ Successfully applied migration: ${migrationFile}`);
@@ -80,31 +147,57 @@ async function createExecSqlFunction() {
     $$;
   `;
   
-  const { error } = await supabase.rpc('exec_sql', { 
-    sql: createFunctionSql 
-  }).catch(() => {
-    // If the function doesn't exist yet, create it directly
-    return supabase.from('_exec_sql_temp').rpc('exec_sql_direct', {
-      sql: createFunctionSql
-    });
-  });
-  
-  if (error) {
-    console.log('Creating exec_sql function directly...');
-    // Try direct SQL execution as a fallback
-    const { error: directError } = await supabase.from('_dummy').select('*').limit(1).then(
-      async () => {
-        return await supabase.from('_dummy').rpc('exec_sql_direct', {
-          sql: createFunctionSql
-        });
-      }
-    );
+  try {
+    // Try to execute the SQL directly
+    const { data, error } = await supabase.from('_dummy').select('*').limit(1).execute();
     
-    if (directError) {
-      console.error('❌ Failed to create exec_sql function:');
-      console.error(directError);
-      console.error('\nPlease run the migrations manually using the Supabase dashboard SQL editor.');
-      process.exit(1);
+    if (error) {
+      throw new Error('Failed to connect to database');
+    }
+    
+    // Create the function using raw SQL
+    const result = await supabase.from('_dummy').select('*').limit(1).execute();
+    await supabase.sql(createFunctionSql);
+    console.log('✅ exec_sql function created successfully');
+    return;
+  } catch (initialError) {
+    console.log('⚠️ Initial approach failed, trying alternative method...');
+    console.log(initialError.message);
+    
+    try {
+      // Try using the REST API approach
+      const urlObj = new URL(`${supabaseUrl}/rest/v1/rpc/exec_sql`);
+      const response = await makeHttpRequest(urlObj, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': supabaseServiceKey,
+          'Authorization': `Bearer ${supabaseServiceKey}`
+        }
+      }, { sql: createFunctionSql });
+      
+      if (!response.ok) {
+        throw new Error(`Failed with status: ${response.status}`);
+      }
+      
+      console.log('✅ exec_sql function created successfully via REST API');
+      return;
+    } catch (restError) {
+      console.log('⚠️ REST API approach failed, trying direct SQL execution...');
+      
+      try {
+        // Final attempt - direct SQL execution via dashboard
+        console.log('Creating exec_sql function directly...');
+        console.error('\nPlease run the following SQL in the Supabase dashboard SQL editor:');
+        console.error('\n' + createFunctionSql + '\n');
+        console.error('Then run this script again.');
+        process.exit(1);
+      } catch (finalError) {
+        console.error('❌ Failed to create exec_sql function:');
+        console.error(finalError);
+        console.error('\nPlease run the migrations manually using the Supabase dashboard SQL editor.');
+        process.exit(1);
+      }
     }
   }
   
