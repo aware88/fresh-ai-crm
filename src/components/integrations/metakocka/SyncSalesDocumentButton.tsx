@@ -24,36 +24,53 @@ export function SyncSalesDocumentButton({
 }: SyncSalesDocumentButtonProps) {
   const [isSynced, setIsSynced] = useState<boolean | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isCheckingStatus, setIsCheckingStatus] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [tooltipText, setTooltipText] = useState<string>('Sync to Metakocka');
   const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
+  const [metakockaId, setMetakockaId] = useState<string | null>(null);
   const { toast } = useToast();
 
   // Fetch initial sync status
   useEffect(() => {
     const fetchSyncStatus = async () => {
+      if (!documentId) return;
+      
+      setIsCheckingStatus(true);
       try {
         const response = await getSalesDocumentSyncStatus(documentId);
-        setIsSynced(response.synced);
+        setIsSynced(response.data?.synced || false);
         
-        if (response.synced && response.mapping) {
-          const lastSynced = new Date(response.mapping.lastSyncedAt).toLocaleString();
-          setLastSyncTime(lastSynced);
-          setTooltipText(`Last synced: ${lastSynced}`);
+        if (response.data?.synced && response.data?.mapping) {
+          const mapping = response.data.mapping;
+          setMetakockaId(mapping.metakockaId);
           
-          if (response.mapping.syncStatus === 'error') {
-            setError(response.mapping.syncError || 'Sync error');
-            setTooltipText(`Sync failed: ${formatErrorMessage(response.mapping.syncError)}`);
+          const lastSynced = new Date(mapping.lastSyncedAt).toLocaleString();
+          setLastSyncTime(lastSynced);
+          setTooltipText(`Last synced: ${lastSynced}\nMetakocka ID: ${mapping.metakockaId}`);
+          
+          if (mapping.syncStatus === 'error') {
+            setError(mapping.syncError || 'Sync error');
+            setTooltipText(`Sync failed: ${formatErrorMessage(mapping.syncError)}`);
           }
+        } else {
+          setTooltipText('Not yet synced to Metakocka');
         }
       } catch (err) {
         console.error('Error fetching sync status:', err);
-        setError('Failed to check sync status');
+        setError(err instanceof Error ? err.message : 'Failed to check sync status');
         setTooltipText('Unable to check sync status');
+      } finally {
+        setIsCheckingStatus(false);
       }
     };
 
     fetchSyncStatus();
+    
+    // Set up periodic refresh (every 2 minutes)
+    const refreshInterval = setInterval(fetchSyncStatus, 120000);
+    
+    return () => clearInterval(refreshInterval);
   }, [documentId]);
   
   // Format error messages to be more user-friendly
@@ -69,15 +86,24 @@ export function SyncSalesDocumentButton({
   };
 
   const handleSync = async () => {
+    if (!documentId) return;
+    
     setIsLoading(true);
     setError(null);
     
     try {
-      await syncSalesDocument(documentId);
+      const result = await syncSalesDocument(documentId);
       const currentTime = new Date().toLocaleString();
       setIsSynced(true);
       setLastSyncTime(currentTime);
-      setTooltipText(`Last synced: ${currentTime}`);
+      
+      // Store the Metakocka ID from the response
+      if (result.data?.metakockaId) {
+        setMetakockaId(result.data.metakockaId);
+        setTooltipText(`Last synced: ${currentTime}\nMetakocka ID: ${result.data.metakockaId}`);
+      } else {
+        setTooltipText(`Last synced: ${currentTime}`);
+      }
       
       // Show success toast
       toast({
@@ -92,17 +118,32 @@ export function SyncSalesDocumentButton({
       const errorMessage = err instanceof Error ? err.message : 'Failed to sync document';
       setError(errorMessage);
       setTooltipText(`Sync failed: ${formatErrorMessage(errorMessage)}`);
+      setIsSynced(false);
       
-      // Show error toast
+      // Show error toast with retry button
       toast({
         title: "Sync failed",
         description: errorMessage,
         variant: "destructive",
+        action: <Button size="sm" variant="outline" onClick={handleSync}>Retry</Button>
       });
       
       if (onSyncComplete) onSyncComplete(false);
     } finally {
       setIsLoading(false);
+      
+      // Refresh sync status after a short delay
+      setTimeout(async () => {
+        try {
+          const response = await getSalesDocumentSyncStatus(documentId);
+          setIsSynced(response.data?.synced || false);
+          if (response.data?.mapping?.metakockaId) {
+            setMetakockaId(response.data.mapping.metakockaId);
+          }
+        } catch (err) {
+          console.error('Error refreshing sync status:', err);
+        }
+      }, 2000);
     }
   };
 
@@ -110,6 +151,10 @@ export function SyncSalesDocumentButton({
   const getButtonContent = () => {
     if (isLoading) {
       return <Loader2 className="h-4 w-4 animate-spin" />;
+    }
+    
+    if (isCheckingStatus) {
+      return <Loader2 className="h-4 w-4 animate-spin opacity-50" />;
     }
     
     if (error) {
@@ -130,8 +175,9 @@ export function SyncSalesDocumentButton({
         size={size}
         className={`${className} ${isSynced && !error ? 'hover:bg-green-600/90' : ''}`}
         onClick={handleSync}
-        disabled={isLoading}
+        disabled={isLoading || isCheckingStatus}
         aria-label={`Sync document to Metakocka${lastSyncTime ? ` (last synced: ${lastSyncTime})` : ''}`}
+        title={metakockaId ? `Metakocka ID: ${metakockaId}` : undefined}
       >
         {getButtonContent()}
       </Button>

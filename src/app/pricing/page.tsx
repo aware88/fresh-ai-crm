@@ -1,7 +1,7 @@
 import PricingPlans from '@/components/subscription/PricingPlans';
 
 export const metadata = {
-  title: 'Pricing - CRM Mind',
+  title: 'Pricing - ARIS',
   description: 'Choose the right plan for your business with our flexible pricing options.',
 };
 

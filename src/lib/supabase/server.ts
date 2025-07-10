@@ -1,29 +1,34 @@
-import { createClient as createSupabaseClient } from '@supabase/supabase-js';
-import { cookies } from 'next/headers';
-import { createServerClient as createServerClientBase } from '@supabase/ssr';
+import { createClient } from '@supabase/supabase-js';
 import { Database } from '../../types/supabase';
+import type { CookieOptions } from '@supabase/ssr';
 
 /**
- * Create a Supabase client for use in server components
+ * Create a Supabase client for use in server-side code
+ * This version works in both app/ directory and pages/ directory
  */
-export const createServerClient = async () => {
-  const cookieStore = await cookies();
-
-  return createServerClientBase<Database>(
+export const createServerClient = () => {
+  // Simple direct client creation without cookie integration
+  // This approach works in both app/ directory and pages/ directory contexts
+  return createClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value;
-        },
-        set(name: string, value: string, options: any) {
-          cookieStore.set({ name, value, ...options });
-        },
-        remove(name: string, options: any) {
-          cookieStore.set({ name, value: '', ...options });
-        },
-      },
-    }
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
+};
+
+/**
+ * Helper to extract cookies from various contexts
+ * For compatibility with server actions, API routes, etc.
+ */
+export const getSupabaseServerCookies = (req: any) => {
+  // If req has cookies property (like in API routes), use it
+  if (req?.cookies) {
+    return req.cookies;
+  }
+  
+  // For other contexts, return empty implementation
+  return {
+    get: (name: string) => undefined,
+    set: (name: string, value: string, options: CookieOptions) => {},
+    remove: (name: string, options: CookieOptions) => {}
+  };
 };

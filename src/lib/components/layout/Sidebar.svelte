@@ -38,8 +38,8 @@
 <aside class="sidebar">
   <div class="sidebar-header">
     <div class="logo">
-      <img src="/logo.svg" alt="CRM Mind" />
-      <span>CRM Mind</span>
+      <img src="/logo.svg" alt="ARIS" />
+      <span>ARIS</span>
     </div>
   </div>
   

@@ -30,7 +30,7 @@ import {
   Badge,
   Tooltip
 } from '@chakra-ui/react';
-import { InfoIcon } from '@chakra-ui/icons';
+import { InfoIcon } from '@/components/icons/ChakraIcons';
 
 interface AgentSetting {
   id: string;

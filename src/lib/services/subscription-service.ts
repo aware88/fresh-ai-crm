@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabaseClient';
+import { createServerClient } from '@/lib/supabase/server';
 import { PostgrestError } from '@supabase/supabase-js';
 
 export type SubscriptionPlan = {
@@ -42,12 +42,50 @@ export type SubscriptionInvoice = {
   updated_at: string;
 };
 
+// Define Stripe types for webhook events
+type StripeCheckoutSession = {
+  id: string;
+  client_reference_id?: string;
+  customer?: string;
+  subscription?: string;
+  payment_status?: string;
+  metadata?: Record<string, string>;
+};
+
+type StripeSubscription = {
+  id: string;
+  customer: string;
+  status: string;
+  current_period_start: number;
+  current_period_end: number;
+  items: {
+    data: Array<{
+      price: {
+        id: string;
+        product: string;
+      };
+    }>;
+  };
+  metadata?: Record<string, string>;
+};
+
+type StripeInvoice = {
+  id: string;
+  customer: string;
+  subscription?: string;
+  status: string;
+  amount_paid: number;
+  hosted_invoice_url?: string;
+  invoice_pdf?: string;
+  payment_intent?: string;
+};
+
 export class SubscriptionService {
   /**
    * Get all subscription plans
    */
   async getSubscriptionPlans(): Promise<{ data: SubscriptionPlan[] | null; error: PostgrestError | null }> {
-    const supabase = createClient();
+    const supabase = await createServerClient();
     
     const { data, error } = await supabase
       .from('subscription_plans')
@@ -62,7 +100,7 @@ export class SubscriptionService {
    * Get a specific subscription plan by ID
    */
   async getSubscriptionPlanById(id: string): Promise<{ data: SubscriptionPlan | null; error: PostgrestError | null }> {
-    const supabase = createClient();
+    const supabase = await createServerClient();
     
     const { data, error } = await supabase
       .from('subscription_plans')
@@ -77,7 +115,7 @@ export class SubscriptionService {
    * Get an organization's current subscription
    */
   async getOrganizationSubscription(organizationId: string): Promise<{ data: OrganizationSubscription | null; error: PostgrestError | null }> {
-    const supabase = createClient();
+    const supabase = await createServerClient();
     
     const { data, error } = await supabase
       .from('organization_subscriptions')
@@ -94,7 +132,7 @@ export class SubscriptionService {
    * Get a subscription by its ID
    */
   async getSubscriptionById(subscriptionId: string): Promise<{ data: OrganizationSubscription | null; error: PostgrestError | null }> {
-    const supabase = createClient();
+    const supabase = await createServerClient();
     
     const { data, error } = await supabase
       .from('organization_subscriptions')
@@ -109,7 +147,7 @@ export class SubscriptionService {
    * Get subscription plan details for an organization
    */
   async getOrganizationSubscriptionPlan(organizationId: string): Promise<{ data: SubscriptionPlan | null; error: PostgrestError | null }> {
-    const supabase = createClient();
+    const supabase = await createServerClient();
     
     const { data: subscription, error: subscriptionError } = await this.getOrganizationSubscription(organizationId);
     
@@ -132,7 +170,7 @@ export class SubscriptionService {
     periodStart: Date = new Date(),
     periodEnd: Date = new Date(new Date().setMonth(new Date().getMonth() + 1))
   ): Promise<{ data: OrganizationSubscription | null; error: PostgrestError | null }> {
-    const supabase = createClient();
+    const supabase = await createServerClient();
     
     const { data, error } = await supabase
       .from('organization_subscriptions')
@@ -157,7 +195,7 @@ export class SubscriptionService {
     subscriptionId: string,
     updates: Partial<OrganizationSubscription>
   ): Promise<{ data: OrganizationSubscription | null; error: PostgrestError | null }> {
-    const supabase = createClient();
+    const supabase = await createServerClient();
     
     const { data, error } = await supabase
       .from('organization_subscriptions')
@@ -185,7 +223,7 @@ export class SubscriptionService {
    * Get invoices for an organization
    */
   async getOrganizationInvoices(organizationId: string): Promise<{ data: SubscriptionInvoice[] | null; error: PostgrestError | null }> {
-    const supabase = createClient();
+    const supabase = await createServerClient();
     
     const { data, error } = await supabase
       .from('subscription_invoices')
@@ -206,7 +244,7 @@ export class SubscriptionService {
     status: SubscriptionInvoice['status'] = 'unpaid',
     dueDate: Date = new Date(new Date().setDate(new Date().getDate() + 7))
   ): Promise<{ data: SubscriptionInvoice | null; error: PostgrestError | null }> {
-    const supabase = createClient();
+    const supabase = await createServerClient();
     
     const { data, error } = await supabase
       .from('subscription_invoices')
@@ -230,7 +268,7 @@ export class SubscriptionService {
     invoiceId: string,
     updates: Partial<SubscriptionInvoice>
   ): Promise<{ data: SubscriptionInvoice | null; error: PostgrestError | null }> {
-    const supabase = createClient();
+    const supabase = await createServerClient();
     
     const { data, error } = await supabase
       .from('subscription_invoices')
@@ -335,6 +373,275 @@ export class SubscriptionService {
         }, 
         error: error as PostgrestError 
       };
+    }
+  }
+
+  /**
+   * Handle checkout session completed event from Stripe
+   * @param organizationId The organization ID
+   * @param session The Stripe checkout session object
+   */
+  async handleCheckoutCompleted(organizationId: string, session: StripeCheckoutSession): Promise<{ success: boolean; error?: any }> {
+    try {
+      const supabase = await createServerClient();
+      
+      // Get the subscription ID from the session
+      const subscriptionId = session.subscription;
+      
+      if (!subscriptionId) {
+        console.error('No subscription ID in checkout session');
+        return { success: false, error: 'No subscription ID in checkout session' };
+      }
+      
+      // Find the price ID from the session metadata or items
+      let priceId = session.metadata?.price_id;
+      
+      // Find the corresponding plan in our database
+      const { data: plans, error: plansError } = await supabase
+        .from('subscription_plans')
+        .select('*')
+        .eq('is_active', true);
+      
+      if (plansError || !plans || plans.length === 0) {
+        console.error('Error fetching subscription plans:', plansError);
+        return { success: false, error: plansError };
+      }
+      
+      // Find the matching plan by Stripe price ID
+      const plan = plans.find(p => p.stripe_price_id === priceId);
+      
+      if (!plan) {
+        console.error('No matching plan found for price ID:', priceId);
+        return { success: false, error: 'No matching plan found' };
+      }
+      
+      // Create or update the subscription record
+      const { data: subscription, error: subscriptionError } = await supabase
+        .from('organization_subscriptions')
+        .upsert({
+          organization_id: organizationId,
+          subscription_plan_id: plan.id,
+          status: 'active',
+          current_period_start: new Date().toISOString(),
+          current_period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // Placeholder until we get the actual period end
+          cancel_at_period_end: false,
+          provider_subscription_id: subscriptionId,
+          provider_customer_id: session.customer,
+          subscription_provider: 'stripe',
+          metadata: {
+            checkout_session_id: session.id
+          },
+          updated_at: new Date().toISOString()
+        })
+        .select()
+        .single();
+      
+      if (subscriptionError) {
+        console.error('Error creating/updating subscription:', subscriptionError);
+        return { success: false, error: subscriptionError };
+      }
+      
+      return { success: true };
+    } catch (error) {
+      console.error('Error handling checkout completed:', error);
+      return { success: false, error };
+    }
+  }
+
+  /**
+   * Handle subscription created event from Stripe
+   * @param organizationId The organization ID
+   * @param subscription The Stripe subscription object
+   */
+  async handleSubscriptionCreated(organizationId: string, subscription: StripeSubscription): Promise<{ success: boolean; error?: any }> {
+    try {
+      const supabase = await createServerClient();
+      
+      // Get the price ID from the subscription
+      const priceId = subscription.items.data[0]?.price.id;
+      
+      if (!priceId) {
+        console.error('No price ID in subscription');
+        return { success: false, error: 'No price ID in subscription' };
+      }
+      
+      // Find the corresponding plan in our database
+      const { data: plans, error: plansError } = await supabase
+        .from('subscription_plans')
+        .select('*')
+        .eq('is_active', true);
+      
+      if (plansError || !plans || plans.length === 0) {
+        console.error('Error fetching subscription plans:', plansError);
+        return { success: false, error: plansError };
+      }
+      
+      // Find the matching plan by Stripe price ID
+      const plan = plans.find(p => p.stripe_price_id === priceId);
+      
+      if (!plan) {
+        console.error('No matching plan found for price ID:', priceId);
+        return { success: false, error: 'No matching plan found' };
+      }
+      
+      // Update the subscription record
+      const { data: updatedSubscription, error: subscriptionError } = await supabase
+        .from('organization_subscriptions')
+        .update({
+          subscription_plan_id: plan.id,
+          status: subscription.status === 'active' ? 'active' : 'incomplete',
+          current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
+          current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .eq('organization_id', organizationId)
+        .eq('provider_subscription_id', subscription.id)
+        .select()
+        .single();
+      
+      if (subscriptionError) {
+        console.error('Error updating subscription:', subscriptionError);
+        return { success: false, error: subscriptionError };
+      }
+      
+      return { success: true };
+    } catch (error) {
+      console.error('Error handling subscription created:', error);
+      return { success: false, error };
+    }
+  }
+
+  /**
+   * Handle subscription updated event from Stripe
+   * @param organizationId The organization ID
+   * @param subscription The Stripe subscription object
+   */
+  async handleSubscriptionUpdated(organizationId: string, subscription: StripeSubscription): Promise<{ success: boolean; error?: any }> {
+    try {
+      const supabase = await createServerClient();
+      
+      // Get the price ID from the subscription
+      const priceId = subscription.items.data[0]?.price.id;
+      
+      if (!priceId) {
+        console.error('No price ID in subscription');
+        return { success: false, error: 'No price ID in subscription' };
+      }
+      
+      // Find the corresponding plan in our database
+      const { data: plans, error: plansError } = await supabase
+        .from('subscription_plans')
+        .select('*')
+        .eq('is_active', true);
+      
+      if (plansError || !plans || plans.length === 0) {
+        console.error('Error fetching subscription plans:', plansError);
+        return { success: false, error: plansError };
+      }
+      
+      // Find the matching plan by Stripe price ID
+      const plan = plans.find(p => p.stripe_price_id === priceId);
+      
+      if (!plan) {
+        console.error('No matching plan found for price ID:', priceId);
+        return { success: false, error: 'No matching plan found' };
+      }
+      
+      // Map Stripe status to our status
+      let status = 'active';
+      if (subscription.status === 'incomplete' || subscription.status === 'incomplete_expired') {
+        status = 'incomplete';
+      } else if (subscription.status === 'past_due') {
+        status = 'past_due';
+      } else if (subscription.status === 'canceled') {
+        status = 'canceled';
+      } else if (subscription.status === 'trialing') {
+        status = 'trialing';
+      }
+      
+      // Update the subscription record
+      const { data: updatedSubscription, error: subscriptionError } = await supabase
+        .from('organization_subscriptions')
+        .update({
+          subscription_plan_id: plan.id,
+          status,
+          current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
+          current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .eq('organization_id', organizationId)
+        .eq('provider_subscription_id', subscription.id)
+        .select()
+        .single();
+      
+      if (subscriptionError) {
+        console.error('Error updating subscription:', subscriptionError);
+        return { success: false, error: subscriptionError };
+      }
+      
+      return { success: true };
+    } catch (error) {
+      console.error('Error handling subscription updated:', error);
+      return { success: false, error };
+    }
+  }
+
+  /**
+   * Record an invoice from Stripe
+   * @param organizationId The organization ID
+   * @param invoice The Stripe invoice object
+   */
+  async recordInvoice(organizationId: string, invoice: StripeInvoice): Promise<{ success: boolean; error?: any }> {
+    try {
+      const supabase = await createServerClient();
+      
+      // Get the subscription ID
+      const subscriptionId = invoice.subscription;
+      
+      if (!subscriptionId) {
+        console.error('No subscription ID in invoice');
+        return { success: false, error: 'No subscription ID in invoice' };
+      }
+      
+      // Find our subscription record
+      const { data: subscription, error: subscriptionError } = await supabase
+        .from('organization_subscriptions')
+        .select('id')
+        .eq('organization_id', organizationId)
+        .eq('provider_subscription_id', subscriptionId)
+        .single();
+      
+      if (subscriptionError || !subscription) {
+        console.error('Error finding subscription:', subscriptionError);
+        return { success: false, error: subscriptionError || 'Subscription not found' };
+      }
+      
+      // Create or update the invoice record
+      const { data: invoiceRecord, error: invoiceError } = await supabase
+        .from('subscription_invoices')
+        .upsert({
+          organization_id: organizationId,
+          subscription_id: subscription.id,
+          amount: invoice.amount_paid / 100, // Convert from cents to dollars
+          status: invoice.status === 'paid' ? 'paid' : 'unpaid',
+          paid_at: invoice.status === 'paid' ? new Date().toISOString() : null,
+          invoice_url: invoice.hosted_invoice_url,
+          invoice_pdf: invoice.invoice_pdf,
+          provider_invoice_id: invoice.id,
+          updated_at: new Date().toISOString()
+        })
+        .select()
+        .single();
+      
+      if (invoiceError) {
+        console.error('Error creating/updating invoice:', invoiceError);
+        return { success: false, error: invoiceError };
+      }
+      
+      return { success: true };
+    } catch (error) {
+      console.error('Error recording invoice:', error);
+      return { success: false, error };
     }
   }
 }

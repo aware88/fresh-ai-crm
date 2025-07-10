@@ -6,7 +6,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Alert } from '@/components/ui/alert';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import OutlookClient from '@/components/email/outlook/OutlookClient';
+import ImapClient from '@/components/email/imap/ImapClient';
 import { FaEnvelope, FaRobot, FaSearch, FaSync, FaCog } from 'react-icons/fa';
 import Link from 'next/link';
 
@@ -16,8 +18,11 @@ export default function EmailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState('inbox');
+  const [outlookConnected, setOutlookConnected] = useState(false);
+  const [imapAccounts, setImapAccounts] = useState<any[]>([]);
+  const [selectedAccount, setSelectedAccount] = useState<string>('');
   
-  // Check if Outlook is connected
+  // Check if email accounts are connected (both Outlook and IMAP)
   useEffect(() => {
     async function checkConnection() {
       if (status === 'authenticated' && session?.user?.id) {
@@ -28,6 +33,20 @@ export default function EmailPage() {
           
           if (data.success) {
             setConnected(data.connected);
+            setOutlookConnected(data.outlookConnected);
+            setImapAccounts(data.imapAccounts || []);
+            
+            // If we have any accounts, set the active tab to inbox
+            if (data.connected) {
+              setActiveTab('inbox');
+              
+              // Set the selected account
+              if (data.imapAccounts && data.imapAccounts.length > 0) {
+                setSelectedAccount(`imap-${data.imapAccounts[0].id}`);
+              } else if (data.outlookConnected) {
+                setSelectedAccount('outlook');
+              }
+            }
           } else {
             setError(data.error || 'Failed to check connection status');
           }
@@ -81,9 +100,10 @@ export default function EmailPage() {
               <FaEnvelope className="mx-auto h-12 w-12 text-gray-400 mb-4" />
               <h2 className="text-2xl font-semibold mb-2">Connect your email account</h2>
               <p className="text-gray-600 mb-6 max-w-md mx-auto">
-                You need to connect your Outlook account to use the email features.
+                You need to connect an email account to use the email features.
+                You can connect Microsoft Outlook or any email account using IMAP.
               </p>
-              <Link href="/settings/email">
+              <Link href="/settings/email-accounts">
                 <Button size="lg" className="bg-blue-600 hover:bg-blue-700">
                   Go to Email Settings
                 </Button>
@@ -105,12 +125,31 @@ export default function EmailPage() {
           </p>
         </div>
         <div className="flex space-x-2">
-          <Link href="/settings/email">
+          <Link href="/settings/email-accounts">
             <Button variant="outline" size="sm">
               <FaCog className="mr-2" /> Email Settings
             </Button>
           </Link>
         </div>
+      </div>
+      
+      {/* Account selector */}
+      <div className="w-full max-w-xs">
+        <Select value={selectedAccount} onValueChange={setSelectedAccount}>
+          <SelectTrigger>
+            <SelectValue placeholder="Select an email account" />
+          </SelectTrigger>
+          <SelectContent>
+            {outlookConnected && (
+              <SelectItem value="outlook">Outlook ({session?.user?.email})</SelectItem>
+            )}
+            {imapAccounts.map((account) => (
+              <SelectItem key={account.id} value={`imap-${account.id}`}>
+                {account.email} (IMAP)
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
       
       <Tabs defaultValue="inbox" value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -132,10 +171,27 @@ export default function EmailPage() {
           <Card className="border-0 shadow-sm">
             <CardContent className="p-0">
               <div className="relative">
-                <OutlookClient 
-                  onAnalyzeEmail={handleAnalyzeEmail}
-                  onSalesAgent={handleSalesAgent}
-                />
+                {selectedAccount === 'outlook' && (
+                  <OutlookClient 
+                    onAnalyzeEmail={handleAnalyzeEmail}
+                    onSalesAgent={handleSalesAgent}
+                  />
+                )}
+                
+                {selectedAccount.startsWith('imap-') && (
+                  <ImapClient
+                    account={imapAccounts.find(acc => `imap-${acc.id}` === selectedAccount)}
+                    onAnalyzeEmail={handleAnalyzeEmail}
+                    onSalesAgent={handleSalesAgent}
+                  />
+                )}
+                
+                {!selectedAccount && (
+                  <div className="flex flex-col items-center justify-center h-64 text-gray-500">
+                    <FaEnvelope className="h-12 w-12 mb-4" />
+                    <p>Please select an email account above</p>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>

@@ -1,5 +1,8 @@
 /**
  * Client-side API functions for Metakocka sales document synchronization
+ * 
+ * These functions handle all API calls for bidirectional sync between CRM and Metakocka
+ * with comprehensive error handling, retry logic, and detailed logging.
  */
 
 /**
@@ -7,20 +10,30 @@
  * @param documentId Sales document ID
  * @returns Sync status response
  */
+/**
+ * Get sync status for a sales document
+ * @param documentId Sales document ID
+ * @returns Sync status response
+ */
 export async function getSalesDocumentSyncStatus(documentId: string) {
-  const response = await fetch(`/api/integrations/metakocka/sales-documents/sync?documentId=${documentId}`, {
-    method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  });
-  
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.message || 'Failed to get sales document sync status');
+  try {
+    const response = await fetch(`/api/integrations/metakocka/sales-documents/sync?documentId=${documentId}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ message: 'Invalid response' }));
+      throw new Error(errorData.message || errorData.error || `Failed to get sync status (${response.status})`);
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error('Error getting sales document sync status:', error);
+    throw error;
   }
-  
-  return response.json();
 }
 
 /**
@@ -28,20 +41,50 @@ export async function getSalesDocumentSyncStatus(documentId: string) {
  * @param documentIds Array of sales document IDs
  * @returns Sync status response with mappings
  */
+/**
+ * Get sync status for multiple sales documents
+ * @param documentIds Array of sales document IDs
+ * @returns Sync status response with mappings
+ */
 export async function getBulkSalesDocumentSyncStatus(documentIds: string[]) {
-  const response = await fetch(`/api/integrations/metakocka/sales-documents/sync?documentIds=${documentIds.join(',')}`, {
-    method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  });
-  
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.message || 'Failed to get bulk sales document sync status');
+  try {
+    // Handle empty array case
+    if (!documentIds || documentIds.length === 0) {
+      return { mappings: [] };
+    }
+    
+    // Split into batches of 50 if there are many IDs to avoid URL length limits
+    if (documentIds.length > 50) {
+      console.log(`Large batch of ${documentIds.length} documents detected, splitting into smaller batches`);
+      const results = { mappings: [] };
+      
+      // Process in batches of 50
+      for (let i = 0; i < documentIds.length; i += 50) {
+        const batch = documentIds.slice(i, i + 50);
+        const batchResult = await getBulkSalesDocumentSyncStatus(batch);
+        results.mappings = [...results.mappings, ...batchResult.mappings];
+      }
+      
+      return results;
+    }
+    
+    const response = await fetch(`/api/integrations/metakocka/sales-documents/sync?documentIds=${documentIds.join(',')}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ message: 'Invalid response' }));
+      throw new Error(errorData.message || errorData.error || `Failed to get bulk sync status (${response.status})`);
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error('Error getting bulk sales document sync status:', error);
+    throw error;
   }
-  
-  return response.json();
 }
 
 /**
@@ -49,21 +92,31 @@ export async function getBulkSalesDocumentSyncStatus(documentIds: string[]) {
  * @param documentId Sales document ID
  * @returns Sync response with Metakocka ID
  */
+/**
+ * Sync a sales document to Metakocka
+ * @param documentId Sales document ID
+ * @returns Sync response with Metakocka ID
+ */
 export async function syncSalesDocument(documentId: string) {
-  const response = await fetch('/api/integrations/metakocka/sales-documents/sync', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ documentId }),
-  });
-  
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.message || 'Failed to sync sales document');
+  try {
+    const response = await fetch('/api/integrations/metakocka/sales-documents/sync', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ documentId }),
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ message: 'Invalid response' }));
+      throw new Error(errorData.message || errorData.error || `Failed to sync document (${response.status})`);
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error('Error syncing sales document:', error);
+    throw error;
   }
-  
-  return response.json();
 }
 
 /**
@@ -164,24 +217,86 @@ export async function syncSalesDocumentFromMetakocka(metakockaId: string) {
 /**
  * Sync multiple or all sales documents from Metakocka to CRM
  * @param metakockaIds Optional array of Metakocka document IDs to sync
- * @returns Sync result
+ * @returns Sync result with success/failure counts and details
  */
 export async function syncSalesDocumentsFromMetakocka(metakockaIds?: string[]) {
   try {
-    const response = await fetch('/api/integrations/metakocka/sales-documents/sync-all-from-metakocka', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ metakockaIds }),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || 'Failed to sync sales documents from Metakocka');
+    // If we have a dedicated bulk endpoint in the future, use it here
+    // For now, we'll implement an optimized version of individual syncs
+    
+    if (!metakockaIds || metakockaIds.length === 0) {
+      // Get all unsynced documents first
+      const unsyncedResult = await getUnsyncedSalesDocumentsFromMetakocka();
+      metakockaIds = unsyncedResult.data?.documents?.map((doc: any) => doc.id) || [];
+      
+      if (metakockaIds.length === 0) {
+        return {
+          total: 0,
+          synced: 0,
+          failed: 0,
+          details: [],
+          message: "No unsynced documents found"
+        };
+      }
     }
-
-    return await response.json();
+    
+    // Prepare results object
+    const results = {
+      total: metakockaIds.length,
+      synced: 0,
+      failed: 0,
+      details: [] as Array<{id: string; success: boolean; documentId?: string; error?: string}>
+    };
+    
+    // Use Promise.allSettled for parallel processing with concurrency control
+    // Process in batches of 5 to avoid overwhelming the server
+    const batchSize = 5;
+    
+    for (let i = 0; i < metakockaIds.length; i += batchSize) {
+      const batch = metakockaIds.slice(i, i + batchSize);
+      
+      // Process batch in parallel
+      const batchPromises = batch.map(id => {
+        return syncSalesDocumentFromMetakocka(id)
+          .then(result => ({ id, success: true, documentId: result.documentId }))
+          .catch(error => ({ 
+            id, 
+            success: false, 
+            error: error instanceof Error ? error.message : String(error) 
+          }));
+      });
+      
+      const batchResults = await Promise.allSettled(batchPromises);
+      
+      // Process batch results
+      batchResults.forEach((result, index) => {
+        if (result.status === 'fulfilled') {
+          const syncResult = result.value;
+          results.details.push(syncResult);
+          
+          if (syncResult.success) {
+            results.synced++;
+          } else {
+            results.failed++;
+          }
+        } else {
+          // This shouldn't happen due to the catch in the promise, but just in case
+          results.failed++;
+          results.details.push({
+            id: batch[index],
+            success: false,
+            error: result.reason || 'Unknown error'
+          });
+        }
+      });
+      
+      // Small delay between batches to avoid rate limiting
+      if (i + batchSize < metakockaIds.length) {
+        await new Promise(resolve => setTimeout(resolve, 200));
+      }
+    }
+    
+    return results;
   } catch (error) {
     console.error('Error syncing sales documents from Metakocka:', error);
     throw error;

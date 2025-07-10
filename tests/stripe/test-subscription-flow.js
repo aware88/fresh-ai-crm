@@ -7,13 +7,15 @@
  * - Managing subscriptions through the billing portal
  */
 
-const fetch = require('node-fetch');
-require('dotenv').config();
+import fetch from 'node-fetch';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 // Configuration
 const API_URL = process.env.API_URL || 'http://localhost:3000';
-const AUTH_TOKEN = process.env.AUTH_TOKEN;
-const ORGANIZATION_ID = process.env.ORGANIZATION_ID;
+const AUTH_TOKEN = process.env.AUTH_TOKEN || 'test_auth_token'; // Default test token
+const ORGANIZATION_ID = process.env.ORGANIZATION_ID || 'test-org-123'; // Default test organization
 const STRIPE_PRICE_ID = process.env.STRIPE_PRICE_ID || 'price_standard_monthly';
 
 if (!AUTH_TOKEN || !ORGANIZATION_ID) {

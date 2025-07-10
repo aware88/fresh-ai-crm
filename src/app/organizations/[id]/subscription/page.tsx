@@ -5,7 +5,23 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import CurrentSubscriptionStatus from '@/components/subscription/CurrentSubscriptionStatus';
-import { ArrowLeftIcon } from '@heroicons/react/24/outline';
+// Custom icon implementation to avoid dependency issues
+const ArrowLeftIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    fill="none"
+    viewBox="0 0 24 24"
+    strokeWidth={1.5}
+    stroke="currentColor"
+    {...props}
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18"
+    />
+  </svg>
+);
 
 interface SubscriptionPageProps {
   params: { id: string };

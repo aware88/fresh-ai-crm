@@ -93,10 +93,23 @@ const authOptions: NextAuthOptions = {
       console.log('NextAuth session callback - session:', session ? 'present' : 'missing');
       
       if (token && session.user) {
-        session.user.id = token.sub!;
+        // Use token.id (set in jwt callback) if available, otherwise fall back to token.sub
+        session.user.id = token.id || token.sub!;
         session.user.name = token.name;
         session.user.email = token.email;
         session.user.image = token.picture;
+        
+        // Add additional debug logging
+        console.log('Session user ID set to:', session.user.id);
+      } else if (token && !session.user) {
+        // Create user object if it doesn't exist but token does
+        session.user = {
+          id: token.id || token.sub!,
+          name: token.name,
+          email: token.email as string,
+          image: token.picture as string | null
+        };
+        console.log('Created missing session user with ID:', session.user.id);
       }
       return session;
     },
@@ -105,9 +118,16 @@ const authOptions: NextAuthOptions = {
       console.log('NextAuth JWT callback - user:', user ? 'present' : 'missing');
       console.log('NextAuth JWT callback - account:', account ? 'present' : 'missing');
       
-      if (account && user) {
+      // If we have a user, set the ID in the token
+      if (user) {
         token.id = user.id;
       }
+      
+      // Ensure token.sub exists as a fallback user ID
+      if (!token.id && token.sub) {
+        token.id = token.sub;
+      }
+      
       return token;
     },
   },

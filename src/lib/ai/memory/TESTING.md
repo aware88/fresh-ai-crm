@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document provides information about the test suite for the AI Memory System in CRM Mind. The test suite uses Jest and provides comprehensive coverage of the `MemoryService` class functionality.
+This document provides information about the test suite for the AI Memory System in ARIS (Agentic Relationship Intelligence System). The test suite uses Jest and provides comprehensive coverage of the `MemoryService` class functionality.
 
 ## Test Coverage
 

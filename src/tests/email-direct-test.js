@@ -114,10 +114,10 @@ async function testSendEmail(graphService) {
   const recipient = await prompt('Enter recipient email address: ');
   
   const emailData = {
-    subject: 'Test Email from CRM Mind',
+    subject: 'Test Email from ARIS',
     body: {
       contentType: 'HTML',
-      content: '<p>This is a test email sent from the CRM Mind.</p>'
+      content: '<p>This is a test email sent from ARIS.</p>'
     },
     toRecipients: [{ emailAddress: { address: recipient } }]
   };

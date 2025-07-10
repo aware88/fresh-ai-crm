@@ -13,7 +13,7 @@ export default function SettingsRedirect() {
   return (
     <>
       <Head>
-        <title>Redirecting to Settings | CRM MIND</title>
+        <title>Redirecting to Settings | ARIS</title>
       </Head>
       <div className="flex items-center justify-center min-h-screen bg-gray-50">
         <div className="text-center">

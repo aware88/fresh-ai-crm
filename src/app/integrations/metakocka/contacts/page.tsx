@@ -69,7 +69,7 @@ export default function MetakockaContactsPage() {
       <div>
         <h1 className="text-3xl font-bold">Metakocka Contact Integration</h1>
         <p className="text-muted-foreground mt-2">
-          Manage contact synchronization between CRM Mind and Metakocka
+          Manage contact synchronization between ARIS and Metakocka
         </p>
       </div>
       

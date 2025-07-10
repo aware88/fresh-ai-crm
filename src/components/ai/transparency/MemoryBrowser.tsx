@@ -33,7 +33,7 @@ import {
   useDisclosure,
   Textarea
 } from '@chakra-ui/react';
-import { SearchIcon, DeleteIcon, EditIcon } from '@chakra-ui/icons';
+import { SearchIcon, DeleteIcon, EditIcon } from '@/components/icons/ChakraIcons';
 
 interface Memory {
   id: string;

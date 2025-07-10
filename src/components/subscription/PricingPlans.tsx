@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import { CheckIcon } from '@heroicons/react/24/outline';
+import { CheckIcon } from '@/components/icons/HeroIcons';
 import { subscriptionPlans, SubscriptionPlanDefinition, calculateAnnualSavings } from '@/lib/subscription-plans';
 
 export default function PricingPlans() {

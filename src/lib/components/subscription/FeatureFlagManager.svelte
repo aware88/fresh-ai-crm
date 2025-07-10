@@ -28,8 +28,8 @@
     premium: [
       { key: FEATURES.AI_AUTOMATION, name: 'AI Automation', description: 'AI-powered automation features' },
       { key: FEATURES.EMAIL_MARKETING, name: 'Email Marketing', description: 'Advanced email marketing capabilities' },
-      { key: FEATURES.WHITE_LABEL, name: 'White Label', description: 'Remove CRM Mind branding' },
-      { key: FEATURES.API_ACCESS, name: 'API Access', description: 'Access to the CRM Mind API' }
+      { key: FEATURES.WHITE_LABEL, name: 'White Label', description: 'Remove ARIS branding' },
+      { key: FEATURES.API_ACCESS, name: 'API Access', description: 'Access to the ARIS API' }
     ]
   };
   

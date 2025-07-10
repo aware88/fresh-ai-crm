@@ -1,7 +1,7 @@
 /**
  * Email Workflow Test Script
  * 
- * This script tests the full email workflow in the CRM Mind:
+ * This script tests the full email workflow in ARIS:
  * 1. Fetching and displaying emails
  * 2. Viewing email details
  * 3. Replying to and forwarding emails
@@ -12,7 +12,7 @@
  * 
  * Usage:
  * 1. Copy this entire script
- * 2. Open the CRM Mind in your browser
+ * 2. Open ARIS in your browser
  * 3. Open the browser console (F12 or Ctrl+Shift+J)
  * 4. Paste and run the script
  * 5. Use the exposed window.emailTests object to run tests
@@ -25,16 +25,16 @@ const testData = {
   
   // Test email for sending
   testEmail: {
-    subject: 'Test Email from CRM Mind',
-    content: '<p>This is a test email sent from the CRM Mind.</p>',
+    subject: 'Test Email from ARIS',
+    content: '<p>This is a test email sent from ARIS.</p>',
     contentType: 'HTML',
     toRecipients: ['test@example.com'], // Replace with a real email address
   },
   
   // Test reply
   testReply: {
-    subject: 'RE: Test Email from CRM Mind',
-    content: '<p>This is a test reply sent from the CRM Mind.</p>',
+    subject: 'RE: Test Email from ARIS',
+    content: '<p>This is a test reply sent from ARIS.</p>',
     contentType: 'HTML',
     toRecipients: ['test@example.com'], // Replace with a real email address
   },

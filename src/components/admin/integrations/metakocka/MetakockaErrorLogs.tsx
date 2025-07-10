@@ -40,8 +40,9 @@ type ErrorLog = {
   resolution: string | null;
   tags?: string[];
   operation?: string;
-  status?: 'success' | 'error' | 'warning';
+  status?: 'success' | 'error' | 'warning' | 'new';
   details?: any;
+  timestamp?: string;
 };
 
 type ErrorStats = {
@@ -276,6 +277,8 @@ export function MetakockaErrorLogs() {
           error_code: 'MK-PROD-004',
           error_details: 'The product price is set to -10.00 EUR. Metakocka does not allow negative prices for products.',
           timestamp: '2025-06-29T11:30:15Z',
+          created_at: '2025-06-29T11:30:15Z',
+          error_status: 'new',
           status: 'new',
           assigned_to: null,
           resolution: null,
@@ -291,6 +294,8 @@ export function MetakockaErrorLogs() {
           error_code: 'MK-DOC-005',
           error_details: 'The customer associated with this order was not found in Metakocka. Customer ID: CUST-12345',
           timestamp: '2025-07-02T08:20:10Z',
+          created_at: '2025-07-02T08:20:10Z',
+          error_status: 'new',
           status: 'new',
           assigned_to: null,
           resolution: null,
@@ -454,6 +459,9 @@ export function MetakockaErrorLogs() {
       organizations: [],
       entityTypes: [],
       statuses: [],
+      tags: [],
+      dateFrom: '',
+      dateTo: ''
     });
     setSearchQuery('');
   };
@@ -691,8 +699,10 @@ export function MetakockaErrorLogs() {
               size="sm"
               onClick={handleBulkDelete}
             >
-              <Trash2 className="h-4 w-4 mr-2" />
-              Delete
+              <>
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete
+              </>
             </Button>
           </div>
         </div>
@@ -710,8 +720,10 @@ export function MetakockaErrorLogs() {
                   onClick={refreshErrorLogs}
                   disabled={refreshing}
                 >
-                  {refreshing ? <Spinner size="sm" className="mr-2" /> : <RefreshCw className="h-4 w-4 mr-2" />}
-                  Refresh
+                  {refreshing ? 
+                    <><Spinner size="sm" className="mr-2" />Refresh</> : 
+                    <><RefreshCw className="h-4 w-4 mr-2" />Refresh</>
+                  }
                 </Button>
               </TooltipTrigger>
               <TooltipContent>Refresh logs (Ctrl+R)</TooltipContent>
@@ -723,16 +735,20 @@ export function MetakockaErrorLogs() {
             size="sm"
             onClick={() => setShowFilters(!showFilters)}
           >
-            <Filter className="h-4 w-4 mr-2" />
-            {showFilters ? 'Hide Filters' : 'Show Filters'}
+            <>
+              <Filter className="h-4 w-4 mr-2" />
+              {showFilters ? 'Hide Filters' : 'Show Filters'}
+            </>
           </Button>
           
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button variant="outline" size="sm" onClick={exportAsCSV}>
-                  <Download className="h-4 w-4 mr-2" />
-                  Export CSV
+                  <>
+                    <Download className="h-4 w-4 mr-2" />
+                    Export CSV
+                  </>
                 </Button>
               </TooltipTrigger>
               <TooltipContent>Export to CSV (Ctrl+E)</TooltipContent>
@@ -747,8 +763,10 @@ export function MetakockaErrorLogs() {
                   size="sm"
                   onClick={() => setKeyboardShortcutsDialogOpen(true)}
                 >
-                  <HelpCircle className="h-4 w-4 mr-2" />
-                  Shortcuts
+                  <>
+                    <HelpCircle className="h-4 w-4 mr-2" />
+                    Keyboard Shortcuts
+                  </>
                 </Button>
               </TooltipTrigger>
               <TooltipContent>View keyboard shortcuts (Ctrl+H)</TooltipContent>

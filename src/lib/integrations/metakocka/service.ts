@@ -5,13 +5,47 @@
  * and manages credentials from the database.
  * Includes enhanced error handling and retry mechanisms.
  */
-import { createServerClient } from '../../../lib/supabase/server';
+import { createClient } from '@supabase/supabase-js';
 import { MetakockaClient } from './client';
 import { EnhancedMetakockaClient } from './enhanced-client';
 import { MetakockaCredentials, MetakockaError, MetakockaErrorType } from './types';
 import { MetakockaRetryHandler, RetryConfig, DEFAULT_RETRY_CONFIG } from './metakocka-retry-handler';
 import { LogCategory, MetakockaErrorLogger as ErrorLogger } from './error-logger';
-import { cookies } from 'next/headers';
+import { Database } from '@/types/supabase';
+
+/**
+ * Create a Supabase client with the service role key
+ * This bypasses RLS policies and allows access to all data
+ */
+const createServiceClient = () => {
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    throw new Error('Missing required environment variables for Supabase service client');
+  }
+  
+  try {
+    const client = createClient<Database>(
+      process.env.NEXT_PUBLIC_SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY,
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
+      }
+    );
+    
+    // Verify the client has the necessary methods
+    if (!client || typeof client.from !== 'function') {
+      console.error('Invalid Supabase client: missing required methods');
+      throw new Error('Invalid Supabase client: missing required methods');
+    }
+    
+    return client;
+  } catch (error) {
+    console.error('Error creating Supabase service client:', error);
+    throw error;
+  }
+};
 
 /**
  * Service for managing Metakocka integration
@@ -22,24 +56,30 @@ export class MetakockaService {
    * @returns Metakocka credentials or null if not found
    */
   static async getUserCredentials(userId: string): Promise<MetakockaCredentials | null> {
-    const supabase = createServerClient();
-    
-    const { data, error } = await supabase
-      .from('metakocka_credentials')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('is_active', true)
-      .single();
-    
-    if (error || !data) {
+    try {
+      const supabase = createServiceClient();
+      
+      const { data, error } = await supabase
+        .from('metakocka_credentials')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('is_active', true)
+        .single();
+      
+      if (error || !data) {
+        console.log(`No Metakocka credentials found for user ${userId}`);
+        return null;
+      }
+      
+      return {
+        companyId: data.company_id,
+        secretKey: data.secret_key,
+        apiEndpoint: data.api_endpoint,
+      };
+    } catch (error) {
+      console.error(`Error fetching Metakocka credentials for user ${userId}:`, error);
       return null;
     }
-    
-    return {
-      companyId: data.company_id,
-      secretKey: data.secret_key,
-      apiEndpoint: data.api_endpoint,
-    };
   }
   
   /**
@@ -52,30 +92,16 @@ export class MetakockaService {
     userId: string,
     credentials: MetakockaCredentials
   ): Promise<boolean> {
-    const supabase = createServerClient();
-    
-    // Check if credentials already exist
-    const { data: existingCreds } = await supabase
-      .from('metakocka_credentials')
-      .select('id')
-      .eq('user_id', userId)
-      .single();
-    
-    if (existingCreds) {
-      // Update existing credentials
-      const { error } = await supabase
+    try {
+      const supabase = createServiceClient();
+      
+      // First, deactivate any existing credentials
+      await supabase
         .from('metakocka_credentials')
-        .update({
-          company_id: credentials.companyId,
-          secret_key: credentials.secretKey,
-          api_endpoint: credentials.apiEndpoint,
-          updated_at: new Date().toISOString(),
-        })
+        .update({ is_active: false })
         .eq('user_id', userId);
       
-      return !error;
-    } else {
-      // Create new credentials
+      // Then, insert new credentials
       const { error } = await supabase
         .from('metakocka_credentials')
         .insert({
@@ -83,9 +109,13 @@ export class MetakockaService {
           company_id: credentials.companyId,
           secret_key: credentials.secretKey,
           api_endpoint: credentials.apiEndpoint,
+          is_active: true,
         });
       
       return !error;
+    } catch (error) {
+      console.error(`Error saving Metakocka credentials for user ${userId}:`, error);
+      return false;
     }
   }
   
@@ -95,14 +125,19 @@ export class MetakockaService {
    * @returns Success status
    */
   static async deleteCredentials(userId: string): Promise<boolean> {
-    const supabase = createServerClient();
-    
-    const { error } = await supabase
-      .from('metakocka_credentials')
-      .delete()
-      .eq('user_id', userId);
-    
-    return !error;
+    try {
+      const supabase = createServiceClient();
+      
+      const { error } = await supabase
+        .from('metakocka_credentials')
+        .delete()
+        .eq('user_id', userId);
+      
+      return !error;
+    } catch (error) {
+      console.error(`Error deleting Metakocka credentials for user ${userId}:`, error);
+      return false;
+    }
   }
   
   /**

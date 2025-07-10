@@ -26,7 +26,7 @@ import {
   Collapse,
   useDisclosure
 } from '@chakra-ui/react';
-import { TimeIcon, ChevronDownIcon, ChevronUpIcon } from '@chakra-ui/icons';
+import { TimeIcon, ChevronDownIcon, ChevronUpIcon } from '@/components/icons/ChakraIcons';
 import { FaRobot, FaComment, FaExclamationTriangle, FaLightbulb, FaCog } from 'react-icons/fa';
 
 interface Activity {

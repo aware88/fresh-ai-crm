@@ -1,5 +1,5 @@
 import { getServerSession } from '@/lib/auth';
-import { createClient } from '@/lib/supabase/server';
+import { createServerClient } from '@/lib/supabase/server';
 
 /**
  * Service for managing Microsoft Graph access and refresh tokens
@@ -19,7 +19,7 @@ export class MicrosoftTokenService {
     expiresAt: number
   ) {
     try {
-      const supabase = createClient();
+      const supabase = await createServerClient();
       
       // Check if tokens already exist for this user
       const { data: existingTokens } = await supabase
@@ -66,7 +66,7 @@ export class MicrosoftTokenService {
    */
   static async getTokens(userId: string) {
     try {
-      const supabase = createClient();
+      const supabase = await createServerClient();
       
       const { data: tokens, error } = await supabase
         .from('microsoft_tokens')
@@ -74,7 +74,14 @@ export class MicrosoftTokenService {
         .eq('user_id', userId)
         .maybeSingle();
       
-      if (error) throw error;
+      // Handle case where table doesn't exist yet
+      if (error) {
+        if (error.code === '42P01') { // PostgreSQL code for relation/table does not exist
+          console.warn('microsoft_tokens table does not exist yet');
+          return { success: false, error: 'Microsoft tokens table not configured', tokens: null };
+        }
+        throw error;
+      }
       
       return { success: true, tokens };
     } catch (error: any) {
@@ -174,6 +181,26 @@ export class MicrosoftTokenService {
     } catch (error: any) {
       console.error('Error getting current user access token:', error);
       return { success: false, error: error.message, accessToken: null };
+    }
+  }
+
+  /**
+   * Get a valid Microsoft Graph access token for a specific user
+   * Automatically refreshes if needed
+   * @param userId - The user ID
+   */
+  static async getValidAccessToken(userId: string) {
+    try {
+      const result = await this.refreshAccessToken(userId);
+      
+      if (!result.success || !result.accessToken) {
+        throw new Error(result.error || 'Failed to get valid access token');
+      }
+      
+      return result.accessToken;
+    } catch (error: any) {
+      console.error('Error getting valid access token:', error);
+      throw error;
     }
   }
 }

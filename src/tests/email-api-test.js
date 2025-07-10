@@ -1,7 +1,7 @@
 /**
  * Email API Test Script
  * 
- * This script tests the email API endpoints in the CRM Mind.
+ * This script tests the email API endpoints in ARIS.
  * Run with: node email-api-test.js
  */
 
@@ -131,8 +131,8 @@ async function testSendEmail() {
   const recipient = await prompt('Enter recipient email address: ');
   
   const emailData = {
-    subject: 'Test Email from CRM Mind',
-    content: '<p>This is a test email sent from the CRM Mind.</p>',
+    subject: 'Test Email from ARIS',
+    content: '<p>This is a test email sent from ARIS.</p>',
     contentType: 'HTML',
     toRecipients: [recipient]
   };

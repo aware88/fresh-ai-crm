@@ -28,7 +28,11 @@ const METAKOCKA_ID = process.env.METAKOCKA_ID || 'test_metakocka_123';
 async function apiRequest(endpoint, method = 'GET', body = null) {
   const headers = {
     'Authorization': `Bearer ${AUTH_TOKEN}`,
-    'Content-Type': 'application/json'
+    'Content-Type': 'application/json',
+    // Special headers for service role authentication during testing
+    'x-supabase-auth': AUTH_TOKEN,
+    'x-user-id': 'test-user-id', // This would be a real user ID in production
+    'x-test-mode': 'true' // Enable test mode to bypass organization membership checks
   };
 
   const options = {

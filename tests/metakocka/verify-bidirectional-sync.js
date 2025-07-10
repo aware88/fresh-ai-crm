@@ -22,8 +22,9 @@ const fetch = require('node-fetch');
 const { v4: uuidv4 } = require('uuid');
 
 // Configuration
-const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:3000/api';
+const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:3001/api';
 const AUTH_TOKEN = process.env.AUTH_TOKEN;
+const USER_ID = process.env.USER_ID;
 const TEST_MODE = process.env.TEST_MODE === 'true';
 let TEST_DOCUMENT_ID = null;
 let TEST_METAKOCKA_ID = null;
@@ -41,6 +42,11 @@ if (!AUTH_TOKEN) {
   process.exit(1);
 }
 
+if (!USER_ID && TEST_MODE) {
+  console.error('❌ Error: USER_ID is required when TEST_MODE is enabled');
+  process.exit(1);
+}
+
 // Helper function for API requests
 async function apiRequest(endpoint, method = 'GET', body = null) {
   const url = `${API_BASE_URL}${endpoint}`;
@@ -48,9 +54,19 @@ async function apiRequest(endpoint, method = 'GET', body = null) {
     method,
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${AUTH_TOKEN}`,
     },
   };
+  
+  // Use different auth headers based on whether we're testing Metakocka integration
+  if (endpoint.includes('/integrations/metakocka/')) {
+    // For Metakocka integration endpoints, use test mode headers
+    options.headers['x-supabase-auth'] = AUTH_TOKEN;
+    options.headers['x-user-id'] = USER_ID;
+    options.headers['x-test-mode'] = 'true';
+  } else {
+    // For regular API endpoints, use standard auth
+    options.headers['Authorization'] = `Bearer ${AUTH_TOKEN}`;
+  }
 
   if (body) {
     options.body = JSON.stringify(body);

@@ -1,7 +1,7 @@
 {
   "name": "ai-memory",
   "version": "1.0.0",
-  "description": "AI Memory System for CRM Mind",
+  "description": "AI Memory System for ARIS",
   "main": "memory.service.js",
   "type": "commonjs",
   "scripts": {

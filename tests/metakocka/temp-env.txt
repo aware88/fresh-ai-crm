@@ -1,0 +1,14 @@
+# Environment variables for Metakocka contact sync tests
+# Copy these values to your .env file
+
+# Authentication token for API requests
+AUTH_TOKEN=test_auth_token_123
+
+# Contact ID from the CRM database for testing CRM → Metakocka sync
+CONTACT_ID=test_contact_123
+
+# Metakocka partner ID for testing Metakocka → CRM sync (optional)
+METAKOCKA_ID=test_metakocka_123
+
+# Base URL for API requests (default: http://localhost:3000)
+# BASE_URL=http://localhost:3000

@@ -1,53 +1,164 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
-# dependencies
+# ========================================
+# Dependencies
+# ========================================
 /node_modules
 /.pnp
 .pnp.*
-/yarn/*
+/.yarn/*
 !.yarn/patches
 !.yarn/plugins
 !.yarn/releases
 !.yarn/versions
+.pnp.js
 
-# testing
+# ========================================
+# Testing
+# ========================================
 /coverage
 /test-results/
 /cypress/screenshots/
 /cypress/videos/
+/junit.xml
 
-# next.js
+# ========================================
+# Build Outputs
+# ========================================
 /.next/
 /out/
 /export/
-
-# production
 /build
 /dist
+/.cache
+/.sass-cache
+/.vscode-test/
 
-# misc
-.DS_Store
+# ========================================
+# Environment & Secrets
+# ========================================
+.env
+.env.*
+!.env.example
+*.env
 *.pem
+*.key
+*.crt
+*.p12
+*.pfx
+*.cert
+*.cer
+*.p7b
+*.p7c
+*.p7s
+*.p12
+*.pfx
+*.pem
+*.crt
+*.key
+*.csr
+*.srl
+*.p7b
+*.p7c
+*.p7s
+*.p12
+*.pfx
+*.pem
+*.crt
+*.key
 
-# debug
+# ========================================
+# IDE & Editor
+# ========================================
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.DS_Store
+Thumbs.db
+
+# ========================================
+# Debug Logs
+# ========================================
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+logs
+*.log
 
-# env files (can opt-in for committing if needed)
-.env
-.env.local
-.env.development
-.env.test
-.env.production
-
-# vercel
+# ========================================
+# Misc
+# ========================================
 .vercel
+.netlify
+.cache
+.next
+.parcel-cache
+.turbo
+.temp
+.tmp
+.temp*
+tmp/
+temp/
 
-# typescript
+# ========================================
+# TypeScript
+# ========================================
 *.tsbuildinfo
 next-env.d.ts
+
+# ========================================
+# Local Development
+# ========================================
+.local-*
+.vercel
+.netlify
+*.local
+
+# ========================================
+# Session & Authentication
+# ========================================
+*.session.json
+*.session
+cookies.txt
+*.cookies
+
+# ========================================
+# Uploads & Media
+# ========================================
+/public/uploads/
+!/public/uploads/.gitkeep
+
+# ========================================
+# Database
+# ========================================
+*.sqlite
+*.sqlite3
+*.db
+*.sql
+*.dump
+*.bak
+*.backup
+
+# ========================================
+# Testing
+# ========================================
+/cypress/videos/
+/cypress/screenshots/
+/cypress/downloads/
+/cypress/fixtures/example.json
+
+# ========================================
+# Package Managers
+# ========================================
+pnpm-lock.yaml
+yarn.lock
+package-lock.json
+
 
 # Editor directories and files
 .idea/

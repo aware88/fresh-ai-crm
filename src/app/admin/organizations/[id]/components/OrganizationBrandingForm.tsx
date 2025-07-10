@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
-import { toast } from 'react-hot-toast';
+import { Toast } from '@/components/ui/toast';
 import { BrandingFormData, defaultBrandingFormData } from '@/types/branding';
 import {
   Form,
@@ -71,14 +71,29 @@ export function OrganizationBrandingForm({ organizationId }: OrganizationBrandin
       });
       
       if (response.ok) {
-        toast.success('Branding settings saved successfully');
+        // Show success message
+const successToast = document.createElement('div');
+successToast.innerHTML = 'Branding settings saved successfully';
+successToast.className = 'bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded fixed top-4 right-4 z-50';
+document.body.appendChild(successToast);
+setTimeout(() => document.body.removeChild(successToast), 3000);
       } else {
         const errorData = await response.json();
-        toast.error(`Failed to save branding settings: ${errorData.error || 'Unknown error'}`);
+        // Show error message
+const errorToast = document.createElement('div');
+errorToast.innerHTML = `Failed to save branding settings: ${errorData.error || 'Unknown error'}`;
+errorToast.className = 'bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded fixed top-4 right-4 z-50';
+document.body.appendChild(errorToast);
+setTimeout(() => document.body.removeChild(errorToast), 3000);
       }
     } catch (error) {
       console.error('Error saving branding settings:', error);
-      toast.error('An error occurred while saving branding settings');
+      // Show error message
+const errorToast = document.createElement('div');
+errorToast.innerHTML = 'An error occurred while saving branding settings';
+errorToast.className = 'bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded fixed top-4 right-4 z-50';
+document.body.appendChild(errorToast);
+setTimeout(() => document.body.removeChild(errorToast), 3000);
     } finally {
       setSaving(false);
     }
@@ -106,7 +121,7 @@ export function OrganizationBrandingForm({ organizationId }: OrganizationBrandin
                 className="h-12 object-contain" 
                 onError={(e) => {
                   (e.target as HTMLImageElement).src = '/placeholder-logo.png';
-                  toast.error('Invalid logo URL');
+                  console.error('Invalid logo URL');
                 }}
               />
             </div>
@@ -122,14 +137,14 @@ export function OrganizationBrandingForm({ organizationId }: OrganizationBrandin
             <p className="text-sm text-gray-500 mb-1">Primary Color:</p>
             <div 
               className="h-10 rounded-md" 
-              style={{ backgroundColor: primaryColor }}
+              style={{ backgroundColor: primaryColor || undefined }}
             />
           </div>
           <div>
             <p className="text-sm text-gray-500 mb-1">Secondary Color:</p>
             <div 
               className="h-10 rounded-md" 
-              style={{ backgroundColor: secondaryColor }}
+              style={{ backgroundColor: secondaryColor || undefined }}
             />
           </div>
           <div>
@@ -143,7 +158,7 @@ export function OrganizationBrandingForm({ organizationId }: OrganizationBrandin
             <p className="text-sm text-gray-500 mb-1">Font Family:</p>
             <div 
               className="h-10 rounded-md border flex items-center px-3" 
-              style={{ fontFamily }}
+              style={{ fontFamily: fontFamily || undefined }}
             >
               Sample Text
             </div>
@@ -151,9 +166,9 @@ export function OrganizationBrandingForm({ organizationId }: OrganizationBrandin
         </div>
         
         <div className="p-4 border rounded-md" style={{ 
-          backgroundColor: primaryColor,
+          backgroundColor: primaryColor || undefined,
           color: '#ffffff',
-          fontFamily
+          fontFamily: fontFamily || undefined
         }}>
           <h4 className="font-medium mb-2">Header Example</h4>
           <div className="flex gap-2">
@@ -166,7 +181,7 @@ export function OrganizationBrandingForm({ organizationId }: OrganizationBrandin
             <Button 
               size="sm" 
               variant="outline"
-              style={{ borderColor: secondaryColor, color: secondaryColor }}
+              style={{ borderColor: secondaryColor || undefined, color: secondaryColor || undefined }}
             >
               Secondary Button
             </Button>

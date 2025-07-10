@@ -77,10 +77,8 @@ export default function EmailAnalyserClient() {
       
       if (emailsError) {
         console.error('Error loading emails:', emailsError.message);
-        throw emailsError;
-      }
-      
-      if (emailsData && emailsData.length > 0) {
+        // Fall back to contacts method
+      } else if (emailsData && emailsData.length > 0) {
         // Transform the data to match our expected format
         const validEmails = emailsData.map((email: RawEmail) => ({
           id: email.id,
@@ -100,75 +98,61 @@ export default function EmailAnalyserClient() {
         setLoading(false);
         return; // Successfully loaded emails, exit function
       }
-    } catch (error) {
-        console.error('Error loading emails from emails table:', 
-          error instanceof Error ? error.message : String(error));
-        // Don't set error here, we'll try the fallback method
-      }
       
       // Fall back to loading from contacts with notes
       console.log('Emails table not found or empty, loading from contacts notes');
-      try {
-        const { data: contactsData, error: contactsError } = await supabase
-          .from('contacts')
-          .select(`
-            id,
-            firstname,
-            lastname,
-            email,
-            notes,
-            lastcontact,
-            createdat
-          `)
-          .not('notes', 'is', null)
-          .order('lastcontact', { ascending: false })
-          .limit(5);
+      const { data: contactsData, error: contactsError } = await supabase
+        .from('contacts')
+        .select(`
+          id,
+          firstname,
+          lastname,
+          email,
+          notes,
+          lastcontact,
+          createdat
+        `)
+        .not('notes', 'is', null)
+        .order('lastcontact', { ascending: false })
+        .limit(5);
 
-        if (contactsError) {
-          console.error('Database error when loading contacts:', {
-            code: contactsError.code,
-            message: contactsError.message,
-            details: contactsError.details,
-            hint: contactsError.hint
-          });
-          throw new Error(`Failed to fetch contacts with emails: ${contactsError.message}`);
-          console.log('No emails found in emails table');
-          throw new Error('No emails found');
-        }
-        
-        if (!contactsData || contactsData.length === 0) {
-          setEmails([]);
-          setError('No emails or contacts with notes found.');
-          setLoading(false);
-          return;
-        }
-        
-        // Transform contacts with notes into email-like objects
-        const validEmails = contactsData.map(contact => ({
-          id: contact.id,
-          sender: contact.email || 'Unknown',
-          subject: `Notes for ${contact.firstname || ''} ${contact.lastname || ''}`.trim(),
-          raw_content: contact.notes || '',
-          created_at: contact.lastcontact || contact.createdat || new Date().toISOString(),
-          contacts: [{
-            id: contact.id,
-            full_name: `${contact.firstname || ''} ${contact.lastname || ''}`.trim() || 'Unknown',
-            email: contact.email
-          }]
-        }));
-        
-        setEmails(validEmails);
-        setLoading(false);
-      } catch (error) {
-        console.error('Error loading contacts with notes:', 
-          error instanceof Error ? error.message : String(error));
-        setError('Failed to load emails or contacts. Please try again later.');
-        setLoading(false);
+      if (contactsError) {
+        console.error('Database error when loading contacts:', {
+          code: contactsError.code,
+          message: contactsError.message,
+          details: contactsError.details,
+          hint: contactsError.hint
+        });
+        throw new Error(`Failed to fetch contacts with emails: ${contactsError.message}`);
       }
+      
+      if (!contactsData || contactsData.length === 0) {
+        setEmails([]);
+        setError('No emails or contacts with notes found.');
+        setLoading(false);
+        return;
+      }
+      
+      // Transform contacts with notes into email-like objects
+      const validEmails = contactsData.map(contact => ({
+        id: contact.id,
+        sender: contact.email || 'Unknown',
+        subject: `Notes for ${contact.firstname || ''} ${contact.lastname || ''}`.trim(),
+        raw_content: contact.notes || '',
+        created_at: contact.lastcontact || contact.createdat || new Date().toISOString(),
+        contacts: [{
+          id: contact.id,
+          full_name: `${contact.firstname || ''} ${contact.lastname || ''}`.trim() || 'Unknown',
+          email: contact.email
+        }]
+      }));
+      
+      setEmails(validEmails);
+      setLoading(false);
     } catch (error) {
-      console.error('Unexpected error in loadEmails:', 
+      console.error('Error in loadEmails:', 
         error instanceof Error ? error.message : String(error));
-      setError('An unexpected error occurred. Please try again later.');
+      setError('Failed to load emails or contacts. Please try again later.');
       setLoading(false);
     }
   };

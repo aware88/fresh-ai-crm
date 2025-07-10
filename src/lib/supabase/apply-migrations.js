@@ -1,5 +1,5 @@
 /**
- * Database Migration Script for CRM Mind
+ * Database Migration Script for ARIS
  * 
  * This script applies SQL migrations to the Supabase database.
  * It reads SQL files from the migrations directory and executes them.

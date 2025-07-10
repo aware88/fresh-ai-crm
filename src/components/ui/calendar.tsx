@@ -1,63 +1,134 @@
 "use client";
 
-import * as React from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
-import { DayPicker } from "react-day-picker";
-import { cn } from "@/lib/utils";
-import { buttonVariants } from "@/components/ui/button";
+import * as React from "react"
+import { useState } from "react"
 
-export type CalendarProps = React.ComponentProps<typeof DayPicker>;
+// Simple calendar component that doesn't rely on external dependencies
+// This is a stripped-down version with basic functionality
+
+interface CalendarProps {
+  selected?: Date;
+  onSelect?: (date: Date | undefined) => void;
+  disabled?: boolean;
+  minDate?: Date;
+  maxDate?: Date;
+  className?: string;
+  [key: string]: any;
+}
 
 function Calendar({
-  className,
-  classNames,
-  showOutsideDays = true,
+  selected,
+  onSelect,
+  disabled = false,
+  minDate,
+  maxDate,
+  className = "",
   ...props
 }: CalendarProps) {
+  const [currentMonth, setCurrentMonth] = useState(selected || new Date());
+  const [localSelected, setLocalSelected] = useState<Date | undefined>(selected);
+
+  // Get calendar month info
+  const getDaysInMonth = (year: number, month: number) => {
+    return new Date(year, month + 1, 0).getDate();
+  };
+  
+  const getFirstDayOfMonth = (year: number, month: number) => {
+    return new Date(year, month, 1).getDay();
+  };
+
+  const month = currentMonth.getMonth();
+  const year = currentMonth.getFullYear();
+  const daysInMonth = getDaysInMonth(year, month);
+  const firstDayOfMonth = getFirstDayOfMonth(year, month);
+
+  // Build calendar days
+  const days = [];
+  // Add empty cells for days before the first day of the month
+  for (let i = 0; i < firstDayOfMonth; i++) {
+    days.push(<div key={`empty-${i}`} className="w-8 h-8 m-1"></div>);
+  }
+
+  // Add cells for days of the month
+  for (let day = 1; day <= daysInMonth; day++) {
+    const date = new Date(year, month, day);
+    const isSelected = localSelected && 
+      date.getDate() === localSelected.getDate() && 
+      date.getMonth() === localSelected.getMonth() && 
+      date.getFullYear() === localSelected.getFullYear();
+    
+    const isToday = new Date().getDate() === day && 
+      new Date().getMonth() === month && 
+      new Date().getFullYear() === year;
+    
+    const isDisabled = disabled || 
+      (minDate && date < minDate) || 
+      (maxDate && date > maxDate);
+
+    days.push(
+      <button
+        key={day}
+        type="button"
+        onClick={() => {
+          if (!isDisabled) {
+            const newSelected = isSelected ? undefined : date;
+            setLocalSelected(newSelected);
+            if (onSelect) onSelect(newSelected);
+          }
+        }}
+        disabled={isDisabled}
+        className={`w-8 h-8 rounded-full flex items-center justify-center text-sm m-1 
+          ${isSelected ? 'bg-blue-600 text-white' : ''} 
+          ${isToday && !isSelected ? 'bg-gray-200' : ''}
+          ${!isDisabled ? 'hover:bg-gray-100' : 'opacity-40 cursor-not-allowed'}`}
+      >
+        {day}
+      </button>
+    );
+  }
+
+  const monthNames = [
+    "January", "February", "March", "April", "May", "June", 
+    "July", "August", "September", "October", "November", "December"
+  ];
+
   return (
-    <DayPicker
-      showOutsideDays={showOutsideDays}
-      className={cn("p-3", className)}
-      classNames={{
-        months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
-        month: "space-y-4",
-        caption: "flex justify-center pt-1 relative items-center",
-        caption_label: "text-sm font-medium",
-        nav: "space-x-1 flex items-center",
-        nav_button: cn(
-          buttonVariants({ variant: "outline" }),
-          "h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100"
-        ),
-        nav_button_previous: "absolute left-1",
-        nav_button_next: "absolute right-1",
-        table: "w-full border-collapse space-y-1",
-        head_row: "flex",
-        head_cell:
-          "text-muted-foreground rounded-md w-9 font-normal text-[0.8rem]",
-        row: "flex w-full mt-2",
-        cell: "h-9 w-9 text-center text-sm p-0 relative [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20",
-        day: cn(
-          buttonVariants({ variant: "ghost" }),
-          "h-9 w-9 p-0 font-normal aria-selected:opacity-100"
-        ),
-        day_selected:
-          "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
-        day_today: "bg-accent text-accent-foreground",
-        day_outside: "text-muted-foreground opacity-50",
-        day_disabled: "text-muted-foreground opacity-50",
-        day_range_middle:
-          "aria-selected:bg-accent aria-selected:text-accent-foreground",
-        day_hidden: "invisible",
-        ...classNames,
-      }}
-      components={{
-        IconLeft: ({ ...props }) => <ChevronLeft className="h-4 w-4" />,
-        IconRight: ({ ...props }) => <ChevronRight className="h-4 w-4" />,
-      }}
-      {...props}
-    />
+    <div className={`p-3 ${className}`} {...props}>
+      <div className="flex justify-between items-center mb-4">
+        <button
+          type="button"
+          onClick={() => setCurrentMonth(new Date(year, month - 1))}
+          className="p-2 rounded-md hover:bg-gray-100"
+          aria-label="Previous month"
+        >
+          &lt;
+        </button>
+        <div className="font-medium">
+          {monthNames[month]} {year}
+        </div>
+        <button
+          type="button"
+          onClick={() => setCurrentMonth(new Date(year, month + 1))}
+          className="p-2 rounded-md hover:bg-gray-100"
+          aria-label="Next month"
+        >
+          &gt;
+        </button>
+      </div>
+      <div className="grid grid-cols-7 mb-1">
+        {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
+          <div key={day} className="w-8 h-8 flex items-center justify-center text-xs text-gray-500">
+            {day.charAt(0)}
+          </div>
+        ))}
+      </div>
+      <div className="grid grid-cols-7">
+        {days}
+      </div>
+    </div>
   );
 }
+
 Calendar.displayName = "Calendar";
 
-export { Calendar };
+export { Calendar, type CalendarProps };

@@ -1,7 +1,7 @@
 /**
  * Subscription Plans Configuration
  * 
- * This file defines the subscription plans available in CRM Mind.
+ * This file defines the subscription plans available in ARIS.
  * Each plan includes pricing, features, and limits that determine what users can access.
  */
 

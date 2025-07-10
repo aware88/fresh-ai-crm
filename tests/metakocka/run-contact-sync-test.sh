@@ -32,7 +32,7 @@ echo ""
 
 # Run the test script
 echo "🚀 Running Metakocka contact sync tests..."
-node tests/metakocka/test-contact-sync.js
+node test-contact-sync.js
 
 # Check if the script executed successfully
 if [ $? -eq 0 ]; then

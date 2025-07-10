@@ -98,4 +98,4 @@ DEBUG=* node run-tests.js
 
 ## License
 
-This project is part of the CRM Mind and is licensed under the terms of the MIT license.
+This project is part of ARIS (Agentic Relationship Intelligence System) and is licensed under the terms of the MIT license.

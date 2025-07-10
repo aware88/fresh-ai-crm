@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server';
+import { createServerClient } from '@/lib/supabase/server';
 import { PostgrestError } from '@supabase/supabase-js';
 
 export interface Notification {
@@ -22,7 +22,7 @@ export class NotificationService {
    * Create a new notification
    */
   async createNotification(notification: Omit<Notification, 'id' | 'read' | 'created_at'>): Promise<{ data: Notification | null; error: PostgrestError | null }> {
-    const supabase = createClient();
+    const supabase = await createServerClient();
     
     const { data, error } = await supabase
       .from('notifications')
@@ -43,7 +43,7 @@ export class NotificationService {
     organizationId: string,
     notification: Omit<Notification, 'id' | 'read' | 'created_at' | 'user_id' | 'organization_id'>
   ): Promise<{ success: boolean; error: PostgrestError | null }> {
-    const supabase = createClient();
+    const supabase = await createServerClient();
     
     // Get all users in the organization
     const { data: users, error: usersError } = await supabase
@@ -56,7 +56,7 @@ export class NotificationService {
     }
     
     // Create notifications for each user
-    const notificationPromises = users.map(user => {
+    const notificationPromises = users.map((user: { user_id: string }) => {
       return this.createNotification({
         user_id: user.user_id,
         organization_id: organizationId,
@@ -76,7 +76,7 @@ export class NotificationService {
    * Get notifications for a user
    */
   async getUserNotifications(userId: string, limit = 20): Promise<{ data: Notification[] | null; error: PostgrestError | null }> {
-    const supabase = createClient();
+    const supabase = await createServerClient();
     
     const { data, error } = await supabase
       .from('notifications')
@@ -92,7 +92,7 @@ export class NotificationService {
    * Mark a notification as read
    */
   async markNotificationAsRead(notificationId: string): Promise<{ success: boolean; error: PostgrestError | null }> {
-    const supabase = createClient();
+    const supabase = await createServerClient();
     
     const { error } = await supabase
       .from('notifications')
@@ -106,7 +106,7 @@ export class NotificationService {
    * Mark all notifications as read for a user
    */
   async markAllNotificationsAsRead(userId: string): Promise<{ success: boolean; error: PostgrestError | null }> {
-    const supabase = createClient();
+    const supabase = await createServerClient();
     
     const { error } = await supabase
       .from('notifications')

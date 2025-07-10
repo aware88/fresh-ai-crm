@@ -17,7 +17,7 @@ export function Header() {
       <div className="container flex h-16 items-center justify-between py-4">
         <div className="flex items-center gap-2">
           <Link href={isDashboard ? '/dashboard' : '/'} className="flex items-center gap-2">
-            <span className="font-bold text-xl">CRM MIND</span>
+            <span className="font-bold text-xl">ARIS</span>
           </Link>
         </div>
         <nav className="hidden md:flex items-center gap-1 text-sm">

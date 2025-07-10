@@ -1,5 +1,5 @@
 /**
- * Database Migration System for CRM Mind
+ * Database Migration System for ARIS
  * 
  * This script provides a simple migration system for Supabase database changes.
  * It tracks applied migrations and only runs new ones.

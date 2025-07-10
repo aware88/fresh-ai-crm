@@ -1,6 +1,6 @@
 import { SubscriptionService } from './subscription-service';
 import { NotificationService } from './notification-service';
-import { createClient } from '@/lib/supabase/server';
+import { createServerClient } from '@/lib/supabase/server';
 
 export class SubscriptionNotificationService {
   private subscriptionService: SubscriptionService;
@@ -16,7 +16,7 @@ export class SubscriptionNotificationService {
    * This should be called by a scheduled job
    */
   async sendTrialExpirationNotifications(): Promise<{ success: boolean; processed: number }> {
-    const supabase = createClient();
+    const supabase = await createServerClient();
     const now = new Date();
     
     // Find trials that expire in 3 days
@@ -83,7 +83,7 @@ export class SubscriptionNotificationService {
         metadata: {
           subscription_id: subscription.id,
           invoice_url: invoiceUrl,
-          plan_name: subscription.plan_name
+          payment_date: new Date().toISOString()
         }
       }
     );
@@ -116,8 +116,60 @@ export class SubscriptionNotificationService {
    * Send notifications for upcoming subscription renewals
    * This should be called by a scheduled job
    */
+  /**
+   * Send notification for new subscription welcome
+   */
+  async sendSubscriptionWelcomeNotification(organizationId: string): Promise<{ success: boolean }> {
+    const { data: subscription } = await this.subscriptionService.getOrganizationSubscription(organizationId);
+    
+    if (!subscription) {
+      return { success: false };
+    }
+    
+    // Get plan details
+    const { data: plan } = await this.subscriptionService.getSubscriptionPlanById(subscription.subscription_plan_id);
+    
+    const planName = plan?.name || 'Premium';
+    
+    const { success } = await this.notificationService.createOrganizationNotification(
+      organizationId,
+      {
+        title: 'Welcome to Your New Subscription',
+        message: `Your ${planName} subscription is now active. Thank you for subscribing to Fresh AI CRM!`,
+        type: 'subscription_upgraded', // Using existing notification type
+        action_url: `/settings/billing?org=${organizationId}`,
+        metadata: {
+          plan_name: planName,
+          subscription_date: new Date().toISOString()
+        }
+      }
+    );
+    
+    return { success };
+  }
+
+  /**
+   * Send notification for subscription cancellation
+   */
+  async sendSubscriptionCanceledNotification(organizationId: string): Promise<{ success: boolean }> {
+    const { success } = await this.notificationService.createOrganizationNotification(
+      organizationId,
+      {
+        title: 'Subscription Canceled',
+        message: 'Your subscription has been canceled. You will continue to have access until the end of your current billing period.',
+        type: 'subscription_payment_failed', // Using existing notification type as a substitute for cancellation
+        action_url: `/settings/billing?org=${organizationId}`,
+        metadata: {
+          canceled_date: new Date().toISOString()
+        }
+      }
+    );
+    
+    return { success };
+  }
+
   async sendRenewalReminders(): Promise<{ success: boolean; processed: number }> {
-    const supabase = createClient();
+    const supabase = await createServerClient();
     const now = new Date();
     
     // Find subscriptions that renew in 7 days

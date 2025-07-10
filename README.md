@@ -1,13 +1,51 @@
-# CRM Mind
+# ARIS (Agentic Relationship Intelligence System)
 
-A powerful AI-driven CRM platform with integrated inventory management and alerting system for modern businesses.
+A powerful agentic relationship intelligence system with integrated inventory management and alerting capabilities for modern businesses.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Next.js](https://img.shields.io/badge/Next.js-13+-black?style=flat&logo=next.js&logoColor=white)](https://nextjs.org/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-4.9+-3178C6?style=flat&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Next.js](https://img.shields.io/badge/Next.js-14+-black?style=flat&logo=next.js&logoColor=white)](https://nextjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-3178C6?style=flat&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![OpenAI](https://img.shields.io/badge/OpenAI-412991?style=flat&logo=openai&logoColor=white)](https://openai.com/)
-[![Test Status](https://github.com/yourusername/crm-mind/actions/workflows/tests.yml/badge.svg)](https://github.com/yourusername/crm-mind/actions)
-[![Coverage Status](https://coveralls.io/repos/github/yourusername/crm-mind/badge.svg?branch=main)](https://coveralls.io/github/yourusername/crm-mind?branch=main)
+[![Test Status](https://github.com/yourusername/aris/actions/workflows/tests.yml/badge.svg)](https://github.com/yourusername/aris/actions)
+[![Coverage Status](https://coveralls.io/repos/github/yourusername/aris/badge.svg?branch=main)](https://coveralls.io/github/yourusername/aris?branch=main)
+
+## 🚀 Quick Start
+
+Get started with ARIS in minutes:
+
+```bash
+# 1. Clone the repository
+git clone https://github.com/yourusername/aris.git
+cd aris
+
+# 2. Install dependencies
+npm install
+
+# 3. Set up environment variables
+cp .env.example .env
+# Edit .env with your configuration
+
+# 4. Start the development server
+npm run dev
+
+# 5. Open http://localhost:3000 in your browser
+```
+
+Or use the interactive setup script:
+
+```bash
+# Run the setup script
+node scripts/setup.js
+```
+
+## 📋 Prerequisites
+
+- Node.js 18 or higher
+- npm 8 or higher
+- PostgreSQL 13 or higher (or Supabase)
+- A Supabase project (for authentication and database)
+
+For detailed setup instructions, see the [Setup Guide](./SETUP.md).
 
 ## ✨ Features
 

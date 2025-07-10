@@ -1,0 +1,37 @@
+services:
+  - type: web
+    name: aris-crm
+    env: node
+    plan: standard
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: NEXT_PUBLIC_SUPABASE_URL
+        sync: false
+      - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: SUPABASE_JWT_SECRET
+        sync: false
+      - key: NEXTAUTH_URL
+        value: https://helloaris.com
+      - key: NEXTAUTH_SECRET
+        generateValue: true
+      - key: APP_SECRET
+        generateValue: true
+      - key: ENCRYPTION_KEY
+        generateValue: true
+      - key: NEXT_PUBLIC_ENABLE_EMAIL_INTEGRATION
+        value: true
+      - key: NEXT_PUBLIC_ENABLE_ANALYTICS
+        value: true
+      - key: LOG_LEVEL
+        value: info
+      - key: ENABLE_DEBUG_LOGS
+        value: false

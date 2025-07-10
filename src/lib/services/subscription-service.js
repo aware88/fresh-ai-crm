@@ -5,11 +5,192 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from '$env/static/private';
+
+// Use Next.js environment variables
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 export class SubscriptionService {
+  constructor() {
+    // Initialize any required properties
+  }
+  
+  /**
+   * Handle subscription created event from Stripe
+   * @param {string} organizationId The organization ID
+   * @param {Object} subscription The Stripe subscription object
+   * @returns {Promise<Object>} Result with success flag
+   */
+  async handleSubscriptionCreated(organizationId, subscription) {
+    try {
+      // Update the subscription record with details from Stripe
+      const { error } = await supabase
+        .from('organization_subscriptions')
+        .update({
+          status: subscription.status,
+          current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
+          current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+          cancel_at_period_end: subscription.cancel_at_period_end,
+          updated_at: new Date().toISOString()
+        })
+        .eq('organization_id', organizationId)
+        .eq('provider_subscription_id', subscription.id);
+      
+      if (error) {
+        console.error('Error updating subscription record:', error);
+        return { success: false, error };
+      }
+      
+      console.log(`Subscription record updated for organization ${organizationId}`);
+      return { success: true };
+    } catch (error) {
+      console.error('Error handling subscription created:', error);
+      return { success: false, error };
+    }
+  }
+  
+  /**
+   * Handle subscription updated event from Stripe
+   * @param {string} organizationId The organization ID
+   * @param {Object} subscription The Stripe subscription object
+   * @returns {Promise<Object>} Result with success flag
+   */
+  async handleSubscriptionUpdated(organizationId, subscription) {
+    try {
+      // Update the subscription record with details from Stripe
+      const { error } = await supabase
+        .from('organization_subscriptions')
+        .update({
+          status: subscription.status,
+          current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
+          current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+          cancel_at_period_end: subscription.cancel_at_period_end,
+          updated_at: new Date().toISOString()
+        })
+        .eq('organization_id', organizationId)
+        .eq('provider_subscription_id', subscription.id);
+      
+      if (error) {
+        console.error('Error updating subscription record:', error);
+        return { success: false, error };
+      }
+      
+      console.log(`Subscription record updated for organization ${organizationId}`);
+      return { success: true };
+    } catch (error) {
+      console.error('Error handling subscription updated:', error);
+      return { success: false, error };
+    }
+  }
+  
+  /**
+   * Record an invoice from Stripe
+   * @param {string} organizationId The organization ID
+   * @param {Object} invoice The Stripe invoice object
+   * @returns {Promise<Object>} Result with success flag
+   */
+  async recordInvoice(organizationId, invoice) {
+    try {
+      // Create an invoice record
+      const { error } = await supabase
+        .from('subscription_invoices')
+        .upsert({
+          organization_id: organizationId,
+          provider: 'stripe',
+          provider_invoice_id: invoice.id,
+          amount_due: invoice.amount_due / 100, // Convert from cents to dollars
+          amount_paid: invoice.amount_paid / 100,
+          currency: invoice.currency,
+          status: invoice.status,
+          invoice_url: invoice.hosted_invoice_url,
+          invoice_pdf: invoice.invoice_pdf,
+          created_at: new Date(invoice.created * 1000).toISOString(),
+          updated_at: new Date().toISOString()
+        });
+      
+      if (error) {
+        console.error('Error recording invoice:', error);
+        return { success: false, error };
+      }
+      
+      console.log(`Invoice recorded for organization ${organizationId}`);
+      return { success: true };
+    } catch (error) {
+      console.error('Error recording invoice:', error);
+      return { success: false, error };
+    }
+  }
+  
+  /**
+   * Handle checkout session completed event from Stripe
+   * @param {string} organizationId The organization ID
+   * @param {Object} session The Stripe checkout session object
+   * @returns {Promise<Object>} Result with success flag
+   */
+  async handleCheckoutCompleted(organizationId, session) {
+    try {
+      // Get the subscription ID from the session
+      const subscriptionId = session.subscription;
+      
+      if (!subscriptionId) {
+        console.error('No subscription ID in checkout session');
+        return { success: false, error: 'No subscription ID in checkout session' };
+      }
+      
+      // Find the price ID from the session metadata or items
+      let priceId = session.metadata?.price_id;
+      
+      // Find the corresponding plan in our database
+      const { data: plans, error: plansError } = await supabase
+        .from('subscription_plans')
+        .select('*')
+        .eq('is_active', true);
+      
+      if (plansError || !plans || plans.length === 0) {
+        console.error('Error fetching subscription plans:', plansError);
+        return { success: false, error: plansError };
+      }
+      
+      // Find the matching plan by Stripe price ID
+      const plan = plans.find(p => p.stripe_price_id === priceId);
+      
+      if (!plan) {
+        console.error('No matching subscription plan found for price ID:', priceId);
+        return { success: false, error: 'No matching subscription plan found' };
+      }
+      
+      // Create or update the organization subscription
+      const { data: subscription, error: subscriptionError } = await supabase
+        .from('organization_subscriptions')
+        .upsert({
+          organization_id: organizationId,
+          subscription_plan_id: plan.id,
+          provider: 'stripe',
+          provider_subscription_id: subscriptionId,
+          provider_customer_id: session.customer,
+          status: 'active',
+          current_period_start: new Date().toISOString(),
+          current_period_end: null, // Will be updated when we get the subscription details
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .select()
+        .single();
+      
+      if (subscriptionError) {
+        console.error('Error creating subscription record:', subscriptionError);
+        return { success: false, error: subscriptionError };
+      }
+      
+      console.log(`Subscription record created for organization ${organizationId}`);
+      return { success: true };
+    } catch (error) {
+      console.error('Error handling checkout completed:', error);
+      return { success: false, error };
+    }
+  }
   /**
    * Get all available subscription plans
    * @returns {Promise<Array>} List of subscription plans

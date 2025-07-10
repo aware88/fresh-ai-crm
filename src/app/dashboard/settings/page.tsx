@@ -4,7 +4,8 @@ import { UnifiedDataUploader } from '@/components/settings/UnifiedDataUploader';
 import { LogoUploader } from '@/components/settings/LogoUploader';
 import { FilesSection } from '@/components/settings/FilesSection';
 import { FilesList } from '@/components/files/FilesList';
-import { FileText } from 'lucide-react';
+import { FileText, Mail } from 'lucide-react';
+import Link from 'next/link';
 
 export default function SettingsPage() {
   return (
@@ -41,6 +42,32 @@ export default function SettingsPage() {
         <UnifiedDataUploader />
       </div>
 
+      <div className="mb-8">
+        <h2 className="text-2xl font-semibold mb-4 text-gray-800">Email Settings</h2>
+        <p className="text-gray-600 mb-4">
+          Connect and manage your email accounts for CRM integration
+        </p>
+        
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-semibold flex items-center">
+              <Mail className="h-5 w-5 mr-2" />
+              Email Accounts
+            </h3>
+            <Link 
+              href="/settings/email-accounts"
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+            >
+              Manage Email Accounts
+            </Link>
+          </div>
+          <p className="text-gray-600">
+            Connect your email accounts to access emails, contacts, and calendar events.
+            You can connect both Microsoft Outlook accounts and standard email accounts using IMAP/SMTP.
+          </p>
+        </div>
+      </div>
+      
       <div className="mb-6">
         <h2 className="text-2xl font-semibold mb-4 text-gray-800">File Management</h2>
         <p className="text-gray-600 mb-4">

@@ -3,12 +3,14 @@
  * 
  * Handles synchronization of products between the CRM and Metakocka
  */
-import { createServerClient } from '@/lib/supabase/server';
-import { cookies } from 'next/headers';
+import { createClient } from '@supabase/supabase-js';
+// Remove cookies import as it causes issues in service contexts
+// import { cookies } from 'next/headers';
 import { MetakockaClient, MetakockaService, MetakockaProduct, MetakockaError, MetakockaErrorType } from './index';
 import { MetakockaRetryHandler } from './metakocka-retry-handler';
 import { MetakockaErrorLogger, LogCategory } from './error-logger';
 import { Database } from '@/types/supabase';
+import { SupabaseClient } from '@supabase/supabase-js';
 
 // Type for CRM product
 type Product = Database['public']['Tables']['products']['Row'];
@@ -39,16 +41,33 @@ interface ProductMapping {
 /**
  * Product Synchronization Service
  */
+/**
+ * Create a Supabase service client that bypasses RLS policies
+ * @returns Supabase client with service role permissions
+ */
+function createServiceClient(): SupabaseClient<Database> {
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    throw new Error('Missing required environment variables for Supabase service client');
+  }
+  
+  return createClient<Database>(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY
+  );
+}
+
 export class ProductSyncService {
   /**
    * Sync a single product to Metakocka
    * @param userId User ID
    * @param product CRM product
+   * @param supabaseClient Optional Supabase client (to bypass RLS policies)
    * @returns Metakocka product ID
    */
   static async syncProductToMetakocka(
     userId: string,
-    product: Product
+    product: Product,
+    supabaseClient?: SupabaseClient
   ): Promise<string> {
     // Log the sync attempt
     MetakockaErrorLogger.logInfo(
@@ -70,7 +89,7 @@ export class ProductSyncService {
         const client = await MetakockaService.getClientForUser(userId);
         
         // Check if product already exists in Metakocka
-        const mapping = await this.getProductMapping(product.id, userId);
+        const mapping = await this.getProductMapping(product.id, userId, supabaseClient);
         
         // Convert CRM product to Metakocka format
         const metakockaProduct: MetakockaProduct = {
@@ -176,11 +195,13 @@ export class ProductSyncService {
    * Sync multiple products to Metakocka
    * @param userId User ID
    * @param productIds Optional array of product IDs to sync (if not provided, all products will be synced)
+   * @param supabaseClient Optional Supabase client (to bypass RLS policies)
    * @returns Sync result
    */
   static async syncProductsToMetakocka(
     userId: string,
-    productIds?: string[]
+    productIds?: string[],
+    supabaseClient?: SupabaseClient
   ): Promise<SyncResult> {
     // Initialize result object
     const result: SyncResult = {
@@ -205,13 +226,47 @@ export class ProductSyncService {
     );
     
     try {
-      // Get products to sync
-      const supabase = createServerClient();
+      // Get products to sync, using the provided client or creating a new one
+      const supabase = supabaseClient || createServiceClient();
       
-      let query = supabase
-        .from('products')
-        .select('*')
-        .eq('user_id', userId);
+      // Verify we have a working Supabase client with proper methods
+      if (!supabase || typeof supabase.from !== 'function') {
+        throw new Error('Invalid Supabase client: missing required methods');
+      }
+      
+      // If we have a service role client, query by organization memberships instead of user_id directly
+      let query;
+      
+      if (supabaseClient) {
+        // First get all organizations the user belongs to
+        const { data: organizations, error: orgError } = await supabase
+          .from('organization_members')
+          .select('organization_id')
+          .eq('user_id', userId);
+          
+        if (orgError) {
+          throw new Error(`Failed to fetch user's organizations: ${orgError.message}`);
+        }
+        
+        if (!organizations || organizations.length === 0) {
+          throw new Error('User has no organizations');
+        }
+        
+        // Get organization IDs
+        const orgIds = organizations.map(org => org.organization_id);
+        
+        // Query products by organization IDs
+        query = supabase
+          .from('products')
+          .select('*')
+          .in('organization_id', orgIds);
+      } else {
+        // Use the regular query with user_id
+        query = supabase
+          .from('products')
+          .select('*')
+          .eq('user_id', userId);
+      }
       
       // Filter by product IDs if provided
       if (productIds && productIds.length > 0) {
@@ -278,7 +333,20 @@ export class ProductSyncService {
           result.failed++;
           result.success = false;
           
-          const errorMessage = error instanceof Error ? error.message : String(error);
+          // Ensure error is properly serialized for JSON response
+          let errorMessage: string;
+          
+          if (error instanceof Error) {
+            errorMessage = error.message;
+          } else if (typeof error === 'object') {
+            try {
+              errorMessage = JSON.stringify(error);
+            } catch (e) {
+              errorMessage = 'Unknown error object (cannot stringify)';
+            }
+          } else {
+            errorMessage = String(error);
+          }
           
           // Log the error
           MetakockaErrorLogger.logError(
@@ -318,7 +386,20 @@ export class ProductSyncService {
       
       return result;
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      // Ensure error is properly serialized for JSON response
+      let errorMessage: string;
+      
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else if (typeof error === 'object') {
+        try {
+          errorMessage = JSON.stringify(error);
+        } catch (e) {
+          errorMessage = 'Unknown error object (cannot stringify)';
+        }
+      } else {
+        errorMessage = String(error);
+      }
       
       // Log the critical error
       MetakockaErrorLogger.logError(
@@ -327,7 +408,9 @@ export class ProductSyncService {
         {
           userId,
           documentIds: productIds,
-          error
+          error: error instanceof Error ? 
+            { message: error.message, stack: error.stack } : 
+            errorMessage
         }
       );
       
@@ -379,7 +462,7 @@ export class ProductSyncService {
       const client = await MetakockaService.getClientForUser(userId);
       
       // Get products from Metakocka with retry logic
-      const products = await MetakockaRetryHandler.executeWithRetry(
+      const response = await MetakockaRetryHandler.executeWithRetry(
         async () => client.listProducts(),
         {
           userId,
@@ -390,7 +473,30 @@ export class ProductSyncService {
         }
       );
       
-      if (!products || products.length === 0) {
+      // Validate the response format
+      if (!response || !response.product_list) {
+        MetakockaErrorLogger.logWarning(
+          LogCategory.SYNC,
+          'Invalid response format from Metakocka API',
+          { 
+            userId,
+            details: { response }
+          }
+        );
+        
+        result.success = false;
+        result.errors.push({
+          productId: 'general',
+          error: 'Invalid response format from Metakocka API'
+        });
+        
+        return result;
+      }
+      
+      // Extract products from the response
+      const products = Array.isArray(response.product_list) ? response.product_list : [];
+      
+      if (products.length === 0) {
         MetakockaErrorLogger.logInfo(
           LogCategory.SYNC,
           'No products found in Metakocka to sync',
@@ -415,7 +521,7 @@ export class ProductSyncService {
       for (const metakockaProduct of products) {
         try {
           // Check if product already exists in CRM
-          const supabase = createServerClient();
+          const supabase = createServiceClient();
           
           // Look up by Metakocka ID in mappings
           const { data: mappingData } = await supabase
@@ -598,14 +704,19 @@ export class ProductSyncService {
   }
 
   /**
-   * Get product mapping by CRM product ID
-   * @param productId CRM product ID
+   * Get product mapping for a product
+   * @param productId Product ID
    * @param userId User ID
-   * @returns Product mapping or null if not found
+   * @param supabaseClient Optional Supabase client (to bypass RLS policies)
+   * @returns Product mapping
    */
-  static async getProductMapping(productId: string, userId: string): Promise<ProductMapping | null> {
-    const cookieStore = cookies();
-    const supabase = createServerClient();
+  static async getProductMapping(
+    productId: string,
+    userId: string,
+    supabaseClient?: SupabaseClient
+  ): Promise<ProductMapping | null> {
+    // Use provided client or create service client
+    const supabase = supabaseClient || createServiceClient();
     
     // Get mapping from the dedicated mapping table
     const { data, error } = await supabase
@@ -670,8 +781,8 @@ export class ProductSyncService {
    * @returns Array of product mappings
    */
   static async getProductMappings(productIds: string[], userId: string): Promise<ProductMapping[]> {
-    const cookieStore = cookies();
-    const supabase = createServerClient();
+    // No need to use cookies for service client
+    const supabase = createServiceClient();
     
     // Get mappings from the dedicated mapping table
     const { data, error } = await supabase
@@ -759,8 +870,8 @@ export class ProductSyncService {
     syncStatus: string = 'synced',
     syncError: string | null = null
   ): Promise<void> {
-    const cookieStore = cookies();
-    const supabase = createServerClient();
+    // No need to use cookies for service client
+    const supabase = createServiceClient();
     
     // Check if mapping already exists
     const { data, error } = await supabase

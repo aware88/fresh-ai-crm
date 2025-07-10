@@ -17,7 +17,7 @@ export default function Home() {
                     <path d="M12 8h.01"></path>
                   </svg>
                 </div>
-                <span className="font-bold text-xl md:text-2xl bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">CRM Mind</span>
+                <span className="font-bold text-xl md:text-2xl bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">ARIS</span>
               </Link>
             </div>
             <div className="hidden md:flex items-center space-x-2">
@@ -87,10 +87,10 @@ export default function Home() {
                   <path d="M12 8h.01"></path>
                 </svg>
               </div>
-              <span className="font-bold text-xl bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">CRM Mind</span>
+              <span className="font-bold text-xl bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">ARIS</span>
             </div>
             <p className="text-sm text-gray-500">
-              © {new Date().getFullYear()} CRM Mind. All rights reserved.
+              © {new Date().getFullYear()} ARIS. All rights reserved.
             </p>
           </div>
         </div>

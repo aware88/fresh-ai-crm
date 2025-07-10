@@ -87,6 +87,7 @@ Tests bidirectional sales document sync between CRM and Metakocka with comprehen
 2. Update the `.env` file with valid values:
    ```
    AUTH_TOKEN=your_auth_token
+   USER_ID=your_user_id_here  # Required for test mode authentication
    DOCUMENT_ID=valid_sales_doc_id
    METAKOCKA_ID=metakocka_doc_id  # For reverse sync tests
    ```
@@ -118,6 +119,9 @@ Tests bidirectional sales document sync between CRM and Metakocka with comprehen
 - Document creation/updates
 - Mapping verification
 - Bidirectional consistency
+- Unsynced document retrieval
+- Single document sync from Metakocka
+- Bulk document sync from Metakocka (via individual sync)
 
 ### Test Flow
 1. Create test documents in CRM
@@ -142,6 +146,19 @@ Comprehensive test that verifies the complete bidirectional sync flow for sales 
 3. Verify in Metakocka
 4. Sync back to CRM
 5. Verify in CRM
+
+#### Prerequisites
+1. Create a `.env` file from the sample:
+   ```bash
+   cp bidirectional-sync-test.env.sample .env
+   ```
+2. Update the `.env` file with valid values:
+   ```
+   AUTH_TOKEN=your_auth_token
+   USER_ID=your_user_id_here  # Required for test mode authentication
+   TEST_MODE=true  # Set to false to use existing documents
+   DOCUMENT_ID=valid_sales_doc_id  # Only needed if TEST_MODE=false
+   ```
 
 ```bash
 ./run-bidirectional-sync-test.sh
@@ -238,7 +255,8 @@ Most tests support two modes:
 ## Common Environment Variables
 
 - `AUTH_TOKEN`: Authentication token for API requests
-- `API_BASE_URL`: Base URL for API requests (defaults to http://localhost:3000/api)
+- `USER_ID`: User ID for test mode authentication
+- `API_BASE_URL`: Base URL for API requests (defaults to http://localhost:3001/api)
 - `TEST_MODE`: Whether to create test data automatically
 
 ## Troubleshooting

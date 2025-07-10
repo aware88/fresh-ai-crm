@@ -9,17 +9,20 @@ import { OrganizationBranding } from '@/types/branding';
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
   try {
+    // Get session first before using params
     const session = await getServerSession();
     
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    const organizationId = params.id;
-    const supabase = createServerClient();
+    // Safely extract the organization ID from params after all async operations
+    const { id: organizationId } = context.params;
+    // Create Supabase client properly with await
+    const supabase = await createServerClient();
     
     // Check if user belongs to the organization
     const { data: membership, error: membershipError } = await supabase
@@ -58,17 +61,20 @@ export async function GET(
  */
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
   try {
+    // Get session first before using params
     const session = await getServerSession();
     
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    const organizationId = params.id;
-    const supabase = createServerClient();
+    // Use the params after awaiting all async operations
+    const { id: organizationId } = context.params;
+    // Create Supabase client properly with await
+    const supabase = await createServerClient();
     
     // Check if user is an admin of the organization
     const { data: membership, error: membershipError } = await supabase

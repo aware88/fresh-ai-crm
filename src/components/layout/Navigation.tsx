@@ -11,7 +11,7 @@ interface NavigationProps {
 
 export function Navigation({ className = '' }: NavigationProps) {
   const [logoPath, setLogoPath] = useState<string | null>(null);
-  const [companyName, setCompanyName] = useState('CRM Mind');
+  const [companyName, setCompanyName] = useState('ARIS');
   
   // Check if we're in a browser environment
   const isBrowser = typeof window !== 'undefined';

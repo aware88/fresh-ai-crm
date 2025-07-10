@@ -133,7 +133,7 @@ export default function SignUpForm() {
       <CardHeader>
         <CardTitle className="text-2xl">Create an Account</CardTitle>
         <CardDescription>
-          Join CRM Mind to get started
+          Join ARIS to get started
         </CardDescription>
       </CardHeader>
       <CardContent>

@@ -2,8 +2,8 @@ import { Metadata } from 'next';
 import OutlookClient from '@/components/email/outlook/OutlookClient';
 
 export const metadata: Metadata = {
-  title: 'Outlook - CRM Mind',
-  description: 'Outlook email integration for CRM Mind',
+  title: 'Outlook - ARIS',
+  description: 'Outlook email integration for ARIS',
 };
 
 export default function OutlookPage() {

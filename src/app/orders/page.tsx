@@ -1,7 +1,7 @@
 /**
  * Orders Page
  * 
- * Main page for order management in the CRM Mind
+ * Main page for order management in ARIS
  */
 
 'use client';

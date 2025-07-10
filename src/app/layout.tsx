@@ -17,7 +17,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "CRM Mind - Intelligent Customer Relationship Management",
+  title: "ARIS - Agentic Relationship Intelligence System",
   description: "AI-powered CRM system for analyzing emails and managing customer relationships",
 };
 

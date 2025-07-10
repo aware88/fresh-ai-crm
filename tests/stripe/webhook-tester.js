@@ -5,19 +5,18 @@
  * without needing to use the Stripe CLI or actual Stripe events.
  */
 
-const fetch = require('node-fetch');
-const crypto = require('crypto');
-require('dotenv').config();
+import fetch from 'node-fetch';
+import crypto from 'crypto';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 // Configuration
 const API_URL = process.env.API_URL || 'http://localhost:3000';
-const WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET;
-const WEBHOOK_ENDPOINT = '/api/webhooks/stripe';
+const WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET || 'whsec_test_secret';
+const WEBHOOK_ENDPOINT = '/api/webhooks/subscription';
 
-if (!WEBHOOK_SECRET) {
-  console.error('Missing STRIPE_WEBHOOK_SECRET environment variable');
-  process.exit(1);
-}
+// Using default webhook secret for testing if not provided
 
 // Sample event templates
 const eventTemplates = {
@@ -186,16 +185,15 @@ async function sendWebhookEvent(eventType, organizationId = null, customerId = n
   // Convert event to string
   const payload = JSON.stringify(event);
   
-  // Generate signature
-  const signature = generateStripeSignature(payload, WEBHOOK_SECRET);
-  
   try {
     // Send webhook request
     const response = await fetch(`${API_URL}${WEBHOOK_ENDPOINT}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Stripe-Signature': signature
+        'Stripe-Signature': generateStripeSignature(payload, WEBHOOK_SECRET),
+        'x-payment-provider': 'stripe',
+        'x-test-webhook': 'true' // Special header for testing
       },
       body: payload
     });

@@ -322,7 +322,7 @@ export default function Home() {
                     whileHover={{ x: 2 }}
                     transition={{ type: 'spring', stiffness: 400, damping: 10 }}
                   >
-                    CRM Mind
+                    ARIS
                   </motion.span>
                 </Link>
               </motion.div>
@@ -1062,7 +1062,7 @@ export default function Home() {
         <div className="container px-4 mx-auto">
           <div className="text-center">
             <p className="text-sm text-gray-500">
-              &copy; {new Date().getFullYear()} CRM Mind, Inc. All rights reserved.
+              &copy; {new Date().getFullYear()} ARIS, Inc. All rights reserved.
             </p>
           </div>
         </div>
