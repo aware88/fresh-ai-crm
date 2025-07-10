@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -555,8 +557,8 @@ export function MetakockaErrorLogs() {
     }
   };
   
-  // Reference for search input to focus with keyboard shortcut
-  const searchInputRef = useRef<HTMLInputElement>(null);
+  // Reference for advanced search input to focus with keyboard shortcut
+  const advancedSearchInputRef = useRef<HTMLInputElement>(null);
   
   // Initialize error stats
   const [errorStats, setErrorStats] = useState<ErrorStats>({
