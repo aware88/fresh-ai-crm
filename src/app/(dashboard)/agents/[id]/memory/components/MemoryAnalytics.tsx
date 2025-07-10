@@ -11,7 +11,7 @@ import { useState, useEffect } from 'react';
 import { useSupabase } from '@/lib/supabase/client-hook';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-// Import individual chart components directly
+// Direct imports to avoid barrel file issues
 import { PieChart } from '@/components/ui/charts/PieChart';
 import { BarChart } from '@/components/ui/charts/BarChart';
 import { LineChart } from '@/components/ui/charts/LineChart';
