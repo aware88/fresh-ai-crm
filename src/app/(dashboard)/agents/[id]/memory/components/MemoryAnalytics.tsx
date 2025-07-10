@@ -11,7 +11,10 @@ import { useState, useEffect } from 'react';
 import { useSupabase } from '@/lib/supabase/client-hook';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { BarChart, PieChart, LineChart } from '@/components/ui/charts';
+// Import individual chart components directly
+import { PieChart } from '@/components/ui/charts/PieChart';
+import { BarChart } from '@/components/ui/charts/BarChart';
+import { LineChart } from '@/components/ui/charts/LineChart';
 import { Badge } from '@/components/ui/badge';
 import { Loader2 } from 'lucide-react';
 import { AIMemoryType } from '@/lib/ai/memory/ai-memory-service';
@@ -207,9 +210,6 @@ export function MemoryAnalytics({
                 {stats.memory_types.length > 0 ? (
                   <PieChart
                     data={memoryTypeData}
-                    index="name"
-                    valueKey="value"
-                    category="name"
                     colors={memoryTypeData.map(d => d.color)}
                   />
                 ) : (
@@ -241,10 +241,9 @@ export function MemoryAnalytics({
                 {stats.memory_usage.length > 0 ? (
                   <LineChart
                     data={memoryUsageData}
-                    index="name"
-                    categories={["Memories"]}
-                    colors={["#4f46e5"]}
-                    valueFormatter={(value) => `${value} memories`}
+                    xKey="name"
+                    yKey="Memories"
+                    color="#4f46e5"
                   />
                 ) : (
                   <div className="h-full flex items-center justify-center text-muted-foreground">
@@ -269,11 +268,10 @@ export function MemoryAnalytics({
           <div className="h-64">
             <BarChart
               data={feedbackData}
-              index="name"
-              categories={["value"]}
-              colors={["#4f46e5"]}
-              valueFormatter={(value) => `${value.toFixed(1)}%`}
-              yAxisWidth={48}
+              xKey="name"
+              yKey="value"
+              color="#4f46e5"
+              height={250}
             />
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">

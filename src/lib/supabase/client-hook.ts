@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 
 // Create a custom hook to use Supabase client
 export function useSupabase() {
-  const [supabase] = useState(() => {
+  const [supabaseClient] = useState(() => {
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
       throw new Error('Missing Supabase environment variables');
     }
@@ -14,7 +14,7 @@ export function useSupabase() {
     );
   });
 
-  return supabase;
+  return { supabase: supabaseClient };
 }
 
 // Re-export the client for direct imports
