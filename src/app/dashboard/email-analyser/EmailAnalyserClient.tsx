@@ -99,7 +99,8 @@ export default function EmailAnalyserClient() {
         setEmails(validEmails);
         setLoading(false);
         return; // Successfully loaded emails, exit function
-      } catch (error) {
+      }
+    } catch (error) {
         console.error('Error loading emails from emails table:', 
           error instanceof Error ? error.message : String(error));
         // Don't set error here, we'll try the fallback method
