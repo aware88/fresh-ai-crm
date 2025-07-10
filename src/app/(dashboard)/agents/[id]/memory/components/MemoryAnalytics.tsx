@@ -8,7 +8,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { useSupabase } from '@/lib/supabase/client';
+import { useSupabase } from '@/lib/supabase/client-hook';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { BarChart, PieChart, LineChart } from '@/components/ui/charts';
