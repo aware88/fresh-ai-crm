@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/components/ui/use-toast';
-import { Inbox, RefreshCw, Loader2, User, Mail, Eye, Calendar, Clock, ArrowUpRight, Filter, ChevronRight, MessageSquare, CheckCircle2, AlertCircle, Search, Send, Database, X, Download, Share, Tag, Link2, ExternalLink, FileText, Paperclip, Copy, ChevronsUpDown, MoreHorizontal, Archive, Reply, Forward, Trash } from 'lucide-react';
+import { Inbox, RefreshCw, Loader2, User, Mail, Eye, Calendar, Clock, ArrowUpRight, ArrowLeft, Filter, ChevronRight, MessageSquare, CheckCircle2, AlertCircle, Search, Send, Database, X, Download, Share, Tag, Link2, ExternalLink, FileText, Paperclip, Copy, ChevronsUpDown, MoreHorizontal, Archive, Reply, Forward, Trash, Sparkle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { formatDistanceToNow, format, parseISO, isValid } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
@@ -1059,57 +1059,82 @@ export default function EmailAnalyserClient() {
           </Button>
           <Button
             onClick={processEmails}
-            disabled={processing || emails.length === 0}
-            size="sm"
+            disabled={processing || emails.filter(e => !e.processed_at).length === 0}
+            className="ml-auto bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 hover:from-blue-700 hover:via-purple-700 hover:to-pink-700 text-white rounded-xl shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all duration-200"
           >
             {processing ? (
-              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Processing...
+              </>
             ) : (
-              <Database className="h-4 w-4 mr-2" />
+              <>
+                <RefreshCw className="mr-2 h-4 w-4" />
+                Process Emails
+              </>
             )}
-            Process Emails
           </Button>
         </div>
       </div>
 
-      <div className="border-b">
-        <div className="flex h-10 items-center space-x-4">
+      <div className="mb-6 bg-gradient-to-r from-blue-600/5 via-purple-600/5 to-pink-600/5 rounded-xl p-1">
+        <div className="flex items-center space-x-2">
           <div
             className={cn(
-              "cursor-pointer px-3 py-1.5 text-sm font-medium transition-colors",
-              activeView === 'inbox' ? "text-primary border-b-2 border-primary" : "text-muted-foreground hover:text-foreground"
+              "cursor-pointer px-4 py-2 text-sm font-medium transition-all duration-200 rounded-lg",
+              activeView === 'inbox' 
+                ? "bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-white shadow-md" 
+                : "text-gray-600 hover:bg-white/50 hover:text-gray-800"
             )}
             onClick={() => setActiveView('inbox')}
           >
-            Inbox
+            <div className="flex items-center">
+              <Inbox className="h-4 w-4 mr-2" />
+              Inbox
+            </div>
           </div>
           <div
             className={cn(
-              "cursor-pointer px-3 py-1.5 text-sm font-medium transition-colors",
-              activeView === 'analysis' ? "text-primary border-b-2 border-primary" : "text-muted-foreground hover:text-foreground"
+              "cursor-pointer px-4 py-2 text-sm font-medium transition-all duration-200 rounded-lg",
+              activeView === 'analysis' 
+                ? "bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-white shadow-md" 
+                : "text-gray-600 hover:bg-white/50 hover:text-gray-800"
             )}
             onClick={() => setActiveView('analysis')}
           >
-            Analysis
+            <div className="flex items-center">
+              <FileText className="h-4 w-4 mr-2" />
+              Analysis
+            </div>
           </div>
           <div
             className={cn(
-              "cursor-pointer px-3 py-1.5 text-sm font-medium transition-colors",
-              activeView === 'response' ? "text-primary border-b-2 border-primary" : "text-muted-foreground hover:text-foreground"
+              "cursor-pointer px-4 py-2 text-sm font-medium transition-all duration-200 rounded-lg",
+              activeView === 'response' 
+                ? "bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-white shadow-md" 
+                : "text-gray-600 hover:bg-white/50 hover:text-gray-800"
             )}
             onClick={() => setActiveView('response')}
           >
-            Response
+            <div className="flex items-center">
+              <MessageSquare className="h-4 w-4 mr-2" />
+              Response
+            </div>
           </div>
           <div
             className={cn(
-              "cursor-pointer px-3 py-1.5 text-sm font-medium transition-colors",
-              activeView === 'metakocka' ? "text-primary border-b-2 border-primary" : "text-muted-foreground hover:text-foreground"
+              "cursor-pointer px-4 py-2 text-sm font-medium transition-all duration-200 rounded-lg",
+              activeView === 'metakocka' 
+                ? "bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-white shadow-md" 
+                : "text-gray-600 hover:bg-white/50 hover:text-gray-800"
             )}
             onClick={() => selectedEmail && setActiveView('metakocka')}
             style={{ opacity: selectedEmail ? 1 : 0.5, cursor: selectedEmail ? 'pointer' : 'not-allowed' }}
           >
-            Metakocka
+            <div className="flex items-center">
+              <Database className="h-4 w-4 mr-2" />
+              Metakocka
+            </div>
           </div>
         </div>
       </div>
@@ -1143,24 +1168,26 @@ export default function EmailAnalyserClient() {
       {activeView === 'inbox' && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="md:col-span-1 space-y-4">
-            <Card>
-              <CardHeader>
+            <Card className="overflow-hidden border-0 shadow-lg rounded-2xl bg-gradient-to-r from-blue-50/50 via-white to-pink-50/50">
+              <CardHeader className="pb-2">
                 <div className="flex justify-between items-center">
                   <div>
-                    <CardTitle>Analyzed Emails</CardTitle>
-                    <CardDescription>
+                    <CardTitle className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-transparent bg-clip-text font-bold">Analyzed Emails</CardTitle>
+                    <CardDescription className="text-gray-500">
                       {filteredEmails.length} of {emails.length} emails shown
                     </CardDescription>
                   </div>
                 </div>
-                <div className="mt-2">
+                <div className="mt-3">
                   <div className="relative">
-                    <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <div className="absolute left-2 top-2.5 h-5 w-5 rounded-full bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 flex items-center justify-center">
+                      <Search className="h-3 w-3 text-white" />
+                    </div>
                     <Input
                       placeholder="Search emails..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pl-8"
+                      className="pl-9 rounded-xl border-gray-200 focus:border-blue-500 focus:ring-blue-500/20 transition-all duration-200"
                     />
                   </div>
                 </div>
@@ -1171,67 +1198,101 @@ export default function EmailAnalyserClient() {
                   onValueChange={setActiveTab}
                   className="w-full"
                 >
-                  <TabsList className="grid w-full grid-cols-3">
-                    <TabsTrigger value="all">All</TabsTrigger>
-                    <TabsTrigger value="contacts">With Contact</TabsTrigger>
-                    <TabsTrigger value="unlinked">Unlinked</TabsTrigger>
+                  <TabsList className="grid w-full grid-cols-3 bg-gradient-to-r from-blue-600/5 via-purple-600/5 to-pink-600/5 p-1 rounded-xl">
+                    <TabsTrigger 
+                      value="all"
+                      className={cn(
+                        "rounded-lg data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:via-purple-600 data-[state=active]:to-pink-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all duration-200"
+                      )}
+                    >
+                      All
+                    </TabsTrigger>
+                    <TabsTrigger 
+                      value="contacts"
+                      className={cn(
+                        "rounded-lg data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:via-purple-600 data-[state=active]:to-pink-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all duration-200"
+                      )}
+                    >
+                      With Contact
+                    </TabsTrigger>
+                    <TabsTrigger 
+                      value="unlinked"
+                      className={cn(
+                        "rounded-lg data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:via-purple-600 data-[state=active]:to-pink-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all duration-200"
+                      )}
+                    >
+                      Unlinked
+                    </TabsTrigger>
                   </TabsList>
                 </Tabs>
               </div>
               <CardContent className="p-0">
-                <div className="p-3 border-b">
+                <div className="p-3 border-b bg-gradient-to-r from-blue-50/50 via-white to-pink-50/50">
                   <EmailBatchActions />
                 </div>
                 {loading ? (
                   <div className="space-y-3 p-4">
                     {[...Array(5)].map((_, i) => (
-                      <div key={i} className="animate-pulse p-4 border-b">
+                      <div key={i} className="animate-pulse p-4 border-b hover:bg-gradient-to-r hover:from-blue-50/30 hover:via-purple-50/30 hover:to-pink-50/30 transition-all duration-300">
                         <div className="flex items-start space-x-3">
-                          <div className="h-8 w-8 bg-muted rounded-full"></div>
+                          <div className="h-10 w-10 bg-gradient-to-r from-blue-200 via-purple-200 to-pink-200 rounded-full"></div>
                           <div className="flex-1 space-y-2">
-                            <div className="h-4 bg-muted rounded w-3/4"></div>
-                            <div className="h-3 bg-muted rounded w-1/2"></div>
-                            <div className="h-3 bg-muted rounded w-full"></div>
-                            <div className="h-3 bg-muted rounded w-2/3"></div>
+                            <div className="h-4 bg-gradient-to-r from-blue-100 to-purple-100 rounded-lg w-3/4"></div>
+                            <div className="h-3 bg-gradient-to-r from-purple-100 to-pink-100 rounded-lg w-1/2"></div>
+                            <div className="h-3 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg w-full"></div>
+                            <div className="h-3 bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg w-2/3"></div>
                           </div>
-                          <div className="h-3 bg-muted rounded w-16"></div>
+                          <div className="h-5 w-5 bg-gradient-to-r from-blue-100 to-purple-100 rounded-full"></div>
                         </div>
                       </div>
                     ))}
                   </div>
                 ) : filteredEmails.length === 0 ? (
-                  <div className="text-center py-16 px-4">
+                  <div className="text-center py-16 px-4 bg-gradient-to-r from-blue-50/30 via-white to-pink-50/30 rounded-xl">
                     {searchQuery ? (
                       <>
-                        <Search className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                        <h3 className="text-xl font-semibold mb-2">No matching emails</h3>
-                        <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+                        <div className="h-20 w-20 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
+                          <Search className="h-10 w-10 text-white" />
+                        </div>
+                        <h3 className="text-xl font-bold mb-3 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-transparent bg-clip-text">No matching emails</h3>
+                        <p className="text-gray-600 mb-6 max-w-md mx-auto">
                           No emails found matching "{searchQuery}". Try adjusting your search terms or clearing the search.
                         </p>
-                        <Button onClick={() => setSearchQuery('')} variant="outline">
+                        <Button 
+                          onClick={() => setSearchQuery('')} 
+                          className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 hover:from-blue-700 hover:via-purple-700 hover:to-pink-700 text-white rounded-xl shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all duration-200"
+                        >
                           <X className="h-4 w-4 mr-2" />
                           Clear Search
                         </Button>
                       </>
                     ) : (
                       <>
-                        <Mail className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                        <h3 className="text-xl font-semibold mb-2">No emails available</h3>
-                        <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+                        <div className="h-20 w-20 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
+                          <Mail className="h-10 w-10 text-white" />
+                        </div>
+                        <h3 className="text-xl font-bold mb-3 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-transparent bg-clip-text">No emails available</h3>
+                        <p className="text-gray-600 mb-6 max-w-md mx-auto">
                           {activeTab === 'contacts' 
                             ? 'No emails with linked contacts found. Process some emails first or switch to "All" to see unlinked emails.'
                             : activeTab === 'unlinked'
-                            ? 'No unlinked emails found. All your emails appear to be linked to contacts.'
-                            : 'No emails have been processed yet. Click "Process Emails" to analyze your recent emails.'}
+                            ? 'No unlinked emails found. All emails have been associated with contacts.'
+                            : 'No emails found. Import some emails to get started.'}
                         </p>
-                        <div className="flex gap-2 justify-center">
-                          <Button onClick={loadEmails} variant="outline">
+                        <div className="flex gap-3 justify-center">
+                          <Button 
+                            onClick={loadEmails} 
+                            className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 hover:from-blue-700 hover:via-purple-700 hover:to-pink-700 text-white rounded-xl shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all duration-200"
+                          >
                             <RefreshCw className="h-4 w-4 mr-2" />
                             Refresh
                           </Button>
                           {activeTab !== 'all' && (
-                            <Button onClick={() => setActiveTab('all')} variant="outline">
-                              <Mail className="h-4 w-4 mr-2" />
+                            <Button 
+                              onClick={() => setActiveTab('all')} 
+                              className="border border-gray-200 hover:border-gray-300 bg-white hover:bg-gray-50 text-gray-700 rounded-xl shadow-sm hover:shadow transition-all duration-200"
+                            >
+                              <Mail className="h-4 w-4 mr-2 text-blue-600" />
                               View All Emails
                             </Button>
                           )}
@@ -1246,8 +1307,8 @@ export default function EmailAnalyserClient() {
                         <div
                           key={email.id}
                           className={cn(
-                            "p-4 hover:bg-muted/50 transition-colors",
-                            selectedEmail?.id === email.id && "bg-muted"
+                            "p-4 hover:bg-gradient-to-r hover:from-blue-50/30 hover:via-purple-50/30 hover:to-pink-50/30 transition-all duration-200 rounded-lg my-1",
+                            selectedEmail?.id === email.id && "bg-gradient-to-r from-blue-50/50 via-purple-50/50 to-pink-50/50 shadow-sm"
                           )}
                         >
                           <div className="flex items-start gap-3">
@@ -1258,7 +1319,7 @@ export default function EmailAnalyserClient() {
                             }}>
                               <Checkbox 
                                 checked={selectedEmailIds.includes(email.id)}
-                                className="mt-0.5"
+                                className="mt-0.5 rounded-md border-gray-300 text-blue-600 focus:ring-blue-500/20"
                               />
                             </div>
                             <div 
@@ -1266,25 +1327,29 @@ export default function EmailAnalyserClient() {
                               onClick={() => viewEmail(email)}
                             >
                               <div className="flex items-start justify-between">
-                                <div className="font-semibold truncate text-foreground">{email.subject || '(No subject)'}</div>
+                                <div className="font-semibold truncate bg-gradient-to-r from-blue-700 via-purple-700 to-pink-700 text-transparent bg-clip-text">{email.subject || '(No subject)'}</div>
                                 <div className="flex items-center gap-2">
                                   {email.has_attachments && (
-                                    <Paperclip className="h-3.5 w-3.5 text-muted-foreground" />
+                                    <div className="h-5 w-5 rounded-full bg-gradient-to-r from-blue-600/10 via-purple-600/10 to-pink-600/10 flex items-center justify-center">
+                                      <Paperclip className="h-3 w-3 text-blue-600" />
+                                    </div>
                                   )}
-                                  <div className="text-xs text-muted-foreground whitespace-nowrap">
+                                  <div className="text-xs text-gray-500 whitespace-nowrap bg-gradient-to-r from-blue-600/5 via-purple-600/5 to-pink-600/5 px-2 py-0.5 rounded-full">
                                     {formatDate(email.created_at)}
                                   </div>
                                 </div>
                               </div>
-                              <div className="text-sm font-medium text-primary mt-1 truncate">
+                              <div className="text-sm font-medium bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-transparent bg-clip-text mt-1 truncate">
                                 {getEmailSenderName(email)}
                               </div>
-                              <div className="text-xs text-muted-foreground mt-1.5 line-clamp-2 leading-snug">
+                              <div className="text-xs text-gray-600 mt-1.5 line-clamp-2 leading-snug">
                                 {truncateText(email.analysis || email.raw_content, 120)}
                               </div>
-                              <div className="flex items-center gap-2 text-xs text-muted-foreground mt-2">
-                                <User className="h-3 w-3" />
-                                <span>{getEmailContactName(email)}</span>
+                              <div className="flex items-center gap-2 text-xs text-gray-500 mt-2">
+                                <div className="h-5 w-5 rounded-full bg-gradient-to-r from-blue-600/10 via-purple-600/10 to-pink-600/10 flex items-center justify-center">
+                                  <User className="h-3 w-3 text-blue-600" />
+                                </div>
+                                <span className="font-medium">{getEmailContactName(email)}</span>
                               </div>
                             </div>
                             <div className="ml-auto pl-2">
@@ -1310,28 +1375,43 @@ export default function EmailAnalyserClient() {
 
           <div className="md:col-span-2">
             {selectedEmail ? (
-              <Card>
-                <CardHeader>
+              <Card className="overflow-hidden border-0 shadow-lg rounded-2xl bg-gradient-to-r from-blue-50/50 via-white to-pink-50/50">
+                <CardHeader className="pb-3 border-b border-gray-100">
                   <div className="flex items-start justify-between">
                     <div>
-                      <CardTitle>{selectedEmail.subject || '(No subject)'}</CardTitle>
-                      <CardDescription>From: {selectedEmail.sender}</CardDescription>
+                      <CardTitle className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-transparent bg-clip-text font-bold">{selectedEmail.subject || '(No subject)'}</CardTitle>
+                      <CardDescription className="text-gray-600 mt-1 flex items-center">
+                        <div className="h-5 w-5 rounded-full bg-gradient-to-r from-blue-600/10 via-purple-600/10 to-pink-600/10 flex items-center justify-center mr-2">
+                          <Mail className="h-3 w-3 text-blue-600" />
+                        </div>
+                        From: {selectedEmail.sender}
+                      </CardDescription>
                     </div>
                   </div>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-6">
                     {/* Email metadata */}
-                    <div className="flex flex-wrap gap-4 text-sm">
-                      <div className="flex items-center">
-                        <Calendar className="h-4 w-4 mr-2 text-muted-foreground" />
-                        <span>{formatFullDate(selectedEmail.created_at)}</span>
+                    <div className="flex flex-wrap gap-4 text-sm bg-gradient-to-r from-blue-50/50 via-purple-50/50 to-pink-50/50 p-3 rounded-xl">
+                      <div className="flex items-center bg-white px-3 py-1.5 rounded-lg shadow-sm">
+                        <div className="h-6 w-6 rounded-full bg-gradient-to-r from-blue-600/10 via-purple-600/10 to-pink-600/10 flex items-center justify-center mr-2">
+                          <Calendar className="h-3.5 w-3.5 text-blue-600" />
+                        </div>
+                        <span className="text-gray-700">{formatFullDate(selectedEmail.created_at)}</span>
                       </div>
                       
                       {selectedEmail.priority && (
                         <div className="flex items-center">
-                          <Badge variant={selectedEmail.priority === 'high' ? 'destructive' : 
-                                      selectedEmail.priority === 'low' ? 'secondary' : 'outline'}>
+                          <Badge 
+                            className={cn(
+                              "px-3 py-1 rounded-lg font-medium shadow-sm",
+                              selectedEmail.priority === 'high' 
+                                ? "bg-gradient-to-r from-red-500 to-pink-500 text-white" 
+                                : selectedEmail.priority === 'low' 
+                                ? "bg-gradient-to-r from-blue-400 to-cyan-400 text-white" 
+                                : "bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-white"
+                            )}
+                          >
                             {selectedEmail.priority.charAt(0).toUpperCase() + selectedEmail.priority.slice(1)} Priority
                           </Badge>
                         </div>
@@ -1339,8 +1419,16 @@ export default function EmailAnalyserClient() {
                       
                       {selectedEmail.sentiment && (
                         <div className="flex items-center">
-                          <Badge variant={selectedEmail.sentiment === 'positive' ? 'success' : 
-                                      selectedEmail.sentiment === 'negative' ? 'destructive' : 'secondary'}>
+                          <Badge 
+                            className={cn(
+                              "px-3 py-1 rounded-lg font-medium shadow-sm",
+                              selectedEmail.sentiment === 'positive' 
+                                ? "bg-gradient-to-r from-green-500 to-emerald-500 text-white" 
+                                : selectedEmail.sentiment === 'negative' 
+                                ? "bg-gradient-to-r from-red-500 to-pink-500 text-white" 
+                                : "bg-gradient-to-r from-gray-400 to-slate-400 text-white"
+                            )}
+                          >
                             {selectedEmail.sentiment.charAt(0).toUpperCase() + selectedEmail.sentiment.slice(1)}
                           </Badge>
                         </div>
@@ -1348,9 +1436,14 @@ export default function EmailAnalyserClient() {
                     </div>
                     
                     {/* Email content */}
-                    <div className="border rounded-md p-4 bg-muted/30">
-                      <h3 className="text-sm font-medium mb-2">Email Content</h3>
-                      <div className="whitespace-pre-wrap text-sm">
+                    <div className="border-0 rounded-xl p-5 bg-gradient-to-r from-blue-50/30 via-white to-pink-50/30 shadow-sm">
+                      <h3 className="text-base font-semibold mb-3 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-transparent bg-clip-text flex items-center">
+                        <div className="h-6 w-6 rounded-full bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 flex items-center justify-center mr-2">
+                          <FileText className="h-3.5 w-3.5 text-white" />
+                        </div>
+                        Email Content
+                      </h3>
+                      <div className="whitespace-pre-wrap text-sm bg-white p-4 rounded-lg border border-gray-100 shadow-inner text-gray-700">
                         {selectedEmail.raw_content || 'No content available'}
                       </div>
                     </div>
@@ -1361,18 +1454,27 @@ export default function EmailAnalyserClient() {
                     )}
                     
                     {/* AI Analysis */}
-                    <div>
-                      <h3 className="text-sm font-medium mb-2">AI Analysis</h3>
+                    <div className="border-0 rounded-xl p-5 bg-gradient-to-r from-blue-50/30 via-white to-pink-50/30 shadow-sm">
+                      <h3 className="text-base font-semibold mb-3 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-transparent bg-clip-text flex items-center">
+                        <div className="h-6 w-6 rounded-full bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 flex items-center justify-center mr-2">
+                          <Sparkle className="h-3.5 w-3.5 text-white" />
+                        </div>
+                        AI Analysis
+                      </h3>
                       <div className="prose max-w-none dark:prose-invert">
                         {selectedEmail.analysis ? (
-                          <div className="whitespace-pre-wrap text-sm">
+                          <div className="whitespace-pre-wrap text-sm bg-white p-4 rounded-lg border border-gray-100 shadow-inner text-gray-700">
                             {selectedEmail.analysis.split('\n').map((line, i) => (
                               <div key={i} dangerouslySetInnerHTML={{ __html: line.replace(/\n/g, '<br/>') }} />
                             ))}
                           </div>
                         ) : (
-                          <div className="text-muted-foreground text-center py-4">
-                            No analysis available for this email.
+                          <div className="text-center py-6 bg-white rounded-lg border border-gray-100 shadow-inner">
+                            <div className="h-12 w-12 bg-gradient-to-r from-blue-600/10 via-purple-600/10 to-pink-600/10 rounded-full flex items-center justify-center mx-auto mb-3">
+                              <AlertCircle className="h-6 w-6 text-blue-600" />
+                            </div>
+                            <p className="text-gray-600 font-medium">No analysis available for this email.</p>
+                            <p className="text-gray-500 text-sm mt-1">Process this email to generate an AI analysis.</p>
                           </div>
                         )}
                       </div>
@@ -1380,23 +1482,31 @@ export default function EmailAnalyserClient() {
                     
                     {/* Contact information */}
                     {selectedEmail.contacts && selectedEmail.contacts.length > 0 && (
-                      <div>
-                        <h3 className="text-sm font-medium mb-2">Linked Contacts</h3>
-                        <div className="space-y-2">
+                      <div className="border-0 rounded-xl p-5 bg-gradient-to-r from-blue-50/30 via-white to-pink-50/30 shadow-sm">
+                        <h3 className="text-base font-semibold mb-3 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-transparent bg-clip-text flex items-center">
+                          <div className="h-6 w-6 rounded-full bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 flex items-center justify-center mr-2">
+                            <User className="h-3.5 w-3.5 text-white" />
+                          </div>
+                          Linked Contacts
+                        </h3>
+                        <div className="space-y-3">
                           {selectedEmail.contacts.map(contact => (
-                            <div key={contact.id} className="flex items-center justify-between p-2 rounded-md border">
-                              <div className="flex items-center space-x-2">
-                                <Avatar className="h-8 w-8">
-                                  <AvatarFallback>{getInitials(contact.full_name)}</AvatarFallback>
+                            <div key={contact.id} className="flex items-center justify-between p-3 rounded-xl border border-gray-100 bg-white shadow-sm hover:shadow-md hover:border-gray-200 transition-all duration-200">
+                              <div className="flex items-center space-x-3">
+                                <Avatar className="h-10 w-10 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-white shadow-md">
+                                  <AvatarFallback className="font-medium">{getInitials(contact.full_name)}</AvatarFallback>
                                 </Avatar>
                                 <div>
-                                  <p className="text-sm font-medium">{contact.full_name}</p>
-                                  <p className="text-xs text-muted-foreground">{contact.email}</p>
+                                  <p className="text-sm font-medium bg-gradient-to-r from-blue-700 via-purple-700 to-pink-700 text-transparent bg-clip-text">{contact.full_name}</p>
+                                  <p className="text-xs text-gray-500 flex items-center mt-0.5">
+                                    <Mail className="h-3 w-3 mr-1 text-blue-500" />
+                                    {contact.email}
+                                  </p>
                                 </div>
                               </div>
-                              <Button variant="ghost" size="sm" asChild>
+                              <Button className="rounded-full p-2 h-auto w-auto bg-gradient-to-r from-blue-600/10 via-purple-600/10 to-pink-600/10 hover:from-blue-600/20 hover:via-purple-600/20 hover:to-pink-600/20 transition-all duration-200" size="sm" asChild>
                                 <Link href={`/dashboard/contacts/${contact.id}`}>
-                                  <ArrowUpRight className="h-4 w-4" />
+                                  <ArrowUpRight className="h-4 w-4 text-blue-600" />
                                 </Link>
                               </Button>
                             </div>
@@ -1408,10 +1518,19 @@ export default function EmailAnalyserClient() {
                 </CardContent>
               </Card>
             ) : (
-              <div className="text-center py-20">
-                <Mail className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-semibold mb-2">Select an email to view</h3>
-                <p className="text-muted-foreground">Choose an email from the list to see its analysis</p>
+              <div className="text-center py-20 bg-gradient-to-r from-blue-50/30 via-white to-pink-50/30 rounded-2xl border border-gray-100 shadow-sm">
+                <div className="h-24 w-24 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
+                  <Mail className="h-12 w-12 text-white" />
+                </div>
+                <h3 className="text-xl font-bold mb-3 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-transparent bg-clip-text">Select an email to view</h3>
+                <p className="text-gray-600 mb-6 max-w-md mx-auto">Choose an email from the list to see its content and AI analysis</p>
+                <Button 
+                  onClick={() => loadEmails()} 
+                  className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 hover:from-blue-700 hover:via-purple-700 hover:to-pink-700 text-white rounded-xl shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all duration-200"
+                >
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Refresh Emails
+                </Button>
               </div>
             )}
           </div>
@@ -1420,34 +1539,41 @@ export default function EmailAnalyserClient() {
 
       {activeView === 'analysis' && selectedEmail && (
         <div className="space-y-6">
-          <Card>
-            <CardHeader>
+          <Card className="overflow-hidden border-0 shadow-lg rounded-2xl bg-gradient-to-r from-blue-50/50 via-white to-pink-50/50">
+            <CardHeader className="pb-3 border-b border-gray-100">
               <div className="flex items-start justify-between">
                 <div>
-                  <CardTitle>Email Analysis</CardTitle>
-                  <CardDescription>AI-powered analysis of the selected email</CardDescription>
+                  <CardTitle className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-transparent bg-clip-text font-bold">Email Analysis</CardTitle>
+                  <CardDescription className="text-gray-600 mt-1 flex items-center">
+                    <div className="h-5 w-5 rounded-full bg-gradient-to-r from-blue-600/10 via-purple-600/10 to-pink-600/10 flex items-center justify-center mr-2">
+                      <Sparkle className="h-3 w-3 text-blue-600" />
+                    </div>
+                    AI-powered analysis of the selected email
+                  </CardDescription>
                 </div>
               </div>
             </CardHeader>
             <CardContent>
               <div className="space-y-6">
                 {/* Email Header */}
-                <div className="p-4 rounded-lg bg-muted/30 border">
+                <div className="p-5 rounded-xl bg-gradient-to-r from-blue-50/30 via-white to-pink-50/30 border border-gray-100 shadow-sm">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <div className="font-medium text-lg mb-1">
+                      <div className="font-semibold text-lg mb-2 bg-gradient-to-r from-blue-700 via-purple-700 to-pink-700 text-transparent bg-clip-text">
                         {selectedEmail.subject || '(No subject)'}
                       </div>
-                      <div className="text-sm text-muted-foreground">
+                      <div className="text-sm text-gray-600 flex items-center mb-1">
+                        <User className="h-4 w-4 mr-2 text-blue-600" />
                         From: {getEmailSenderName(selectedEmail)}
                       </div>
-                      <div className="text-sm text-muted-foreground">
+                      <div className="text-sm text-gray-600 flex items-center">
+                        <Calendar className="h-4 w-4 mr-2 text-blue-600" />
                         Date: {formatDate(selectedEmail.created_at)}
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary">
-                        <Mail className="h-3 w-3 mr-1" />
+                      <div className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium shadow-sm ${selectedEmail.contacts && selectedEmail.contacts.length > 0 ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white' : 'bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-white'}`}>
+                        <Mail className="h-3.5 w-3.5 mr-2 text-white" />
                         {selectedEmail.contacts && selectedEmail.contacts.length > 0 ? 'Linked Contact' : 'Unlinked'}
                       </div>
                     </div>
@@ -1455,18 +1581,26 @@ export default function EmailAnalyserClient() {
                 </div>
 
                 {/* Email Content */}
-                <div>
-                  <h3 className="text-lg font-medium mb-3">Email Content</h3>
-                  <div className="p-4 rounded-lg border bg-card">
+                <div className="border-0 rounded-xl p-5 bg-gradient-to-r from-blue-50/30 via-white to-pink-50/30 shadow-sm">
+                  <h3 className="text-base font-semibold mb-3 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-transparent bg-clip-text flex items-center">
+                    <div className="h-6 w-6 rounded-full bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 flex items-center justify-center mr-2">
+                      <FileText className="h-3.5 w-3.5 text-white" />
+                    </div>
+                    Email Content
+                  </h3>
+                  <div className="p-4 rounded-lg bg-white border border-gray-100 shadow-inner">
                     {selectedEmail.raw_content ? (
                       <div className="prose max-w-none dark:prose-invert">
-                        <div className="whitespace-pre-wrap text-sm leading-relaxed">
+                        <div className="whitespace-pre-wrap text-sm leading-relaxed text-gray-700">
                           {selectedEmail.raw_content}
                         </div>
                       </div>
                     ) : (
-                      <div className="italic text-muted-foreground text-center py-8">
-                        No email content available.
+                      <div className="text-center py-6">
+                        <div className="h-12 w-12 bg-gradient-to-r from-blue-600/10 via-purple-600/10 to-pink-600/10 rounded-full flex items-center justify-center mx-auto mb-3">
+                          <AlertCircle className="h-6 w-6 text-blue-600" />
+                        </div>
+                        <p className="text-gray-600 font-medium">No email content available.</p>
                       </div>
                     )}
                   </div>
@@ -1474,11 +1608,16 @@ export default function EmailAnalyserClient() {
 
                 {/* AI Analysis */}
                 {selectedEmail.analysis && (
-                  <div>
-                    <h3 className="text-lg font-medium mb-3">AI Analysis</h3>
-                    <div className="p-4 rounded-lg border bg-primary/5">
+                  <div className="border-0 rounded-xl p-5 bg-gradient-to-r from-blue-50/30 via-white to-pink-50/30 shadow-sm">
+                    <h3 className="text-base font-semibold mb-3 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-transparent bg-clip-text flex items-center">
+                      <div className="h-6 w-6 rounded-full bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 flex items-center justify-center mr-2">
+                        <Sparkle className="h-3.5 w-3.5 text-white" />
+                      </div>
+                      AI Analysis
+                    </h3>
+                    <div className="p-4 rounded-lg bg-white border border-gray-100 shadow-inner">
                       <div className="prose max-w-none dark:prose-invert">
-                        <div className="whitespace-pre-wrap text-sm leading-relaxed">
+                        <div className="whitespace-pre-wrap text-sm leading-relaxed text-gray-700">
                           {selectedEmail.analysis}
                         </div>
                       </div>
@@ -1488,22 +1627,33 @@ export default function EmailAnalyserClient() {
 
                 {/* Contact Information */}
                 {selectedEmail.contacts && selectedEmail.contacts.length > 0 && (
-                  <div>
-                    <h3 className="text-lg font-medium mb-3">Linked Contact</h3>
-                    <div className="p-4 rounded-lg border bg-card">
+                  <div className="border-0 rounded-xl p-5 bg-gradient-to-r from-blue-50/30 via-white to-pink-50/30 shadow-sm">
+                    <h3 className="text-base font-semibold mb-3 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-transparent bg-clip-text flex items-center">
+                      <div className="h-6 w-6 rounded-full bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 flex items-center justify-center mr-2">
+                        <User className="h-3.5 w-3.5 text-white" />
+                      </div>
+                      Linked Contact
+                    </h3>
+                    <div className="p-4 rounded-lg bg-white border border-gray-100 shadow-inner">
                       {selectedEmail.contacts.map((contact) => (
-                        <div key={contact.id} className="flex items-center space-x-3">
-                          <div className="flex-shrink-0">
-                            <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                              <span className="text-sm font-medium text-primary">
-                                {getInitials(contact.full_name)}
-                              </span>
+                        <div key={contact.id} className="flex items-center justify-between p-3 rounded-xl border border-gray-100 bg-white shadow-sm hover:shadow-md hover:border-gray-200 transition-all duration-200">
+                          <div className="flex items-center space-x-3">
+                            <Avatar className="h-10 w-10 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-white shadow-md">
+                              <AvatarFallback className="font-medium">{getInitials(contact.full_name)}</AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <div className="font-medium bg-gradient-to-r from-blue-700 via-purple-700 to-pink-700 text-transparent bg-clip-text">{contact.full_name}</div>
+                              <div className="text-sm text-gray-500 flex items-center mt-0.5">
+                                <Mail className="h-3 w-3 mr-1 text-blue-500" />
+                                {contact.email}
+                              </div>
                             </div>
                           </div>
-                          <div>
-                            <div className="font-medium">{contact.full_name}</div>
-                            <div className="text-sm text-muted-foreground">{contact.email}</div>
-                          </div>
+                          <Button className="rounded-full p-2 h-auto w-auto bg-gradient-to-r from-blue-600/10 via-purple-600/10 to-pink-600/10 hover:from-blue-600/20 hover:via-purple-600/20 hover:to-pink-600/20 transition-all duration-200" size="sm" asChild>
+                            <Link href={`/dashboard/contacts/${contact.id}`}>
+                              <ArrowUpRight className="h-4 w-4 text-blue-600" />
+                            </Link>
+                          </Button>
                         </div>
                       ))}
                     </div>
@@ -1517,17 +1667,23 @@ export default function EmailAnalyserClient() {
 
       {activeView === 'response' && selectedEmail && (
         <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Generate Response</CardTitle>
-              <CardDescription>AI-powered response generation for the selected email</CardDescription>
+          <Card className="overflow-hidden border-0 shadow-lg rounded-2xl bg-gradient-to-r from-blue-50/50 via-white to-pink-50/50">
+            <CardHeader className="pb-3 border-b border-gray-100">
+              <CardTitle className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-transparent bg-clip-text font-bold">Generate Response</CardTitle>
+              <CardDescription className="text-gray-600 mt-1 flex items-center">
+                <div className="h-5 w-5 rounded-full bg-gradient-to-r from-blue-600/10 via-purple-600/10 to-pink-600/10 flex items-center justify-center mr-2">
+                  <MessageSquare className="h-3 w-3 text-blue-600" />
+                </div>
+                AI-powered response generation for the selected email
+              </CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
+            <CardContent className="p-5">
+              <div className="space-y-5">
                 <div className="flex items-center gap-4">
                   <Button
                     onClick={generateResponse}
                     disabled={isGeneratingResponse}
+                    className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 hover:from-blue-700 hover:via-purple-700 hover:to-pink-700 text-white rounded-xl shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all duration-200"
                   >
                     {isGeneratingResponse ? (
                       <Loader2 className="h-4 w-4 animate-spin mr-2" />
@@ -1545,13 +1701,18 @@ export default function EmailAnalyserClient() {
                 
                 {response && (
                   <>
-                    <div className="space-y-4">
-                      <div>
-                        <label className="text-sm font-medium">Generated Response:</label>
+                    <div className="space-y-5">
+                      <div className="border-0 rounded-xl p-5 bg-gradient-to-r from-blue-50/30 via-white to-pink-50/30 shadow-sm">
+                        <label className="text-base font-semibold mb-3 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-transparent bg-clip-text flex items-center">
+                          <div className="h-6 w-6 rounded-full bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 flex items-center justify-center mr-2">
+                            <MessageSquare className="h-3.5 w-3.5 text-white" />
+                          </div>
+                          Generated Response
+                        </label>
                         <Textarea
                           value={response}
                           onChange={(e) => setResponse(e.target.value)}
-                          className="mt-2 min-h-[200px]"
+                          className="mt-3 min-h-[200px] border-gray-200 rounded-lg shadow-inner focus:border-blue-500 focus:ring-blue-500/20 transition-all duration-200"
                           placeholder="Generated response will appear here..."
                         />
                       </div>
@@ -1572,6 +1733,7 @@ export default function EmailAnalyserClient() {
                             }, 2000);
                           }}
                           disabled={isSending || !response.trim()}
+                          className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 hover:from-blue-700 hover:via-purple-700 hover:to-pink-700 text-white rounded-xl shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all duration-200"
                         >
                           {isSending ? (
                             <Loader2 className="h-4 w-4 animate-spin mr-2" />
@@ -1582,9 +1744,11 @@ export default function EmailAnalyserClient() {
                         </Button>
                         
                         {sendStatus === 'sent' && (
-                          <div className="flex items-center text-green-600">
-                            <CheckCircle2 className="h-4 w-4 mr-1" />
-                            <span className="text-sm">Response sent successfully!</span>
+                          <div className="flex items-center gap-2 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-100 px-3 py-2 rounded-lg shadow-sm">
+                            <div className="h-6 w-6 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full flex items-center justify-center">
+                              <CheckCircle2 className="h-3.5 w-3.5 text-white" />
+                            </div>
+                            <span className="text-sm font-medium text-green-700">Response sent successfully!</span>
                           </div>
                         )}
                       </div>
@@ -1600,35 +1764,52 @@ export default function EmailAnalyserClient() {
       {/* Metakocka View */}
       {activeView === 'metakocka' && selectedEmail && (
         <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Metakocka Integration</CardTitle>
-              <CardDescription>
+          <Card className="overflow-hidden border-0 shadow-lg rounded-2xl bg-gradient-to-r from-blue-50/50 via-white to-pink-50/50">
+            <CardHeader className="pb-3 border-b border-gray-100">
+              <CardTitle className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-transparent bg-clip-text font-bold">Metakocka Integration</CardTitle>
+              <CardDescription className="text-gray-600 mt-1 flex items-center">
+                <div className="h-5 w-5 rounded-full bg-gradient-to-r from-blue-600/10 via-purple-600/10 to-pink-600/10 flex items-center justify-center mr-2">
+                  <Database className="h-3 w-3 text-blue-600" />
+                </div>
                 View Metakocka data related to this email and generate AI responses with Metakocka context
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-5">
               <div className="space-y-6">
                 {/* Metakocka Email Info Component */}
-                <div className="mb-6">
-                  <h3 className="text-lg font-medium mb-2">Related Metakocka Data</h3>
-                  <MetakockaEmailInfo emailId={selectedEmail.id} />
+                <div className="border-0 rounded-xl p-5 bg-gradient-to-r from-blue-50/30 via-white to-pink-50/30 shadow-sm mb-6">
+                  <h3 className="text-base font-semibold mb-3 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-transparent bg-clip-text flex items-center">
+                    <div className="h-6 w-6 rounded-full bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 flex items-center justify-center mr-2">
+                      <Database className="h-3.5 w-3.5 text-white" />
+                    </div>
+                    Related Metakocka Data
+                  </h3>
+                  <div className="border border-gray-100 rounded-lg bg-white shadow-inner p-4">
+                    <MetakockaEmailInfo emailId={selectedEmail.id} />
+                  </div>
                 </div>
                 
                 {/* Metakocka AI Response Component */}
-                <div>
-                  <h3 className="text-lg font-medium mb-2">Generate AI Response with Metakocka Context</h3>
-                  <MetakockaEmailResponse 
-                    emailId={selectedEmail.id} 
-                    onResponseGenerated={(response) => {
-                      setSuggestedResponse(response);
-                      setActiveView('response');
-                      toast({
-                        title: "Response Generated",
-                        description: "AI response with Metakocka context has been generated.",
-                      });
-                    }} 
-                  />
+                <div className="border-0 rounded-xl p-5 bg-gradient-to-r from-blue-50/30 via-white to-pink-50/30 shadow-sm">
+                  <h3 className="text-base font-semibold mb-3 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-transparent bg-clip-text flex items-center">
+                    <div className="h-6 w-6 rounded-full bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 flex items-center justify-center mr-2">
+                      <Sparkle className="h-3.5 w-3.5 text-white" />
+                    </div>
+                    Generate AI Response with Metakocka Context
+                  </h3>
+                  <div className="border border-gray-100 rounded-lg bg-white shadow-inner p-4">
+                    <MetakockaEmailResponse 
+                      emailId={selectedEmail.id} 
+                      onResponseGenerated={(response) => {
+                        setSuggestedResponse(response);
+                        setActiveView('response');
+                        toast({
+                          title: "Response Generated",
+                          description: "AI response with Metakocka context has been generated.",
+                        });
+                      }} 
+                    />
+                  </div>
                 </div>
               </div>
             </CardContent>
@@ -1637,10 +1818,19 @@ export default function EmailAnalyserClient() {
       )}
 
       {!selectedEmail && activeView !== 'inbox' && (
-        <div className="text-center py-20">
-          <Mail className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-          <h3 className="text-lg font-semibold mb-2">No email selected</h3>
-          <p className="text-muted-foreground">Please select an email from the inbox to continue</p>
+        <div className="text-center py-20 bg-gradient-to-r from-blue-50/30 via-white to-pink-50/30 rounded-2xl border border-gray-100 shadow-sm">
+          <div className="h-24 w-24 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
+            <Mail className="h-12 w-12 text-white" />
+          </div>
+          <h3 className="text-xl font-bold mb-3 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-transparent bg-clip-text">No email selected</h3>
+          <p className="text-gray-600 mb-6 max-w-md mx-auto">Please select an email from the inbox to view details and analysis</p>
+          <Button 
+            onClick={() => setActiveView('inbox')} 
+            className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 hover:from-blue-700 hover:via-purple-700 hover:to-pink-700 text-white rounded-xl shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all duration-200"
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Return to Inbox
+          </Button>
         </div>
       )}
     </div>
