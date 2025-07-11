@@ -153,8 +153,15 @@ export function Sidebar({ className }: SidebarProps) {
       >
         {/* Logo */}
         <div className="flex h-16 items-center justify-center border-b border-gray-100">
-          <Link href="/dashboard" className="flex items-center justify-center w-10 h-10 rounded-full bg-primary/10">
-            <Package2 className="h-5 w-5 text-primary" />
+          <Link href="/dashboard" className="flex items-center justify-center">
+            <div className="flex items-center">
+              <img 
+                src="/images/aris-logo.svg" 
+                alt="ARIS Logo" 
+                className="w-10 h-10 object-contain" 
+              />
+              <span className="ml-2 font-semibold text-lg bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-transparent bg-clip-text">ARIS</span>
+            </div>
           </Link>
         </div>
 
@@ -215,11 +222,11 @@ export function Sidebar({ className }: SidebarProps) {
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  'block px-3 py-2 text-sm font-medium rounded-md transition-colors',
+                  'block px-3 py-2 text-sm font-medium rounded-xl transition-all duration-200',
                   isActive
-                    ? 'bg-primary/10 text-primary font-medium'
-                    : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground',
-                  'focus:outline-none focus:ring-2 focus:ring-primary/20 focus:bg-primary/5'
+                    ? 'bg-gradient-to-r from-blue-600/10 via-purple-600/10 to-pink-600/10 text-foreground font-medium'
+                    : 'text-muted-foreground hover:bg-gray-50 hover:text-foreground',
+                  'focus:outline-none focus:ring-2 focus:ring-blue-500/20 hover:scale-[1.01]'
                 )}
                 onClick={closeMenu}
               >

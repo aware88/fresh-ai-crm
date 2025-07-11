@@ -87,7 +87,7 @@ export function Navigation({ className = '' }: NavigationProps) {
       <div className="flex items-center justify-between w-full">
         <div className="flex items-center">
           <Link href="/dashboard" className="flex items-center">
-            <div className="h-8 w-8 flex items-center justify-center">
+            <div className="h-8 w-8 flex items-center justify-center overflow-hidden">
               {logoPath ? (
                 <img 
                   src={logoPath} 
@@ -95,11 +95,15 @@ export function Navigation({ className = '' }: NavigationProps) {
                   className="h-full w-auto object-contain"
                 />
               ) : (
-                <Brain className="h-6 w-6 text-blue-600" />
+                <img 
+                  src="/images/aris-logo.svg" 
+                  alt="ARIS Logo" 
+                  className="h-full w-auto object-contain" 
+                />
               )}
             </div>
             {companyName && (
-              <span className="ml-2 text-base font-medium text-gray-900">
+              <span className="ml-2 text-base font-semibold bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-transparent bg-clip-text">
                 {companyName}
               </span>
             )}
@@ -108,32 +112,32 @@ export function Navigation({ className = '' }: NavigationProps) {
         <div className="flex items-center space-x-4">
           <button 
             type="button" 
-            className="p-2 rounded-full hover:bg-gray-100 relative"
+            className="p-2 rounded-xl hover:bg-gray-50 relative transition-all duration-200 hover:shadow-sm"
             aria-label="Notifications"
           >
             <Bell className="h-5 w-5 text-gray-600" />
-            <span className="absolute top-2 right-2 h-2 w-2 bg-red-500 rounded-full"></span>
+            <span className="absolute top-2 right-2 h-2 w-2 bg-gradient-to-r from-blue-600 to-pink-600 rounded-full"></span>
           </button>
           
           <div className="relative">
             <button 
               type="button" 
-              className="p-1 rounded-full hover:bg-gray-100"
+              className="p-1 rounded-xl hover:bg-gray-50 transition-all duration-200 hover:shadow-sm"
               onClick={() => setIsMenuOpen(!isMenuOpen)}
               aria-expanded={isMenuOpen}
               aria-label="User menu"
             >
-              <div className="h-8 w-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-sm">
+              <div className="h-8 w-8 rounded-xl bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 flex items-center justify-center text-white text-sm shadow-md">
                 <User className="h-4 w-4" />
               </div>
             </button>
             
             {isMenuOpen && (
-              <div className="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5">
+              <div className="absolute right-0 mt-2 w-48 rounded-xl shadow-lg bg-white ring-1 ring-gray-100 overflow-hidden">
                 <div className="py-1">
                   <Link 
                     href="/dashboard/settings" 
-                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors duration-150"
                     onClick={() => setIsMenuOpen(false)}
                   >
                     Settings
@@ -144,7 +148,7 @@ export function Navigation({ className = '' }: NavigationProps) {
                       await supabase.auth.signOut();
                       window.location.href = '/dashboard';
                     }}
-                    className="w-full text-left block px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
+                    className="w-full text-left block px-4 py-2 text-sm font-medium bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-white hover:from-blue-700 hover:via-purple-700 hover:to-pink-700 transition-colors duration-150"
                   >
                     Sign out
                   </button>
