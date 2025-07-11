@@ -129,14 +129,12 @@ export default function SignUpForm() {
   };
 
   return (
-    <Card className="w-full max-w-md mx-auto">
-      <CardHeader>
-        <CardTitle className="text-2xl">Create an Account</CardTitle>
-        <CardDescription>
-          Join ARIS to get started
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
+    <div className="bg-white rounded-lg border shadow-sm">
+      <div className="p-6 pb-2">
+        <h3 className="text-xl font-semibold">Create an Account</h3>
+        <p className="text-muted-foreground text-sm">Join ARIS to get started</p>
+      </div>
+      <div className="p-6 pt-2">
         {error && (
           <Alert variant="destructive" className="mb-4">
             <AlertCircle className="h-4 w-4" />
@@ -239,7 +237,7 @@ export default function SignUpForm() {
                       title="Only lowercase letters, numbers, and hyphens are allowed"
                     />
                     <p className="text-xs text-muted-foreground">
-                      This will be used in your organization's URL: crm-mind.com/{orgSlug || 'your-org'}
+                      This will be used in your organization's URL: aris.com/{orgSlug || 'your-org'}
                     </p>
                   </div>
                   
@@ -270,22 +268,22 @@ export default function SignUpForm() {
             
             <Button 
               type="submit" 
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white py-6 text-base font-medium" 
+              className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white py-6 text-base font-medium rounded-md transition-all duration-200" 
               disabled={loading}
             >
               {loading ? 'Creating Account...' : signupTab === 'organization' ? 'Create Organization' : 'Sign Up'}
             </Button>
           </form>
         </Tabs>
-      </CardContent>
-      <CardFooter className="flex justify-center">
-        <p className="text-sm text-muted-foreground">
+      </div>
+      <div className="p-6 pt-0">
+        <p className="text-sm text-center text-muted-foreground">
           Already have an account?{' '}
-          <Link href="/signin" className="text-primary hover:underline">
+          <Link href="/signin" className="text-primary hover:underline font-medium">
             Sign in
           </Link>
         </p>
-      </CardFooter>
-    </Card>
+      </div>
+    </div>
   );
 }

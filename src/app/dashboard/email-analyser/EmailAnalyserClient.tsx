@@ -132,7 +132,7 @@ export default function EmailAnalyserClient() {
   const emailListRef = useRef<HTMLDivElement>(null);
   
   // Settings
-  const { emailSettings } = useEmailSettings();
+  const { settings: emailSettings } = useEmailSettings();
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
 
   const { data: session, status } = useSession();
