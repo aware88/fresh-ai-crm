@@ -1,0 +1,74 @@
+version: 1
+
+services:
+  - name: aris-crm
+    type: service
+    runtime: docker
+    resources:
+      cpu: 0.5
+      memory: 1024
+    port: 3000
+    healthcheck:
+      path: /api/health
+      initialDelay: 10
+      interval: 30
+      timeout: 5
+      successThreshold: 1
+      failureThreshold: 3
+    environment:
+      - name: NODE_ENV
+        value: production
+      - name: PORT
+        value: 3000
+      - name: NEXT_PUBLIC_SUPABASE_URL
+        secret: true
+      - name: NEXT_PUBLIC_SUPABASE_ANON_KEY
+        secret: true
+      - name: SUPABASE_SERVICE_ROLE_KEY
+        secret: true
+      - name: SUPABASE_JWT_SECRET
+        secret: true
+      - name: NEXTAUTH_URL
+        value: https://helloaris.com
+      - name: NEXTAUTH_SECRET
+        secret: true
+      - name: APP_SECRET
+        secret: true
+      - name: ENCRYPTION_KEY
+        secret: true
+      - name: NEXT_PUBLIC_ENABLE_EMAIL_INTEGRATION
+        value: "true"
+      - name: NEXT_PUBLIC_ENABLE_ANALYTICS
+        value: "true"
+      - name: LOG_LEVEL
+        value: info
+      - name: ENABLE_DEBUG_LOGS
+        value: "false"
+    scaling:
+      min: 1
+      max: 2
+      targetCPU: 70
+    build:
+      dockerfile: Dockerfile
+      context: .
+
+addons:
+  - name: aris-crm-db
+    type: postgresql
+    version: "15"
+    plan: free
+    environment:
+      - name: POSTGRES_USER
+        value: postgres
+      - name: POSTGRES_PASSWORD
+        secret: true
+      - name: POSTGRES_DB
+        value: aris_crm
+    
+connections:
+  - source: aris-crm
+    target: aris-crm-db
+    type: addon
+    environment:
+      - name: DATABASE_URL
+        value: postgresql://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@$(POSTGRES_HOST):$(POSTGRES_PORT)/$(POSTGRES_DB)

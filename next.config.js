@@ -5,6 +5,8 @@
  * - React Strict Mode for highlighting potential problems
  * - Webpack configuration for SVG handling
  * - Other Next.js specific settings
+ * - Redirects to external landing page
+ * - Output configuration for containerized deployments
  * 
  * @type {import('next').NextConfig}
  */
@@ -24,8 +26,22 @@ const nextConfig = {
   
   // Configure images
   images: {
-    domains: ['localhost'],
+    domains: ['localhost', 'helloaris.com'],
   },
+  
+  // Redirect configuration for landing page
+  async redirects() {
+    return [
+      {
+        source: '/',
+        destination: 'https://helloaris.com',
+        permanent: false,
+      },
+    ];
+  },
+  
+  // Output configuration for containerized deployments (Northflank)
+  output: 'standalone',
   
   // Additional configuration for server-side deployment
   
