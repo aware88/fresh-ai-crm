@@ -159,14 +159,14 @@ export default function ContactsPage() {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div className="flex-1">
-          <h1 className="text-2xl font-semibold">Contacts</h1>
+          <h1 className="text-2xl font-semibold aris-text-gradient">Contacts</h1>
           <p className="text-gray-500">Manage your contacts and their personality profiles</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-3">
           <SyncAllContactsButton 
             variant="outline"
             size="sm"
-            className="mr-2"
+            className="mr-2 rounded-xl border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-all duration-200"
             onSyncComplete={(result) => {
               if (result.success) {
                 toast({
@@ -180,7 +180,7 @@ export default function ContactsPage() {
           >
             Sync All to Metakocka
           </SyncAllContactsButton>
-          <Button asChild className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white">
+          <Button asChild className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 hover:from-blue-700 hover:via-purple-700 hover:to-pink-700 text-white rounded-xl shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all duration-200">
             <Link href="/dashboard/contacts/new">
               <UserPlus className="h-4 w-4 mr-2" />
               New Contact
@@ -192,23 +192,23 @@ export default function ContactsPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Contacts List */}
         <div className="lg:col-span-2">
-          <Card className="border-0 shadow-lg">
-            <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-t-lg border-b pb-4">
+          <Card className="border border-gray-100/50 shadow-md hover:shadow-lg transition-all duration-300 rounded-2xl overflow-hidden">
+            <CardHeader className="bg-gradient-to-r from-blue-600/5 via-purple-600/5 to-pink-600/5 border-b pb-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center">
-                  <div className="p-2 bg-blue-100 rounded-full mr-3">
-                    <User className="h-5 w-5 text-blue-600" />
+                  <div className="p-2 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 rounded-xl shadow-md mr-3">
+                    <User className="h-5 w-5 text-white" />
                   </div>
                   <div>
-                    <CardTitle className="text-blue-800">Contact List</CardTitle>
-                    <CardDescription className="text-blue-600">
+                    <CardTitle className="text-gray-800">Contact List</CardTitle>
+                    <CardDescription className="text-gray-500">
                       {filteredContacts.length} contacts found
                     </CardDescription>
                   </div>
                 </div>
                 <Button 
                   variant="outline" 
-                  className="border-blue-200 text-blue-700 hover:bg-blue-50"
+                  className="border-gray-200 hover:border-gray-300 hover:bg-gray-50 rounded-xl transition-all duration-200"
                   onClick={() => router.push('/dashboard/contacts/new')}
                 >
                   <UserPlus className="h-4 w-4 mr-2" /> Add Contact
@@ -221,7 +221,7 @@ export default function ContactsPage() {
                   <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                   <Input 
                     placeholder="Search contacts..." 
-                    className="pl-10 border-gray-200"
+                    className="pl-10 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-blue-500/20"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                   />
@@ -230,11 +230,15 @@ export default function ContactsPage() {
               
               {loading ? (
                 <div className="flex justify-center items-center py-12">
-                  <Loader2 className="h-8 w-8 text-blue-500 animate-spin" />
+                  <div className="p-3 rounded-full bg-gradient-to-r from-blue-600/10 via-purple-600/10 to-pink-600/10">
+                    <Loader2 className="h-8 w-8 text-gradient-to-r from-blue-600 via-purple-600 to-pink-600 animate-spin" />
+                  </div>
                 </div>
               ) : error ? (
                 <div className="flex flex-col items-center justify-center py-12 text-center">
-                  <AlertCircle className="h-10 w-10 text-red-500 mb-2" />
+                  <div className="p-3 rounded-full bg-red-50 mb-2">
+                    <AlertCircle className="h-10 w-10 text-red-500" />
+                  </div>
                   <p className="text-red-500 font-medium">{error}</p>
                   <p className="text-gray-500 mt-1 max-w-md">
                     There was a problem loading your contacts. Please try again later.
@@ -252,20 +256,22 @@ export default function ContactsPage() {
                 <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
-                      <TableRow>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Email</TableHead>
-                        <TableHead>Company</TableHead>
-                        <TableHead>Personality</TableHead>
-                        <TableHead>Last Contact</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
+                      <TableRow className="bg-gradient-to-r from-blue-600/5 via-purple-600/5 to-pink-600/5 border-b border-gray-200">
+                        <TableHead className="font-medium">Name</TableHead>
+                        <TableHead className="font-medium">Email</TableHead>
+                        <TableHead className="font-medium">Company</TableHead>
+                        <TableHead className="font-medium">Personality</TableHead>
+                        <TableHead className="font-medium">Last Contact</TableHead>
+                        <TableHead className="text-right font-medium">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {filteredContacts.map((contact) => (
                         <TableRow 
                           key={contact.id} 
-                          className={`cursor-pointer hover:bg-gray-50 ${selectedContact?.id === contact.id ? 'bg-blue-50' : ''}`}
+                          className={`cursor-pointer transition-all duration-200 ${selectedContact?.id === contact.id 
+                            ? 'bg-gradient-to-r from-blue-600/10 via-purple-600/10 to-pink-600/10 border-l-4 border-blue-600' 
+                            : 'hover:bg-gray-50'}`}
                           onClick={() => {
                             setSelectedContact(contact);
                             window.history.pushState({}, '', `/dashboard/contacts?id=${contact.id}`);
@@ -278,24 +284,34 @@ export default function ContactsPage() {
                           <TableCell>{contact.company || 'N/A'}</TableCell>
                           <TableCell>
                             {contact.personalityType ? (
-                              <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
+                              <Badge className="bg-gradient-to-r from-blue-600/10 via-purple-600/10 to-pink-600/10 text-gray-700 border-gray-200 rounded-full px-3 py-1">
                                 {contact.personalityType}
                               </Badge>
                             ) : 'Unknown'}
                           </TableCell>
                           <TableCell>{contact.lastInteraction ? formatDate(contact.lastInteraction) : 'Never'}</TableCell>
                           <TableCell className="text-right">
-                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => {
-                              e.stopPropagation();
-                              router.push(`/dashboard/contacts/${contact.id}/edit`);
-                            }}>
-                              <Edit className="h-4 w-4 text-gray-500" />
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-8 w-8 rounded-full hover:bg-blue-600/10 transition-all duration-200" 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                router.push(`/dashboard/contacts/${contact.id}/edit`);
+                              }}
+                            >
+                              <Edit className="h-4 w-4 text-blue-600" />
                             </Button>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500" onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeleteContact(contact.id);
-                            }}>
-                              <Trash2 className="h-4 w-4" />
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-8 w-8 rounded-full hover:bg-red-600/10 transition-all duration-200" 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteContact(contact.id);
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4 text-red-500" />
                             </Button>
                           </TableCell>
                         </TableRow>
@@ -306,14 +322,24 @@ export default function ContactsPage() {
               )}
             </CardContent>
             <CardFooter className="flex justify-between p-4 border-t">
-              <div className="text-sm text-gray-500">
+              <div className="text-sm text-gray-500 bg-gradient-to-r from-blue-600/5 via-purple-600/5 to-pink-600/5 px-4 py-2 rounded-xl">
                 Showing {filteredContacts.length} of {contacts.length} contacts
               </div>
               <div className="flex space-x-2">
-                <Button variant="outline" size="sm" disabled>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  disabled 
+                  className="rounded-xl border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-all duration-200"
+                >
                   <ChevronLeft className="h-4 w-4 mr-1" /> Previous
                 </Button>
-                <Button variant="outline" size="sm" disabled>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  disabled
+                  className="rounded-xl border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-all duration-200"
+                >
                   Next <ChevronRight className="h-4 w-4 ml-1" />
                 </Button>
               </div>
@@ -322,40 +348,38 @@ export default function ContactsPage() {
         </div>
         
         {/* Contact Details */}
-        <div>
+        <div className="lg:col-span-1">
           {selectedContact ? (
-            <Card className="border-0 shadow-lg">
-              <CardHeader className="bg-gradient-to-r from-purple-50 to-indigo-50 rounded-t-lg border-b pb-4">
+            <Card className="border border-gray-100/50 shadow-md hover:shadow-lg transition-all duration-300 rounded-2xl overflow-hidden h-full">
+              <CardHeader className="bg-gradient-to-r from-blue-600/5 via-purple-600/5 to-pink-600/5 border-b pb-4">
                 <div className="flex items-center">
-                  <div className="p-2 bg-purple-100 rounded-full mr-3">
-                    <User className="h-5 w-5 text-purple-600" />
+                  <div className="h-12 w-12 rounded-xl bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 flex items-center justify-center text-white text-lg font-medium mr-3 shadow-md">
+                    {selectedContact.firstName?.[0]}{selectedContact.lastName?.[0]}
                   </div>
                   <div>
-                    <CardTitle className="text-purple-800">Contact Details</CardTitle>
-                    <CardDescription className="text-purple-600">
+                    <CardTitle className="text-gray-800">Contact Details</CardTitle>
+                    <CardDescription className="text-gray-500">
                       View and manage contact information
                     </CardDescription>
                   </div>
                 </div>
               </CardHeader>
               <CardContent className="p-6 space-y-6">
-                <div className="flex flex-col items-center text-center">
-                  <div className="h-20 w-20 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-2xl font-semibold mb-3">
-                    {selectedContact.firstName.charAt(0)}{selectedContact.lastName.charAt(0)}
-                  </div>
+                <div className="text-center">
                   <h3 className="text-xl font-semibold">
                     {selectedContact.firstName} {selectedContact.lastName}
                   </h3>
                   {selectedContact.personalityType && (
-                    <Badge className="mt-2 bg-purple-100 text-purple-700 border-purple-200">
+                    <Badge className="mt-2 bg-gradient-to-r from-blue-600/10 via-purple-600/10 to-pink-600/10 text-gray-700 border-gray-200 rounded-full px-3 py-1">
                       {selectedContact.personalityType}
                     </Badge>
                   )}
-                  <div className="mt-2">
+                  <div className="mt-3">
                     <SyncContactButton
                       contactId={selectedContact.id}
                       variant="outline"
                       size="sm"
+                      className="rounded-xl border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-all duration-200"
                       onSyncComplete={(result) => {
                         if (result.success) {
                           toast({
@@ -370,27 +394,33 @@ export default function ContactsPage() {
                 
                 <Separator />
                 
-                <div className="space-y-4">
+                <div className="space-y-5">
                   <div className="flex items-start">
-                    <Mail className="h-5 w-5 text-gray-400 mt-0.5 mr-3" />
+                    <div className="p-2 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 rounded-xl shadow-sm mr-3">
+                      <Mail className="h-4 w-4 text-white" />
+                    </div>
                     <div>
-                      <p className="text-sm text-gray-500">Email</p>
+                      <p className="text-sm text-gray-500 font-medium">Email</p>
                       <p className="font-medium">{selectedContact.email}</p>
                     </div>
                   </div>
                   
                   <div className="flex items-start">
-                    <Building className="h-5 w-5 text-gray-400 mt-0.5 mr-3" />
+                    <div className="p-2 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 rounded-xl shadow-sm mr-3">
+                      <Building className="h-4 w-4 text-white" />
+                    </div>
                     <div>
-                      <p className="text-sm text-gray-500">Company</p>
+                      <p className="text-sm text-gray-500 font-medium">Company</p>
                       <p className="font-medium">{selectedContact.company || 'Not specified'}</p>
                     </div>
                   </div>
                   
                   <div className="flex items-start">
-                    <Brain className="h-5 w-5 text-gray-400 mt-0.5 mr-3" />
+                    <div className="p-2 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 rounded-xl shadow-sm mr-3">
+                      <Brain className="h-4 w-4 text-white" />
+                    </div>
                     <div>
-                      <p className="text-sm text-gray-500">Personality Notes</p>
+                      <p className="text-sm text-gray-500 font-medium">Personality Notes</p>
                       <p className="text-sm">{selectedContact.personalityNotes || 'No personality notes available'}</p>
                     </div>
                   </div>
@@ -398,9 +428,9 @@ export default function ContactsPage() {
                 
                 <Separator />
                 
-                <div>
-                  <p className="text-sm text-gray-500 mb-1">Contact History</p>
-                  <div className="text-sm">
+                <div className="bg-gradient-to-r from-blue-600/5 via-purple-600/5 to-pink-600/5 p-4 rounded-xl">
+                  <p className="text-sm font-medium aris-text-gradient mb-2">Contact History</p>
+                  <div className="text-sm space-y-1">
                     <p><span className="font-medium">Created:</span> {formatDate(selectedContact.createdAt)}</p>
                     <p><span className="font-medium">Last Updated:</span> {formatDate(selectedContact.updatedAt)}</p>
                     <p><span className="font-medium">Last Interaction:</span> {selectedContact.lastInteraction ? formatDate(selectedContact.lastInteraction) : 'Never'}</p>
@@ -408,29 +438,43 @@ export default function ContactsPage() {
                 </div>
               </CardContent>
               <CardFooter className="flex justify-between p-4 border-t">
-                <Button variant="default" className="border-red-200 text-red-600 hover:bg-red-50" onClick={() => handleDeleteContact(selectedContact.id)}>
+                <Button 
+                  variant="outline" 
+                  className="border-red-200 text-red-600 hover:bg-red-50 rounded-xl transition-all duration-200" 
+                  onClick={() => handleDeleteContact(selectedContact.id)}
+                >
                   <Trash2 className="h-4 w-4 mr-2" /> Delete
                 </Button>
                 <div className="flex gap-2">
                   <Button 
-                    variant="default"
+                    variant="outline"
+                    className="rounded-xl border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-all duration-200"
                     onClick={() => router.push(`/dashboard/contacts/${selectedContact.id}`)}
                   >
                     View Details
                   </Button>
-                  <Button className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white">
+                  <Button className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 hover:from-blue-700 hover:via-purple-700 hover:to-pink-700 text-white rounded-xl shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all duration-200">
                     <Edit className="h-4 w-4 mr-2" /> Edit Contact
                   </Button>
                 </div>
               </CardFooter>
             </Card>
           ) : (
-            <Card className="border-0 shadow-lg h-full flex flex-col justify-center items-center p-8 text-center bg-gradient-to-b from-white to-gray-50">
-              <User className="h-16 w-16 text-gray-200 mb-4" />
-              <h3 className="text-xl font-medium text-gray-700">No Contact Selected</h3>
-              <p className="text-gray-500 mt-2 max-w-xs">
+            <Card className="border border-gray-100/50 shadow-md hover:shadow-lg transition-all duration-300 rounded-2xl h-full flex flex-col justify-center items-center p-8 text-center bg-gradient-to-r from-blue-600/5 via-purple-600/5 to-pink-600/5">
+              <div className="p-5 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 rounded-2xl shadow-md mb-5">
+                <User className="h-10 w-10 text-white" />
+              </div>
+              <h3 className="text-xl font-medium aris-text-gradient">No Contact Selected</h3>
+              <p className="text-gray-500 mt-3 max-w-xs">
                 Select a contact from the list to view their details and personality profile
               </p>
+              <Button 
+                variant="outline" 
+                className="mt-5 rounded-xl border-gray-200 hover:border-gray-300 hover:bg-white/50 transition-all duration-200"
+                onClick={() => router.push('/dashboard/contacts/new')}
+              >
+                <UserPlus className="h-4 w-4 mr-2" /> Add New Contact
+              </Button>
             </Card>
           )}
         </div>

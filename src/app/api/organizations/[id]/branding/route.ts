@@ -19,8 +19,8 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    // Safely extract the organization ID from params after all async operations
-    const { id: organizationId } = context.params;
+    // Safely extract the organization ID from params
+    const organizationId = context.params.id;
     // Create Supabase client properly with await
     const supabase = await createServerClient();
     
@@ -71,8 +71,8 @@ export async function PUT(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    // Use the params after awaiting all async operations
-    const { id: organizationId } = context.params;
+    // Safely extract the organization ID from params
+    const organizationId = context.params.id;
     // Create Supabase client properly with await
     const supabase = await createServerClient();
     

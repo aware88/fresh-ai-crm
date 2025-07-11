@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { getServerSession } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
 import { createServiceRoleClient } from '@/lib/supabase/service-role';
 import * as crypto from 'crypto';
@@ -28,12 +27,13 @@ function encryptPassword(password: string): string {
 
 export async function POST(request: Request) {
   try {
-    // Check if the user is authenticated
-    const session = await getServerSession(authOptions);
+    // Check if the user is authenticated using our custom auth helper
+    const session = await getServerSession();
     
     if (!session || !session.user?.id) {
+      console.error('IMAP connect: Unauthorized - No valid session');
       return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
+        { success: false, error: 'Unauthorized - Please sign in again' },
         { status: 401 }
       );
     }
@@ -64,9 +64,18 @@ export async function POST(request: Request) {
     }
     
     // Verify the userId matches the authenticated user (security check)
-    if (userId !== session.user.id) {
+    console.log('IMAP connect: Comparing user IDs', { 
+      providedUserId: userId, 
+      sessionUserId: session.user.id 
+    });
+    
+    if (!userId || userId !== session.user.id) {
+      console.error('IMAP connect: User ID mismatch or missing', { 
+        providedUserId: userId, 
+        sessionUserId: session.user.id 
+      });
       return NextResponse.json(
-        { success: false, error: 'User ID mismatch' },
+        { success: false, error: 'User ID mismatch or invalid' },
         { status: 403 }
       );
     }

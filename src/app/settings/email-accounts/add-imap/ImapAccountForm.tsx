@@ -9,12 +9,25 @@ type ImapAccountFormProps = {
   userId: string;
 };
 
+type FormData = {
+  email: string;
+  name: string;
+  imapHost: string;
+  imapPort: string;
+  imapSecurity: string;
+  username: string;
+  password: string;
+  smtpHost: string;
+  smtpPort: string;
+  smtpSecurity: string;
+};
+
 export default function ImapAccountForm({ userId }: ImapAccountFormProps) {
   const router = useRouter();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<FormData>({
     email: '',
     name: '',
     imapHost: '',
@@ -47,44 +60,40 @@ export default function ImapAccountForm({ userId }: ImapAccountFormProps) {
     setIsTesting(true);
     
     try {
-      // Create a temporary account object for testing
-      const testData = {
-        email: formData.email,
-        imapHost: formData.imapHost,
-        imapPort: parseInt(formData.imapPort),
-        imapSecurity: formData.imapSecurity,
-        username: formData.username,
-        password: formData.password,
-      };
-      
-      const response = await fetch('/api/emails/test-connection', {
+      const response = await fetch('/api/email/test-connection', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(testData),
+        body: JSON.stringify({
+          host: formData.imapHost,
+          port: formData.imapPort,
+          secure: formData.imapSecurity === 'SSL/TLS',
+          username: formData.username,
+          password: formData.password
+        }),
       });
-      
-      const result = await response.json();
-      
-      if (result.success) {
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to connect to the server');
+      }
+
+      if (data.success) {
         toast({
-          title: "Success",
-          description: "Connection successful! ✅"
+          title: 'Success',
+          description: 'Successfully connected to the email server!',
         });
       } else {
-        toast({
-          title: "Error",
-          description: `Connection failed: ${result.error}`,
-          variant: "destructive"
-        });
+        throw new Error(data.error || 'Connection test failed');
       }
     } catch (error) {
-      console.error('Error testing connection:', error);
+      console.error('Connection test failed:', error);
       toast({
-        title: "Error",
-        description: "An error occurred while testing the connection",
-        variant: "destructive"
+        title: 'Connection Failed',
+        description: error instanceof Error ? error.message : 'Failed to connect to the email server',
+        variant: 'destructive',
       });
     } finally {
       setIsTesting(false);
@@ -106,8 +115,23 @@ export default function ImapAccountForm({ userId }: ImapAccountFormProps) {
     setIsLoading(true);
     
     try {
+      // First, check if the user is authenticated by fetching the session
+      const sessionResponse = await fetch('/api/auth/session');
+      const sessionData = await sessionResponse.json();
+      
+      if (!sessionData?.user?.id) {
+        toast({
+          title: "Authentication Error",
+          description: "Your session has expired. Please sign in again.",
+          variant: "destructive"
+        });
+        router.push('/signin');
+        return;
+      }
+      
+      // Prepare account data with the confirmed user ID
       const accountData = {
-        userId,
+        userId: sessionData.user.id, // Use the ID from the session to ensure it's current
         email: formData.email,
         name: formData.name || formData.email,
         providerType: 'imap',
@@ -122,13 +146,24 @@ export default function ImapAccountForm({ userId }: ImapAccountFormProps) {
         isActive: true,
       };
       
+      console.log('Submitting IMAP account with user ID:', sessionData.user.id);
+      
+      // Submit the form data
       const response = await fetch('/api/auth/imap/connect', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(accountData),
+        credentials: 'include', // Important: include credentials for auth
       });
+      
+      // Check if the response is OK
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Server error response:', response.status, errorText);
+        throw new Error(`Server returned ${response.status}: ${errorText}`);
+      }
       
       const result = await response.json();
       
@@ -137,20 +172,25 @@ export default function ImapAccountForm({ userId }: ImapAccountFormProps) {
           title: "Success",
           description: "Email account added successfully!"
         });
-        router.push('/settings/email-accounts');
-        router.refresh();
+        
+        // Add a small delay before redirecting to ensure toast is seen
+        setTimeout(() => {
+          router.push('/settings/email-accounts');
+          router.refresh();
+        }, 1000);
       } else {
+        console.error('API error:', result.error);
         toast({
           title: "Error",
-          description: `Failed to add account: ${result.error}`,
+          description: `Failed to add email account: ${result.error || 'Unknown error'}`,
           variant: "destructive"
         });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error adding email account:', error);
       toast({
         title: "Error",
-        description: "An error occurred while adding the email account",
+        description: error.message || "An error occurred while adding the email account",
         variant: "destructive"
       });
     } finally {
@@ -347,37 +387,41 @@ export default function ImapAccountForm({ userId }: ImapAccountFormProps) {
         </div>
       </div>
       
-      <div className="flex justify-between mt-6">
-        <button
-          type="button"
-          onClick={handleTestConnection}
-          disabled={isTesting}
-          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 flex items-center"
-        >
-          {isTesting ? (
-            <>
-              <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-              Testing...
-            </>
-          ) : (
-            'Test Connection'
-          )}
-        </button>
+      <div className="mt-6">
+        {/* Test Connection Button */}
+        <div className="mb-6">
+          <button
+            type="button"
+            onClick={handleTestConnection}
+            disabled={isTesting}
+            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 flex items-center"
+          >
+            {isTesting ? (
+              <>
+                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Testing...
+              </>
+            ) : (
+              'Test Connection'
+            )}
+          </button>
+        </div>
         
-        <div className="space-x-2">
+        {/* Action Buttons with proper spacing */}
+        <div className="flex justify-end space-x-6">
           <Link 
             href="/settings/email-accounts" 
-            className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+            className="px-6 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 flex items-center justify-center min-w-[120px]"
           >
             Cancel
           </Link>
           <button
             type="submit"
             disabled={isLoading}
-            className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 flex items-center"
+            className="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 flex items-center justify-center min-w-[120px] from-green-500 to-green-700 bg-gradient-to-r"
           >
             {isLoading ? (
               <>

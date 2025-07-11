@@ -9,6 +9,7 @@
 import * as sessionModule from './session';
 export const getSession = sessionModule.getSession;
 export const getUID = sessionModule.getUID;
+export const getServerSession = sessionModule.getServerSession;
 
 // Import and re-export service token utilities
 import * as tokenModule from './serviceToken';

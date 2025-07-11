@@ -1,61 +1,82 @@
-import React from 'react';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import { redirect } from 'next/navigation';
-import { createServerClient } from '@/lib/supabase/server';
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import Link from 'next/link';
 
-export default async function EmailAccountsPage() {
-  const session = await getServerSession(authOptions);
+export default function EmailAccountsPage() {
+  const { data: session, status } = useSession();
+  const router = useRouter();
+  const [loading, setLoading] = useState(true);
+  const [emailAccounts, setEmailAccounts] = useState<any[]>([]);
+  const [error, setError] = useState<any>(null);
+  const [tableExists, setTableExists] = useState(false);
   
-  if (!session || !session.user?.id) {
-    redirect('/api/auth/signin');
-  }
-  
-  // Initialize supabase client
-  let emailAccounts: any[] = [];
-  let error: any = null;
-  let tableExists = false;
-  
-  try {
-    const supabase = await createServerClient();
+  useEffect(() => {
+    // If not authenticated, redirect to sign in
+    if (status === 'unauthenticated') {
+      router.push('/signin');
+      return;
+    }
     
-    // Try to fetch user's email accounts
+    // If still loading session, wait
+    if (status === 'loading') {
+      return;
+    }
+    
+    // If authenticated, fetch email accounts
+    if (session?.user?.id) {
+      fetchEmailAccounts();
+    }
+  }, [status, session, router]);
+  
+  const fetchEmailAccounts = async () => {
+    if (!session?.user?.id) return;
+    
     try {
-      // Try to query the table directly - if it doesn't exist, we'll get an error
-      const { data, error: fetchError } = await supabase
-        .from('email_accounts')
-        .select('*')
-        .eq('user_id', session.user.id)
-        .order('created_at', { ascending: false });
+      setLoading(true);
+      const supabase = createClientComponentClient();
       
-      if (fetchError) {
-        // Check if the error is because the table doesn't exist
-        if (fetchError.code === '42P01') { // PostgreSQL code for undefined_table
-          console.warn('Email accounts table does not exist yet');
-          tableExists = false;
+      try {
+        // Try to query the table directly - if it doesn't exist, we'll get an error
+        const { data, error: fetchError } = await supabase
+          .from('email_accounts')
+          .select('*')
+          .eq('user_id', session.user.id)
+          .order('created_at', { ascending: false });
+        
+        if (fetchError) {
+          // Check if the error is because the table doesn't exist
+          if (fetchError.code === '42P01') { // PostgreSQL code for undefined_table
+            console.warn('Email accounts table does not exist yet');
+            setTableExists(false);
+          } else {
+            console.error('Error fetching email accounts:', fetchError);
+            setError(fetchError);
+          }
         } else {
-          console.error('Error fetching email accounts:', fetchError);
-          error = fetchError;
+          setTableExists(true);
+          setEmailAccounts(data || []);
         }
-      } else {
-        tableExists = true;
-        emailAccounts = data || [];
+      } catch (e) {
+        console.error('Error with database query:', e);
+        setError({
+          message: e instanceof Error ? e.message : 'Error querying the database',
+          details: e
+        });
       }
     } catch (e) {
-      console.error('Error with database query:', e);
-      error = {
-        message: e instanceof Error ? e.message : 'Error querying the database',
+      console.error('Error with database connection:', e);
+      setError({
+        message: e instanceof Error ? e.message : 'Error connecting to the database',
         details: e
-      };
+      });
+    } finally {
+      setLoading(false);
     }
-  } catch (e) {
-    console.error('Error with database connection:', e);
-    error = {
-      message: e instanceof Error ? e.message : 'Error connecting to the database',
-      details: e
-    };
-  }
+  };
 
   return (
     <div className="container mx-auto p-6">

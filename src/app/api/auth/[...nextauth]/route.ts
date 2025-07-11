@@ -11,8 +11,8 @@ const authOptions: NextAuthOptions = {
   }),
   session: {
     strategy: 'jwt',
-    maxAge: 30 * 24 * 60 * 60, // 30 days
-    updateAge: 24 * 60 * 60, // 24 hours
+    maxAge: 60 * 24 * 60 * 60, // 60 days for longer persistence
+    updateAge: 12 * 60 * 60, // 12 hours for more frequent refreshes
   },
   cookies: {
     sessionToken: {
@@ -132,8 +132,8 @@ const authOptions: NextAuthOptions = {
     },
   },
   pages: {
-    signIn: '/tests/simple-login',
-    error: '/tests/simple-login',
+    signIn: '/signin',
+    error: '/signin',
   },
   debug: process.env.NODE_ENV === 'development',
 };

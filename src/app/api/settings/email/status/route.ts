@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
+import { getServerSession } from '@/lib/auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { MicrosoftTokenService } from '@/lib/services/microsoft-token-service';
 import { createServerClient } from '@/lib/supabase/server';
@@ -7,7 +7,7 @@ import { createServiceRoleClient } from '@/lib/supabase/service-role';
 
 export async function GET() {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getServerSession();
     
     if (!session || !session.user?.id) {
       return NextResponse.json(

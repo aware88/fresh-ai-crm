@@ -29,15 +29,18 @@ const nextConfig = {
     domains: ['localhost', 'helloaris.com'],
   },
   
-  // Redirect configuration for landing page
+  // Redirect configuration for landing page (only in production)
   async redirects() {
-    return [
-      {
-        source: '/',
-        destination: 'https://helloaris.com',
-        permanent: false,
-      },
-    ];
+    if (process.env.NODE_ENV === 'production') {
+      return [
+        {
+          source: '/',
+          destination: 'https://helloaris.com',
+          permanent: false,
+        },
+      ];
+    }
+    return [];
   },
   
   // Output configuration for containerized deployments (Northflank)
