@@ -6,8 +6,11 @@ WORKDIR /app
 
 # Install dependencies based on the preferred package manager
 COPY package.json package-lock.json* .npmrc ./
-RUN npm config set ignore-scripts true && \
-    npm ci --legacy-peer-deps --no-optional --omit=optional --ignore-scripts
+RUN npm ci --legacy-peer-deps --no-optional --omit=optional
+
+# Copy prebuild script and run it to remove problematic packages
+COPY scripts/prebuild.js ./scripts/
+RUN node scripts/prebuild.js
 
 # Rebuild the source code only when needed
 FROM base AS builder
