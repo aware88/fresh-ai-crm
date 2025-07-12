@@ -130,6 +130,9 @@
     "xlsx": "^0.18.5",
     "zod": "^3.25.64"
   },
+  "overrides": {
+    "rollup": "npm:@rollup/wasm-node"
+  },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.0.0",
     "@testing-library/react": "^15.0.0",
