@@ -5,32 +5,17 @@
  */
 
 import { useState, useEffect } from 'react';
-import { useSupabaseClient } from '@supabase/auth-helpers-nextjs';
-import {
-  Box,
-  Heading,
-  Text,
-  Switch,
-  FormControl,
-  FormLabel,
-  Stack,
-  Card,
-  CardHeader,
-  CardBody,
-  Divider,
-  Select,
-  Slider,
-  SliderTrack,
-  SliderFilledTrack,
-  SliderThumb,
-  Button,
-  useToast,
-  Spinner,
-  Flex,
-  Badge,
-  Tooltip
-} from '@chakra-ui/react';
-import { InfoIcon } from '@/components/icons/ChakraIcons';
+import { useSupabaseClient } from '@supabase/auth-helpers-react';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
+import { Slider } from '@/components/ui/slider';
+import { Badge } from '@/components/ui/badge';
+import { useToast } from '@/components/ui/use-toast';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Separator } from '@/components/ui/separator';
+import { InfoIcon } from 'lucide-react';
 
 interface AgentSetting {
   id: string;
@@ -57,7 +42,7 @@ export default function AgentControlPanel({ agentId }: { agentId: string }) {
   const [originalSettings, setOriginalSettings] = useState<Record<string, any>>({});
   
   const supabase = useSupabaseClient();
-  const toast = useToast();
+  const { toast } = useToast();
   
   // Fetch settings on component mount
   useEffect(() => {
@@ -93,10 +78,8 @@ export default function AgentControlPanel({ agentId }: { agentId: string }) {
     } catch (error) {
       toast({
         title: 'Error fetching settings',
-        description: error.message,
-        status: 'error',
-        duration: 5000,
-        isClosable: true,
+        description: error instanceof Error ? error.message : 'An unknown error occurred',
+        variant: 'destructive',
       });
     } finally {
       setLoading(false);
@@ -148,17 +131,14 @@ export default function AgentControlPanel({ agentId }: { agentId: string }) {
       
       toast({
         title: 'Settings saved',
-        status: 'success',
-        duration: 3000,
-        isClosable: true,
+        description: 'Agent settings have been updated successfully',
+        variant: 'default',
       });
     } catch (error) {
       toast({
         title: 'Error saving settings',
-        description: error.message,
-        status: 'error',
-        duration: 5000,
-        isClosable: true,
+        description: error instanceof Error ? error.message : 'An unknown error occurred',
+        variant: 'destructive',
       });
     } finally {
       setSaving(false);
@@ -173,197 +153,268 @@ export default function AgentControlPanel({ agentId }: { agentId: string }) {
   
   if (loading) {
     return (
-      <Flex justify="center" align="center" h="200px">
-        <Spinner size="xl" />
-      </Flex>
+      <div className="flex justify-center items-center h-[200px]">
+        <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
+      </div>
     );
   }
   
   return (
-    <Box p={4}>
-      <Flex justify="space-between" align="center" mb={4}>
-        <Heading size="lg">Agent Control Panel</Heading>
+    <div className="p-4">
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-2xl font-bold">Agent Control Panel</h2>
         {hasChanges && (
-          <Flex gap={2}>
+          <div className="flex gap-2">
             <Button
               variant="outline"
               onClick={resetSettings}
-              isDisabled={saving}
+              disabled={saving}
             >
               Reset
             </Button>
             <Button
-              colorScheme="blue"
+              variant="default"
               onClick={saveSettings}
-              isLoading={saving}
+              disabled={saving}
             >
               Save Changes
             </Button>
-          </Flex>
+          </div>
         )}
-      </Flex>
+      </div>
       
-      <Stack spacing={6}>
+      <div className="flex flex-col gap-6">
         {/* Transparency Settings */}
         <Card>
-          <CardHeader pb={2}>
-            <Heading size="md">Transparency Settings</Heading>
+          <CardHeader className="pb-2">
+            <CardTitle>Transparency Settings</CardTitle>
           </CardHeader>
-          <CardBody>
-            <Stack spacing={4}>
-              <FormControl display="flex" alignItems="center">
-                <FormLabel htmlFor="activity-logging" mb="0">
-                  Activity Logging
-                  <Tooltip label="Record all agent activities for later review">
-                    <InfoIcon ml={1} color="gray.500" />
-                  </Tooltip>
-                </FormLabel>
+          <CardContent>
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <label htmlFor="activity-logging" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                    Activity Logging
+                  </label>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <InfoIcon className="h-4 w-4 text-gray-500" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Record all agent activities for later review</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
                 <Switch
                   id="activity-logging"
-                  isChecked={settings.activity_logging_enabled}
-                  onChange={(e) => handleSettingChange('activity_logging_enabled', e.target.checked)}
+                  checked={settings.activity_logging_enabled}
+                  onCheckedChange={(checked) => handleSettingChange('activity_logging_enabled', checked)}
                 />
-              </FormControl>
+              </div>
               
-              <FormControl display="flex" alignItems="center">
-                <FormLabel htmlFor="thought-logging" mb="0">
-                  Thought Process Logging
-                  <Tooltip label="Record detailed agent reasoning steps">
-                    <InfoIcon ml={1} color="gray.500" />
-                  </Tooltip>
-                </FormLabel>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <label htmlFor="thought-logging" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                    Thought Process Logging
+                  </label>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <InfoIcon className="h-4 w-4 text-gray-500" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Record detailed agent reasoning steps</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
                 <Switch
                   id="thought-logging"
-                  isChecked={settings.thought_logging_enabled}
-                  onChange={(e) => handleSettingChange('thought_logging_enabled', e.target.checked)}
+                  checked={settings.thought_logging_enabled}
+                  onCheckedChange={(checked) => handleSettingChange('thought_logging_enabled', checked)}
                 />
-              </FormControl>
+              </div>
               
-              <FormControl>
-                <FormLabel htmlFor="memory-access">
-                  Memory Access Level
-                  <Tooltip label="Control what memories the agent can access">
-                    <InfoIcon ml={1} color="gray.500" />
-                  </Tooltip>
-                </FormLabel>
+              <div className="flex flex-col space-y-2">
+                <div className="flex items-center space-x-2">
+                  <label htmlFor="memory-access" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                    Memory Access Level
+                  </label>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <InfoIcon className="h-4 w-4 text-gray-500" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Control how much past information the agent can access</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
                 <Select
-                  id="memory-access"
                   value={settings.memory_access_level}
-                  onChange={(e) => handleSettingChange('memory_access_level', e.target.value)}
+                  onValueChange={(value: string) => handleSettingChange('memory_access_level', value)}
                 >
-                  <option value="full">Full Access</option>
-                  <option value="limited">Limited Access</option>
-                  <option value="minimal">Minimal Access</option>
-                  <option value="none">No Access</option>
+                  <SelectTrigger id="memory-access">
+                    <SelectValue placeholder="Select memory access level" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Memories</SelectItem>
+                    <SelectItem value="recent">Recent Only</SelectItem>
+                    <SelectItem value="tagged">Tagged Only</SelectItem>
+                    <SelectItem value="none">No Memory Access</SelectItem>
+                  </SelectContent>
                 </Select>
-              </FormControl>
-            </Stack>
-          </CardBody>
+              </div>
+            </div>
+          </CardContent>
         </Card>
         
         {/* Personality Settings */}
         <Card>
-          <CardHeader pb={2}>
-            <Heading size="md">Personality Settings</Heading>
+          <CardHeader className="pb-2">
+            <CardTitle>Personality Settings</CardTitle>
           </CardHeader>
-          <CardBody>
-            <Stack spacing={4}>
-              <FormControl>
-                <FormLabel htmlFor="personality-tone">
-                  Communication Tone
-                  <Tooltip label="How the agent should sound in conversations">
-                    <InfoIcon ml={1} color="gray.500" />
-                  </Tooltip>
-                </FormLabel>
+          <CardContent>
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col space-y-2">
+                <div className="flex items-center space-x-2">
+                  <label htmlFor="personality-tone" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                    Communication Tone
+                  </label>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <InfoIcon className="h-4 w-4 text-gray-500" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>How the agent should communicate with users</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
                 <Select
-                  id="personality-tone"
                   value={settings.personality_tone}
-                  onChange={(e) => handleSettingChange('personality_tone', e.target.value)}
+                  onValueChange={(value: string) => handleSettingChange('personality_tone', value)}
                 >
-                  <option value="professional">Professional</option>
-                  <option value="friendly">Friendly</option>
-                  <option value="casual">Casual</option>
-                  <option value="formal">Formal</option>
-                  <option value="technical">Technical</option>
+                  <SelectTrigger id="personality-tone">
+                    <SelectValue placeholder="Select tone" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="professional">Professional</SelectItem>
+                    <SelectItem value="friendly">Friendly</SelectItem>
+                    <SelectItem value="casual">Casual</SelectItem>
+                    <SelectItem value="formal">Formal</SelectItem>
+                    <SelectItem value="technical">Technical</SelectItem>
+                  </SelectContent>
                 </Select>
-              </FormControl>
+              </div>
               
-              <FormControl>
-                <FormLabel htmlFor="assertiveness">
-                  Assertiveness Level: {settings.assertiveness_level}%
-                  <Tooltip label="How direct and confident the agent should be">
-                    <InfoIcon ml={1} color="gray.500" />
-                  </Tooltip>
-                </FormLabel>
+              <div className="flex flex-col space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <label htmlFor="assertiveness" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                      Assertiveness Level: {settings.assertiveness_level}%
+                    </label>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <InfoIcon className="h-4 w-4 text-gray-500" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>How direct and confident the agent should be</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
+                </div>
                 <Slider
                   id="assertiveness"
-                  value={settings.assertiveness_level}
-                  onChange={(val) => handleSettingChange('assertiveness_level', val)}
+                  value={[settings.assertiveness_level]}
+                  onValueChange={(values: number[]) => handleSettingChange('assertiveness_level', values[0])}
                   min={0}
                   max={100}
                   step={10}
-                >
-                  <SliderTrack>
-                    <SliderFilledTrack />
-                  </SliderTrack>
-                  <SliderThumb />
-                </Slider>
-              </FormControl>
+                  className="w-full"
+                />
+              </div>
               
-              <FormControl>
-                <FormLabel htmlFor="empathy">
-                  Empathy Level: {settings.empathy_level}%
-                  <Tooltip label="How well the agent recognizes and responds to emotions">
-                    <InfoIcon ml={1} color="gray.500" />
-                  </Tooltip>
-                </FormLabel>
+              <div className="flex flex-col space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <label htmlFor="empathy" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                      Empathy Level: {settings.empathy_level}%
+                    </label>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <InfoIcon className="h-4 w-4 text-gray-500" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>How well the agent recognizes and responds to emotions</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
+                </div>
                 <Slider
                   id="empathy"
-                  value={settings.empathy_level}
-                  onChange={(val) => handleSettingChange('empathy_level', val)}
+                  value={[settings.empathy_level]}
+                  onValueChange={(values: number[]) => handleSettingChange('empathy_level', values[0])}
                   min={0}
                   max={100}
                   step={10}
-                >
-                  <SliderTrack>
-                    <SliderFilledTrack />
-                  </SliderTrack>
-                  <SliderThumb />
-                </Slider>
-              </FormControl>
-            </Stack>
-          </CardBody>
+                  className="w-full"
+                />
+              </div>
+            </div>
+          </CardContent>
         </Card>
         
         {/* Response Settings */}
         <Card>
-          <CardHeader pb={2}>
-            <Heading size="md">Response Settings</Heading>
+          <CardHeader className="pb-2">
+            <CardTitle>Response Settings</CardTitle>
           </CardHeader>
-          <CardBody>
-            <Stack spacing={4}>
-              <FormControl>
-                <FormLabel htmlFor="response-detail">
-                  Response Detail Level
-                  <Tooltip label="How detailed the agent's responses should be">
-                    <InfoIcon ml={1} color="gray.500" />
-                  </Tooltip>
-                </FormLabel>
+          <CardContent>
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col space-y-2">
+                <div className="flex items-center space-x-2">
+                  <label htmlFor="response-detail" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                    Response Detail Level
+                  </label>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <InfoIcon className="h-4 w-4 text-gray-500" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>How detailed the agent's responses should be</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
                 <Select
-                  id="response-detail"
                   value={settings.response_detail_level}
-                  onChange={(e) => handleSettingChange('response_detail_level', e.target.value)}
+                  onValueChange={(value: string) => handleSettingChange('response_detail_level', value)}
                 >
-                  <option value="concise">Concise</option>
-                  <option value="balanced">Balanced</option>
-                  <option value="detailed">Detailed</option>
-                  <option value="comprehensive">Comprehensive</option>
+                  <SelectTrigger id="response-detail">
+                    <SelectValue placeholder="Select detail level" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="concise">Concise</SelectItem>
+                    <SelectItem value="balanced">Balanced</SelectItem>
+                    <SelectItem value="detailed">Detailed</SelectItem>
+                    <SelectItem value="comprehensive">Comprehensive</SelectItem>
+                  </SelectContent>
                 </Select>
-              </FormControl>
-            </Stack>
-          </CardBody>
+              </div>
+            </div>
+          </CardContent>
         </Card>
-      </Stack>
-    </Box>
+      </div>
+    </div>
   );
 }
