@@ -1,36 +1,51 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, ReactNode } from 'react';
 import Link from 'next/link';
-import { motion } from 'framer-motion';
+import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useToast } from "@/components/ui/use-toast";
+import { useSubscriptionFeatures } from "@/hooks/useSubscriptionFeatures";
+import { cn } from "@/lib/utils";
 import { 
   Mail, 
   Users, 
   BarChart3, 
   Sparkles, 
   ShoppingBag, 
-  MessageSquare,
+  MessageSquareText,
   Calendar,
   FileText,
   Search,
   Plus,
   ArrowRight,
   Package,
-  MessageSquareText
+  Zap,
+  Crown,
+  Activity,
+  Lock,
+  CheckCircle,
+  AlertCircle
 } from "lucide-react";
-import { Input } from "@/components/ui/input";
 
 // Types
 interface DashboardCardProps {
   title: string;
   description: string;
-  icon: React.ReactNode;
+  icon: ReactNode;
   href: string;
   color?: string;
   disabled?: boolean;
   className?: string;
+  featureKey?: string;
+  requiredPlan?: string;
+  index?: number;
 }
 
 // Animation variants
@@ -64,8 +79,20 @@ const DashboardCard = ({
   href,
   color = 'blue',
   disabled = false,
-  className = ''
+  className = '',
+  featureKey,
+  requiredPlan = 'Pro',
+  index = 0
 }: DashboardCardProps) => {
+  const { data: session } = useSession();
+  const organizationId = (session?.user as any)?.organizationId || "";
+  const { hasFeature, plan, isActive } = useSubscriptionFeatures(organizationId);
+  const { toast } = useToast();
+  const router = useRouter();
+  
+  // Check if feature is available based on subscription
+  const isFeatureAvailable = !featureKey || hasFeature(featureKey, true);
+  const isPremium = featureKey && !isFeatureAvailable && !disabled;
   const colorVariants = {
     blue: 'from-blue-500 to-blue-600',
     purple: 'from-purple-500 to-purple-600',
@@ -77,11 +104,35 @@ const DashboardCard = ({
 
   const colorClass = colorVariants[color as keyof typeof colorVariants] || colorVariants.blue;
 
+  const handlePremiumClick = (e: React.MouseEvent) => {
+    if (isPremium) {
+      e.preventDefault();
+      toast({
+        title: "Premium Feature",
+        description: `This feature requires the ${requiredPlan} plan. Upgrade your subscription to access it.`,
+        variant: "default",
+      });
+      router.push("/settings/subscription");
+    }
+  };
+
   const cardContent = (
-    <Card className={`h-full transition-all duration-300 hover:shadow-lg hover:scale-[1.02] border-0 bg-gradient-to-br from-card to-card/80 backdrop-blur-sm ${className}`}>
+    <Card className={`h-full transition-all duration-300 hover:shadow-lg hover:scale-[1.02] border-0 bg-gradient-to-br from-card to-card/80 backdrop-blur-sm ${isPremium ? 'border-amber-400/50' : ''} ${className}`}>
       <CardHeader className="pb-2">
-        <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 bg-gradient-to-br ${colorClass} text-white`}>
-          {icon}
+        <div className="flex justify-between items-start">
+          <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 bg-gradient-to-br ${colorClass} text-white relative`}>
+            {icon}
+            {isPremium && (
+              <div className="absolute -top-2 -right-2 bg-amber-400 rounded-full p-0.5">
+                <Crown className="h-3.5 w-3.5 text-white" />
+              </div>
+            )}
+          </div>
+          {isPremium && (
+            <Badge variant="outline" className="border-amber-400 text-amber-500 bg-amber-50 dark:bg-amber-950/20">
+              <Crown className="h-3 w-3 mr-1" /> Premium
+            </Badge>
+          )}
         </div>
         <CardTitle className="text-xl font-bold">{title}</CardTitle>
         <CardDescription className="text-foreground/70">
@@ -91,7 +142,7 @@ const DashboardCard = ({
       <CardContent>
         <div className="flex items-center justify-between mt-4">
           <span className="text-sm text-muted-foreground">
-            {disabled ? 'Coming soon' : 'Open'}
+            {disabled ? 'Coming soon' : isPremium ? 'Upgrade' : 'Open'}
           </span>
           <Button 
             variant="ghost" 
@@ -111,6 +162,14 @@ const DashboardCard = ({
     return (
       <motion.div 
         variants={item}
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ 
+          type: "spring", 
+          stiffness: 100, 
+          damping: 15,
+          delay: index * 0.05
+        }}
         className="relative h-full"
       >
         <div className="absolute inset-0 bg-background/50 backdrop-blur-sm rounded-lg z-10 flex items-center justify-center">
@@ -122,13 +181,56 @@ const DashboardCard = ({
       </motion.div>
     );
   }
+  
+  if (isPremium) {
+    return (
+      <TooltipProvider>
+        <Tooltip delayDuration={300}>
+          <TooltipTrigger asChild>
+            <motion.div 
+              variants={item}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ 
+                type: "spring", 
+                stiffness: 100, 
+                damping: 15,
+                delay: index * 0.05
+              }}
+              whileHover={{ y: -4, scale: 1.02 }}
+              className="h-full"
+              onClick={handlePremiumClick}
+            >
+              <div className="h-full cursor-pointer">
+                {cardContent}
+              </div>
+            </motion.div>
+          </TooltipTrigger>
+          <TooltipContent side="top" className="max-w-xs">
+            <div className="flex flex-col gap-1">
+              <p className="font-medium">Premium Feature</p>
+              <p className="text-xs text-muted-foreground">Upgrade to {requiredPlan} plan to unlock this feature</p>
+            </div>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
+  }
 
   return (
     <motion.div 
       variants={item}
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ 
+        type: "spring", 
+        stiffness: 100, 
+        damping: 15,
+        delay: index * 0.05
+      }}
+      whileHover={{ y: -4, scale: 1.02 }}
+      whileTap={{ scale: 0.98 }}
       className="h-full"
-      whileHover={{ y: -4 }}
-      transition={{ type: 'spring', stiffness: 300 }}
     >
       <Link href={href} className="h-full block">
         {cardContent}
@@ -137,8 +239,216 @@ const DashboardCard = ({
   );
 };
 
+// Feature Card Component with animation references
+interface FeatureCardProps {
+  title: string;
+  description: string;
+  icon: any;
+  iconBg?: string;
+  iconColor?: string;
+  gradientFrom?: string;
+  gradientTo?: string;
+  href: string;
+  onRef?: (el: HTMLElement | null) => void;
+  featureKey?: string;
+  requiredPlan?: string;
+  disabled?: boolean;
+}
+
+const FeatureCard = ({ 
+  title, 
+  description, 
+  icon: Icon, 
+  iconBg, 
+  iconColor, 
+  gradientFrom, 
+  gradientTo, 
+  href, 
+  onRef,
+  featureKey,
+  requiredPlan = 'Pro',
+  disabled = false
+}: FeatureCardProps) => {
+  const { data: session } = useSession();
+  const organizationId = (session?.user as any)?.organizationId || "";
+  const { hasFeature, plan } = useSubscriptionFeatures(organizationId);
+  const { toast } = useToast();
+  const router = useRouter();
+  
+  // Check if feature is available based on subscription
+  const isFeatureAvailable = !featureKey || hasFeature(featureKey, true);
+  const isPremium = featureKey && !isFeatureAvailable && !disabled;
+  
+  const handlePremiumClick = (e: React.MouseEvent) => {
+    if (isPremium) {
+      e.preventDefault();
+      e.stopPropagation();
+      toast({
+        title: "Premium Feature",
+        description: `This feature requires the ${requiredPlan} plan. Upgrade your subscription to access it.`,
+        variant: "default",
+      });
+      router.push("/settings/subscription");
+    }
+  };
+  if (disabled) {
+    return (
+      <motion.div
+        ref={onRef}
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ type: "spring", stiffness: 100, damping: 15 }}
+        className="group relative overflow-hidden rounded-xl border bg-white shadow-sm transition-all duration-200 dark:bg-gray-950 dark:border-gray-800"
+      >
+        <div className="absolute inset-0 bg-background/50 backdrop-blur-sm rounded-lg z-10 flex items-center justify-center">
+          <span className="bg-primary/10 text-primary text-xs font-medium px-2.5 py-1 rounded-full">
+            Coming Soon
+          </span>
+        </div>
+        <div className="block p-6">
+          <div className="flex items-center justify-between">
+            <div className={`rounded-lg ${iconBg || 'bg-blue-100'} p-2 ${iconColor || 'text-blue-600'}`}>
+              <Icon className="h-6 w-6" />
+            </div>
+            <svg
+              className="h-5 w-5 text-gray-400 dark:text-gray-600"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </div>
+          <div className="mt-4">
+            <h3 className="text-lg font-medium">{title}</h3>
+            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{description}</p>
+          </div>
+        </div>
+      </motion.div>
+    );
+  }
+  
+  if (isPremium) {
+    return (
+      <TooltipProvider>
+        <Tooltip delayDuration={300}>
+          <TooltipTrigger asChild>
+            <motion.div
+              ref={onRef}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ type: "spring", stiffness: 100, damping: 15 }}
+              whileHover={{ y: -4, scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              className="group relative overflow-hidden rounded-xl border bg-white shadow-sm transition-all duration-200 hover:shadow-lg dark:bg-gray-950 dark:border-gray-800 border-amber-400/30"
+              onClick={handlePremiumClick}
+            >
+              <div className="block p-6 cursor-pointer">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <div className={`p-2 rounded-lg ${iconBg}`}>
+                      <Icon className={`h-5 w-5 ${iconColor}`} />
+                    </div>
+                    <h3 className="font-medium">{title}</h3>
+                  </div>
+                  <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800/30">
+                    <span className="flex items-center space-x-1">
+                      <Crown className="h-3 w-3" />
+                      <span>Premium</span>
+                    </span>
+                  </Badge>
+                </div>
+                <div className="mt-4">
+                  <h3 className="text-lg font-medium">{title}</h3>
+                  <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{description}</p>
+                </div>
+                <div 
+                  className="absolute inset-0 -z-10 opacity-0 group-hover:opacity-10 transition-opacity duration-300" 
+                  style={{
+                    background: `linear-gradient(45deg, #f59e0b, #f97316)`
+                  }}
+                />
+              </div>
+            </motion.div>
+          </TooltipTrigger>
+          <TooltipContent side="top" className="max-w-xs">
+            <div className="flex flex-col gap-1">
+              <p className="font-medium">Premium Feature</p>
+              <p className="text-xs text-muted-foreground">Upgrade to {requiredPlan} plan to unlock this feature</p>
+            </div>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
+  }
+  
+  return (
+    <motion.div
+      ref={onRef}
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ type: "spring", stiffness: 100, damping: 15 }}
+      whileHover={{ y: -4, scale: 1.02 }}
+      whileTap={{ scale: 0.98 }}
+      className="group relative overflow-hidden rounded-xl border bg-white shadow-sm transition-all duration-200 hover:shadow-lg dark:bg-gray-950 dark:border-gray-800"
+    >
+      <Link href={href} className="block p-6">
+        <div className="flex items-center justify-between">
+          <div className={`rounded-lg ${iconBg || 'bg-blue-100'} p-2 ${iconColor || 'text-blue-600'}`}>
+            <Icon className="h-6 w-6" />
+          </div>
+          <svg
+            className="h-5 w-5 text-gray-400 transition-transform duration-300 group-hover:translate-x-1 dark:text-gray-600"
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+        </div>
+        <div className="mt-4">
+          <h3 className="text-lg font-medium">{title}</h3>
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{description}</p>
+        </div>
+        <div 
+          className="absolute inset-0 -z-10 opacity-0 group-hover:opacity-10 transition-opacity duration-300" 
+          style={{
+            background: gradientFrom && gradientTo ? 
+              `linear-gradient(45deg, ${gradientFrom}, ${gradientTo})` : 
+              'linear-gradient(45deg, #3b82f6, #8b5cf6)'
+          }}
+        />
+      </Link>
+    </motion.div>
+  );
+};
+
 // Main Dashboard Component
 export default function DashboardPage() {
+  // Animation refs for staggered animations
+  const [refs, setRefs] = useState<Array<HTMLElement | null>>([]);
+  const { data: session } = useSession();
+  // Use organization ID from session with proper type checking
+  const organizationId = (session?.user as any)?.organizationId || "";
+  const { plan, isActive, hasFeature } = useSubscriptionFeatures(organizationId);
+  const { toast } = useToast();
+  const router = useRouter();
+  
+  // Animation state for interactive elements
+  const [activeTab, setActiveTab] = useState<string>("all");
+  
+  const addToRefs = (el: HTMLElement | null) => {
+    if (el && !refs.includes(el)) {
+      setRefs(prev => [...prev, el]);
+    }
+  };
+  
+  // Function to check if user has access to a feature
+  const checkFeatureAccess = (featureKey: string) => {
+    return !featureKey || hasFeature(featureKey, true);
+  };
   const stats = [
     { name: 'Unread Emails', value: '12', change: '+2.5%', changeType: 'positive' as const },
     { name: 'Upcoming Tasks', value: '5', change: '+1', changeType: 'negative' as const },
@@ -151,49 +461,72 @@ export default function DashboardPage() {
       title: 'Emails',
       description: 'Manage your email communications',
       icon: <Mail className="h-6 w-6" />,
-      href: '/emails',
-      color: 'blue'
+      href: '/dashboard/email',
+      color: 'blue',
+      featureKey: 'EMAIL_MANAGEMENT'
+    },
+    {
+      title: 'Email Analyser',
+      description: 'AI-powered email analysis',
+      icon: <Zap className="h-6 w-6" />,
+      href: '/dashboard/email-analyser',
+      color: 'amber',
+      featureKey: 'ADVANCED_EMAIL_ANALYSIS',
+      requiredPlan: 'Pro'
     },
     {
       title: 'AI Assistant',
       description: 'Get AI-powered assistance',
       icon: <Sparkles className="h-6 w-6" />,
-      href: '/ai-assistant',
-      color: 'purple'
+      href: '/dashboard/assistant',
+      color: 'purple',
+      featureKey: 'AI_ASSISTANT'
     },
     {
       title: 'Contacts',
       description: 'Manage your business contacts',
       icon: <Users className="h-6 w-6" />,
-      href: '/contacts',
+      href: '/dashboard/contacts',
       color: 'green'
     },
     {
       title: 'Orders',
       description: 'Track and manage orders',
       icon: <ShoppingBag className="h-6 w-6" />,
-      href: '/orders',
-      color: 'yellow'
+      href: '/dashboard/orders',
+      color: 'yellow',
+      featureKey: 'ORDER_MANAGEMENT'
     },
     {
       title: 'Products',
       description: 'Manage your product catalog',
       icon: <Package className="h-6 w-6" />,
-      href: '/products',
-      color: 'pink'
+      href: '/dashboard/products',
+      color: 'pink',
+      featureKey: 'PRODUCT_MANAGEMENT'
     },
     {
       title: 'Analytics',
       description: 'View business analytics',
       icon: <BarChart3 className="h-6 w-6" />,
-      href: '/analytics',
-      color: 'indigo'
+      href: '/dashboard/analytics',
+      color: 'indigo',
+      featureKey: 'ADVANCED_ANALYTICS',
+      requiredPlan: 'Business'
+    },
+    {
+      title: 'Sales Documents',
+      description: 'Manage quotes and invoices',
+      icon: <FileText className="h-6 w-6" />,
+      href: '/dashboard/sales-documents',
+      color: 'cyan',
+      featureKey: 'SALES_DOCUMENTS'
     },
     {
       title: 'Messages',
       description: 'Manage customer messages',
       icon: <MessageSquareText className="h-6 w-6" />,
-      href: '/messages',
+      href: '/dashboard/messages',
       color: 'blue',
       disabled: true
     },
@@ -201,7 +534,7 @@ export default function DashboardPage() {
       title: 'Calendar',
       description: 'Schedule and manage events',
       icon: <Calendar className="h-6 w-6" />,
-      href: '/calendar',
+      href: '/dashboard/calendar',
       color: 'purple',
       disabled: true
     }
@@ -212,9 +545,39 @@ export default function DashboardPage() {
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-          <p className="text-muted-foreground">
-            Welcome back! Here's what's happening with your business.
-          </p>
+          <div className="flex items-center gap-2">
+            <p className="text-muted-foreground">
+              Welcome back! Here's what's happening with your business.
+            </p>
+            {plan && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Badge 
+                      variant={isActive ? "default" : "outline"} 
+                      className={cn(
+                        "ml-2 cursor-pointer", 
+                        plan.id === 'free' ? "bg-gray-500" : 
+                        plan.id === 'starter' ? "bg-blue-500" : 
+                        plan.id === 'pro' || plan.id === 'pro-beta' ? "bg-purple-500" : 
+                        plan.id === 'business' ? "bg-amber-500" : 
+                        "bg-green-500"
+                      )}
+                      onClick={() => router.push("/settings/subscription")}
+                    >
+                      <div className="flex items-center">
+                        <Crown className="h-3 w-3 mr-1" /> 
+                        {plan.name} Plan
+                      </div>
+                    </Badge>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Click to manage your subscription</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <div className="relative">
@@ -224,10 +587,19 @@ export default function DashboardPage() {
               className="pl-9 w-full md:w-[300px]" 
             />
           </div>
-          <Button>
-            <Plus className="mr-2 h-4 w-4" />
-            New
-          </Button>
+          <AnimatePresence>
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ type: "spring", stiffness: 300, damping: 20 }}
+              whileTap={{ scale: 0.9 }}
+            >
+              <Button>
+                <Plus className="mr-2 h-4 w-4" />
+                New
+              </Button>
+            </motion.div>
+          </AnimatePresence>
         </div>
       </div>
 
@@ -262,26 +634,21 @@ export default function DashboardPage() {
       </motion.div>
 
       {/* Features Grid */}
-      <div className="mt-8">
-        <h2 className="text-xl font-semibold mb-4">Quick Actions</h2>
-        <motion.div 
-          className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4"
-          initial="hidden"
-          animate="show"
-          variants={container}
-        >
-          {features.map((feature) => (
-            <DashboardCard
-              key={feature.title}
-              title={feature.title}
-              description={feature.description}
-              icon={feature.icon}
-              href={feature.href}
-              color={feature.color as any}
-              disabled={feature.disabled}
-            />
-          ))}
-        </motion.div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {features.map((feature, index) => (
+          <DashboardCard
+            key={feature.title}
+            title={feature.title}
+            description={feature.description}
+            icon={feature.icon}
+            href={feature.href}
+            color={feature.color}
+            disabled={feature.disabled}
+            featureKey={feature.featureKey}
+            requiredPlan={feature.requiredPlan}
+            index={index}
+          />
+        ))}
       </div>
 
       {/* Recent Activity */}
@@ -297,7 +664,7 @@ export default function DashboardPage() {
             {[1, 2, 3].map((item) => (
               <div key={item} className="flex items-start pb-4 border-b last:border-0 last:pb-0">
                 <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary mr-4">
-                  <MessageSquare className="h-5 w-5" />
+                  <MessageSquareText className="h-5 w-5" />
                 </div>
                 <div className="flex-1">
                   <div className="flex items-center justify-between">
@@ -311,298 +678,6 @@ export default function DashboardPage() {
               </div>
             ))}
           </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">{stat.name}</p>
-                <p className="text-2xl font-bold">{stat.value}</p>
-              </div>
-              <div className={`px-2 py-1 rounded-full text-xs ${
-                stat.changeType === 'positive' 
-                  ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' 
-                  : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
-              }`}>
-                {stat.change}
-              </div>
-            </div>
-          </motion.div>
-        ))}
-      </motion.div>
-
-      <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="analytics">Analytics</TabsTrigger>
-          <TabsTrigger value="reports">Reports</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="overview" className="space-y-4">
-          <h2 className="text-xl font-semibold">Quick Actions</h2>
-          
-          <motion.div 
-            className="grid gap-6 md:grid-cols-2 lg:grid-cols-3"
-            variants={container}
-            initial="hidden"
-            animate="show"
-          >
-            <DashboardCard
-              title="Email"
-              description="Check your inbox and manage emails"
-              icon={<Mail className="h-5 w-5" />}
-              href="/dashboard/email"
-              color="blue"
-            >
-              <div className="mt-2 pt-2 border-t border-border/50">
-                <p className="text-xs text-muted-foreground">12 unread messages</p>
-              </div>
-            </DashboardCard>
-
-            <DashboardCard
-              title="AI Assistant"
-              description="Get help with your tasks"
-              icon={<Brain className="h-5 w-5" />}
-              href="/dashboard/assistant"
-              color="purple"
-            />
-
-            <DashboardCard
-              title="Contacts"
-              description="Manage your business contacts"
-              icon={<Users className="h-5 w-5" />}
-              href="/dashboard/contacts"
-              color="green"
-            />
-
-            <DashboardCard
-              title="Orders"
-              description="View and manage orders"
-              icon={<ShoppingBag className="h-5 w-5" />}
-              href="/dashboard/orders"
-              color="yellow"
-            />
-
-            <DashboardCard
-              title="Products"
-              description="Manage your product catalog"
-              icon={<Package2 className="h-5 w-5" />}
-              href="/dashboard/products"
-              color="indigo"
-            />
-
-            <DashboardCard
-              title="Calendar"
-              description="Schedule and view events"
-              icon={<Calendar className="h-5 w-5" />}
-              href="#"
-              color="pink"
-              disabled
-            />
-          </motion.div>
-
-          {/* Recent Activity Section */}
-          <div className="mt-12">
-            <h2 className="text-xl font-semibold mb-4">Recent Activity</h2>
-            <div className="space-y-4">
-              {[1, 2, 3].map((item) => (
-                <motion.div
-                  key={item}
-                  className="p-4 bg-card rounded-lg border shadow-sm"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.1 * item }}
-                  whileHover={{ x: 4 }}
-                >
-                  <div className="flex items-start gap-3">
-                    <div className="p-2 bg-primary/10 text-primary rounded-lg">
-                      <MessageSquareText className="h-5 w-5" />
-                    </div>
-                    <div className="flex-1">
-                      <h4 className="font-medium">New message from client #{item}</h4>
-                      <p className="text-sm text-muted-foreground">
-                        You have a new message from a client regarding order #{1000 + item}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1">2 hours ago</p>
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
-  const cardsRef = useRef<HTMLDivElement[]>([]);
-
-  // Handle mouse move for card hover effects
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      // Only update if we have cards
-      if (cardsRef.current.length === 0) return;
-      
-      // Find the card under the cursor
-      const card = document.elementFromPoint(e.clientX, e.clientY)?.closest('[data-card-hover]');
-      if (!card) return;
-      
-      // Get the card's position and dimensions
-      const rect = card.getBoundingClientRect();
-      
-      // Calculate mouse position relative to the card (0-1)
-      const x = ((e.clientX - rect.left) / rect.width) * 100;
-      const y = ((e.clientY - rect.top) / rect.height) * 100;
-      
-      // Update the card's CSS variables
-      (card as HTMLElement).style.setProperty('--mouse-x', `${x}%`);
-      (card as HTMLElement).style.setProperty('--mouse-y', `${y}%`);
-    };
-    
-    // Add event listener
-    window.addEventListener('mousemove', handleMouseMove);
-    
-    // Cleanup
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-    };
-  }, []);
-  
-  // Add a card to the refs array
-  const addToRefs = (el: HTMLDivElement | null) => {
-    if (el && !cardsRef.current.includes(el)) {
-      cardsRef.current.push(el);
-    }
-  };
-
-  const features: FeatureCardProps[] = [
-    {
-      title: "Email Analyser",
-      description: "Analyze customer emails to understand their personality and get AI-suggested responses.",
-      icon: Mail,
-      iconBg: "bg-blue-100",
-      iconColor: "text-blue-600",
-      gradientFrom: "#3b82f6",
-      gradientTo: "#8b5cf6",
-      href: "/dashboard/email"
-    },
-    {
-      title: "Suppliers",
-      description: "Manage suppliers, upload documents, and get AI-powered insights for better procurement.",
-      icon: Building2,
-      iconBg: "bg-purple-100",
-      iconColor: "text-purple-600",
-      gradientFrom: "#8b5cf6",
-      gradientTo: "#3b82f6",
-      href: "/dashboard/suppliers"
-    },
-    {
-      title: "Products",
-      description: "Manage your product catalog, inventory, and pricing in one place.",
-      icon: ShoppingBag,
-      iconBg: "bg-green-100",
-      iconColor: "text-green-600",
-      gradientFrom: "#10b981",
-      gradientTo: "#3b82f6",
-      href: "/dashboard/products"
-    },
-    {
-      title: "Orders",
-      description: "Track and manage customer orders, invoices, and fulfillment status.",
-      icon: ShoppingBag,
-      iconBg: "bg-amber-100",
-      iconColor: "text-amber-600",
-      gradientFrom: "#f59e0b",
-      gradientTo: "#ec4899",
-      href: "/dashboard/orders"
-    },
-    {
-      title: "Analytics",
-      description: "View key metrics and insights about your business performance.",
-      icon: BarChart3,
-      iconBg: "bg-indigo-100",
-      iconColor: "text-indigo-600",
-      gradientFrom: "#6366f1",
-      gradientTo: "#3b82f6",
-      href: "/dashboard/analytics",
-      disabled: false,
-      comingSoon: false
-    },
-    {
-      title: "Contacts",
-      description: "View and manage your customer contacts and their interaction history.",
-      icon: Users,
-      iconBg: "bg-indigo-100",
-      iconColor: "text-indigo-600",
-      gradientFrom: "#6366f1",
-      gradientTo: "#8b5cf6",
-      href: "/dashboard/contacts"
-    },
-    {
-      title: "AI Assistant",
-      description: "Get AI-powered assistance for your business needs, from answering questions to generating insights.",
-      icon: Sparkles,
-      iconBg: "bg-purple-100",
-      iconColor: "text-purple-600",
-      gradientFrom: "#8b5cf6",
-      gradientTo: "#3b82f6",
-      href: "/dashboard/assistant"
-    }
-  ];
-
-  return (
-    <div className="min-h-full">
-      {/* Hero Section */}
-      <div className="relative overflow-hidden bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-white shadow-lg rounded-2xl mx-4 sm:mx-6 lg:mx-8 mt-4">
-        <div className="absolute inset-0 bg-grid-white/[0.05]" />
-        {/* Decorative circles */}
-        <div className="absolute -top-24 -left-24 w-64 h-64 bg-blue-500 rounded-full opacity-20 blur-3xl"></div>
-        <div className="absolute -bottom-24 -right-24 w-64 h-64 bg-pink-500 rounded-full opacity-20 blur-3xl"></div>
-        
-        <div className="relative max-w-7xl mx-auto px-6 sm:px-8 lg:px-10 py-12 md:py-16">
-          <div className="text-center">
-            <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-3">
-              Welcome to <span className="aris-text-gradient font-extrabold">ARIS</span>
-            </h1>
-            <p className="text-lg text-white/90 max-w-3xl mx-auto mb-8">
-              Transform your customer relationships with AI-powered insights and tools
-            </p>
-            <div className="flex flex-col sm:flex-row justify-center gap-4">
-              <Button 
-                asChild
-                className="bg-white text-foreground hover:bg-gray-50 px-6 py-3 text-sm font-medium shadow-md rounded-xl hover:shadow-lg transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
-              >
-                <Link href="/dashboard/assistant" className="cursor-pointer">
-                  <Activity className="mr-2 h-4 w-4 inline" />
-                  Try AI Assistant
-                </Link>
-              </Button>
-              <Button 
-                asChild
-                variant="outline" 
-                className="bg-white/10 backdrop-blur-sm border-white/20 text-white hover:bg-white/20 px-6 py-3 text-sm font-medium rounded-xl shadow-md hover:shadow-lg transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
-              >
-                <Link href="/dashboard/contacts" className="cursor-pointer">
-                  View Contacts
-                </Link>
-              </Button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        <div className="mb-8">
-          <h2 className="text-2xl font-semibold mb-2">Explore Features</h2>
-          <p className="text-gray-500">Discover the powerful tools and features available in your ARIS dashboard</p>
-        </div>
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {features.map((feature, index) => (
-            <FeatureCard 
-              key={feature.title} 
-              {...feature} 
-              onRef={addToRefs}
-            />
-          ))}
         </div>
       </div>
     </div>
