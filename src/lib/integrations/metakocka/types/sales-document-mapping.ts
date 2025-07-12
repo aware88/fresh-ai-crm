@@ -8,9 +8,28 @@
 export type SyncDirection = 'crm_to_metakocka' | 'metakocka_to_crm' | 'bidirectional';
 
 /**
+ * Enum for sync direction constants
+ */
+export const SyncDirection = {
+  CRM_TO_METAKOCKA: 'crm_to_metakocka' as SyncDirection,
+  METAKOCKA_TO_CRM: 'metakocka_to_crm' as SyncDirection,
+  BIDIRECTIONAL: 'bidirectional' as SyncDirection
+};
+
+/**
  * Status of synchronization
  */
 export type SyncStatus = 'synced' | 'pending' | 'error' | 'needs_review';
+
+/**
+ * Enum for sync status constants
+ */
+export const SyncStatus = {
+  SYNCED: 'synced' as SyncStatus,
+  PENDING: 'pending' as SyncStatus,
+  ERROR: 'error' as SyncStatus,
+  NEEDS_REVIEW: 'needs_review' as SyncStatus
+};
 
 /**
  * Metakocka document types
