@@ -100,6 +100,32 @@ For detailed documentation on specific features, see:
 
 ## 🚀 Getting Started
 
+### Quick Start on a New Machine
+
+1. **Clone the repository**
+2. **Run the setup script:**
+   ```sh
+   bash setup.sh
+   ```
+   - This will install dependencies (using lockfiles for exact versions) and build the project.
+   - If you use nvm, it will auto-install the Node version from `.nvmrc` (if present).
+3. **Copy environment variables:**
+   ```sh
+   cp .env.example .env
+   # Edit .env and fill in secrets/keys as needed
+   ```
+4. **Start the development server:**
+   ```sh
+   npm run dev
+   ```
+
+#### Troubleshooting
+- If you have issues, ensure you are using the correct Node version (`nvm use` if you have `.nvmrc`).
+- If you see dependency errors, try deleting `node_modules` and rerunning `bash setup.sh`.
+- All dependencies are locked using `package-lock.json` (or `yarn.lock` if you use Yarn) for reproducible builds.
+
+See `docs/ENHANCEMENT_LOG.md` for the full changelog, enhancement plan, and how to resume work on any phase.
+
 ### Prerequisites
 
 - Node.js 18.0.0 or later
