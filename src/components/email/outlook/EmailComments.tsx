@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { formatDistanceToNow } from 'date-fns';
+import Image from 'next/image';
 
 interface Comment {
   id: string;
@@ -112,10 +113,12 @@ export default function EmailComments({ messageId }: EmailCommentsProps) {
             comments.map(comment => (
               <div key={comment.id} className="flex space-x-3 p-3 bg-gray-50 rounded-lg">
                 {comment.userAvatar ? (
-                  <img 
+                  <Image 
                     src={comment.userAvatar} 
                     alt={comment.userName} 
-                    className="h-8 w-8 rounded-full"
+                    width={32}
+                    height={32}
+                    className="h-8 w-8 rounded-full object-cover"
                   />
                 ) : (
                   <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-500 font-medium">

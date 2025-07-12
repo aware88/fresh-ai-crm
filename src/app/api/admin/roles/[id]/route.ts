@@ -19,7 +19,9 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
 
-    const roleId = params.id;
+    // Use async pattern for params in Next.js 15+
+    const { id } = await params;
+    const roleId = id;
     const role = await RoleService.getRoleWithPermissions(roleId);
 
     if (!role) {
@@ -56,7 +58,9 @@ export async function PUT(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
 
-    const roleId = params.id;
+    // Use async pattern for params in Next.js 15+
+    const { id } = await params;
+    const roleId = id;
     const body = await request.json();
     const { name, description, permissions } = body;
 
@@ -98,7 +102,9 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
 
-    const roleId = params.id;
+    // Use async pattern for params in Next.js 15+
+    const { id } = await params;
+    const roleId = id;
     await RoleService.deleteRole(roleId);
 
     return NextResponse.json({ success: true });

@@ -16,7 +16,9 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    const organizationId = params.id;
+    // Use async pattern for params in Next.js 15+
+    const { id } = await params;
+    const organizationId = id;
     
     // Check if user has access to this organization
     // This would be replaced with your actual authorization logic
@@ -82,7 +84,9 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    const organizationId = params.id;
+    // Use async pattern for params in Next.js 15+
+    const { id } = await params;
+    const organizationId = id;
     const body = await request.json();
     const { planId, userCount } = body;
     
@@ -164,7 +168,9 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    const organizationId = params.id;
+    // Use async pattern for params in Next.js 15+
+    const { id } = await params;
+    const organizationId = id;
     
     // Check if user has access to this organization and can cancel subscriptions
     // This would be replaced with your actual authorization logic

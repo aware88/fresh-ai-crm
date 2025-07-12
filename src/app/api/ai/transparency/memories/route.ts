@@ -12,6 +12,8 @@ import { cookies } from 'next/headers';
 import { MemoryService } from '@/lib/ai/memory/memory.service';
 
 export async function GET(request: Request) {
+  // Get cookies using async pattern for Next.js 15+
+  const cookieStore = await cookies();
   try {
     const url = new URL(request.url);
     const searchParams = url.searchParams;
@@ -24,7 +26,7 @@ export async function GET(request: Request) {
     const query = searchParams.get('query') || '';
     
     // Initialize Supabase client
-    const supabase = createRouteHandlerClient({ cookies });
+    const supabase = createRouteHandlerClient({ cookies: cookieStore });
     
     // Get user session
     const { data: { session } } = await supabase.auth.getSession();
@@ -82,7 +84,7 @@ export async function DELETE(request: Request) {
     }
     
     // Initialize Supabase client
-    const supabase = createRouteHandlerClient({ cookies });
+    const supabase = createRouteHandlerClient({ cookies: cookieStore });
     
     // Get user session
     const { data: { session } } = await supabase.auth.getSession();
@@ -117,7 +119,7 @@ export async function PUT(request: Request) {
     }
     
     // Initialize Supabase client
-    const supabase = createRouteHandlerClient({ cookies });
+    const supabase = createRouteHandlerClient({ cookies: cookieStore });
     
     // Get user session
     const { data: { session } } = await supabase.auth.getSession();

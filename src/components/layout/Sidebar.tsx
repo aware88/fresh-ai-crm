@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, memo } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { 
@@ -36,6 +37,64 @@ type NavItem = {
   comingSoon?: boolean;
 };
 
+// Memoized NavItem component for better performance
+const NavItemComponent = memo(({ 
+  item, 
+  isActive, 
+  onClick 
+}: { 
+  item: NavItem; 
+  isActive: boolean; 
+  onClick: () => void;
+}) => {
+  const itemContent = (
+    <div className="flex items-center">
+      <span className={cn("flex items-center justify-center w-6 h-6 rounded-md", isActive ? "text-primary" : "text-muted-foreground")}>
+        {item.icon}
+      </span>
+      <span className="ml-3">{item.title}</span>
+      {item.comingSoon && (
+        <span className="ml-auto text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full">
+          Soon
+        </span>
+      )}
+    </div>
+  );
+
+  if (item.comingSoon) {
+    return (
+      <div
+        className={cn(
+          'px-3 py-2 text-sm font-medium rounded-md transition-colors cursor-not-allowed',
+          'text-muted-foreground/60 hover:bg-muted/50',
+          isActive && 'bg-muted/50'
+        )}
+        title="Coming soon"
+      >
+        {itemContent}
+      </div>
+    );
+  }
+
+  return (
+    <Link
+      href={item.href}
+      className={cn(
+        'block px-3 py-2 text-sm font-medium rounded-xl transition-all duration-200',
+        isActive
+          ? 'bg-gradient-to-r from-blue-600/10 via-purple-600/10 to-pink-600/10 text-foreground font-medium'
+          : 'text-muted-foreground hover:bg-gray-50 hover:text-foreground',
+        'focus:outline-none focus:ring-2 focus:ring-blue-500/20 hover:scale-[1.01]'
+      )}
+      onClick={onClick}
+    >
+      {itemContent}
+    </Link>
+  );
+});
+
+NavItemComponent.displayName = 'NavItemComponent';
+
 export function Sidebar({ className }: SidebarProps) {
   const pathname = usePathname() || '';
   const { isOpen: isMobileMenuOpen, toggleMenu, closeMenu } = useMobileMenu();
@@ -46,8 +105,8 @@ export function Sidebar({ className }: SidebarProps) {
     closeMenu();
   }, [pathname, closeMenu]);
 
-  // Navigation items configuration
-  const navItems: NavItem[] = [
+  // Navigation items configuration - memoized to prevent recreation on each render
+  const navItems = useMemo<NavItem[]>(() => [
     {
       title: 'Dashboard',
       href: '/dashboard',
@@ -104,7 +163,7 @@ export function Sidebar({ className }: SidebarProps) {
       href: '/dashboard/settings',
       icon: <Settings className="h-5 w-5" />
     }
-  ];
+  ], []);
 
   // Filter nav items based on search query
   const filteredNavItems = searchQuery 
@@ -155,10 +214,13 @@ export function Sidebar({ className }: SidebarProps) {
         <div className="flex h-16 items-center justify-center border-b border-gray-100">
           <Link href="/dashboard" className="flex items-center justify-center">
             <div className="flex items-center">
-              <img 
+              <Image 
                 src="/images/aris-logo.svg" 
                 alt="ARIS Logo" 
-                className="w-10 h-10 object-contain" 
+                width={40}
+                height={40}
+                className="object-contain" 
+                priority
               />
               <span className="ml-2 font-semibold text-lg bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-transparent bg-clip-text">ARIS</span>
             </div>

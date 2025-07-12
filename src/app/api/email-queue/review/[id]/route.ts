@@ -24,7 +24,9 @@ export async function POST(
     }
     
     // Get the queue item ID from the URL
-    const queueItemId = params.id;
+    // Use async pattern for params in Next.js 15+
+    const { id } = await params;
+    const queueItemId = id;
     if (!queueItemId) {
       return NextResponse.json(
         { error: 'Missing queue item ID' },

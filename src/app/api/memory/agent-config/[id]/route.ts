@@ -25,9 +25,13 @@ export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  // Get cookies using async pattern for Next.js 15+
+  const cookieStore = await cookies();
   try {
-    const agentId = params.id;
-    const supabase = createRouteHandlerClient({ cookies });
+    // Use async pattern for params in Next.js 15+
+    const { id } = await params;
+    const agentId = id;
+    const supabase = createRouteHandlerClient({ cookies: cookieStore });
     
     // Get user and organization from auth
     const { data: { user } } = await supabase.auth.getUser();
@@ -113,9 +117,13 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  // Get cookies using async pattern for Next.js 15+
+  const cookieStore = await cookies();
   try {
-    const agentId = params.id;
-    const supabase = createRouteHandlerClient({ cookies });
+    // Use async pattern for params in Next.js 15+
+    const { id } = await params;
+    const agentId = id;
+    const supabase = createRouteHandlerClient({ cookies: cookieStore });
     
     // Get user and organization from auth
     const { data: { user } } = await supabase.auth.getUser();

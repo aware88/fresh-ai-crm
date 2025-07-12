@@ -14,9 +14,11 @@ import { OrderStatus } from '@/types/order';
  * POST handler for updating order status in Metakocka
  */
 export async function POST(request: NextRequest) {
+  // Get cookies using async pattern for Next.js 15+
+  const cookieStore = await cookies();
   try {
     // Get the user session
-    const supabase = createRouteHandlerClient({ cookies });
+    const supabase = createRouteHandlerClient({ cookies: cookieStore });
     const { data: { session } } = await supabase.auth.getSession();
     
     if (!session) {

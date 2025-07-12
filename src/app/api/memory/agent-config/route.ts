@@ -28,8 +28,10 @@ const createConfigSchema = z.object({
 
 // POST handler - Create agent memory configuration
 export async function POST(request: NextRequest) {
+  // Get cookies using async pattern for Next.js 15+
+  const cookieStore = await cookies();
   try {
-    const supabase = createRouteHandlerClient({ cookies });
+    const supabase = createRouteHandlerClient({ cookies: cookieStore });
     
     // Get user and organization from auth
     const { data: { user } } = await supabase.auth.getUser();

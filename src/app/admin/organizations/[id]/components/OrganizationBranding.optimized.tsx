@@ -104,7 +104,7 @@ export default function OrganizationBranding({
             <input
               type="text"
               id="logo_url"
-              value={branding.logo_url || ''}
+              value={branding.logo_url}
               onChange={(e) => {
                 setBranding({ ...branding, logo_url: e.target.value });
                 setLogoError(false); // Reset error state when URL changes
@@ -131,156 +131,52 @@ export default function OrganizationBranding({
             <label htmlFor="primary_color" className="block text-sm font-medium text-gray-700">
               Primary Color
             </label>
-            <div className="mt-1 flex items-center">
+            <div className="mt-1">
               <input
                 type="color"
                 id="primary_color"
-                value={branding.primary_color || '#007bff'}
+                value={branding.primary_color || '#000000'}
                 onChange={(e) => setBranding({ ...branding, primary_color: e.target.value })}
-                className="h-8 w-8 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-              />
-              <input
-                type="text"
-                value={branding.primary_color || '#007bff'}
-                onChange={(e) => setBranding({ ...branding, primary_color: e.target.value })}
-                className="ml-2 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                className="h-10 w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
               />
             </div>
           </div>
-
+          
           <div>
             <label htmlFor="secondary_color" className="block text-sm font-medium text-gray-700">
               Secondary Color
             </label>
-            <div className="mt-1 flex items-center">
+            <div className="mt-1">
               <input
                 type="color"
                 id="secondary_color"
-                value={branding.secondary_color || '#6c757d'}
+                value={branding.secondary_color || '#ffffff'}
                 onChange={(e) => setBranding({ ...branding, secondary_color: e.target.value })}
-                className="h-8 w-8 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-              />
-              <input
-                type="text"
-                value={branding.secondary_color || '#6c757d'}
-                onChange={(e) => setBranding({ ...branding, secondary_color: e.target.value })}
-                className="ml-2 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                className="h-10 w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
               />
             </div>
           </div>
         </div>
         
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-          <div>
-            <label htmlFor="accent_color" className="block text-sm font-medium text-gray-700">
-              Accent Color
-            </label>
-            <div className="mt-1 flex items-center">
-              <input
-                type="color"
-                id="accent_color"
-                value={branding.accent_color || '#2563eb'}
-                onChange={(e) => setBranding({ ...branding, accent_color: e.target.value })}
-                className="h-8 w-8 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-              />
-              <input
-                type="text"
-                value={branding.accent_color || '#2563eb'}
-                onChange={(e) => setBranding({ ...branding, accent_color: e.target.value })}
-                className="ml-2 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label htmlFor="font_family" className="block text-sm font-medium text-gray-700">
-              Font Family
-            </label>
-            <div className="mt-1">
-              <input
-                type="text"
-                id="font_family"
-                value={branding.font_family || 'Inter, system-ui, sans-serif'}
-                onChange={(e) => setBranding({ ...branding, font_family: e.target.value })}
-                placeholder="Inter, system-ui, sans-serif"
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-              />
-            </div>
-          </div>
-        </div>
-
         <div>
-          <label htmlFor="custom_domain" className="block text-sm font-medium text-gray-700">
-            Custom Domain
+          <label htmlFor="font_family" className="block text-sm font-medium text-gray-700">
+            Font Family
           </label>
           <div className="mt-1">
-            <input
-              type="text"
-              id="custom_domain"
-              value={branding.custom_domain || ''}
-              onChange={(e) => setBranding({ ...branding, custom_domain: e.target.value })}
-              placeholder="app.yourcompany.com"
+            <select
+              id="font_family"
+              value={branding.font_family || ''}
+              onChange={(e) => setBranding({ ...branding, font_family: e.target.value })}
               className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-            />
+            >
+              <option value="">Default</option>
+              <option value="'Inter', sans-serif">Inter</option>
+              <option value="'Roboto', sans-serif">Roboto</option>
+              <option value="'Open Sans', sans-serif">Open Sans</option>
+              <option value="'Montserrat', sans-serif">Montserrat</option>
+              <option value="'Lato', sans-serif">Lato</option>
+            </select>
           </div>
-          <p className="mt-2 text-sm text-gray-500">
-            Enter a custom domain for this organization. DNS configuration will be required.
-          </p>
-        </div>
-        
-        <div>
-          <label htmlFor="logo_url" className="block text-sm font-medium text-gray-700">
-            Logo URL
-          </label>
-          <div className="mt-1">
-            <input
-              type="text"
-              id="logo_url"
-              value={branding.logo_url || ''}
-              onChange={(e) => setBranding({ ...branding, logo_url: e.target.value })}
-              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-            />
-          </div>
-          {branding.logo_url && (
-            <div className="mt-2">
-              <Image
-                src={branding.logo_url || ''}
-                alt="Organization Logo"
-                width={120}
-                height={48}
-                className="h-12 w-auto object-contain"
-                onError={() => setLogoError(true)}
-                style={{ display: logoError ? 'none' : 'block' }}
-              />
-            </div>
-          )}
-        </div>
-        
-        <div>
-          <label htmlFor="favicon_url" className="block text-sm font-medium text-gray-700">
-            Favicon URL
-          </label>
-          <div className="mt-1">
-            <input
-              type="text"
-              id="favicon_url"
-              value={branding.favicon_url || ''}
-              onChange={(e) => setBranding({ ...branding, favicon_url: e.target.value })}
-              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-            />
-          </div>
-          {branding.favicon_url && !logoError && (
-            <div className="mt-2">
-              <Image
-                src={branding.favicon_url}
-                alt="Organization Favicon"
-                width={32}
-                height={32}
-                className="h-8 w-auto object-contain"
-                onError={() => setLogoError(true)}
-              />
-            </div>
-          )}
         </div>
         
         <div>
@@ -292,7 +188,10 @@ export default function OrganizationBranding({
               type="text"
               id="email_header_image_url"
               value={branding.email_header_image_url || ''}
-              onChange={(e) => setBranding({ ...branding, email_header_image_url: e.target.value })}
+              onChange={(e) => {
+                setBranding({ ...branding, email_header_image_url: e.target.value });
+                setEmailHeaderError(false); // Reset error state when URL changes
+              }}
               className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
             />
           </div>
@@ -334,7 +233,10 @@ export default function OrganizationBranding({
               type="text"
               id="login_background_url"
               value={branding.login_background_url || ''}
-              onChange={(e) => setBranding({ ...branding, login_background_url: e.target.value })}
+              onChange={(e) => {
+                setBranding({ ...branding, login_background_url: e.target.value });
+                setLoginBackgroundError(false); // Reset error state when URL changes
+              }}
               className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
             />
           </div>

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/components/ui/use-toast';
 import { Upload, CheckCircle, Image as ImageIcon, X } from 'lucide-react';
+import Image from 'next/image';
 
 export function LogoUploader() {
   const [logoFile, setLogoFile] = useState<File | null>(null);
@@ -183,9 +184,11 @@ export function LogoUploader() {
               <div className="text-center">
                 <p className="text-sm text-gray-500 mb-2">Current Logo:</p>
                 <div className="relative w-40 h-40 border rounded-md overflow-hidden">
-                  <img 
+                  <Image 
                     src={currentLogo} 
                     alt="Company Logo" 
+                    width={160}
+                    height={160}
                     className="w-full h-full object-contain"
                   />
                 </div>
@@ -197,9 +200,11 @@ export function LogoUploader() {
               <div className="text-center">
                 <p className="text-sm text-gray-500 mb-2">Preview:</p>
                 <div className="relative w-40 h-40 border rounded-md overflow-hidden">
-                  <img 
+                  <Image 
                     src={previewUrl} 
                     alt="Logo Preview" 
+                    width={160}
+                    height={160}
                     className="w-full h-full object-contain"
                   />
                 </div>

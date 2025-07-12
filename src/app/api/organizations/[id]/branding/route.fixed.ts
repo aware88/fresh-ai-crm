@@ -21,9 +21,7 @@ export async function GET(
     
     // Safely extract the organization ID from params using async pattern for Next.js 15+
     const params = await context.params;
-    // Use async pattern for params in Next.js 15+
-    const { id } = await params;
-    const organizationId = id;
+    const organizationId = params.id;
     
     // Create Supabase client properly with await
     const supabase = await createServerClient();
@@ -77,9 +75,7 @@ export async function PUT(
     
     // Safely extract the organization ID from params using async pattern for Next.js 15+
     const params = await context.params;
-    // Use async pattern for params in Next.js 15+
-    const { id } = await params;
-    const organizationId = id;
+    const organizationId = params.id;
     
     // Create Supabase client properly with await
     const supabase = await createServerClient();

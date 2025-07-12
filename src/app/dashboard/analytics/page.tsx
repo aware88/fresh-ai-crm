@@ -1,352 +1,78 @@
-'use client';
+import { Suspense } from 'react';
+import { fetchAnalyticsServer, fetchSupplierDistributionServer, fetchProductDistributionServer, fetchPriceTrendsServer } from '@/lib/analytics/server-api';
+import AnalyticsDashboardClient from './components/AnalyticsDashboardClient';
+import { Card, CardContent } from "@/components/ui/card";
 
-import { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
-import { 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  Legend, 
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell
-} from 'recharts';
-import { 
-  ArrowUpRight, 
-  ArrowDownRight, 
-  DollarSign, 
-  ShoppingBag, 
-  Users, 
-  Building2,
-  RefreshCw,
-  CreditCard
-} from 'lucide-react';
-
-import { fetchAnalytics, fetchSupplierDistribution, fetchProductDistribution, fetchPriceTrends } from '@/lib/analytics/api';
-import SubscriptionAnalytics from '@/components/analytics/SubscriptionAnalytics';
-
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
-
-interface StatCardProps {
-  title: string;
-  value: string | number;
-  description: string;
-  icon: React.ReactNode;
-  trend: 'up' | 'down' | 'neutral';
-  trendValue: string;
-}
-
-const StatCard = ({ title, value, description, icon, trend, trendValue }: StatCardProps) => {
+// Loading component for Suspense
+function AnalyticsLoading() {
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium">{title}</CardTitle>
-        <div className="h-8 w-8 rounded-full bg-blue-100 p-1.5 text-blue-600">
-          {icon}
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div className="text-2xl font-bold">{value}</div>
-        <p className="text-xs text-muted-foreground">{description}</p>
-        <div className="mt-2 flex items-center text-xs">
-          {trend === 'up' ? (
-            <ArrowUpRight className="mr-1 h-4 w-4 text-green-500" />
-          ) : trend === 'down' ? (
-            <ArrowDownRight className="mr-1 h-4 w-4 text-red-500" />
-          ) : null}
-          <span className={trend === 'up' ? 'text-green-500' : trend === 'down' ? 'text-red-500' : ''}>
-            {trendValue}
-          </span>
-        </div>
-      </CardContent>
-    </Card>
-  );
-};
-
-export default function AnalyticsDashboard() {
-  const [isLoading, setIsLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState("overview");
-  const [organizationId, setOrganizationId] = useState<string>('');
-  const [analyticsData, setAnalyticsData] = useState({
-    counts: {
-      suppliers: 0,
-      products: 0,
-      documents: 0,
-      emails: 0,
-    },
-    pricing: {
-      average: 0,
-      minimum: 0,
-      maximum: 0,
-    }
-  });
-  const [supplierData, setSupplierData] = useState<Array<{name: string, count: number, reliabilityScore?: number}>>([]);
-  const [productData, setProductData] = useState<Array<{name: string, value: number}>>([]);
-  const [priceData, setPriceData] = useState<Array<{name: string, min: number, avg: number, max: number}>>([]);
-  const [error, setError] = useState<string | null>(null);
-
-  // Load data from API
-  useEffect(() => {
-    const loadData = async () => {
-      setIsLoading(true);
-      setError(null);
-      
-      try {
-        // Get session data to retrieve organization ID
-        const sessionRes = await fetch('/api/auth/session');
-        const session = await sessionRes.json();
-        
-        if (session?.user?.organizationId) {
-          setOrganizationId(session.user.organizationId);
-        }
-        
-        const [analytics, supplierDist, productDist, priceTrends] = await Promise.all([
-          fetchAnalytics(),
-          fetchSupplierDistribution(),
-          fetchProductDistribution(),
-          fetchPriceTrends()
-        ]);
-        
-        setAnalyticsData(analytics);
-        setSupplierData(supplierDist);
-        setProductData(productDist);
-        setPriceData(priceTrends);
-      } catch (err: any) {
-        console.error('Error loading analytics data:', err);
-        setError(err.message || 'Failed to load analytics data. Please try again.');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    
-    loadData();
-  }, []);
-
-  const handleRefresh = async () => {
-    setIsLoading(true);
-    setError(null);
-    
-    try {
-      // Fetch all data in parallel
-      const [analytics, suppliers, products, pricing] = await Promise.all([
-        fetchAnalytics(),
-        fetchSupplierDistribution(),
-        fetchProductDistribution(),
-        fetchPriceTrends()
-      ]);
-      
-      setAnalyticsData(analytics);
-      setSupplierData(suppliers);
-      setProductData(products);
-      setPriceData(pricing);
-    } catch (err) {
-      console.error('Error refreshing analytics data:', err);
-      setError('Failed to refresh analytics data. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  return (
-    <div className="p-6 space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold tracking-tight">Analytics Dashboard</h1>
-        <Button 
-          variant="outline" 
-          size="sm" 
-          onClick={handleRefresh}
-          disabled={isLoading}
-        >
-          <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-          Refresh Data
-        </Button>
+    <div className="space-y-6">
+      <div className="h-10 w-48 bg-muted/20 animate-pulse rounded-md"></div>
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        {[1, 2, 3, 4].map((i) => (
+          <div key={i} className="h-32 bg-muted/20 animate-pulse rounded-xl"></div>
+        ))}
       </div>
-      
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4">
-          <span className="mr-2">⚠️</span> {error}
-        </div>
-      )}
-
-      <Tabs defaultValue="overview" className="space-y-4" onValueChange={setActiveTab}>
-        <TabsList>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="subscriptions">Subscriptions</TabsTrigger>
-          <TabsTrigger value="suppliers">Suppliers</TabsTrigger>
-          <TabsTrigger value="products">Products</TabsTrigger>
-          <TabsTrigger value="pricing">Pricing</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="overview" className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <StatCard
-              title="Total Suppliers"
-              value={analyticsData.counts.suppliers}
-              description="Total number of suppliers"
-              icon={<Building2 className="h-4 w-4" />}
-              trend="neutral"
-              trendValue="All time"
-            />
-            <StatCard
-              title="Total Products"
-              value={analyticsData.counts.products}
-              description="Total number of products"
-              icon={<ShoppingBag className="h-4 w-4" />}
-              trend="neutral"
-              trendValue="All time"
-            />
-            <StatCard
-              title="Average Price"
-              value={`$${analyticsData.pricing.average.toFixed(2)}`}
-              description="Average product price"
-              icon={<DollarSign className="h-4 w-4" />}
-              trend="neutral"
-              trendValue="All products"
-            />
-            <StatCard
-              title="Total Documents"
-              value={analyticsData.counts.documents}
-              description="Total number of documents"
-              icon={<Users className="h-4 w-4" />}
-              trend="neutral"
-              trendValue="All time"
-            />
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Product Distribution</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="h-80">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={productData}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={false}
-                        label={({ name, percent }: { name: string, percent: number }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                        outerRadius={80}
-                        fill="#8884d8"
-                        dataKey="value"
-                      >
-                        {productData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-        
-        <TabsContent value="subscriptions" className="space-y-4">
-          {organizationId ? (
-            <SubscriptionAnalytics organizationId={organizationId} />
-          ) : (
-            <Card>
-              <CardContent className="pt-6">
-                <p className="text-muted-foreground">Organization ID not available. Please refresh the page.</p>
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
-
-        <TabsContent value="suppliers" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Supplier Distribution</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="h-96">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={supplierData}
-                    margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    <Bar dataKey="count" fill="#3b82f6" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="products" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Product Category Distribution</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="h-96">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={productData}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      label={({ name, percent }: { name: string, percent: number }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                      outerRadius={120}
-                      fill="#8884d8"
-                      dataKey="value"
-                    >
-                      {productData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                    <Legend />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="pricing" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Price Trends</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="h-96">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={priceData}
-                    margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    <Bar dataKey="min" fill="#22c55e" name="Min Price" />
-                    <Bar dataKey="avg" fill="#3b82f6" name="Avg Price" />
-                    <Bar dataKey="max" fill="#ef4444" name="Max Price" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+      <div className="h-8 w-96 bg-muted/20 animate-pulse rounded-md"></div>
+      <div className="h-96 bg-muted/20 animate-pulse rounded-xl"></div>
     </div>
   );
+}
+
+// Server component that fetches data and passes it to the client component
+export default async function AnalyticsDashboard() {
+  try {
+    // Server-side data fetching with authentication handled by the API functions
+    console.log('Starting data fetch in analytics page');
+  
+    // Fetch all data in parallel
+    const [analyticsData, supplierData, productData, priceData] = await Promise.all([
+      fetchAnalyticsServer(),
+      fetchSupplierDistributionServer(),
+      fetchProductDistributionServer(),
+      fetchPriceTrendsServer()
+    ]);
+    
+    // If we got here, authentication was successful in the API calls
+    // Extract organization ID from analytics data if available
+    const organizationId = analyticsData?.organizationId || "";
+    console.log('Data fetch successful, organizationId:', organizationId);
+    
+    // Pass data to client component with correct structure
+    return (
+      <Suspense fallback={<AnalyticsLoading />}>
+        <AnalyticsDashboardClient 
+          initialData={{
+            analyticsData,
+            supplierData,
+            productData,
+            priceData
+          }}
+          organizationId={organizationId}
+        />
+      </Suspense>
+    );
+  } catch (error: any) {
+    console.error('Error loading analytics data:', error);
+    
+    // Check if this is an authentication error
+    if (error.message?.includes('Unauthorized') || error.message?.includes('No session')) {
+      return (
+        <Card>
+          <CardContent className="pt-6">
+            <p className="text-muted-foreground">You must be signed in to view analytics.</p>
+          </CardContent>
+        </Card>
+      );
+    }
+    
+    // Other errors
+    return (
+      <Card>
+        <CardContent className="pt-6">
+          <p className="text-red-500">Failed to load analytics data. Please try again later.</p>
+        </CardContent>
+      </Card>
+    );
+  }
 }

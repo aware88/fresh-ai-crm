@@ -5,7 +5,9 @@ import { Database } from '@/types/supabase';
 
 export async function GET(request: Request) {
   try {
-    const supabase = createRouteHandlerClient<Database>({ cookies });
+    // Create Supabase client with proper cookies handling for Next.js 15+
+    const cookieStore = await cookies();
+    const supabase = createRouteHandlerClient<Database>({ cookies: cookieStore });
     
     // Check if user is authenticated
     const { data: { session } } = await supabase.auth.getSession();

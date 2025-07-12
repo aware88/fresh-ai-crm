@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { useForm } from 'react-hook-form';
 import { Toast } from '@/components/ui/toast';
 import { BrandingFormData, defaultBrandingFormData } from '@/types/branding';
@@ -115,13 +116,18 @@ setTimeout(() => document.body.removeChild(errorToast), 3000);
           {logoUrl ? (
             <div className="mb-2">
               <p className="text-sm text-gray-500 mb-1">Logo:</p>
-              <img 
+              <Image 
                 src={logoUrl} 
                 alt="Logo Preview" 
+                width={120}
+                height={48}
                 className="h-12 object-contain" 
                 onError={(e) => {
-                  (e.target as HTMLImageElement).src = '/placeholder-logo.png';
+                  // Using next/image doesn't support direct src assignment on error
+                  // Instead, we'll handle this with state
                   console.error('Invalid logo URL');
+                  // Set logo URL to placeholder if there's an error
+                  form.setValue('logo_url', '/placeholder-logo.png');
                 }}
               />
             </div>

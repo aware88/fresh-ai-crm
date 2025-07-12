@@ -2,6 +2,7 @@
 
 import { motion, useAnimation, useInView } from 'framer-motion';
 import { useEffect, useRef } from 'react';
+import Image from 'next/image';
 
 interface Person {
   name: string;
@@ -141,10 +142,12 @@ export function TestimonialsGallery() {
             {[...detailedTestimonials, ...detailedTestimonials].map((testimonial, index) => (
               <div key={index} className="flex-shrink-0 bg-white p-6 rounded-2xl shadow-lg border border-gray-100 w-96">
                 <div className="flex items-center mb-4">
-                  <img 
+                  <Image 
                     src={testimonial.image} 
                     alt={testimonial.name}
-                    className="w-12 h-12 rounded-full object-cover mr-4"
+                    width={48}
+                    height={48}
+                    className="rounded-full object-cover mr-4"
                   />
                   <div>
                     <h4 className="font-semibold text-gray-900">{testimonial.name}</h4>

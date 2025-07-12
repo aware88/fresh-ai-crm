@@ -11,7 +11,9 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
   }
 
-  const userId = params.id;
+  // Use async pattern for params in Next.js 15+
+    const { id } = await params;
+    const userId = id;
   if (!userId) {
     return NextResponse.json({ error: 'User ID is required' }, { status: 400 });
   }

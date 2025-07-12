@@ -13,9 +13,13 @@ export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  // Get cookies using async pattern for Next.js 15+
+  const cookieStore = await cookies();
   try {
-    const contactId = params.id;
-    const supabase = createRouteHandlerClient({ cookies });
+    // Use async pattern for params in Next.js 15+
+    const { id } = await params;
+    const contactId = id;
+    const supabase = createRouteHandlerClient({ cookies: cookieStore });
     
     // Get user and organization from auth
     const { data: { user } } = await supabase.auth.getUser();

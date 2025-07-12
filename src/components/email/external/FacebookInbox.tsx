@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
-import { Facebook, MessageSquare, User, Clock, RefreshCw, Send, Paperclip, Image, Smile, AlertCircle, CheckCircle } from 'lucide-react';
+import { Facebook, MessageSquare, User, Clock, RefreshCw, Send, Paperclip, Image as ImageIcon, Smile, AlertCircle, CheckCircle } from 'lucide-react';
+import Image from 'next/image';
 
 interface FacebookMessage {
   id: string;
@@ -397,10 +398,12 @@ export default function FacebookInbox() {
                 >
                   <div className="flex items-center mb-2">
                     {conversation.participants[0].profilePicture ? (
-                      <img 
+                      <Image 
                         src={conversation.participants[0].profilePicture} 
                         alt={conversation.participants[0].name}
-                        className="h-10 w-10 rounded-full mr-3"
+                        width={40}
+                        height={40}
+                        className="h-10 w-10 rounded-full mr-3 object-cover"
                       />
                     ) : (
                       <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center mr-3">
@@ -450,10 +453,12 @@ export default function FacebookInbox() {
               {/* Conversation Header */}
               <div className="p-3 border-b bg-gray-50 flex items-center">
                 {conversations.find(c => c.id === selectedConversation)?.participants[0].profilePicture ? (
-                  <img 
-                    src={conversations.find(c => c.id === selectedConversation)?.participants[0].profilePicture} 
-                    alt={conversations.find(c => c.id === selectedConversation)?.participants[0].name}
-                    className="h-8 w-8 rounded-full mr-3"
+                  <Image 
+                    src={conversations.find(c => c.id === selectedConversation)?.participants[0].profilePicture || ''} 
+                    alt={conversations.find(c => c.id === selectedConversation)?.participants[0].name || 'Profile'}
+                    width={32}
+                    height={32}
+                    className="h-8 w-8 rounded-full mr-3 object-cover"
                   />
                 ) : (
                   <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center mr-3">
@@ -481,10 +486,12 @@ export default function FacebookInbox() {
                     {!message.isFromPage && (
                       <div className="flex-shrink-0 mr-2">
                         {message.sender.profilePicture ? (
-                          <img 
+                          <Image 
                             src={message.sender.profilePicture} 
                             alt={message.sender.name}
-                            className="h-8 w-8 rounded-full"
+                            width={32}
+                            height={32}
+                            className="h-8 w-8 rounded-full object-cover"
                           />
                         ) : (
                           <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center">
@@ -504,10 +511,12 @@ export default function FacebookInbox() {
                           {message.attachments.map((attachment, index) => (
                             <div key={index} className="rounded border overflow-hidden">
                               {attachment.type === 'image' && attachment.previewUrl && (
-                                <img 
+                                <Image 
                                   src={attachment.previewUrl} 
                                   alt={attachment.name || 'Attachment'}
-                                  className="max-w-full h-auto"
+                                  width={300}
+                                  height={200}
+                                  className="max-w-full h-auto object-contain"
                                 />
                               )}
                               <div className="p-1 bg-white text-xs truncate">
@@ -536,7 +545,7 @@ export default function FacebookInbox() {
                       onChange={(e) => setNewMessage(e.target.value)}
                       placeholder="Type a message..."
                       className="w-full p-2 pr-24 border rounded-md"
-                      onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                      onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
                     />
                     
                     <div className="absolute right-2 top-2 flex space-x-1">
@@ -544,7 +553,7 @@ export default function FacebookInbox() {
                         <Paperclip className="h-4 w-4" />
                       </button>
                       <button className="p-1 text-gray-500 hover:text-gray-700">
-                        <Image className="h-4 w-4" />
+                        <ImageIcon className="h-4 w-4" />
                       </button>
                       <button className="p-1 text-gray-500 hover:text-gray-700">
                         <Smile className="h-4 w-4" />

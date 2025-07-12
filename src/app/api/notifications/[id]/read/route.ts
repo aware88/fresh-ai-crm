@@ -17,7 +17,9 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const notificationId = params.id;
+    // Use async pattern for params in Next.js 15+
+    const { id } = await params;
+    const notificationId = id;
     const notificationService = new NotificationService();
     
     // Mark the notification as read

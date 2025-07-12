@@ -13,7 +13,9 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
 
-    const organizationId = params.id;
+    // Use async pattern for params in Next.js 15+
+    const { id } = await params;
+    const organizationId = id;
     const supabase = createServerClient();
 
     // Get organization with user count
@@ -63,7 +65,9 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
 
-    const organizationId = params.id;
+    // Use async pattern for params in Next.js 15+
+    const { id } = await params;
+    const organizationId = id;
     const body = await request.json();
     const { name, slug } = body;
 
@@ -137,7 +141,9 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
 
-    const organizationId = params.id;
+    // Use async pattern for params in Next.js 15+
+    const { id } = await params;
+    const organizationId = id;
     const supabase = createServerClient();
 
     // Check if organization exists

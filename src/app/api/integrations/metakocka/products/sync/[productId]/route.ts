@@ -42,7 +42,8 @@ export async function GET(request: NextRequest, { params }: { params: { productI
   return withAuth(request, async (userId, request) => {
     try {
       // In Next.js App Router, params should be properly awaited
-      const productId = params.productId;
+      // Use async pattern for params in Next.js 15+
+    const { productId } = await params;
       
       if (!productId) {
         return NextResponse.json(

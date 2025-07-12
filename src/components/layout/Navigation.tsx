@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { useState, useEffect } from 'react';
 import { Bell, User, Brain } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
@@ -89,16 +90,22 @@ export function Navigation({ className = '' }: NavigationProps) {
           <Link href="/dashboard" className="flex items-center">
             <div className="h-8 w-8 flex items-center justify-center overflow-hidden">
               {logoPath ? (
-                <img 
+                <Image 
                   src={logoPath} 
                   alt="Company Logo" 
-                  className="h-full w-auto object-contain"
+                  width={32}
+                  height={32}
+                  className="object-contain"
+                  priority
                 />
               ) : (
-                <img 
+                <Image 
                   src="/images/aris-logo.svg" 
                   alt="ARIS Logo" 
-                  className="h-full w-auto object-contain" 
+                  width={32}
+                  height={32}
+                  className="object-contain" 
+                  priority
                 />
               )}
             </div>

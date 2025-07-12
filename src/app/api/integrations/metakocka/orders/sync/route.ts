@@ -13,9 +13,11 @@ import { ApiError, handleApiError } from '@/lib/api-utils';
  * GET handler for retrieving order sync status
  */
 export async function GET(request: NextRequest) {
+  // Get cookies using async pattern for Next.js 15+
+  const cookieStore = await cookies();
   try {
     // Get the user session
-    const supabase = createRouteHandlerClient({ cookies });
+    const supabase = createRouteHandlerClient({ cookies: cookieStore });
     const { data: { session } } = await supabase.auth.getSession();
     
     if (!session) {
@@ -80,7 +82,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     // Get the user session
-    const supabase = createRouteHandlerClient({ cookies });
+    const supabase = createRouteHandlerClient({ cookies: cookieStore });
     const { data: { session } } = await supabase.auth.getSession();
     
     if (!session) {

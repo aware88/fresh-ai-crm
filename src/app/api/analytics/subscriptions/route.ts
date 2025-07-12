@@ -13,7 +13,9 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const supabase = createRouteHandlerClient<Database>({ cookies });
+    // Create Supabase client with proper cookies handling for Next.js 15+
+    const cookieStore = await cookies();
+    const supabase = createRouteHandlerClient<Database>({ cookies: cookieStore });
     
     // Get organization ID from query params
     const { searchParams } = new URL(request.url);

@@ -12,6 +12,8 @@ import { processEmailQueue, getQueueStatistics, resetFailedQueueItems } from '@/
 
 // POST /api/email/queue/process - Process the email queue
 export async function POST(request: NextRequest) {
+  // Get cookies using async pattern for Next.js 15+
+  const cookieStore = await cookies();
   try {
     const body = await request.json();
     const { batchSize = 10, action } = body;
@@ -26,7 +28,7 @@ export async function POST(request: NextRequest) {
     
     if (!isServiceRequest) {
       // Get authenticated user
-      const supabase = createRouteHandlerClient({ cookies });
+      const supabase = createRouteHandlerClient({ cookies: cookieStore });
       const { data: { user }, error: authError } = await supabase.auth.getUser();
       
       if (authError || !user) {
