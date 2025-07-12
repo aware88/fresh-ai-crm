@@ -5,6 +5,10 @@
  */
 import { MetakockaErrorLogger, LogCategory } from './error-logger';
 import { MetakockaApiService } from './api-service';
+import { getMetakockaCredentials } from './credentials';
+
+// Re-export the getMetakockaCredentials function for backward compatibility
+export { getMetakockaCredentials };
 
 // Base class for Metakocka-related services
 export class MetakockaService {
