@@ -4,10 +4,15 @@ FROM node:18-alpine AS base
 FROM base AS deps
 WORKDIR /app
 
-# Install dependencies based on the preferred package manager
-COPY package.json .npmrc ./
-# Use npm install instead of npm ci to honor the overrides
-RUN npm install --force --no-optional --omit=optional --legacy-peer-deps
+# Copy package.json and our scripts
+COPY package.json ./
+COPY scripts/docker-preinstall.js ./scripts/
+
+# Run our preinstall script to properly configure npm
+RUN node scripts/docker-preinstall.js
+
+# Use npm install with flags to skip problematic dependencies
+RUN npm install --no-optional --omit=optional
 
 # Rebuild the source code only when needed
 FROM base AS builder
