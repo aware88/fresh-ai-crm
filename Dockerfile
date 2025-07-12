@@ -5,12 +5,9 @@ FROM base AS deps
 WORKDIR /app
 
 # Install dependencies based on the preferred package manager
-COPY package.json package-lock.json* .npmrc ./
-RUN npm ci --legacy-peer-deps --no-optional --omit=optional
-
-# Copy prebuild script and run it to remove problematic packages
-COPY scripts/prebuild.js ./scripts/
-RUN node scripts/prebuild.js
+COPY package.json .npmrc ./
+# Use npm install instead of npm ci to honor the overrides
+RUN npm install --force --no-optional --omit=optional --legacy-peer-deps
 
 # Rebuild the source code only when needed
 FROM base AS builder
