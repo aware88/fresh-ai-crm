@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient as supabaseCreateClient } from '@supabase/supabase-js';
 import { Database } from '../../types/supabase';
 import type { CookieOptions } from '@supabase/ssr';
 
@@ -9,11 +9,17 @@ import type { CookieOptions } from '@supabase/ssr';
 export const createServerClient = () => {
   // Simple direct client creation without cookie integration
   // This approach works in both app/ directory and pages/ directory contexts
-  return createClient<Database>(
+  return supabaseCreateClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
 };
+
+/**
+ * Export createClient as an alias to createServerClient for backward compatibility
+ * This ensures existing imports of createClient continue to work
+ */
+export const createClient = createServerClient;
 
 /**
  * Helper to extract cookies from various contexts

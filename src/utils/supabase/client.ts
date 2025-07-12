@@ -3,9 +3,9 @@
  * 
  * This provides a consistent way to access Supabase from client components
  */
-import { createClient } from '@supabase/supabase-js';
+import { createClient as supabaseCreateClient } from '@supabase/supabase-js';
 
-let supabaseClient: ReturnType<typeof createClient> | null = null;
+let supabaseClient: ReturnType<typeof supabaseCreateClient> | null = null;
 
 export function getSupabaseClient() {
   if (!supabaseClient) {
@@ -16,7 +16,7 @@ export function getSupabaseClient() {
       throw new Error('Missing Supabase environment variables');
     }
 
-    supabaseClient = createClient(supabaseUrl, supabaseAnonKey);
+    supabaseClient = supabaseCreateClient(supabaseUrl, supabaseAnonKey);
   }
 
   return supabaseClient;
@@ -43,6 +43,12 @@ export async function getCurrentSession() {
   const { data: { session } } = await client.auth.getSession();
   return session;
 }
+
+/**
+ * Export createClient as an alias to getSupabaseClient for backward compatibility
+ * This ensures existing imports of createClient continue to work
+ */
+export const createClient = getSupabaseClient;
 
 /**
  * Default Supabase client export for convenience
