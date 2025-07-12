@@ -6,6 +6,9 @@
  */
 import { MetakockaError, MetakockaErrorType } from './types';
 
+// Re-export MetakockaError and MetakockaErrorType for backward compatibility
+export { MetakockaError, MetakockaErrorType };
+
 // Log levels for different types of messages
 export enum LogLevel {
   ERROR = 'error',
