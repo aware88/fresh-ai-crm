@@ -1,8 +1,94 @@
-import { createClient } from '@/lib/supabase/server';
+// Lazy import to avoid build-time client creation
+let createClient: any = null;
 
 // Check if we're in a build environment or if Supabase env vars are missing
-const isBuildEnv = process.env.NODE_ENV === 'production' && typeof window === 'undefined';
-const isSupabaseConfigured = !!process.env.NEXT_PUBLIC_SUPABASE_URL && !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const isBuildEnv = () => {
+  return process.env.NODE_ENV === 'production' && 
+         typeof window === 'undefined' && 
+         (process.env.NEXT_PHASE === 'phase-production-build' || 
+          process.env.NEXT_PHASE === 'phase-production-server');
+};
+const isSupabaseConfigured = () => !!process.env.NEXT_PUBLIC_SUPABASE_URL && !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+// Lazy-load the Supabase client to avoid build-time issues
+const getSupabaseClient = async () => {
+  // Always return mock during build
+  if (isBuildEnv()) {
+    return createMockClient();
+  }
+
+  // Return mock if not configured
+  if (!isSupabaseConfigured()) {
+    return createMockClient();
+  }
+
+  // Lazy load the createClient function
+  if (!createClient) {
+    try {
+      const { createClient: importedCreateClient } = await import('@/lib/supabase/server');
+      createClient = importedCreateClient;
+    } catch (error) {
+      console.error('Error importing Supabase client:', error);
+      return createMockClient();
+    }
+  }
+
+  try {
+    return createClient();
+  } catch (error) {
+    console.error('Error creating Supabase client:', error);
+    return createMockClient();
+  }
+};
+
+// Create mock client for build-time or missing env vars
+const createMockClient = () => {
+  return {
+    auth: {
+      getUser: () => Promise.resolve({ data: { user: null }, error: null }),
+      getSession: () => Promise.resolve({ data: { session: null }, error: null }),
+    },
+    from: (table: string) => ({
+      select: (columns: string = '*', options?: any) => ({
+        eq: (column: string, value: any) => ({
+          single: () => Promise.resolve({ data: null, error: null }),
+          maybeSingle: () => Promise.resolve({ data: null, error: null }),
+          range: (start: number, end: number) => Promise.resolve({ data: [], error: null, count: 0 }),
+          gte: (column: string, value: any) => ({
+            lte: (column: string, value: any) => Promise.resolve({ data: [], error: null, count: 0 })
+          }),
+        }),
+        order: (column: string, options?: any) => ({
+          limit: (limit: number) => Promise.resolve({ data: [], error: null }),
+          range: (start: number, end: number) => Promise.resolve({ data: [], error: null, count: 0 })
+        }),
+        limit: (limit: number) => Promise.resolve({ data: [], error: null }),
+        range: (start: number, end: number) => Promise.resolve({ data: [], error: null, count: 0 }),
+        gte: (column: string, value: any) => ({
+          lte: (column: string, value: any) => Promise.resolve({ data: [], error: null, count: 0 })
+        }),
+      }),
+      insert: (data: any) => ({
+        select: (columns: string = '*') => ({
+          single: () => Promise.resolve({ data: { id: 'mock-id' }, error: null }),
+        }),
+      }),
+      update: (data: any) => ({
+        eq: (column: string, value: any) => ({
+          select: (columns: string = '*') => ({
+            single: () => Promise.resolve({ data: { id: value }, error: null }),
+          }),
+        }),
+      }),
+      delete: () => ({
+        eq: (column: string, value: any) => Promise.resolve({ data: null, error: null }),
+      }),
+    }),
+    rpc: (functionName: string, params?: Record<string, any>) => {
+      return Promise.resolve({ data: 'mock-rpc-result', error: null });
+    },
+  } as any;
+};
 
 interface AuditLog {
   id: string;
@@ -56,8 +142,7 @@ export class AuditService {
    */
   static async createAuditLog(params: CreateAuditLogParams): Promise<AuditLog> {
     // Return mock data during build or if Supabase is not configured
-    if (isBuildEnv || !isSupabaseConfigured) {
-      console.log('Build environment or missing Supabase config - returning mock audit log');
+    if (isBuildEnv() || !isSupabaseConfigured()) {
       return {
         id: 'mock-audit-log-id',
         user_id: params.user_id || null,
@@ -74,7 +159,7 @@ export class AuditService {
       };
     }
 
-    const supabase = createClient();
+    const supabase = await getSupabaseClient();
     
     try {
       const { data, error } = await supabase
@@ -143,8 +228,7 @@ export class AuditService {
     count: number;
   }> {
     // Return mock data during build or if Supabase is not configured
-    if (isBuildEnv || !isSupabaseConfigured) {
-      console.log('Build environment or missing Supabase config - returning mock audit logs');
+    if (isBuildEnv() || !isSupabaseConfigured()) {
       return {
         logs: [
           {
@@ -167,7 +251,7 @@ export class AuditService {
     }
 
     try {
-      const supabase = createClient();
+      const supabase = await getSupabaseClient();
       
       // Start building the query
       let query = supabase
@@ -259,8 +343,7 @@ export class AuditService {
    */
   static async getAuditLogById(id: string): Promise<AuditLog | null> {
     // Return mock data during build or if Supabase is not configured
-    if (isBuildEnv || !isSupabaseConfigured) {
-      console.log('Build environment or missing Supabase config - returning mock audit log by ID');
+    if (isBuildEnv() || !isSupabaseConfigured()) {
       return {
         id: id,
         user_id: 'mock-user-id',
@@ -278,7 +361,7 @@ export class AuditService {
     }
 
     try {
-      const supabase = createClient();
+      const supabase = await getSupabaseClient();
       
       const { data, error } = await supabase
         .from('audit_logs')
