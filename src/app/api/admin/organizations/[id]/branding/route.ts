@@ -3,9 +3,20 @@ import { createServerClient } from '@/lib/supabase/server';
 import { OrganizationBranding, BrandingFormData } from '@/types/branding';
 import { logActivityServer } from '@/utils/activity-logger';
 
+// Check if Supabase is configured
+const isSupabaseConfigured = () => {
+  return !!(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+};
+
 // Temporarily define isAdmin function here until we can properly import it
 async function isAdmin(): Promise<boolean> {
   try {
+    // If Supabase is not configured, return false (no admin access)
+    if (!isSupabaseConfigured()) {
+      console.warn('Supabase not configured, denying admin access');
+      return false;
+    }
+
     const supabase = createServerClient();
     
     // Get the current user
@@ -38,6 +49,12 @@ async function isAdmin(): Promise<boolean> {
 // GET /api/admin/organizations/[id]/branding - Get organization branding
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
+    // If Supabase is not configured, return empty branding data
+    if (!isSupabaseConfigured()) {
+      console.warn('Supabase not configured, returning empty branding data');
+      return NextResponse.json({ branding: {} });
+    }
+
     // Check if user is admin
     const isUserAdmin = await isAdmin();
     if (!isUserAdmin) {
@@ -85,6 +102,13 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 // PUT /api/admin/organizations/[id]/branding - Update organization branding
 export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
   try {
+    // If Supabase is not configured, return mock success response
+    if (!isSupabaseConfigured()) {
+      console.warn('Supabase not configured, returning mock branding update response');
+      const body = await request.json();
+      return NextResponse.json({ branding: body });
+    }
+
     // Check if user is admin and get user info
     const supabase = createServerClient();
     const { data: userData, error: userError } = await supabase.auth.getUser();
