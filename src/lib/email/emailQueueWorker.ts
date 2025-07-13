@@ -5,7 +5,7 @@
  * It can be run as a scheduled task or triggered manually.
  */
 
-import { createClient } from '@/lib/supabase/client';
+import { createLazyServerClient } from '@/lib/supabase/lazy-client';
 import { getNextEmailToProcess, processQueuedEmail, EmailQueueStatus } from './emailQueueService';
 
 /**
@@ -78,7 +78,7 @@ export async function processEmailQueue(
  * @returns Queue statistics
  */
 export async function getQueueStatistics(userId: string, organizationId?: string) {
-  const supabase = createClient();
+  const supabase = await createLazyServerClient();
   
   // Build the base query
   let baseQuery = supabase.from('email_queue');
@@ -135,7 +135,7 @@ export async function resetFailedQueueItems(
   organizationId?: string,
   maxAttempts: number = 3
 ) {
-  const supabase = createClient();
+  const supabase = await createLazyServerClient();
   
   // Build the query
   let query = supabase
@@ -175,7 +175,7 @@ export async function cleanupOldQueueItems(
   organizationId?: string,
   olderThanDays: number = 30
 ) {
-  const supabase = createClient();
+  const supabase = await createLazyServerClient();
   
   // Calculate cutoff date
   const cutoffDate = new Date();

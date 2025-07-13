@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server';
+import { createLazyServerClient } from '@/lib/supabase/lazy-client';
 import { PostgrestError } from '@supabase/supabase-js';
 
 export interface EmailQueueItem {
@@ -29,7 +29,7 @@ export class EmailService {
    * Queue an email to be sent
    */
   async queueEmail(email: Omit<EmailQueueItem, 'id' | 'status' | 'priority' | 'processing_attempts' | 'created_at'>): Promise<{ data: EmailQueueItem | null; error: PostgrestError | null }> {
-    const supabase = createClient();
+    const supabase = await createLazyServerClient();
     
     const { data, error } = await supabase
       .from('email_queue')
@@ -61,7 +61,7 @@ export class EmailService {
     body: string;
     metadata?: Record<string, any>;
   }): Promise<{ data: EmailQueueItem | null; error: PostgrestError | null }> {
-    const supabase = createClient();
+    const supabase = await createLazyServerClient();
     
     // Get user email
     const { data: user, error: userError } = await supabase
@@ -92,7 +92,7 @@ export class EmailService {
    * Get emails for an organization
    */
   async getOrganizationEmails(organizationId: string, limit = 20): Promise<{ data: EmailQueueItem[] | null; error: PostgrestError | null }> {
-    const supabase = createClient();
+    const supabase = await createLazyServerClient();
     
     const { data, error } = await supabase
       .from('email_queue')
@@ -108,7 +108,7 @@ export class EmailService {
    * Get emails for a user
    */
   async getUserEmails(userId: string, limit = 20): Promise<{ data: EmailQueueItem[] | null; error: PostgrestError | null }> {
-    const supabase = createClient();
+    const supabase = await createLazyServerClient();
     
     const { data, error } = await supabase
       .from('email_queue')

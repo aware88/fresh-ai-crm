@@ -3,7 +3,7 @@
  * 
  * Handles synchronization of sales documents (invoices, offers) between the CRM and Metakocka
  */
-import { createServerClient } from '@/lib/supabase/server';
+import { createLazyServerClient } from '@/lib/supabase/lazy-client';
 import { 
   MetakockaClient, 
   MetakockaService, 
@@ -154,7 +154,7 @@ export class SalesDocumentSyncService {
     userId: string
   ): Promise<SalesDocumentMapping | null> {
     try {
-      const supabase = createServerClient();
+      const supabase = await createLazyServerClient();
       
       const { data, error } = await supabase
         .from('metakocka_sales_document_mappings')
@@ -204,7 +204,7 @@ export class SalesDocumentSyncService {
     errorMessage?: string
   ): Promise<string> {
     try {
-      const supabase = createServerClient();
+      const supabase = await createLazyServerClient();
       
       // Check if mapping already exists
       const { data: existingMapping, error: findError } = await supabase
@@ -468,7 +468,7 @@ export class SalesDocumentSyncService {
     
     try {
       // Get documents to sync
-      const supabase = createServerClient();
+      const supabase = await createLazyServerClient();
       
       let query = supabase
         .from('sales_documents')
@@ -559,7 +559,7 @@ export class SalesDocumentSyncService {
       return cachedMapping;
     }
     
-    const supabase = createServerClient();
+    const supabase = await createLazyServerClient();
     
     // Check for mapping in the dedicated table
     const { data, error } = await supabase
@@ -632,7 +632,7 @@ export class SalesDocumentSyncService {
       return [];
     }
     
-    const supabase = createServerClient();
+    const supabase = await createLazyServerClient();
     
     // Get mappings from the dedicated table
     const { data, error } = await supabase
@@ -729,7 +729,7 @@ export class SalesDocumentSyncService {
     syncStatus: string = 'synced',
     syncError: string | null = null
   ): Promise<void> {
-    const supabase = createServerClient();
+    const supabase = await createLazyServerClient();
     
     // Check if mapping already exists
     const { data, error } = await supabase
@@ -827,7 +827,7 @@ export class SalesDocumentSyncService {
       }
       
       // Check if document already exists in CRM
-      const supabase = createServerClient();
+      const supabase = await createLazyServerClient();
       const { data: existingMapping } = await supabase
         .from('metakocka_sales_document_mappings')
         .select('document_id')
@@ -1056,7 +1056,7 @@ export class SalesDocumentSyncService {
       }
       
       // Get existing mappings
-      const supabase = createServerClient();
+      const supabase = await createLazyServerClient();
       const { data: mappings } = await supabase
         .from('metakocka_sales_document_mappings')
         .select('metakocka_id, document_id')
@@ -1179,7 +1179,7 @@ export class SalesDocumentSyncService {
       }
       
       // Get existing mappings
-      const supabase = createServerClient();
+      const supabase = await createLazyServerClient();
       const { data: mappings, error: mappingsError } = await supabase
         .from('metakocka_sales_document_mappings')
         .select('metakocka_id')

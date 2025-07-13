@@ -4,7 +4,7 @@
  * Provides real-time inventory data from Metakocka ERP system.
  */
 
-import { createServerClient } from '@/lib/supabase/server';
+import { createLazyServerClient } from '@/lib/supabase/lazy-client';
 import { MetakockaService } from './service';
 // Using createServerClient from the existing import
 import { Database } from '@/types/supabase';
@@ -18,7 +18,7 @@ export class InventoryService {
    * @returns Sync result with success/failure information and updated inventory data
    */
   static async syncProductInventoryFromMetakocka(userId: string, productId: string) {
-    const supabase = createServerClient();
+    const supabase = await createLazyServerClient();
     
     try {
       // Get the product mapping to find the Metakocka product ID
@@ -92,7 +92,7 @@ export class InventoryService {
    */
   static async getProductInventory(userId: string, productId: string) {
     try {
-      const supabase = createServerClient();
+      const supabase = await createLazyServerClient();
       
       // Get the product from the database
       const { data: product, error: productError } = await supabase
@@ -176,7 +176,7 @@ export class InventoryService {
    */
   static async getAllProductsInventory(userId: string) {
     try {
-      const supabase = createServerClient();
+      const supabase = await createLazyServerClient();
       
       // Get all products from the database
       const { data: products, error: productsError } = await supabase
@@ -221,7 +221,7 @@ export class InventoryService {
    * @returns Sync result with success/failure information
    */
   static async syncInventoryFromMetakocka(userId: string) {
-    const supabase = createServerClient();
+    const supabase = await createLazyServerClient();
     
     try {
       // Get all mapped products for this user

@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server';
+import { createLazyServerClient } from '@/lib/supabase/lazy-client';
 import { SubscriptionPlan } from './subscription-service';
 
 /**
@@ -11,7 +11,7 @@ export class SubscriptionServiceAdmin {
    * @param includeInactive Whether to include inactive plans
    */
   async getAllSubscriptionPlans(includeInactive: boolean = false): Promise<SubscriptionPlan[]> {
-    const supabase = createClient();
+    const supabase = await createLazyServerClient();
     
     let query = supabase
       .from('subscription_plans')
@@ -37,7 +37,7 @@ export class SubscriptionServiceAdmin {
    * @param plan The plan data to create
    */
   async createSubscriptionPlan(plan: Partial<SubscriptionPlan>): Promise<SubscriptionPlan> {
-    const supabase = createClient();
+    const supabase = await createLazyServerClient();
     
     const { data, error } = await supabase
       .from('subscription_plans')
@@ -66,7 +66,7 @@ export class SubscriptionServiceAdmin {
    * @param updates The updates to apply
    */
   async updateSubscriptionPlan(id: string, updates: Partial<SubscriptionPlan>): Promise<SubscriptionPlan> {
-    const supabase = createClient();
+    const supabase = await createLazyServerClient();
     
     const { data, error } = await supabase
       .from('subscription_plans')
@@ -97,7 +97,7 @@ export class SubscriptionServiceAdmin {
    * @param newPlanId The ID of the new plan
    */
   async changeSubscriptionPlan(subscriptionId: string, newPlanId: string) {
-    const supabase = createClient();
+    const supabase = await createLazyServerClient();
     
     // Get the new plan details
     const { data: planData, error: planError } = await supabase
@@ -140,7 +140,7 @@ export class SubscriptionServiceAdmin {
    * @param cancelAtPeriodEnd Whether to cancel at the end of the billing period
    */
   async cancelSubscription(subscriptionId: string, cancelAtPeriodEnd: boolean = true) {
-    const supabase = createClient();
+    const supabase = await createLazyServerClient();
     
     let updates: any = {
       cancel_at_period_end: cancelAtPeriodEnd,
@@ -176,7 +176,7 @@ export class SubscriptionServiceAdmin {
    * @param subscriptionId The ID of the subscription to reactivate
    */
   async reactivateSubscription(subscriptionId: string) {
-    const supabase = createClient();
+    const supabase = await createLazyServerClient();
     
     const { data, error } = await supabase
       .from('organization_subscriptions')
@@ -206,7 +206,7 @@ export class SubscriptionServiceAdmin {
    * @param startDate The start date for analytics data
    */
   async getSubscriptionAnalytics(startDate: Date) {
-    const supabase = createClient();
+    const supabase = await createLazyServerClient();
     
     // Get subscription counts by status
     const { data: subscriptionCounts, error: countError } = await supabase

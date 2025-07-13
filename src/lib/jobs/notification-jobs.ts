@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server';
+import { createLazyServerClient } from '@/lib/supabase/lazy-client';
 import { EnhancedNotificationService } from '@/lib/services/enhanced-notification-service';
 import { SubscriptionService } from '@/lib/services/subscription-service';
 
@@ -16,7 +16,7 @@ export class NotificationJobs {
    * Sends notifications for subscriptions renewing in the next 7 days
    */
   async processRenewalReminders(): Promise<{ processed: number; errors: number }> {
-    const supabase = createClient();
+    const supabase = await createLazyServerClient();
     let processed = 0;
     let errors = 0;
 
@@ -88,7 +88,7 @@ export class NotificationJobs {
    * Sends notifications for trials ending in the next 3 days
    */
   async processTrialEndingReminders(): Promise<{ processed: number; errors: number }> {
-    const supabase = createClient();
+    const supabase = await createLazyServerClient();
     let processed = 0;
     let errors = 0;
 
@@ -161,7 +161,7 @@ export class NotificationJobs {
    * Sends notifications for recent payment failures
    */
   async processPaymentFailureNotifications(): Promise<{ processed: number; errors: number }> {
-    const supabase = createClient();
+    const supabase = await createLazyServerClient();
     let processed = 0;
     let errors = 0;
 

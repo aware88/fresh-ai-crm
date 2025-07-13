@@ -4,7 +4,7 @@
  * Handles synchronization of contacts between the CRM and Metakocka
  * with enhanced error handling, logging, and status reporting
  */
-import { createServerClient } from '@/lib/supabase/server';
+import { createLazyServerClient } from '@/lib/supabase/lazy-client';
 import { cookies } from 'next/headers';
 import { MetakockaClient, MetakockaService, MetakockaPartner, MetakockaError, MetakockaErrorType } from './index';
 import { Database } from '@/types/supabase';
@@ -267,7 +267,7 @@ export class ContactSyncService {
       );
       
       // Get contacts to sync
-      const supabase = createServerClient();
+      const supabase = await createLazyServerClient();
       
       let query = supabase
         .from('contacts')
@@ -451,7 +451,7 @@ export class ContactSyncService {
    * @returns Contact mapping or null if not found
    */
   static async getContactMapping(contactId: string, userId: string): Promise<ContactMapping | null> {
-    const supabase = createServerClient();
+    const supabase = await createLazyServerClient();
     
     // Check for mapping in the dedicated table
     const { data, error } = await supabase
@@ -483,7 +483,7 @@ export class ContactSyncService {
    * @returns Array of contact mappings
    */
   static async getContactMappings(contactIds: string[], userId: string): Promise<ContactMapping[]> {
-    const supabase = createServerClient();
+    const supabase = await createLazyServerClient();
     
     const { data, error } = await supabase
       .from('metakocka_contact_mappings')
@@ -523,7 +523,7 @@ export class ContactSyncService {
     syncStatus: string = 'synced',
     syncError: string | null = null
   ): Promise<void> {
-    const supabase = createServerClient();
+    const supabase = await createLazyServerClient();
     
     // Check if mapping already exists
     const { data, error } = await supabase
@@ -645,7 +645,7 @@ export class ContactSyncService {
       }
       
       // Get existing mappings by Metakocka ID
-      const supabase = createServerClient();
+      const supabase = await createLazyServerClient();
       const { data: mappingsData, error: mappingsError } = await supabase
         .from('metakocka_contact_mappings')
         .select('*')
@@ -831,7 +831,7 @@ export class ContactSyncService {
       }
       
       // Get existing mappings
-      const supabase = createServerClient();
+      const supabase = await createLazyServerClient();
       const { data: mappings, error: mappingsError } = await supabase
         .from('metakocka_contact_mappings')
         .select('metakocka_id')
@@ -906,7 +906,7 @@ export class ContactSyncService {
       }
       
       // Check if contact already exists in CRM
-      const supabase = createServerClient();
+      const supabase = await createLazyServerClient();
       const { data: mapping, error: mappingError } = await supabase
         .from('metakocka_contact_mappings')
         .select('contact_id')

@@ -1,6 +1,6 @@
 import { SubscriptionService, SubscriptionPlan, OrganizationSubscription } from './subscription-service';
 import { subscriptionPlans as predefinedPlans, SubscriptionPlanDefinition } from '@/lib/subscription-plans';
-import { createClient } from '@/lib/supabase/server';
+import { createLazyServerClient } from '@/lib/supabase/lazy-client';
 
 /**
  * Extension of the SubscriptionService class that integrates with the predefined pricing tiers
@@ -11,7 +11,7 @@ export class EnhancedSubscriptionService extends SubscriptionService {
    * This should be run during system setup or when plans are updated
    */
   async initializePredefinedPlans(): Promise<void> {
-    const supabase = createClient();
+    const supabase = await createLazyServerClient();
     
     // Get existing plans from the database
     const { data: existingPlans, error } = await supabase
@@ -46,7 +46,7 @@ export class EnhancedSubscriptionService extends SubscriptionService {
    * Create a new subscription plan from a predefined plan
    */
   private async createPredefinedPlan(plan: SubscriptionPlanDefinition): Promise<void> {
-    const supabase = createClient();
+    const supabase = await createLazyServerClient();
     
     const { error } = await supabase
       .from('subscription_plans')
@@ -88,7 +88,7 @@ export class EnhancedSubscriptionService extends SubscriptionService {
    * Update an existing subscription plan with predefined plan data
    */
   private async updatePredefinedPlan(planId: string, plan: SubscriptionPlanDefinition): Promise<void> {
-    const supabase = createClient();
+    const supabase = await createLazyServerClient();
     
     const { error } = await supabase
       .from('subscription_plans')

@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/client';
+import { createLazyClientClient } from '@/lib/supabase/lazy-client';
 import { PostgrestError } from '@supabase/supabase-js';
 
 export type ErrorLogStatus = 'new' | 'in_progress' | 'resolved';
@@ -35,12 +35,12 @@ export interface ErrorLogFilter {
 }
 
 export class MetakockaLogService {
-  private supabase = createClient();
+  private async async getSupabase() { return await createLazyServerClient(); }
 
   /**
    * Fetch error logs with optional filtering
    */
-  async getErrorLogs(filters?: ErrorLogFilter): Promise<{ data: ErrorLog[] | null; error: PostgrestError | null }> {
+  async async getErrorLogs(filters?: ErrorLogFilter): Promise<{ data: ErrorLog[] | null; error: PostgrestError | null }> {
     let query = this.supabase
       .from('metakocka_integration_logs')
       .select(`
@@ -101,7 +101,7 @@ export class MetakockaLogService {
   /**
    * Get a single error log by ID
    */
-  async getErrorLogById(id: string): Promise<{ data: ErrorLog | null; error: PostgrestError | null }> {
+  async async getErrorLogById(id: string): Promise<{ data: ErrorLog | null; error: PostgrestError | null }> {
     const { data, error } = await this.supabase
       .from('metakocka_integration_logs')
       .select(`
@@ -127,7 +127,7 @@ export class MetakockaLogService {
   /**
    * Update the status of an error log
    */
-  async updateErrorLogStatus(
+  async async updateErrorLogStatus(
     id: string, 
     errorStatus: ErrorLogStatus, 
     resolution?: string,
@@ -156,7 +156,7 @@ export class MetakockaLogService {
   /**
    * Bulk update error logs status
    */
-  async bulkUpdateErrorLogStatus(
+  async async bulkUpdateErrorLogStatus(
     ids: string[], 
     errorStatus: ErrorLogStatus, 
     resolution?: string
@@ -178,7 +178,7 @@ export class MetakockaLogService {
   /**
    * Get error log statistics
    */
-  async getErrorLogStats(): Promise<{ 
+  async async getErrorLogStats(): Promise<{ 
     totalErrors: number; 
     newErrors: number;
     inProgressErrors: number;
@@ -235,7 +235,7 @@ export class MetakockaLogService {
   /**
    * Export error logs as CSV
    */
-  async exportErrorLogsAsCsv(filters?: ErrorLogFilter): Promise<string> {
+  async async exportErrorLogsAsCsv(filters?: ErrorLogFilter): Promise<string> {
     const { data } = await this.getErrorLogs(filters);
     
     if (!data || data.length === 0) {

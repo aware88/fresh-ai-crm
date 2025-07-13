@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server';
+import { createLazyServerClient } from '@/lib/supabase/lazy-client';
 import { WebhookSecurityService } from './webhook-security-service';
 
 interface ProcessWebhookDeliveryResult {
@@ -23,7 +23,7 @@ export class WebhookDeliveryService {
     succeeded: number;
     failed: number;
   }> {
-    const supabase = createClient();
+    const supabase = await createLazyServerClient();
     
     // Get pending deliveries
     const { data: deliveries, error } = await supabase
@@ -172,7 +172,7 @@ export class WebhookDeliveryService {
     deliveryId: string,
     result: ProcessWebhookDeliveryResult
   ): Promise<void> {
-    const supabase = createClient();
+    const supabase = await createLazyServerClient();
     
     const updates: any = {
       status: result.success ? 'success' : 'failed',
@@ -242,7 +242,7 @@ export class WebhookDeliveryService {
     success: boolean,
     statusCode?: number
   ): Promise<void> {
-    const supabase = createClient();
+    const supabase = await createLazyServerClient();
     
     const updates: any = {
       last_triggered_at: new Date().toISOString(),

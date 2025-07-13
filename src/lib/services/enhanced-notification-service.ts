@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server';
+import { createLazyServerClient } from '@/lib/supabase/lazy-client';
 import { PostgrestError } from '@supabase/supabase-js';
 import { NotificationService, Notification } from './notification-service';
 import { EmailService } from './email-service';
@@ -22,7 +22,7 @@ export class EnhancedNotificationService extends NotificationService {
     error: PostgrestError | null 
   }> {
     try {
-      const supabase = createClient();
+      const supabase = await createLazyServerClient();
       
       // Check user's notification preferences
       const { data: preference } = await this.preferencesService.getPreferenceByType(
@@ -112,7 +112,7 @@ export class EnhancedNotificationService extends NotificationService {
     organizationId: string,
     notification: Omit<Notification, 'id' | 'read' | 'created_at' | 'user_id' | 'organization_id'>
   ): Promise<{ success: boolean; error: PostgrestError | null }> {
-    const supabase = createClient();
+    const supabase = await createLazyServerClient();
     
     // Get all users in the organization
     const { data: users, error: usersError } = await supabase

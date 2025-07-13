@@ -1,5 +1,5 @@
 import crypto from 'crypto';
-import { createClient } from '@/lib/supabase/server';
+import { createLazyServerClient } from '@/lib/supabase/lazy-client';
 
 /**
  * Service for handling webhook security, including signature verification
@@ -23,7 +23,7 @@ export class WebhookSecurityService {
   ): Promise<boolean> {
     try {
       // Get the webhook secret from the database
-      const supabase = createClient();
+      const supabase = await createLazyServerClient();
       const { data: webhook, error } = await supabase
         .from('webhook_configurations')
         .select('secret_key')

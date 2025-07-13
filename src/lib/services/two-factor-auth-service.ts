@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server';
+import { createLazyServerClient } from '@/lib/supabase/lazy-client';
 import * as crypto from 'crypto';
 import { authenticator } from 'otplib';
 
@@ -42,7 +42,7 @@ export class TwoFactorAuthService {
     const otpauth = authenticator.keyuri(email, serviceName, secretKey);
     
     // Store the secret key in the database
-    const supabase = createClient();
+    const supabase = await createLazyServerClient();
     
     const { data, error } = await supabase
       .rpc('enable_two_factor_auth', {
@@ -70,7 +70,7 @@ export class TwoFactorAuthService {
    * @returns Whether the token is valid
    */
   static async verifyToken(userId: string, token: string, req?: Request) {
-    const supabase = createClient();
+    const supabase = await createLazyServerClient();
     
     // Get the user's 2FA configuration
     const { data: config, error: configError } = await supabase
@@ -123,7 +123,7 @@ export class TwoFactorAuthService {
    * @returns Whether the backup code is valid
    */
   static async validateBackupCode(userId: string, backupCode: string, req?: Request) {
-    const supabase = createClient();
+    const supabase = await createLazyServerClient();
     
     // Get IP and user agent from request if available
     const ipAddress = req?.headers.get('x-forwarded-for') || 
@@ -156,7 +156,7 @@ export class TwoFactorAuthService {
    * @returns Whether 2FA is enabled for the user
    */
   static async isEnabled(userId: string) {
-    const supabase = createClient();
+    const supabase = await createLazyServerClient();
     
     const { data, error } = await supabase
       .from('two_factor_auth')
@@ -178,7 +178,7 @@ export class TwoFactorAuthService {
    * @returns Whether 2FA was successfully disabled
    */
   static async disable(userId: string) {
-    const supabase = createClient();
+    const supabase = await createLazyServerClient();
     
     const { data, error } = await supabase
       .rpc('disable_two_factor_auth', {
@@ -200,7 +200,7 @@ export class TwoFactorAuthService {
    * @returns The new backup codes
    */
   static async regenerateBackupCodes(userId: string) {
-    const supabase = createClient();
+    const supabase = await createLazyServerClient();
     
     const { data, error } = await supabase
       .rpc('regenerate_backup_codes', {
@@ -222,7 +222,7 @@ export class TwoFactorAuthService {
    * @returns The user's 2FA configuration
    */
   static async getConfig(userId: string) {
-    const supabase = createClient();
+    const supabase = await createLazyServerClient();
     
     const { data, error } = await supabase
       .from('two_factor_auth')
@@ -249,7 +249,7 @@ export class TwoFactorAuthService {
    * @returns The user's recent 2FA attempts
    */
   static async getRecentAttempts(userId: string, limit = 10) {
-    const supabase = createClient();
+    const supabase = await createLazyServerClient();
     
     const { data, error } = await supabase
       .from('two_factor_auth_attempts')

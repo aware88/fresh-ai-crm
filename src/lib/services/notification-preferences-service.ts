@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server';
+import { createLazyServerClient } from '@/lib/supabase/lazy-client';
 import { PostgrestError } from '@supabase/supabase-js';
 
 export interface NotificationPreference {
@@ -15,7 +15,7 @@ export class NotificationPreferencesService {
    * Get notification preferences for a user
    */
   async getUserPreferences(userId: string): Promise<{ data: NotificationPreference[] | null; error: PostgrestError | null }> {
-    const supabase = createClient();
+    const supabase = await createLazyServerClient();
     
     const { data, error } = await supabase
       .from('notification_preferences')
@@ -29,7 +29,7 @@ export class NotificationPreferencesService {
    * Get notification preference for a specific type
    */
   async getPreferenceByType(userId: string, type: string): Promise<{ data: NotificationPreference | null; error: PostgrestError | null }> {
-    const supabase = createClient();
+    const supabase = await createLazyServerClient();
     
     const { data, error } = await supabase
       .from('notification_preferences')
@@ -45,7 +45,7 @@ export class NotificationPreferencesService {
    * Update or create a notification preference
    */
   async upsertPreference(preference: NotificationPreference): Promise<{ data: NotificationPreference | null; error: PostgrestError | null }> {
-    const supabase = createClient();
+    const supabase = await createLazyServerClient();
     
     const { data, error } = await supabase
       .from('notification_preferences')
@@ -60,7 +60,7 @@ export class NotificationPreferencesService {
    * Update multiple notification preferences at once
    */
   async upsertPreferences(preferences: NotificationPreference[]): Promise<{ data: NotificationPreference[] | null; error: PostgrestError | null }> {
-    const supabase = createClient();
+    const supabase = await createLazyServerClient();
     
     const { data, error } = await supabase
       .from('notification_preferences')
@@ -74,7 +74,7 @@ export class NotificationPreferencesService {
    * Get all available notification types
    */
   async getNotificationTypes(): Promise<{ data: { type: string }[] | null; error: PostgrestError | null }> {
-    const supabase = createClient();
+    const supabase = await createLazyServerClient();
     
     const { data, error } = await supabase
       .from('notification_templates')
@@ -88,7 +88,7 @@ export class NotificationPreferencesService {
    * Get notification templates with details
    */
   async getNotificationTemplates(): Promise<{ data: any[] | null; error: PostgrestError | null }> {
-    const supabase = createClient();
+    const supabase = await createLazyServerClient();
     
     const { data, error } = await supabase
       .from('notification_templates')

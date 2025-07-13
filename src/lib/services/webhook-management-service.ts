@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server';
+import { createLazyServerClient } from '@/lib/supabase/lazy-client';
 import { WebhookSecurityService } from './webhook-security-service';
 
 interface WebhookConfiguration {
@@ -66,7 +66,7 @@ export class WebhookManagementService {
   static async createWebhookConfiguration(
     params: CreateWebhookConfigurationParams
   ): Promise<WebhookConfiguration> {
-    const supabase = createClient();
+    const supabase = await createLazyServerClient();
     
     // Generate a secret key for the webhook
     const secret_key = WebhookSecurityService.generateSecretKey();
@@ -97,7 +97,7 @@ export class WebhookManagementService {
   static async getWebhookConfigurations(
     organization_id: string
   ): Promise<WebhookConfiguration[]> {
-    const supabase = createClient();
+    const supabase = await createLazyServerClient();
     
     const { data, error } = await supabase
       .from('webhook_configurations')
@@ -122,7 +122,7 @@ export class WebhookManagementService {
   static async getWebhookConfigurationById(
     id: string
   ): Promise<WebhookConfiguration | null> {
-    const supabase = createClient();
+    const supabase = await createLazyServerClient();
     
     const { data, error } = await supabase
       .from('webhook_configurations')
@@ -152,7 +152,7 @@ export class WebhookManagementService {
     id: string,
     params: UpdateWebhookConfigurationParams
   ): Promise<WebhookConfiguration> {
-    const supabase = createClient();
+    const supabase = await createLazyServerClient();
     
     const { data, error } = await supabase
       .from('webhook_configurations')
@@ -179,7 +179,7 @@ export class WebhookManagementService {
    * @returns True if successful
    */
   static async deleteWebhookConfiguration(id: string): Promise<boolean> {
-    const supabase = createClient();
+    const supabase = await createLazyServerClient();
     
     const { error } = await supabase
       .from('webhook_configurations')
@@ -201,7 +201,7 @@ export class WebhookManagementService {
    * @returns The new secret key
    */
   static async rotateWebhookSecret(id: string): Promise<string> {
-    const supabase = createClient();
+    const supabase = await createLazyServerClient();
     
     const { data, error } = await supabase
       .rpc('rotate_webhook_secret', { webhook_id: id });
@@ -223,7 +223,7 @@ export class WebhookManagementService {
   static async queueWebhookDelivery(
     params: QueueWebhookDeliveryParams
   ): Promise<WebhookDelivery> {
-    const supabase = createClient();
+    const supabase = await createLazyServerClient();
     
     // Check if the webhook is active
     const { data: webhook, error: webhookError } = await supabase
@@ -275,7 +275,7 @@ export class WebhookManagementService {
     limit: number = 50,
     offset: number = 0
   ): Promise<WebhookDelivery[]> {
-    const supabase = createClient();
+    const supabase = await createLazyServerClient();
     
     const { data, error } = await supabase
       .from('webhook_deliveries')
@@ -299,7 +299,7 @@ export class WebhookManagementService {
    * @returns The webhook delivery or null if not found
    */
   static async getWebhookDeliveryById(id: string): Promise<WebhookDelivery | null> {
-    const supabase = createClient();
+    const supabase = await createLazyServerClient();
     
     const { data, error } = await supabase
       .from('webhook_deliveries')

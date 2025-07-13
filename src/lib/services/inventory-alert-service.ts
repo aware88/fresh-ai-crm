@@ -1,4 +1,4 @@
-import { createServerClient } from '@/lib/supabase/server';
+import { createLazyServerClient } from '@/lib/supabase/lazy-client';
 import { InventoryAlert, InventoryAlertInsert, InventoryAlertUpdate, InventoryAlertWithProduct, InventoryAlertCheckResult, InventoryAlertStats } from '@/types/inventory';
 
 export class InventoryAlertService {
@@ -6,7 +6,7 @@ export class InventoryAlertService {
    * Get all inventory alerts for a user
    */
   static async getAlerts(userId: string): Promise<InventoryAlertWithProduct[]> {
-    const supabase = createServerClient();
+    const supabase = await createLazyServerClient();
     
     const { data, error } = await supabase
       .from('inventory_alerts')
@@ -33,7 +33,7 @@ export class InventoryAlertService {
    * Get a single inventory alert by ID
    */
   static async getAlertById(userId: string, alertId: string): Promise<InventoryAlertWithProduct | null> {
-    const supabase = createServerClient();
+    const supabase = await createLazyServerClient();
     
     const { data, error } = await supabase
       .from('inventory_alerts')
@@ -63,7 +63,7 @@ export class InventoryAlertService {
    * Create a new inventory alert
    */
   static async createAlert(userId: string, alertData: Omit<InventoryAlertInsert, 'user_id'>): Promise<InventoryAlert> {
-    const supabase = createServerClient();
+    const supabase = await createLazyServerClient();
     
     const { data, error } = await supabase
       .from('inventory_alerts')
@@ -87,7 +87,7 @@ export class InventoryAlertService {
     alertId: string, 
     updates: InventoryAlertUpdate
   ): Promise<InventoryAlert> {
-    const supabase = createServerClient();
+    const supabase = await createLazyServerClient();
     
     const { data, error } = await supabase
       .from('inventory_alerts')
@@ -109,7 +109,7 @@ export class InventoryAlertService {
    * Delete an inventory alert
    */
   static async deleteAlert(userId: string, alertId: string): Promise<void> {
-    const supabase = createServerClient();
+    const supabase = await createLazyServerClient();
     
     const { error } = await supabase
       .from('inventory_alerts')
@@ -127,7 +127,7 @@ export class InventoryAlertService {
    * Check for triggered inventory alerts
    */
   static async checkAlerts(userId: string): Promise<InventoryAlertCheckResult[]> {
-    const supabase = createServerClient();
+    const supabase = await createLazyServerClient();
     
     // Get all active alerts with current inventory levels
     const { data, error } = await supabase.rpc('check_inventory_alerts', {
@@ -146,7 +146,7 @@ export class InventoryAlertService {
    * Get alert statistics
    */
   static async getAlertStats(userId: string): Promise<InventoryAlertStats> {
-    const supabase = createServerClient();
+    const supabase = await createLazyServerClient();
     
     // Use the database function to get all stats in a single query
     const { data, error } = await supabase
