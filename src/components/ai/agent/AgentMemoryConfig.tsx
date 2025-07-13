@@ -8,7 +8,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useSupabase } from '@/lib/supabase/client';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { AIMemoryType } from '@/lib/ai/memory/ai-memory-service';
 import { 
   Card, 
@@ -26,13 +26,11 @@ import {
   FormDescription, 
   FormMessage 
 } from '@/components/ui/form';
-import { 
-  Switch, 
-  Button, 
-  Input, 
-  Slider, 
-  Checkbox 
-} from '@/components/ui';
+import { Switch } from '@/components/ui/switch';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Slider } from '@/components/ui/slider';
+import { Checkbox } from '@/components/ui/checkbox';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
@@ -56,7 +54,7 @@ interface AgentMemoryConfigProps {
 }
 
 export function AgentMemoryConfig({ agentId, organizationId }: AgentMemoryConfigProps) {
-  const { supabase } = useSupabase();
+  const supabase = createClientComponentClient();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   
