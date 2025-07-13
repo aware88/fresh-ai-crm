@@ -4,28 +4,16 @@
  * Displays a timeline of agent activities with context
  */
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSupabaseClient } from '@supabase/auth-helpers-react';
-import {
-  Box,
-  Heading,
-  Text,
-  Flex,
-  Stack,
-  Badge,
-  Button,
-  Select,
-  useToast,
-  Spinner,
-  Divider,
-  Icon,
-  Card,
-  CardHeader,
-  CardBody,
-  CardFooter,
-  Collapse,
-  useDisclosure
-} from '@chakra-ui/react';
+import { Button } from '@/components/ui/button';
+import { Card, CardHeader, CardContent, CardFooter } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Spinner } from '@/components/ui/spinner';
+import { useToast } from '@/components/ui/use-toast';
+import { Separator } from '@/components/ui/separator';
+import { cn } from '@/lib/utils';
 import { TimeIcon, ChevronDownIcon, ChevronUpIcon } from '@/components/icons/ChakraIcons';
 import { FaRobot, FaComment, FaExclamationTriangle, FaLightbulb, FaCog } from 'react-icons/fa';
 
@@ -59,7 +47,7 @@ export default function ActivityTimeline({ agentId }: { agentId: string }) {
   const [activityTypeFilter, setActivityTypeFilter] = useState('');
   
   const supabase = useSupabaseClient();
-  const toast = useToast();
+  const { toast } = useToast();
   
   // Fetch activities on component mount
   useEffect(() => {
@@ -86,12 +74,11 @@ export default function ActivityTimeline({ agentId }: { agentId: string }) {
       
       setActivities(data.activities || []);
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       toast({
         title: 'Error fetching activities',
-        description: error.message,
-        status: 'error',
-        duration: 5000,
-        isClosable: true,
+        description: errorMessage,
+        variant: 'destructive',
       });
     } finally {
       setLoading(false);
@@ -121,19 +108,18 @@ export default function ActivityTimeline({ agentId }: { agentId: string }) {
         [activityId]: data.thoughts || []
       }));
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       toast({
         title: 'Error fetching thoughts',
-        description: error.message,
-        status: 'error',
-        duration: 5000,
-        isClosable: true,
+        description: errorMessage,
+        variant: 'destructive',
       });
     }
   };
   
   // Handle activity type filter change
-  const handleActivityTypeChange = (e) => {
-    setActivityTypeFilter(e.target.value);
+  const handleActivityTypeChange = (value: string) => {
+    setActivityTypeFilter(value);
     fetchActivities();
   };
   
@@ -189,140 +175,145 @@ export default function ActivityTimeline({ agentId }: { agentId: string }) {
   };
   
   return (
-    <Box p={4}>
-      <Heading size="lg" mb={4}>Agent Activity Timeline</Heading>
+    <div className="p-4 border rounded-lg bg-white shadow-md">
+      <h2 className="text-2xl font-bold mb-4">
+        AI Activity Timeline
+      </h2>
       
-      {/* Filter controls */}
-      <Flex mb={4} gap={2}>
+      <div className="flex justify-between items-center mb-4">
         <Select
-          placeholder="Filter by activity type"
           value={activityTypeFilter}
-          onChange={handleActivityTypeChange}
-          w="250px"
+          onValueChange={handleActivityTypeChange}
         >
-          <option value="">All Activities</option>
-          <option value="process_message">Process Message</option>
-          <option value="response_generated">Response Generated</option>
-          <option value="error">Error</option>
-          <option value="decision">Decision</option>
-          <option value="config_change">Config Change</option>
+          <SelectTrigger>
+            <SelectValue placeholder="Filter by activity type" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="">All Activities</SelectItem>
+            <SelectItem value="process_message">Process Message</SelectItem>
+            <SelectItem value="response_generated">Response Generated</SelectItem>
+            <SelectItem value="error">Error</SelectItem>
+            <SelectItem value="decision">Decision</SelectItem>
+            <SelectItem value="config_change">Config Change</SelectItem>
+          </SelectContent>
         </Select>
+        
         <Button
-          colorScheme="blue"
+          variant="default"
           onClick={fetchActivities}
         >
           Refresh
         </Button>
-      </Flex>
+      </div>
       
       {/* Activity list */}
       {loading ? (
-        <Flex justify="center" align="center" h="200px">
-          <Spinner size="xl" />
-        </Flex>
+        <div className="flex justify-center items-center h-[200px]">
+          <Spinner size="lg" />
+        </div>
       ) : activities.length === 0 ? (
-        <Box textAlign="center" py={10}>
-          <Text fontSize="lg">No activities found</Text>
-        </Box>
+        <div className="text-center py-10">
+          <p className="text-lg">No activities found</p>
+          <div className="mt-4">
+            <Button variant="default" onClick={fetchActivities}>Refresh</Button>
+          </div>
+        </div>
       ) : (
-        <Stack spacing={4}>
+        <div className="flex flex-col space-y-4">
           {activities.map((activity) => (
             <Card key={activity.id}>
-              <CardHeader pb={2}>
-                <Flex justify="space-between" align="center">
-                  <Flex align="center" gap={2}>
-                    <Icon 
-                      as={getActivityIcon(activity.activity_type)} 
-                      boxSize={5} 
-                      color={`${getActivityColor(activity.activity_type)}.500`}
-                    />
-                    <Heading size="md">{activity.description}</Heading>
-                  </Flex>
-                  <Badge colorScheme={getActivityColor(activity.activity_type)}>
-                    {activity.activity_type}
-                  </Badge>
-                </Flex>
+              <CardHeader className="pb-2">
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-2">
+                    {React.createElement(getActivityIcon(activity.activity_type), {
+                      className: `w-5 h-5 text-${getActivityColor(activity.activity_type)}-500`
+                    })}
+                    <h3 className="text-md font-medium">{activity.description}</h3>
+                  </div>
+                  <Badge variant="outline">{activity.activity_type}</Badge>
+                </div>
               </CardHeader>
               
-              <CardBody py={2}>
-                <Flex justify="space-between" align="center">
-                  <Text fontSize="sm" color="gray.500">
-                    <TimeIcon mr={1} />
+              <CardContent className="py-2">
+                <div className="flex justify-between items-center">
+                  <div className="text-sm text-gray-500 flex items-center">
+                    <TimeIcon className="mr-1 h-4 w-4" />
                     {formatDate(activity.created_at)}
-                  </Text>
+                  </div>
                   {activity.related_entity_type && (
-                    <Badge>
+                    <Badge variant="secondary">
                       {activity.related_entity_type}: {activity.related_entity_id}
                     </Badge>
                   )}
-                </Flex>
-              </CardBody>
+                </div>
+              </CardContent>
               
-              <CardFooter pt={2} justify="center">
+              <CardFooter className="pt-2 flex justify-center">
                 <Button
                   size="sm"
                   variant="ghost"
-                  rightIcon={selectedActivity === activity.id ? <ChevronUpIcon /> : <ChevronDownIcon />}
+                  className="flex items-center gap-1"
                   onClick={() => toggleActivityDetails(activity.id)}
                 >
                   {selectedActivity === activity.id ? 'Hide Details' : 'Show Details'}
+                  {selectedActivity === activity.id ? 
+                    <ChevronUpIcon className="h-4 w-4" /> : 
+                    <ChevronDownIcon className="h-4 w-4" />
+                  }
                 </Button>
               </CardFooter>
               
               {/* Thought process details */}
-              <Collapse in={selectedActivity === activity.id}>
-                <Box px={4} pb={4}>
-                  <Divider mb={4} />
-                  <Heading size="sm" mb={2}>Thought Process</Heading>
+              {selectedActivity === activity.id && (
+                <div className="px-4 pb-4">
+                  <Separator className="mb-4" />
+                  <h4 className="text-sm font-semibold mb-2">Thought Process</h4>
                   
                   {!thoughts[activity.id] ? (
-                    <Flex justify="center" py={4}>
+                    <div className="flex justify-center py-4">
                       <Spinner />
-                    </Flex>
+                    </div>
                   ) : thoughts[activity.id].length === 0 ? (
-                    <Text fontSize="sm" color="gray.500">No thought process recorded for this activity.</Text>
+                    <p className="text-sm text-gray-500">No thought process recorded for this activity.</p>
                   ) : (
-                    <Stack spacing={3}>
+                    <div className="space-y-3">
                       {thoughts[activity.id].map((thought) => (
-                        <Box 
+                        <div 
                           key={thought.id} 
-                          p={3} 
-                          borderWidth="1px" 
-                          borderRadius="md"
-                          bg="gray.50"
+                          className="p-3 border rounded-md bg-gray-50"
                         >
-                          <Flex justify="space-between" mb={1}>
-                            <Text fontWeight="bold">Step {thought.thought_step}</Text>
+                          <div className="flex justify-between mb-1">
+                            <p className="font-bold">Step {thought.thought_step}</p>
                             {thought.confidence !== undefined && (
-                              <Badge colorScheme={thought.confidence > 0.7 ? 'green' : 'yellow'}>
+                              <Badge variant={thought.confidence > 0.7 ? 'default' : 'secondary'}>
                                 Confidence: {Math.round(thought.confidence * 100)}%
                               </Badge>
                             )}
-                          </Flex>
-                          <Text>{thought.reasoning}</Text>
+                          </div>
+                          <p>{thought.reasoning}</p>
                           
                           {thought.alternatives && thought.alternatives.length > 0 && (
-                            <Box mt={2}>
-                              <Text fontSize="sm" fontWeight="bold">Alternatives Considered:</Text>
-                              <Stack mt={1}>
+                            <div className="mt-2">
+                              <p className="text-sm font-bold">Alternatives Considered:</p>
+                              <div className="mt-1 space-y-1">
                                 {thought.alternatives.map((alt, index) => (
-                                  <Text key={index} fontSize="sm">
+                                  <p key={index} className="text-sm">
                                     • {typeof alt === 'string' ? alt : JSON.stringify(alt)}
-                                  </Text>
+                                  </p>
                                 ))}
-                              </Stack>
-                            </Box>
+                              </div>
+                            </div>
                           )}
-                        </Box>
+                        </div>
                       ))}
-                    </Stack>
+                    </div>
                   )}
-                </Box>
-              </Collapse>
+                </div>
+              )}
             </Card>
           ))}
-        </Stack>
+        </div>
       )}
-    </Box>
+    </div>
   );
 }
