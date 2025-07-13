@@ -1,35 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import {
-  Box,
-  Button,
-  Card,
-  CardBody,
-  CardHeader,
-  Flex,
-  Heading,
-  Modal,
-  ModalBody,
-  ModalCloseButton,
-  ModalContent,
-  ModalFooter,
-  ModalHeader,
-  ModalOverlay,
-  Select,
-  Spinner,
-  Table,
-  Tbody,
-  Td,
-  Text,
-  Th,
-  Thead,
-  Tr,
-  useDisclosure,
-  useToast,
-} from '@chakra-ui/react';
 import { RoleService, Role, UserRole } from '@/lib/services/role-service';
 import { useSession } from 'next-auth/react';
 import { usePermissions } from '@/hooks/usePermissions';
 import { PermissionGate } from '../permissions/PermissionGate';
+
+// Import custom UI components
+import { Button } from '@/components/ui/button';
+import { Card, CardHeader, CardContent } from '@/components/ui/card';
+import { Spinner } from '@/components/ui/spinner';
+import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@/components/ui/table';
+import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogFooter, DialogTitle } from '@/components/ui/dialog';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import { useToast } from '@/components/ui/use-toast';
+
 
 interface User {
   id: string;
@@ -45,7 +28,7 @@ export default function UserRoleAssignment({
   users: User[];
 }) {
   const { data: session } = useSession();
-  const toast = useToast();
+  const { toast } = useToast();
   const { hasPermission } = usePermissions();
   
   const [roles, setRoles] = useState<Role[]>([]);
@@ -53,7 +36,9 @@ export default function UserRoleAssignment({
   const [loading, setLoading] = useState(true);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   
-  const { isOpen, onOpen, onClose } = useDisclosure();
+  const [isOpen, setIsOpen] = useState(false);
+  const onOpen = () => setIsOpen(true);
+  const onClose = () => setIsOpen(false);
   
   // Form state
   const [selectedRoleId, setSelectedRoleId] = useState('');
@@ -84,9 +69,8 @@ export default function UserRoleAssignment({
         toast({
           title: 'Error',
           description: 'Failed to load roles and user assignments',
-          status: 'error',
+          variant: 'destructive',
           duration: 5000,
-          isClosable: true,
         });
       } finally {
         setLoading(false);
@@ -111,9 +95,8 @@ export default function UserRoleAssignment({
       toast({
         title: 'Error',
         description: 'Please select a role to assign',
-        status: 'error',
+        variant: 'destructive',
         duration: 3000,
-        isClosable: true,
       });
       return;
     }
@@ -135,9 +118,8 @@ export default function UserRoleAssignment({
       toast({
         title: 'Success',
         description: 'Role assigned successfully',
-        status: 'success',
+        variant: 'success',
         duration: 3000,
-        isClosable: true,
       });
       
       onClose();
@@ -146,9 +128,8 @@ export default function UserRoleAssignment({
       toast({
         title: 'Error',
         description: 'Failed to assign role',
-        status: 'error',
+        variant: 'destructive',
         duration: 5000,
-        isClosable: true,
       });
     } finally {
       setIsSubmitting(false);
@@ -175,132 +156,137 @@ export default function UserRoleAssignment({
       toast({
         title: 'Success',
         description: 'Role revoked successfully',
-        status: 'success',
+        variant: 'success',
         duration: 3000,
-        isClosable: true,
       });
     } catch (error) {
       console.error('Error revoking role:', error);
       toast({
         title: 'Error',
         description: 'Failed to revoke role',
-        status: 'error',
+        variant: 'destructive',
         duration: 5000,
-        isClosable: true,
       });
     }
   };
   
   if (loading) {
     return (
-      <Flex justify="center" align="center" h="200px">
-        <Spinner size="xl" />
-      </Flex>
+      <div className="flex justify-center items-center h-[200px]">
+        <Spinner size="lg" />
+      </div>
     );
   }
   
   return (
-    <Box>
-      <Heading size="md" mb={4}>User Role Assignment</Heading>
+    <div className="w-full">
+      <h2 className="text-lg font-semibold mb-4">User Role Assignment</h2>
       
-      <Card variant="outline" mb={6}>
+      <Card className="mb-6">
         <CardHeader>
-          <Heading size="sm">Organization Members</Heading>
+          <h3 className="text-sm font-semibold">Organization Members</h3>
         </CardHeader>
-        <CardBody>
+        <CardContent>
           {users.length === 0 ? (
-            <Text>No users found in this organization.</Text>
+            <p className="text-sm text-muted-foreground">No users found in this organization.</p>
           ) : (
-            <Table variant="simple">
-              <Thead>
-                <Tr>
-                  <Th>User</Th>
-                  <Th>Email</Th>
-                  <Th>Assigned Roles</Th>
-                  <Th>Actions</Th>
-                </Tr>
-              </Thead>
-              <Tbody>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>User</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Assigned Roles</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {users.map(user => (
-                  <Tr key={user.id}>
-                    <Td>{user.name || 'N/A'}</Td>
-                    <Td>{user.email}</Td>
-                    <Td>
+                  <TableRow key={user.id}>
+                    <TableCell>{user.name || 'N/A'}</TableCell>
+                    <TableCell>{user.email}</TableCell>
+                    <TableCell>
                       {userRoles[user.id]?.map(userRole => (
-                        <Flex key={userRole.id} align="center" mb={1}>
-                          <Text fontSize="sm">{userRole.role?.name}</Text>
+                        <div key={userRole.id} className="flex items-center mb-1">
+                          <span className="text-sm">{userRole.role?.name}</span>
                           <PermissionGate resourceType="role" action="assign">
                             <Button 
-                              size="xs" 
-                              colorScheme="red" 
+                              size="sm" 
                               variant="ghost" 
-                              ml={2}
+                              className="ml-2 text-red-600 hover:text-red-800 hover:bg-red-50"
                               onClick={() => handleRevokeRole(user.id, userRole.role_id)}
-                              isDisabled={session?.user?.id === user.id} // Prevent revoking your own roles
+                              disabled={session?.user?.id === user.id} // Prevent revoking your own roles
                             >
                               Revoke
                             </Button>
                           </PermissionGate>
-                        </Flex>
+                        </div>
                       )) || 'No roles assigned'}
-                    </Td>
-                    <Td>
+                    </TableCell>
+                    <TableCell>
                       <PermissionGate resourceType="role" action="assign">
                         <Button 
                           size="sm" 
-                          colorScheme="blue" 
+                          variant="default" 
                           onClick={() => handleAssignRole(user)}
                         >
                           Assign Role
                         </Button>
                       </PermissionGate>
-                    </Td>
-                  </Tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </Tbody>
+              </TableBody>
             </Table>
           )}
-        </CardBody>
+        </CardContent>
       </Card>
       
-      {/* Role Assignment Modal */}
-      <Modal isOpen={isOpen} onClose={onClose}>
-        <ModalOverlay />
-        <ModalContent>
-          <ModalHeader>
-            Assign Role to {selectedUser?.name || selectedUser?.email}
-          </ModalHeader>
-          <ModalCloseButton />
-          <ModalBody>
-            <Text mb={4}>Select a role to assign to this user:</Text>
-            <Select 
-              value={selectedRoleId} 
-              onChange={(e) => setSelectedRoleId(e.target.value)}
-              placeholder="Select a role"
-            >
-              {roles.map(role => (
-                <option key={role.id} value={role.id}>
-                  {role.name} {role.is_system_role ? '(System)' : ''}
-                </option>
-              ))}
+      {/* Role Assignment Dialog */}
+      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              Assign Role to {selectedUser?.name || selectedUser?.email}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="mb-4 text-sm">Select a role to assign to this user:</p>
+            <Select value={selectedRoleId} onValueChange={setSelectedRoleId}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select a role" />
+              </SelectTrigger>
+              <SelectContent>
+                {roles.map(role => (
+                  <SelectItem key={role.id} value={role.id}>
+                    {role.name} {role.is_system_role ? '(System)' : ''}
+                  </SelectItem>
+                ))}
+              </SelectContent>
             </Select>
-          </ModalBody>
+          </div>
           
-          <ModalFooter>
-            <Button variant="ghost" mr={3} onClick={onClose}>
+          <DialogFooter>
+            <Button variant="outline" className="mr-2" onClick={onClose}>
               Cancel
             </Button>
             <Button 
-              colorScheme="blue" 
+              variant="default" 
               onClick={handleSubmit} 
-              isLoading={isSubmitting}
-              isDisabled={!selectedRoleId}
+              disabled={!selectedRoleId || isSubmitting}
+              className={isSubmitting ? 'opacity-70 cursor-not-allowed' : ''}
             >
-              Assign Role
+              {isSubmitting ? (
+                <>
+                  <Spinner size="sm" className="mr-2" />
+                  Assigning...
+                </>
+              ) : (
+                'Assign Role'
+              )}
             </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
-    </Box>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }

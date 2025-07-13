@@ -4,6 +4,7 @@ import { useSupabaseClient } from '@supabase/auth-helpers-react';
 import { withPermissionCheck } from '../../../components/withPermissionCheck';
 import { Role, RoleService } from '../../../services/RoleService';
 import Link from 'next/link';
+import Image from 'next/image';
 import RBACNavigation from '../../../components/admin/RBACNavigation';
 
 interface User {
@@ -93,7 +94,20 @@ const UserRolesPage: React.FC = () => {
         for (const member of members || []) {
           if (!member.auth_users) continue;
           
-          const userData = member.auth_users;
+          // Handle auth_users data which could be in different formats
+          const userData = typeof member.auth_users === 'object' && !Array.isArray(member.auth_users)
+            ? member.auth_users as unknown as { 
+                id: string; 
+                email: string; 
+                raw_user_meta_data?: { 
+                  display_name?: string; 
+                  avatar_url?: string; 
+                } 
+              }
+            : null;
+          
+          if (!userData) continue;
+          
           const user: UserWithRoles = {
             id: userData.id,
             email: userData.email,
@@ -238,10 +252,12 @@ const UserRolesPage: React.FC = () => {
                   <div className="flex items-center">
                     <div className="flex-shrink-0 h-10 w-10">
                       {user.avatar_url ? (
-                        <img 
-                          className="h-10 w-10 rounded-full" 
+                        <Image 
+                          className="h-10 w-10 rounded-full object-cover" 
                           src={user.avatar_url} 
-                          alt={user.display_name || 'User'} 
+                          alt={user.display_name || 'User'}
+                          width={40}
+                          height={40}
                         />
                       ) : (
                         <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">

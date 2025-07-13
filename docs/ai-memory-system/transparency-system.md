@@ -165,4 +165,4 @@ The Transparency System integrates with:
 - Supabase database with vector extension
 - Next.js frontend
 - OpenAI API for embedding generation
-- Chakra UI for components
+- Tailwind CSS for styling components

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
-import { Button } from '@/components/ui';
+import { Button } from '@/components/ui/button';
 
 interface EmailSignatureProps {
   onSelect: (signatureHtml: string) => void;

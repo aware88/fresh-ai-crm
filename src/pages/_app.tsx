@@ -1,16 +1,13 @@
 import React from 'react';
 import type { AppProps } from 'next/app';
-import { ChakraProvider, createSystem } from '@chakra-ui/react';
+import { ThemeProvider } from '@/app/theme-provider';
 import '../styles/globals.css';
-
-// Create a basic system for Chakra UI v3
-const system = createSystem();
 
 function MyApp({ Component, pageProps }: AppProps) {
   return (
-    <ChakraProvider value={system}>
+    <ThemeProvider>
       <Component {...pageProps} />
-    </ChakraProvider>
+    </ThemeProvider>
   );
 }
 

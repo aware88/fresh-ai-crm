@@ -10,30 +10,16 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useSupabaseClient } from '@supabase/auth-helpers-react';
-import {
-  Box,
-  Heading,
-  Text,
-  Tabs,
-  TabList,
-  TabPanels,
-  Tab,
-  TabPanel,
-  Select,
-  Flex,
-  Card,
-  CardBody,
-  SimpleGrid,
-  Stat,
-  StatLabel,
-  StatNumber,
-  StatHelpText,
-  Icon,
-  useToast,
-  Spinner
-} from '@chakra-ui/react';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { FaMemory, FaRobot, FaChartLine, FaCog } from 'react-icons/fa';
+
+// Import our UI components instead of Chakra UI
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
+import { useToast } from '@/components/ui/use-toast';
+import { Spinner } from '@/components/ui/spinner';
 
 import MemoryBrowser from '@/components/ai/transparency/MemoryBrowser';
 import ActivityTimeline from '@/components/ai/transparency/ActivityTimeline';
@@ -55,8 +41,8 @@ export default function TransparencyDashboard() {
     activeAgents: 0
   });
   
-  const supabase = useSupabaseClient();
-  const toast = useToast();
+  const supabase = createClientComponentClient();
+  const { toast } = useToast();
   
   // Fetch agents on component mount
   useEffect(() => {
@@ -84,13 +70,11 @@ export default function TransparencyDashboard() {
       if (data && data.length > 0 && !selectedAgentId) {
         setSelectedAgentId(data[0].id);
       }
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: 'Error fetching agents',
         description: error.message,
-        status: 'error',
-        duration: 5000,
-        isClosable: true,
+        variant: 'destructive',
       });
     } finally {
       setLoading(false);
@@ -127,105 +111,110 @@ export default function TransparencyDashboard() {
   };
   
   // Handle agent selection change
-  const handleAgentChange = (e) => {
-    setSelectedAgentId(e.target.value);
+  const handleAgentChange = (value: string) => {
+    setSelectedAgentId(value);
   };
   
   return (
-    <Box p={6}>
-      <Heading size="xl" mb={6}>AI Transparency Dashboard</Heading>
+    <div className="p-6">
+      <h1 className="text-3xl font-bold mb-6">AI Transparency Dashboard</h1>
       
       {/* Stats Overview */}
-      <SimpleGrid columns={{ base: 1, md: 3 }} spacing={6} mb={8}>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <Card>
-          <CardBody>
-            <Stat>
-              <Flex align="center">
-                <Icon as={FaMemory} boxSize={6} mr={2} color="blue.500" />
-                <StatLabel>Total Memories</StatLabel>
-              </Flex>
-              <StatNumber>{stats.totalMemories.toLocaleString()}</StatNumber>
-              <StatHelpText>Stored AI memories</StatHelpText>
-            </Stat>
-          </CardBody>
+          <CardHeader className="pb-2">
+            <div className="flex items-center">
+              <FaMemory className="h-6 w-6 mr-2 text-blue-500" />
+              <CardTitle>Total Memories</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <p className="text-3xl font-bold">{stats.totalMemories.toLocaleString()}</p>
+            <p className="text-sm text-muted-foreground">Stored AI memories</p>
+          </CardContent>
         </Card>
         
         <Card>
-          <CardBody>
-            <Stat>
-              <Flex align="center">
-                <Icon as={FaChartLine} boxSize={6} mr={2} color="green.500" />
-                <StatLabel>Total Activities</StatLabel>
-              </Flex>
-              <StatNumber>{stats.totalActivities.toLocaleString()}</StatNumber>
-              <StatHelpText>Logged agent actions</StatHelpText>
-            </Stat>
-          </CardBody>
+          <CardHeader className="pb-2">
+            <div className="flex items-center">
+              <FaChartLine className="h-6 w-6 mr-2 text-green-500" />
+              <CardTitle>Total Activities</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <p className="text-3xl font-bold">{stats.totalActivities.toLocaleString()}</p>
+            <p className="text-sm text-muted-foreground">Logged agent actions</p>
+          </CardContent>
         </Card>
         
         <Card>
-          <CardBody>
-            <Stat>
-              <Flex align="center">
-                <Icon as={FaRobot} boxSize={6} mr={2} color="purple.500" />
-                <StatLabel>Active Agents</StatLabel>
-              </Flex>
-              <StatNumber>{stats.activeAgents}</StatNumber>
-              <StatHelpText>Currently active AI agents</StatHelpText>
-            </Stat>
-          </CardBody>
+          <CardHeader className="pb-2">
+            <div className="flex items-center">
+              <FaRobot className="h-6 w-6 mr-2 text-purple-500" />
+              <CardTitle>Active Agents</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <p className="text-3xl font-bold">{stats.activeAgents}</p>
+            <p className="text-sm text-muted-foreground">Currently active AI agents</p>
+          </CardContent>
         </Card>
-      </SimpleGrid>
+      </div>
       
       {/* Agent Selector */}
       {loading ? (
-        <Flex justify="center" my={8}>
-          <Spinner size="xl" />
-        </Flex>
+        <div className="flex justify-center my-8">
+          <Spinner className="h-8 w-8" />
+        </div>
       ) : agents.length === 0 ? (
-        <Box textAlign="center" my={8} p={6} borderWidth="1px" borderRadius="lg">
-          <Heading size="md" mb={2}>No Agents Found</Heading>
-          <Text>No AI agents have been configured yet.</Text>
-        </Box>
+        <div className="text-center my-8 p-6 border rounded-lg">
+          <h2 className="text-xl font-bold mb-2">No Agents Found</h2>
+          <p>No AI agents have been configured yet.</p>
+        </div>
       ) : (
         <>
-          <Flex mb={6} align="center">
-            <Text fontWeight="bold" mr={4}>Select Agent:</Text>
-            <Select
-              value={selectedAgentId}
-              onChange={handleAgentChange}
-              w="300px"
-            >
-              {agents.map((agent) => (
-                <option key={agent.id} value={agent.id}>
-                  {agent.name} ({agent.agent_type})
-                </option>
-              ))}
+          <div className="flex mb-6 items-center">
+            <p className="font-bold mr-4">Select Agent:</p>
+            <Select value={selectedAgentId} onValueChange={handleAgentChange}>
+              <SelectTrigger className="w-[300px]">
+                <SelectValue placeholder="Select an agent" />
+              </SelectTrigger>
+              <SelectContent>
+                {agents.map((agent) => (
+                  <SelectItem key={agent.id} value={agent.id}>
+                    {agent.name} ({agent.agent_type})
+                  </SelectItem>
+                ))}
+              </SelectContent>
             </Select>
-          </Flex>
+          </div>
           
           {/* Main Content Tabs */}
-          <Tabs isLazy>
-            <TabList>
-              <Tab><Icon as={FaMemory} mr={2} /> Memories</Tab>
-              <Tab><Icon as={FaChartLine} mr={2} /> Activity Timeline</Tab>
-              <Tab><Icon as={FaCog} mr={2} /> Agent Control</Tab>
-            </TabList>
+          <Tabs defaultValue="memories">
+            <TabsList>
+              <TabsTrigger value="memories">
+                <FaMemory className="mr-2" /> Memories
+              </TabsTrigger>
+              <TabsTrigger value="activity">
+                <FaChartLine className="mr-2" /> Activity Timeline
+              </TabsTrigger>
+              <TabsTrigger value="control">
+                <FaCog className="mr-2" /> Agent Control
+              </TabsTrigger>
+            </TabsList>
             
-            <TabPanels>
-              <TabPanel>
-                <MemoryBrowser />
-              </TabPanel>
-              <TabPanel>
-                <ActivityTimeline agentId={selectedAgentId} />
-              </TabPanel>
-              <TabPanel>
-                <AgentControlPanel agentId={selectedAgentId} />
-              </TabPanel>
-            </TabPanels>
+            <TabsContent value="memories">
+              <MemoryBrowser />
+            </TabsContent>
+            <TabsContent value="activity">
+              <ActivityTimeline agentId={selectedAgentId} />
+            </TabsContent>
+            <TabsContent value="control">
+              <AgentControlPanel agentId={selectedAgentId} />
+            </TabsContent>
           </Tabs>
         </>
       )}
-    </Box>
+    </div>
   );
 }

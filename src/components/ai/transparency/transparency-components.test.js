@@ -8,7 +8,7 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import { ChakraProvider } from '@chakra-ui/react';
+import { ThemeProvider } from '@/components/theme/ThemeProvider';
 import { MemoryBrowser } from './MemoryBrowser';
 import { ActivityTimeline } from './ActivityTimeline';
 import { AgentControlPanel } from './AgentControlPanel';
@@ -102,9 +102,9 @@ describe('AI Transparency UI Components', () => {
 
       // Render component
       render(
-        <ChakraProvider>
+        <ThemeProvider>
           <MemoryBrowser agentId="agent-1" />
-        </ChakraProvider>
+        </ThemeProvider>
       );
 
       // Wait for memories to load
@@ -149,9 +149,9 @@ describe('AI Transparency UI Components', () => {
 
       // Render component
       render(
-        <ChakraProvider>
+        <ThemeProvider>
           <MemoryBrowser agentId="agent-1" />
-        </ChakraProvider>
+        </ThemeProvider>
       );
 
       // Wait for memories to load
@@ -187,9 +187,9 @@ describe('AI Transparency UI Components', () => {
 
       // Render component
       render(
-        <ChakraProvider>
+        <ThemeProvider>
           <ActivityTimeline agentId="agent-1" />
-        </ChakraProvider>
+        </ThemeProvider>
       );
 
       // Wait for activities to load
@@ -230,9 +230,9 @@ describe('AI Transparency UI Components', () => {
 
       // Render component
       render(
-        <ChakraProvider>
+        <ThemeProvider>
           <ActivityTimeline agentId="agent-1" />
-        </ChakraProvider>
+        </ThemeProvider>
       );
 
       // Wait for activities to load
@@ -271,9 +271,9 @@ describe('AI Transparency UI Components', () => {
 
       // Render component
       render(
-        <ChakraProvider>
+        <ThemeProvider>
           <AgentControlPanel agentId="agent-1" />
-        </ChakraProvider>
+        </ThemeProvider>
       );
 
       // Wait for settings to load
@@ -321,9 +321,9 @@ describe('AI Transparency UI Components', () => {
 
       // Render component
       render(
-        <ChakraProvider>
+        <ThemeProvider>
           <AgentControlPanel agentId="agent-1" />
-        </ChakraProvider>
+        </ThemeProvider>
       );
 
       // Wait for settings to load

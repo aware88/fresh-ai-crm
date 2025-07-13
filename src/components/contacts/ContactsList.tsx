@@ -2,7 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
-import { Spinner, Alert, Button, Input } from '@/components/ui';
+import { Spinner } from '@/components/ui/spinner';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 
 interface Contact {
   id: string;
@@ -88,8 +91,9 @@ export default function ContactsList() {
   if (status === 'unauthenticated' || !session) {
     return (
       <div className="p-8 text-center">
-        <Alert type="warning">
-          <p>You need to sign in with Microsoft to access your contacts.</p>
+        <Alert>
+          <AlertTitle>Authentication Required</AlertTitle>
+          <AlertDescription>You need to sign in with Microsoft to access your contacts.</AlertDescription>
         </Alert>
         <Button className="mt-4" onClick={() => window.location.href = '/api/auth/signin/microsoft'}>
           Sign in with Microsoft
@@ -100,7 +104,12 @@ export default function ContactsList() {
 
   // Loading and error states
   if (loading) return <Spinner />;
-  if (error) return <Alert type="error">{error}</Alert>;
+  if (error) return (
+    <Alert variant="destructive">
+      <AlertTitle>Error</AlertTitle>
+      <AlertDescription>{error}</AlertDescription>
+    </Alert>
+  );
 
   return (
     <div className="contacts-list">
@@ -113,7 +122,7 @@ export default function ContactsList() {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        <Button onClick={handleCreateContact} variant="primary">
+        <Button onClick={handleCreateContact} variant="default">
           New Contact
         </Button>
       </div>

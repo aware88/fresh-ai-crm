@@ -27,3 +27,16 @@ export function validateServiceToken(token: string): boolean {
 export function generateServiceToken(): string {
   return crypto.randomUUID();
 }
+
+/**
+ * Gets the service token from environment variables
+ * @returns The service token or null if not set
+ */
+export function getServiceToken(): string | null {
+  const token = process.env.SERVICE_TOKEN;
+  if (!token) {
+    console.warn('SERVICE_TOKEN environment variable is not set');
+    return null;
+  }
+  return token;
+}

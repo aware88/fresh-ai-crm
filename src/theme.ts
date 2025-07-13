@@ -1,9 +1,10 @@
-import { createSystem } from '@chakra-ui/react';
+// This file is kept for backward compatibility
+// The actual theming is now handled by Tailwind CSS and next-themes
 
-// Create a basic system configuration
-export const system = createSystem();
+// Re-export the theme constants from the lib/theme directory
+import { themeConfig } from '@/lib/theme/theme-config';
 
-// For theming in Chakra UI v3, you can use the default theme
-// or extend it as needed. The theme is now handled differently
-// and is more modular. You can customize components, colors,
-// and other theme tokens through the system configuration.
+export { themeConfig };
+
+// Export an empty system object for backward compatibility
+export const system = {};

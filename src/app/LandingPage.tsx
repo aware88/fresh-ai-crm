@@ -1,28 +1,33 @@
 'use client';
 
-import { Button, Container, Flex, Heading, Text, VStack, Box, SimpleGrid, Icon, ButtonProps } from '@chakra-ui/react';
-import { useColorModeValue } from '@chakra-ui/color-mode';
 import Link from 'next/link';
 import { FiArrowRight } from 'react-icons/fi';
 import React, { forwardRef } from 'react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { useTheme } from 'next-themes';
 
 // Create a custom button component that supports rightIcon
-interface CustomButtonProps extends ButtonProps {
+interface CustomButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   rightIcon?: React.ReactNode;
+  variant?: 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link';
+  size?: 'default' | 'sm' | 'lg' | 'icon';
+  asChild?: boolean;
 }
 
 const CustomButton = forwardRef<HTMLButtonElement, CustomButtonProps>(({ 
   rightIcon, 
   children, 
+  className,
   ...props 
 }, ref) => {
   return (
     <Button ref={ref} {...props}>
       {children}
       {rightIcon && (
-        <Box as="span" ml={2}>
+        <span className="ml-2">
           {rightIcon}
-        </Box>
+        </span>
       )}
     </Button>
   );
@@ -31,30 +36,28 @@ const CustomButton = forwardRef<HTMLButtonElement, CustomButtonProps>(({
 CustomButton.displayName = 'CustomButton';
 
 export default function LandingPage() {
-  const bgGradient = useColorModeValue(
-    'linear(to-r, blue.50, white, blue.50)',
-    'linear(to-r, gray.900, gray.800, gray.900)'
-  );
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
 
   return (
-    <Box minH="100vh" bgGradient={bgGradient}>
+    <div className="min-h-screen bg-gradient-to-r from-blue-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
       {/* Header */}
-      <Box as="header" w="full" py={6} borderBottomWidth="1px" borderColor="gray.100" _dark={{ borderColor: 'gray.700' }}>
-        <Container maxW="container.xl">
-          <Flex align="center" justify="space-between">
-            <Flex align="center" gap={3}>
-              <Box w={10} h={10} rounded="full" bgGradient="linear(to-r, blue.500, indigo.500)" display="flex" alignItems="center" justifyContent="center">
+      <header className="w-full py-6 border-b border-gray-100 dark:border-gray-700">
+        <div className="container mx-auto max-w-7xl px-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-500 to-indigo-500 flex items-center justify-center">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M12 2a10 10 0 0 1 10 10c0 6-10 10-10 10S2 18 2 12A10 10 0 0 1 12 2Z"></path>
                   <path d="M12 12v4"></path>
                   <path d="M12 8h.01"></path>
                 </svg>
               </Box>
-              <Heading size="lg" bgGradient="linear(to-r, blue.500, indigo.500)" bgClip="text">
+              <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-500 to-indigo-500 bg-clip-text text-transparent">
                 CRM MIND
               </Heading>
             </Flex>
-            <Box display={{ base: 'none', md: 'flex' }} alignItems="center" gap={6}>
+            <div className="hidden md:flex items-center gap-6">
               <Link href="#features">
                 <Button variant="ghost" colorScheme="blue">Features</Button>
               </Link>
@@ -65,68 +68,63 @@ export default function LandingPage() {
                 <Button variant="ghost" colorScheme="blue">Benefits</Button>
               </Link>
               <Link href="/dashboard">
-                <Button variant="outline" colorScheme="blue">Dashboard</Button>
+                <Button variant="outline" className="text-blue-600 hover:text-blue-800 border-blue-600">Dashboard</Button>
               </Link>
             </Box>
-          </Flex>
-        </Container>
-      </Box>
+          </div>
+        </div>
+      </header>
 
       {/* Hero Section */}
-      <Box as="section" py={20}>
-        <Container maxW="container.lg" textAlign="center">
+      <section className="py-20">
+        <div className="container mx-auto max-w-5xl px-4 text-center">
           <VStack gap={6}>
-            <Box
-              px={4}
-              py={1.5}
-              rounded="full"
-              bgGradient="linear(to-r, blue.50, indigo.50)"
-              display="inline-flex"
-              mb={4}
+            <div
+              className="px-4 py-1.5 rounded-full bg-gradient-to-r from-blue-50 to-indigo-50 inline-flex mb-4"
             >
-              <Text fontSize="sm" fontWeight="medium" bgGradient="linear(to-r, blue.600, indigo.600)" bgClip="text">
+              <p className="text-sm font-medium bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
                 🚀 Coming Soon
               </Text>
             </Box>
-            <Heading as="h1" size="3xl" lineHeight="1.2" maxW="3xl" mx="auto">
+            <h1 className="text-5xl font-bold leading-tight max-w-3xl mx-auto">
               AI-Powered CRM MIND for the
-              <Box as="span" display="block" bgGradient="linear(to-r, blue.600, indigo.600)" bgClip="text">
+              <span className="block bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
                 Modern Sales Team
               </Box>
             </Heading>
-            <Text fontSize="xl" color="gray.600" maxW="2xl" mx="auto">
+            <p className="text-xl text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
               Transform your customer relationships with our AI-powered CRM MIND that understands
               your customers better than ever before.
             </Text>
             <Box pt={4}>
               <Link href="/dashboard">
-                <CustomButton 
-                  as="a"
+                <Button 
                   size="lg" 
-                  colorScheme="blue"
-                  rightIcon={<FiArrowRight />}
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
                 >
+                  <span>Get Started</span>
+                  <FiArrowRight className="ml-2" />
                   Get Started
                 </CustomButton>
               </Link>
-            </Box>
-          </VStack>
-        </Container>
-      </Box>
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* Features Section */}
-      <Box as="section" id="features" py={20} bg={useColorModeValue('white', 'gray.800')}>
-        <Container maxW="container.xl">
-          <VStack gap={16}>
-            <VStack gap={4} textAlign="center" maxW="3xl" mx="auto">
-              <Text color="blue.500" fontWeight="semibold">FEATURES</Text>
-              <Heading as="h2" size="2xl">Everything you need to succeed</Heading>
-              <Text fontSize="lg" color="gray.500">
+      <section className="py-20" id="features">
+        <div className="container mx-auto max-w-5xl px-4 text-center">
+          <div className="flex flex-col items-center gap-12">
+            <div className="flex flex-col items-center">
+              <p className="text-xl font-bold text-blue-600">FEATURES</p>
+              <h2 className="text-4xl font-bold mb-4">Everything you need to succeed</h2>
+              <p className="text-xl text-gray-600 dark:text-gray-300 max-w-2xl">
                 Our AI-powered features help you close more deals and build better relationships.
-              </Text>
-            </VStack>
+              </p>
+            </div>
 
-            <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} gap={8} w="full">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {[
                 {
                   title: 'AI-Powered Insights',
@@ -159,52 +157,43 @@ export default function LandingPage() {
                   icon: '📱',
                 },
               ].map((feature, index) => (
-                <Box
+                <Card
                   key={index}
-                  p={6}
-                  bg={useColorModeValue('white', 'gray.700')}
-                  rounded="lg"
-                  shadow="md"
-                  borderWidth="1px"
-                  borderColor={useColorModeValue('gray.100', 'gray.600')}
-                  _hover={{
-                    transform: 'translateY(-5px)',
-                    shadow: 'lg',
-                    transition: 'all 0.3s',
-                  }}
+                  className="p-6 bg-white dark:bg-gray-700 rounded-lg shadow-md border border-gray-100 dark:border-gray-600 hover:transform hover:-translate-y-1 hover:shadow-lg transition-all duration-300"
                 >
-                  <Box fontSize="3xl" mb={4}>
+                  <div className="text-3xl mb-4">
                     {feature.icon}
-                  </Box>
-                  <Heading as="h3" size="md" mb={2}>
+                  </div>
+                  <h3 className="text-lg font-bold mb-2">
                     {feature.title}
-                  </Heading>
-                  <Text color={useColorModeValue('gray.600', 'gray.300')}>
+                  </h3>
+                  <p className="text-gray-600 dark:text-gray-300">
                     {feature.description}
-                  </Text>
+                  </p>
                 </Box>
               ))}
-            </SimpleGrid>
+            </div>
           </VStack>
         </Container>
       </Box>
 
       {/* CTA Section */}
-      <Box as="section" py={20} bgGradient="linear(to-r, blue.600, indigo.600)" color="white">
-        <Container maxW="4xl" textAlign="center">
+      <section className="py-20 bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
+        <div className="container mx-auto max-w-4xl px-4 text-center">
           <VStack gap={6}>
             <Heading as="h2" size="2xl">Ready to transform your sales process?</Heading>
-            <Text fontSize="xl" maxW="2xl" mx="auto">
+            <p className="text-xl max-w-2xl mx-auto">
               Join thousands of sales professionals who are already using our AI-powered CRM MIND to close more deals.
             </Text>
             <Box pt={4}>
               <Link href="/dashboard">
-                <CustomButton 
-                  as="a"
+                <Button 
                   size="lg" 
-                  colorScheme="whiteAlpha" 
-                  rightIcon={<FiArrowRight />}
+                  variant="outline" 
+                  className="bg-white/10 hover:bg-white/20 text-white border-white"
                 >
+                  <span>Get Started for Free</span>
+                  <FiArrowRight className="ml-2" />
                   Get Started for Free
                 </CustomButton>
               </Link>
@@ -214,20 +203,20 @@ export default function LandingPage() {
       </Box>
 
       {/* Footer */}
-      <Box as="footer" py={8} borderTopWidth="1px" borderColor={useColorModeValue('gray.200', 'gray.700')}>
+      <footer className="py-8 border-t border-gray-200 dark:border-gray-700">
         <Container maxW="container.xl">
-          <Flex direction={{ base: 'column', md: 'row' }} justify="space-between" align="center">
-            <Flex align="center" gap={3} mb={{ base: 4, md: 0 }}>
-              <Box w={8} h={8} rounded="full" bgGradient="linear(to-r, blue.500, indigo.500)" display="flex" alignItems="center" justifyContent="center">
+          <div className="flex flex-col md:flex-row justify-between items-center">
+            <div className="flex items-center gap-3 mb-4 md:mb-0">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-indigo-500 flex items-center justify-center">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M12 2a10 10 0 0 1 10 10c0 6-10 10-10 10S2 18 2 12A10 10 0 0 1 12 2Z"></path>
                   <path d="M12 12v4"></path>
                   <path d="M12 8h.01"></path>
                 </svg>
               </Box>
-              <Text fontWeight="bold" fontSize="lg">CRM MIND</Text>
+              <p className="font-bold text-lg">CRM MIND</Text>
             </Flex>
-            <Flex gap={6}>
+            <div className="flex gap-6">
               <Link href="#features">
                 <Button variant="ghost" colorScheme="blue">Features</Button>
               </Link>
@@ -242,8 +231,8 @@ export default function LandingPage() {
               </Link>
             </Flex>
           </Flex>
-          <Box mt={8} textAlign="center" color={useColorModeValue('gray.500', 'gray.400')}>
-            <Text>&copy; {new Date().getFullYear()} CRM MIND. All rights reserved.</Text>
+          <div className="mt-8 text-center text-gray-500 dark:text-gray-400">
+            <p>&copy; {new Date().getFullYear()} CRM MIND. All rights reserved.</Text>
           </Box>
         </Container>
       </Box>

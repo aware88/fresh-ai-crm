@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
-import { MoonIcon, SunIcon, LaptopIcon } from '@heroicons/react/24/outline';
+import { MoonIcon, SunIcon, ComputerDesktopIcon } from '@heroicons/react/24/outline';
 import { SettingsForm } from '@/components/settings/settings-form';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useSession } from 'next-auth/react';
@@ -125,7 +125,7 @@ export default function AppearanceSettings() {
                   theme === 'system' ? 'border-primary' : ''
                 }`}
               >
-                <LaptopIcon className="h-6 w-6 mb-3" />
+                <ComputerDesktopIcon className="h-6 w-6 mb-3" />
                 <span className="text-sm font-medium">System</span>
               </Label>
             </div>

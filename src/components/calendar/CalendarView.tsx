@@ -2,7 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
-import { Spinner, Alert, Button } from '@/components/ui';
+import { Spinner } from '@/components/ui/spinner';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
 
 interface CalendarEvent {
   id: string;
@@ -146,8 +148,9 @@ export default function CalendarView() {
   if (status === 'unauthenticated' || !session) {
     return (
       <div className="p-8 text-center">
-        <Alert type="warning">
-          <p>You need to sign in with Microsoft to access your calendar.</p>
+        <Alert>
+          <AlertTitle>Authentication Required</AlertTitle>
+          <AlertDescription>You need to sign in with Microsoft to access your calendar.</AlertDescription>
         </Alert>
         <Button className="mt-4" onClick={() => window.location.href = '/api/auth/signin/microsoft'}>
           Sign in with Microsoft
@@ -158,7 +161,12 @@ export default function CalendarView() {
 
   // Loading and error states
   if (loading) return <Spinner />;
-  if (error) return <Alert type="error">{error}</Alert>;
+  if (error) return (
+    <Alert variant="destructive">
+      <AlertTitle>Error</AlertTitle>
+      <AlertDescription>{error}</AlertDescription>
+    </Alert>
+  );
 
   const eventsByDay = groupEventsByDay();
   const daysOfWeek = Object.keys(eventsByDay).sort();

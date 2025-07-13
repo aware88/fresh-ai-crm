@@ -1,6 +1,6 @@
 import React from 'react';
 
-// Custom implementation of @chakra-ui/icons to avoid React version conflicts
+// Custom icon components for Fresh AI CRM
 export function InfoIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
     <svg

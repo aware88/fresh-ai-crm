@@ -1,20 +1,7 @@
 'use client';
 
-import { CacheProvider } from '@chakra-ui/next-js';
-import { ChakraProvider, createSystem } from '@chakra-ui/react';
-import { ColorModeScript } from '@chakra-ui/color-mode';
 import { SessionProvider } from 'next-auth/react';
-
-// Create a default system for Chakra UI
-const defaultSystem = createSystem({
-  theme: {
-    initialColorMode: 'light',
-    fonts: {
-      heading: 'Inter, sans-serif',
-      body: 'Inter, sans-serif',
-    },
-  },
-});
+import { ThemeProvider } from './theme-provider';
 
 export function Providers({ 
   children 
@@ -23,12 +10,9 @@ export function Providers({
 }) {
   return (
     <SessionProvider>
-      <CacheProvider>
-        <ChakraProvider value={defaultSystem}>
-          <ColorModeScript initialColorMode="light" />
-          {children}
-        </ChakraProvider>
-      </CacheProvider>
+      <ThemeProvider>
+        {children}
+      </ThemeProvider>
     </SessionProvider>
   );
 }

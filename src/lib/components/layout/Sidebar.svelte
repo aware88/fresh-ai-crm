@@ -38,7 +38,7 @@
 <aside class="sidebar">
   <div class="sidebar-header">
     <div class="logo">
-      <img src="/logo.svg" alt="ARIS" />
+      <img src="/logo.svg" alt="ARIS" width="30" height="30" loading="eager" />
       <span>ARIS</span>
     </div>
   </div>

@@ -1,38 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import {
-  Box,
-  Button,
-  Card,
-  CardBody,
-  CardHeader,
-  Checkbox,
-  Divider,
-  Flex,
-  FormControl,
-  FormLabel,
-  Heading,
-  Input,
-  Modal,
-  ModalBody,
-  ModalCloseButton,
-  ModalContent,
-  ModalFooter,
-  ModalHeader,
-  ModalOverlay,
-  SimpleGrid,
-  Spinner,
-  Stack,
-  Table,
-  Tbody,
-  Td,
-  Text,
-  Textarea,
-  Th,
-  Thead,
-  Tr,
-  useDisclosure,
-  useToast,
-} from '@chakra-ui/react';
+
+// Import custom UI components
+import { Button } from '@/components/ui/button';
+import { Card, CardHeader, CardContent } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Spinner } from '@/components/ui/spinner';
+import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@/components/ui/table';
+import { Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
+import { useToast } from '@/components/ui/use-toast';
 import { RoleService, Role, Permission } from '@/lib/services/role-service';
 import { useSession } from 'next-auth/react';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -40,7 +19,7 @@ import { PermissionGate } from '../permissions/PermissionGate';
 
 export default function RoleManagement({ organizationId }: { organizationId: string }) {
   const { data: session } = useSession();
-  const toast = useToast();
+  const { toast } = useToast();
   const { hasPermission } = usePermissions();
   
   const [roles, setRoles] = useState<Role[]>([]);
@@ -48,7 +27,9 @@ export default function RoleManagement({ organizationId }: { organizationId: str
   const [loading, setLoading] = useState(true);
   const [selectedRole, setSelectedRole] = useState<Role | null>(null);
   
-  const { isOpen, onOpen, onClose } = useDisclosure();
+  const [isOpen, setIsOpen] = useState(false);
+  const onOpen = () => setIsOpen(true);
+  const onClose = () => setIsOpen(false);
   
   // Form state
   const [roleName, setRoleName] = useState('');
@@ -75,9 +56,7 @@ export default function RoleManagement({ organizationId }: { organizationId: str
         toast({
           title: 'Error',
           description: 'Failed to load roles and permissions',
-          status: 'error',
-          duration: 5000,
-          isClosable: true,
+          variant: 'destructive',
         });
       } finally {
         setLoading(false);
@@ -140,9 +119,7 @@ export default function RoleManagement({ organizationId }: { organizationId: str
       toast({
         title: 'Error',
         description: 'Role name is required',
-        status: 'error',
-        duration: 3000,
-        isClosable: true,
+        variant: 'destructive',
       });
       return;
     }
@@ -164,9 +141,7 @@ export default function RoleManagement({ organizationId }: { organizationId: str
         toast({
           title: 'Success',
           description: `Role "${roleName}" updated successfully`,
-          status: 'success',
-          duration: 3000,
-          isClosable: true,
+          variant: 'success',
         });
       } else {
         // Create new role
@@ -179,10 +154,8 @@ export default function RoleManagement({ organizationId }: { organizationId: str
         
         toast({
           title: 'Success',
-          description: `Role "${roleName}" created successfully`,
-          status: 'success',
-          duration: 3000,
-          isClosable: true,
+          description: selectedRole ? 'Role updated successfully' : 'Role created successfully',
+          variant: 'success',
         });
       }
       
@@ -195,10 +168,8 @@ export default function RoleManagement({ organizationId }: { organizationId: str
       console.error('Error saving role:', error);
       toast({
         title: 'Error',
-        description: `Failed to ${selectedRole ? 'update' : 'create'} role`,
-        status: 'error',
-        duration: 5000,
-        isClosable: true,
+        description: 'Failed to save role',
+        variant: 'destructive',
       });
     } finally {
       setIsSubmitting(false);
@@ -222,187 +193,186 @@ export default function RoleManagement({ organizationId }: { organizationId: str
       toast({
         title: 'Success',
         description: 'Role deleted successfully',
-        status: 'success',
-        duration: 3000,
-        isClosable: true,
+        variant: 'success',
       });
     } catch (error) {
       console.error('Error deleting role:', error);
       toast({
         title: 'Error',
         description: 'Failed to delete role',
-        status: 'error',
-        duration: 5000,
-        isClosable: true,
+        variant: 'destructive',
       });
     }
   };
   
   if (loading) {
     return (
-      <Flex justify="center" align="center" h="200px">
-        <Spinner size="xl" />
-      </Flex>
+      <div className="flex justify-center items-center h-[200px]">
+        <Spinner size="lg" />
+      </div>
     );
   }
   
   return (
-    <Box>
-      <Flex justify="space-between" align="center" mb={4}>
-        <Heading size="md">Role Management</Heading>
-        <PermissionGate resourceType="role" action="create">
-          <Button colorScheme="blue" onClick={handleNewRole}>
-            Create New Role
-          </Button>
-        </PermissionGate>
-      </Flex>
-      
-      <Card variant="outline" mb={6}>
-        <CardHeader>
-          <Heading size="sm">Organization Roles</Heading>
+    <div className="w-full">
+      <Card className="mb-6">
+        <CardHeader className="flex justify-between items-center">
+          <h2 className="text-lg font-semibold">Role Management</h2>
+          <PermissionGate resourceType="role" action="create">
+            <Button variant="default" onClick={handleNewRole}>
+              Create New Role
+            </Button>
+          </PermissionGate>
         </CardHeader>
-        <CardBody>
+        <CardContent>
           {roles.length === 0 ? (
-            <Text>No custom roles found. Create your first role to get started.</Text>
+            <p className="text-sm text-muted-foreground">No roles found.</p>
           ) : (
-            <Table variant="simple">
-              <Thead>
-                <Tr>
-                  <Th>Role Name</Th>
-                  <Th>Description</Th>
-                  <Th>Type</Th>
-                  <Th>Permissions</Th>
-                  <Th>Actions</Th>
-                </Tr>
-              </Thead>
-              <Tbody>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Description</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {roles.map(role => (
-                  <Tr key={role.id}>
-                    <Td>{role.name}</Td>
-                    <Td>{role.description || '-'}</Td>
-                    <Td>{role.is_system_role ? 'System' : 'Custom'}</Td>
-                    <Td>{role.permissions?.length || 0}</Td>
-                    <Td>
-                      <Flex gap={2}>
-                        <PermissionGate 
-                          resourceType="role" 
-                          action="update"
-                          fallback={<Button size="sm" onClick={() => handleSelectRole(role)} isDisabled={role.is_system_role}>View</Button>}
-                        >
+                  <TableRow key={role.id}>
+                    <TableCell>{role.name}</TableCell>
+                    <TableCell>{role.description || 'No description'}</TableCell>
+                    <TableCell>{role.is_system_role ? 'System' : 'Custom'}</TableCell>
+                    <TableCell>
+                      <div className="flex gap-2">
+                        <PermissionGate resourceType="role" action="update">
                           <Button 
                             size="sm" 
+                            variant="default" 
                             onClick={() => handleSelectRole(role)}
-                            isDisabled={role.is_system_role}
                           >
-                            Edit
+                            {role.is_system_role ? 'View' : 'Edit'}
                           </Button>
                         </PermissionGate>
                         
                         <PermissionGate resourceType="role" action="delete">
                           <Button 
                             size="sm" 
-                            colorScheme="red" 
+                            variant="destructive" 
                             onClick={() => handleDeleteRole(role.id)}
-                            isDisabled={role.is_system_role}
+                            disabled={role.is_system_role}
                           >
                             Delete
                           </Button>
                         </PermissionGate>
-                      </Flex>
-                    </Td>
-                  </Tr>
+                      </div>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </Tbody>
+              </TableBody>
             </Table>
           )}
-        </CardBody>
+        </CardContent>
       </Card>
       
-      {/* Role Edit/Create Modal */}
-      <Modal isOpen={isOpen} onClose={onClose} size="xl">
-        <ModalOverlay />
-        <ModalContent>
-          <ModalHeader>
-            {selectedRole ? `Edit Role: ${selectedRole.name}` : 'Create New Role'}
-          </ModalHeader>
-          <ModalCloseButton />
-          <ModalBody>
-            <Stack spacing={4}>
-              <FormControl isRequired>
-                <FormLabel>Role Name</FormLabel>
-                <Input 
-                  value={roleName} 
-                  onChange={(e) => setRoleName(e.target.value)} 
-                  placeholder="Enter role name"
-                  isReadOnly={selectedRole?.is_system_role}
-                />
-              </FormControl>
-              
-              <FormControl>
-                <FormLabel>Description</FormLabel>
-                <Textarea 
-                  value={roleDescription} 
-                  onChange={(e) => setRoleDescription(e.target.value)} 
-                  placeholder="Enter role description"
-                  isReadOnly={selectedRole?.is_system_role}
-                />
-              </FormControl>
-              
-              <Divider my={4} />
-              
-              <Heading size="sm">Permissions</Heading>
-              <Text fontSize="sm" color="gray.600">
+      {/* Role Edit/Create Dialog */}
+      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>
+              {selectedRole ? `Edit Role: ${selectedRole.name}` : 'Create New Role'}
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="roleName">Role Name</Label>
+              <Input 
+                id="roleName"
+                value={roleName} 
+                onChange={(e) => setRoleName(e.target.value)} 
+                placeholder="Enter role name"
+                disabled={selectedRole?.is_system_role}
+                className="w-full"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="roleDescription">Description</Label>
+              <Textarea 
+                id="roleDescription"
+                value={roleDescription} 
+                onChange={(e) => setRoleDescription(e.target.value)} 
+                placeholder="Enter role description"
+                disabled={selectedRole?.is_system_role}
+                className="w-full"
+              />
+            </div>
+            
+            <Separator className="my-4" />
+            
+            <div>
+              <h3 className="text-sm font-semibold mb-2">Permissions</h3>
+              <p className="text-sm text-muted-foreground mb-4">
                 Select the permissions to assign to this role.
-              </Text>
+              </p>
               
               {Object.entries(permissionsByResource).map(([resourceType, resourcePermissions]) => (
-                <Box key={resourceType} mb={4}>
-                  <Heading size="xs" textTransform="capitalize" mb={2}>
+                <div key={resourceType} className="mb-4">
+                  <h4 className="text-xs font-semibold capitalize mb-2">
                     {resourceType}
-                  </Heading>
-                  <SimpleGrid columns={2} spacing={2}>
+                  </h4>
+                  <div className="grid grid-cols-2 gap-2">
                     {resourcePermissions.map(permission => (
-                      <Checkbox 
-                        key={permission.id}
-                        isChecked={selectedPermissions.has(permission.id)}
-                        onChange={() => handlePermissionToggle(permission.id)}
-                        isDisabled={selectedRole?.is_system_role}
-                      >
-                        <Text fontSize="sm">
+                      <div key={permission.id} className="flex items-center space-x-2">
+                        <Checkbox 
+                          id={`permission-${permission.id}`}
+                          checked={selectedPermissions.has(permission.id)}
+                          onCheckedChange={() => handlePermissionToggle(permission.id)}
+                          disabled={selectedRole?.is_system_role}
+                        />
+                        <Label htmlFor={`permission-${permission.id}`} className="text-sm">
                           {permission.name}
-                          <Text as="span" fontSize="xs" color="gray.500" ml={1}>
+                          <span className="text-xs text-muted-foreground ml-1">
                             ({permission.action})
-                          </Text>
-                        </Text>
-                      </Checkbox>
+                          </span>
+                        </Label>
+                      </div>
                     ))}
-                  </SimpleGrid>
-                </Box>
+                  </div>
+                </div>
               ))}
-            </Stack>
-          </ModalBody>
+            </div>
+          </div>
           
-          <ModalFooter>
-            <Button variant="ghost" mr={3} onClick={onClose}>
+          <DialogFooter>
+            <Button variant="outline" onClick={onClose} className="mr-2">
               Cancel
             </Button>
             <PermissionGate
               resourceType="role"
               action={selectedRole ? 'update' : 'create'}
-              fallback={<Button colorScheme="blue" onClick={onClose}>Close</Button>}
+              fallback={<Button variant="default" onClick={onClose}>Close</Button>}
             >
               <Button 
-                colorScheme="blue" 
+                variant="default" 
                 onClick={handleSubmit} 
-                isLoading={isSubmitting}
-                isDisabled={selectedRole?.is_system_role}
+                disabled={isSubmitting || selectedRole?.is_system_role}
+                className={isSubmitting ? 'opacity-70 cursor-not-allowed' : ''}
               >
-                {selectedRole ? 'Update Role' : 'Create Role'}
+                {isSubmitting ? (
+                  <>
+                    <Spinner size="sm" className="mr-2" />
+                    {selectedRole ? 'Updating...' : 'Creating...'}
+                  </>
+                ) : (
+                  selectedRole ? 'Update Role' : 'Create Role'
+                )}
               </Button>
             </PermissionGate>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
-    </Box>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }

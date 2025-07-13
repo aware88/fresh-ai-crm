@@ -2,15 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { getContactById } from '../../lib/contacts/data';
 import { Contact } from '../../lib/contacts/types';
-import {
-  Box,
-  Container,
-  Heading,
-  Text,
-  Flex,
-  Badge,
-  Spinner,
-} from '@chakra-ui/react';
+import { Spinner } from '@/components/ui/spinner';
+import { Badge } from '@/components/ui/badge';
 
 export default function ContactProfile() {
   const router = useRouter();
@@ -45,67 +38,67 @@ export default function ContactProfile() {
 
   if (loading) {
     return (
-      <Flex justify="center" align="center" minH="200px">
-        <Spinner mr={4} />
-        <Text fontSize="lg">Loading contact...</Text>
-      </Flex>
+      <div className="flex justify-center items-center min-h-[200px]">
+        <Spinner className="mr-4" />
+        <p className="text-lg">Loading contact...</p>
+      </div>
     );
   }
 
   if (error) {
     return (
-      <Container maxW="container.xl" py={8} textAlign="center">
-        <Box p={4} bg="red.50" borderRadius="md" borderWidth="1px" borderColor="red.200">
-          <Heading size="md" color="red.500" mb={2}>Error</Heading>
-          <Text>{error}</Text>
-        </Box>
-      </Container>
+      <div className="container mx-auto py-8 text-center">
+        <div className="p-4 bg-red-50 rounded-md border border-red-200">
+          <h2 className="text-lg font-semibold text-red-500 mb-2">Error</h2>
+          <p>{error}</p>
+        </div>
+      </div>
     );
   }
 
   if (!contact) {
     return (
-      <Container maxW="container.xl" py={8} textAlign="center">
-        <Heading size="lg" mb={4}>Contact Not Found</Heading>
-        <Text>The requested contact could not be found.</Text>
-      </Container>
+      <div className="container mx-auto py-8 text-center">
+        <h1 className="text-2xl font-bold mb-4">Contact Not Found</h1>
+        <p>The requested contact could not be found.</p>
+      </div>
     );
   }
 
   return (
-    <Container maxW="container.xl" py={8}>
-      <Box p={6} borderWidth="1px" borderRadius="lg" bg="white">
-        <Box mb={6}>
-          <Flex direction={{ base: "column", md: "row" }} gap={4}>
-            <Heading size="lg">
+    <div className="container mx-auto py-8">
+      <div className="p-6 border border-gray-200 rounded-lg bg-white">
+        <div className="mb-6">
+          <div className="flex flex-col md:flex-row gap-4">
+            <h1 className="text-2xl font-bold">
               {contact.firstName} {contact.lastName}
-            </Heading>
-            <Box>
-              <Text color="gray.600">{contact.email}</Text>
+            </h1>
+            <div>
+              <p className="text-gray-600">{contact.email}</p>
               {contact.company && (
-                <Text color="gray.600">{contact.company}</Text>
+                <p className="text-gray-600">{contact.company}</p>
               )}
               {contact.personalityType && (
-                <Badge colorScheme="purple" mt={2}>
+                <Badge className="mt-2 bg-purple-100 text-purple-800">
                   {contact.personalityType}
                 </Badge>
               )}
-            </Box>
-          </Flex>
-        </Box>
+            </div>
+          </div>
+        </div>
         
-        <Box p={6} bg="gray.50" borderRadius="md" borderWidth="1px" borderColor="gray.200">
-          <Heading size="md" mb={4}>
+        <div className="p-6 bg-gray-50 rounded-md border border-gray-200">
+          <h2 className="text-lg font-semibold mb-4">
             Contact Information
-          </Heading>
-          <Text mb={4}>
+          </h2>
+          <p className="mb-4">
             Dispute resolution features are temporarily unavailable during this deployment.
-          </Text>
-          <Text fontSize="sm" color="gray.500">
+          </p>
+          <p className="text-sm text-gray-500">
             Full contact management features will be restored in the next update.
-          </Text>
-        </Box>
-      </Box>
-    </Container>
+          </p>
+        </div>
+      </div>
+    </div>
   );
 }

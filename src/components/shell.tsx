@@ -13,7 +13,7 @@ interface ShellProps {
  * Shell component providing consistent layout with header and container
  * This is a minimal implementation to unblock the build
  */
-export default function Shell({ children, title, subtitle }: ShellProps) {
+export function Shell({ children, title, subtitle }: ShellProps) {
   return (
     <div className="flex flex-col min-h-screen">
       <Header />
@@ -32,3 +32,6 @@ export default function Shell({ children, title, subtitle }: ShellProps) {
     </div>
   );
 }
+
+// Export Shell as default and as DashboardShell for backward compatibility
+export { Shell as default, Shell as DashboardShell };
