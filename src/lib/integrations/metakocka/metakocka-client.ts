@@ -12,6 +12,29 @@ export interface MetakockaClientConfig {
   baseUrl?: string;
 }
 
+// Singleton client instance for shared use
+let sharedClient: MetakockaClient | null = null;
+
+// Convenience functions for external use
+export async function fetchMetakockaContact(id: string, config: MetakockaClientConfig) {
+  const client = sharedClient || new MetakockaClient(config);
+  if (!sharedClient) sharedClient = client;
+  return client.getContact(id);
+}
+
+export async function fetchMetakockaProduct(id: string, config: MetakockaClientConfig) {
+  const client = sharedClient || new MetakockaClient(config);
+  if (!sharedClient) sharedClient = client;
+  return client.getProduct(id);
+}
+
+export async function fetchMetakockaDocument(id: string, config: MetakockaClientConfig) {
+  const client = sharedClient || new MetakockaClient(config);
+  if (!sharedClient) sharedClient = client;
+  // Using search method instead of direct apiService access
+  return client.search('sales_bill', { id });
+}
+
 export class MetakockaClient {
   private apiService: MetakockaApiService;
   

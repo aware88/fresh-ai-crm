@@ -337,3 +337,6 @@ export class MetakockaErrorLogger {
     this.logs = [];
   }
 }
+
+// Export a convenience function for logging Metakocka errors
+export const logMetakockaError = MetakockaErrorLogger.logMetakockaError;

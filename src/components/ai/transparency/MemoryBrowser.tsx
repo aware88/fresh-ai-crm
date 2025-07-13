@@ -6,34 +6,16 @@
 
 import { useState, useEffect } from 'react';
 import { useSupabaseClient } from '@supabase/auth-helpers-react';
-import {
-  Box,
-  Heading,
-  Text,
-  Input,
-  Button,
-  Stack,
-  Flex,
-  Card,
-  CardHeader,
-  CardBody,
-  CardFooter,
-  Badge,
-  IconButton,
-  Select,
-  useToast,
-  Spinner,
-  Modal,
-  ModalOverlay,
-  ModalContent,
-  ModalHeader,
-  ModalBody,
-  ModalFooter,
-  ModalCloseButton,
-  useDisclosure,
-  Textarea
-} from '@chakra-ui/react';
-import { SearchIcon, DeleteIcon, EditIcon } from '@/components/icons/ChakraIcons';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { Select } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { Spinner } from '@/components/ui/spinner';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { useToast } from '@/components/ui/use-toast';
+import { SearchIcon, TrashIcon, PencilIcon } from 'lucide-react';
 
 interface Memory {
   id: string;
@@ -54,10 +36,10 @@ export default function MemoryBrowser() {
   const [selectedMemory, setSelectedMemory] = useState<Memory | null>(null);
   const [editedContent, setEditedContent] = useState('');
   const [editedTitle, setEditedTitle] = useState('');
+  const [dialogOpen, setDialogOpen] = useState(false);
   
-  const { isOpen, onOpen, onClose } = useDisclosure();
   const supabase = useSupabaseClient();
-  const toast = useToast();
+  const { toast } = useToast();
   
   // Fetch memories on component mount
   useEffect(() => {
@@ -82,12 +64,11 @@ export default function MemoryBrowser() {
       
       setMemories(data.memories || []);
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       toast({
         title: 'Error fetching memories',
-        description: error.message,
-        status: 'error',
-        duration: 5000,
-        isClosable: true,
+        description: errorMessage,
+        variant: 'destructive',
       });
     } finally {
       setLoading(false);
@@ -100,17 +81,17 @@ export default function MemoryBrowser() {
   };
   
   // Handle memory type filter change
-  const handleMemoryTypeChange = (e) => {
-    setMemoryTypeFilter(e.target.value);
+  const handleMemoryTypeChange = (value: string) => {
+    setMemoryTypeFilter(value);
     fetchMemories(searchQuery);
   };
   
-  // Open edit modal
+  // Open edit dialog
   const handleEditClick = (memory: Memory) => {
     setSelectedMemory(memory);
     setEditedContent(memory.content);
     setEditedTitle(memory.title);
-    onOpen();
+    setDialogOpen(true);
   };
   
   // Save edited memory
@@ -145,19 +126,17 @@ export default function MemoryBrowser() {
       
       toast({
         title: 'Memory updated',
-        status: 'success',
-        duration: 3000,
-        isClosable: true,
+        description: 'The memory was successfully updated',
+        variant: 'default',
       });
       
-      onClose();
+      setDialogOpen(false);
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       toast({
         title: 'Error updating memory',
-        description: error.message,
-        status: 'error',
-        duration: 5000,
-        isClosable: true,
+        description: errorMessage,
+        variant: 'destructive',
       });
     }
   };
@@ -184,17 +163,15 @@ export default function MemoryBrowser() {
       
       toast({
         title: 'Memory deleted',
-        status: 'success',
-        duration: 3000,
-        isClosable: true,
+        description: 'The memory was successfully removed',
+        variant: 'default',
       });
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       toast({
         title: 'Error deleting memory',
-        description: error.message,
-        status: 'error',
-        duration: 5000,
-        isClosable: true,
+        description: errorMessage,
+        variant: 'destructive',
       });
     }
   };
@@ -206,120 +183,120 @@ export default function MemoryBrowser() {
   };
   
   return (
-    <Box p={4}>
-      <Heading size="lg" mb={4}>Memory Browser</Heading>
+    <div className="p-4">
+      <h1 className="text-2xl font-bold mb-4">Memory Browser</h1>
       
       {/* Search and filter controls */}
-      <Flex mb={4} gap={2}>
+      <div className="flex mb-4 gap-2">
         <Input
           placeholder="Search memories..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          flex={1}
+          className="flex-1"
         />
-        <Select
-          placeholder="Filter by type"
+        <select
           value={memoryTypeFilter}
-          onChange={handleMemoryTypeChange}
-          w="200px"
+          onChange={(e) => handleMemoryTypeChange(e.target.value)}
+          className="w-[200px] rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
         >
           <option value="">All Types</option>
           <option value="conversation">Conversation</option>
           <option value="contact_info">Contact Info</option>
           <option value="sales_tactic">Sales Tactic</option>
           <option value="product_info">Product Info</option>
-        </Select>
+        </select>
         <Button
-          leftIcon={<SearchIcon />}
-          colorScheme="blue"
           onClick={handleSearch}
+          className="flex items-center gap-1"
         >
+          <SearchIcon className="h-4 w-4" />
           Search
         </Button>
-      </Flex>
+      </div>
       
       {/* Memory list */}
       {loading ? (
-        <Flex justify="center" align="center" h="200px">
-          <Spinner size="xl" />
-        </Flex>
+        <div className="flex justify-center p-8">
+          <Spinner className="h-8 w-8" />
+        </div>
       ) : memories.length === 0 ? (
-        <Box textAlign="center" py={10}>
-          <Text fontSize="lg">No memories found</Text>
-        </Box>
+        <div className="text-center py-10">
+          <p className="text-lg">No memories found</p>
+        </div>
       ) : (
-        <Stack spacing={4}>
+        <div className="flex flex-col space-y-4">
           {memories.map((memory) => (
-            <Card key={memory.id}>
-              <CardHeader pb={2}>
-                <Flex justify="space-between" align="center">
-                  <Heading size="md">{memory.title}</Heading>
-                  <Badge colorScheme="blue">{memory.memory_type}</Badge>
-                </Flex>
+            <Card key={memory.id} className="overflow-hidden">
+              <CardHeader className="pb-2">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-lg font-semibold">{memory.title}</h3>
+                  <Badge variant="outline" className="bg-blue-100">{memory.memory_type}</Badge>
+                </div>
               </CardHeader>
-              <CardBody py={2}>
-                <Text>{memory.content}</Text>
-              </CardBody>
-              <CardFooter pt={2} justify="space-between" align="center">
-                <Text fontSize="sm" color="gray.500">
+              <CardContent className="py-2">
+                <p>{memory.content}</p>
+              </CardContent>
+              <CardFooter className="pt-2 flex justify-between items-center">
+                <p className="text-sm text-gray-500">
                   Created: {formatDate(memory.created_at)}
-                </Text>
-                <Flex gap={2}>
-                  <IconButton
-                    aria-label="Edit memory"
-                    icon={<EditIcon />}
+                </p>
+                <div className="flex gap-2">
+                  <Button
                     size="sm"
+                    variant="ghost"
                     onClick={() => handleEditClick(memory)}
-                  />
-                  <IconButton
-                    aria-label="Delete memory"
-                    icon={<DeleteIcon />}
+                    className="h-8 w-8 p-0"
+                  >
+                    <PencilIcon className="h-4 w-4" />
+                  </Button>
+                  <Button
                     size="sm"
-                    colorScheme="red"
+                    variant="ghost"
                     onClick={() => handleDeleteMemory(memory.id)}
-                  />
-                </Flex>
+                    className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-100"
+                  >
+                    <TrashIcon className="h-4 w-4" />
+                  </Button>
+                </div>
               </CardFooter>
             </Card>
           ))}
-        </Stack>
+        </div>
       )}
       
-      {/* Edit Memory Modal */}
-      <Modal isOpen={isOpen} onClose={onClose}>
-        <ModalOverlay />
-        <ModalContent>
-          <ModalHeader>Edit Memory</ModalHeader>
-          <ModalCloseButton />
-          <ModalBody>
-            <Stack spacing={4}>
-              <Box>
-                <Text mb={1} fontWeight="bold">Title</Text>
-                <Input
-                  value={editedTitle}
-                  onChange={(e) => setEditedTitle(e.target.value)}
-                />
-              </Box>
-              <Box>
-                <Text mb={1} fontWeight="bold">Content</Text>
-                <Textarea
-                  value={editedContent}
-                  onChange={(e) => setEditedContent(e.target.value)}
-                  rows={8}
-                />
-              </Box>
-            </Stack>
-          </ModalBody>
-          <ModalFooter>
-            <Button variant="ghost" mr={3} onClick={onClose}>
+      {/* Edit Memory Dialog */}
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Memory</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <h4 className="font-medium">Title</h4>
+              <Input
+                value={editedTitle}
+                onChange={(e) => setEditedTitle(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <h4 className="font-medium">Content</h4>
+              <Textarea
+                value={editedContent}
+                onChange={(e) => setEditedContent(e.target.value)}
+                rows={8}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>
               Cancel
             </Button>
-            <Button colorScheme="blue" onClick={handleSaveEdit}>
+            <Button onClick={handleSaveEdit}>
               Save
             </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
-    </Box>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }

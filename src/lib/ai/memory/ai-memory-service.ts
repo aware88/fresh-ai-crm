@@ -7,7 +7,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 import { Database } from '@/types/supabase';
-import { Configuration, OpenAIApi } from 'openai';
+import OpenAI from 'openai';
 
 // Types for AI Memory System
 export type AIMemory = {
@@ -102,11 +102,10 @@ export class AIMemoryService {
     const { createClient } = require('../../supabaseClient');
     this.supabase = createClient();
     
-    // Initialize OpenAI client
-    const configuration = new Configuration({
+    // Initialize OpenAI client with new API
+    this.openai = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY,
     });
-    this.openai = new OpenAIApi(configuration);
   }
   
   /**
@@ -117,12 +116,12 @@ export class AIMemoryService {
    */
   async generateEmbedding(content: string): Promise<number[]> {
     try {
-      const response = await this.openai.createEmbedding({
+      const response = await this.openai.embeddings.create({
         model: "text-embedding-ada-002",
         input: content,
       });
       
-      return response.data.data[0].embedding;
+      return response.data[0].embedding;
     } catch (error) {
       console.error('Error generating embedding:', error);
       throw new Error('Failed to generate embedding');
