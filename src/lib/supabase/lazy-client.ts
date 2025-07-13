@@ -124,22 +124,26 @@ export const createLazyServerClient = async (): Promise<SupabaseClient> => {
     return createMockClient();
   }
 
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+  // Use private env vars first, fall back to public ones
+  const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey = process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !supabaseKey) {
     return createMockClient();
   }
 
   try {
     // Direct dynamic import to prevent build-time execution
     const { createClient } = await import('@supabase/supabase-js');
-    return createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-    );
+    return createClient(supabaseUrl, supabaseKey);
   } catch (error) {
     console.error('Failed to create server Supabase client:', error);
     return createMockClient();
   }
 };
+
+// Alias for createLazyServerClient for backward compatibility and semantic clarity
+export const getSupabaseServerClient = createLazyServerClient;
 
 // Client-side lazy client factory
 export const createLazyClientClient = async (): Promise<SupabaseClient> => {
@@ -181,15 +185,20 @@ export const createLazyServiceRoleClient = async (): Promise<SupabaseClient> => 
     return createMockClient();
   }
 
-  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  // Use private env vars first, fall back to public ones for URL
+  const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!supabaseUrl || !serviceRoleKey) {
+    console.warn('Missing Supabase service role environment variables. Using mock client.');
     return createMockClient();
   }
 
   try {
     const { createClient } = await import('@supabase/supabase-js');
     return createClient(
-      process.env.SUPABASE_URL,
-      process.env.SUPABASE_SERVICE_ROLE_KEY,
+      supabaseUrl,
+      serviceRoleKey,
       {
         auth: {
           autoRefreshToken: false,
@@ -202,3 +211,6 @@ export const createLazyServiceRoleClient = async (): Promise<SupabaseClient> => 
     return createMockClient();
   }
 };
+
+// Alias for createLazyServiceRoleClient for semantic clarity
+export const getSupabaseServiceRoleClient = createLazyServiceRoleClient;
