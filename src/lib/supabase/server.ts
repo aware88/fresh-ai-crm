@@ -7,46 +7,66 @@ import type { CookieOptions } from '@supabase/ssr';
  * This version works in both app/ directory and pages/ directory
  */
 export const createServerClient = () => {
-  // Check if Supabase environment variables are available
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-    // In development, provide mock client with empty implementation
-    if (process.env.NODE_ENV === 'development') {
-      console.warn('Missing Supabase environment variables in development mode. Using mock client.');
-      return {
-        auth: {
-          getUser: () => Promise.resolve({ data: { user: null }, error: null }),
-        },
-        from: () => ({
-          select: () => ({
-            eq: () => ({
-              single: () => Promise.resolve({ data: null, error: null }),
-            }),
+  // Create mock client for environments with missing variables
+  const createMockClient = () => {
+    console.warn('Using Supabase mock client due to missing environment variables.');
+    return {
+      auth: {
+        getUser: () => Promise.resolve({ data: { user: null }, error: null }),
+        getSession: () => Promise.resolve({ data: { session: null }, error: null }),
+      },
+      from: (table: string) => ({
+        select: (columns: string = '*') => ({
+          eq: (column: string, value: any) => ({
+            single: () => Promise.resolve({ data: null, error: null }),
+            maybeSingle: () => Promise.resolve({ data: null, error: null }),
           }),
-          insert: () => ({
+          order: () => ({
+            limit: () => Promise.resolve({ data: [], error: null }),
+          }),
+          limit: () => Promise.resolve({ data: [], error: null }),
+        }),
+        insert: (data: any) => ({
+          select: () => ({
+            single: () => Promise.resolve({ data: null, error: null }),
+          }),
+        }),
+        update: (data: any) => ({
+          eq: (column: string, value: any) => ({
             select: () => ({
               single: () => Promise.resolve({ data: null, error: null }),
             }),
           }),
-          update: () => ({
-            eq: () => ({
-              select: () => ({
-                single: () => Promise.resolve({ data: null, error: null }),
-              }),
-            }),
-          }),
         }),
-      } as any;
-    }
-    
-    // In production, throw an error
-    throw new Error('Missing Supabase environment variables');
+        delete: () => ({
+          eq: () => Promise.resolve({ data: null, error: null }),
+        }),
+      }),
+      storage: {
+        from: (bucket: string) => ({
+          upload: () => Promise.resolve({ data: null, error: null }),
+          getPublicUrl: () => ({ data: { publicUrl: '' } }),
+        }),
+      },
+      rpc: () => Promise.resolve({ data: null, error: null }),
+    } as any;
+  };
+
+  // Check if Supabase environment variables are available
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+    return createMockClient();
   }
   
   // Create real client when environment variables are available
-  return supabaseCreateClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  );
+  try {
+    return supabaseCreateClient<Database>(
+      process.env.NEXT_PUBLIC_SUPABASE_URL,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    );
+  } catch (error) {
+    console.error('Error creating Supabase client:', error);
+    return createMockClient();
+  }
 };
 
 /**
