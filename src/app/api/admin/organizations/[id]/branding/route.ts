@@ -3,17 +3,25 @@ import { createServerClient } from '@/lib/supabase/server';
 import { OrganizationBranding, BrandingFormData } from '@/types/branding';
 import { logActivityServer } from '@/utils/activity-logger';
 
-// Check if Supabase is configured
+// Check if we're in build mode or if Supabase is configured
+const isBuildTime = () => {
+  return process.env.NODE_ENV === 'production' && !process.env.VERCEL && !process.env.RAILWAY_ENVIRONMENT && !process.env.RENDER;
+};
+
 const isSupabaseConfigured = () => {
   return !!(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+};
+
+const shouldSkipSupabaseOperations = () => {
+  return isBuildTime() || !isSupabaseConfigured();
 };
 
 // Temporarily define isAdmin function here until we can properly import it
 async function isAdmin(): Promise<boolean> {
   try {
-    // If Supabase is not configured, return false (no admin access)
-    if (!isSupabaseConfigured()) {
-      console.warn('Supabase not configured, denying admin access');
+    // If we should skip Supabase operations, return false (no admin access)
+    if (shouldSkipSupabaseOperations()) {
+      console.warn('Skipping Supabase operations (build time or not configured), denying admin access');
       return false;
     }
 
@@ -49,9 +57,9 @@ async function isAdmin(): Promise<boolean> {
 // GET /api/admin/organizations/[id]/branding - Get organization branding
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    // If Supabase is not configured, return empty branding data
-    if (!isSupabaseConfigured()) {
-      console.warn('Supabase not configured, returning empty branding data');
+    // If we should skip Supabase operations, return empty branding data
+    if (shouldSkipSupabaseOperations()) {
+      console.warn('Skipping Supabase operations (build time or not configured), returning empty branding data');
       return NextResponse.json({ branding: {} });
     }
 
@@ -102,9 +110,9 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 // PUT /api/admin/organizations/[id]/branding - Update organization branding
 export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    // If Supabase is not configured, return mock success response
-    if (!isSupabaseConfigured()) {
-      console.warn('Supabase not configured, returning mock branding update response');
+    // If we should skip Supabase operations, return mock success response
+    if (shouldSkipSupabaseOperations()) {
+      console.warn('Skipping Supabase operations (build time or not configured), returning mock branding update response');
       const body = await request.json();
       return NextResponse.json({ branding: body });
     }
