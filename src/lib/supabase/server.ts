@@ -16,10 +16,11 @@ export const createServerClient = () => {
 };
 
 /**
- * Export createClient as an alias to createServerClient for backward compatibility
- * This ensures existing imports of createClient continue to work
+ * Export aliases to createServerClient for backward compatibility
+ * This ensures existing imports continue to work
  */
 export const createClient = createServerClient;
+export const createServerSupabaseClient = createServerClient;
 
 /**
  * Helper to extract cookies from various contexts

@@ -6,7 +6,7 @@ interface AdminLayoutProps {
   children: React.ReactNode;
 }
 
-export default function AdminLayout({ children }: AdminLayoutProps) {
+function AdminLayout({ children }: AdminLayoutProps) {
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
@@ -21,3 +21,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     </div>
   );
 }
+
+// Export both as named and default export
+export { AdminLayout };
+export default AdminLayout;
