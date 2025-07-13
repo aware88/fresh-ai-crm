@@ -8,60 +8,62 @@ import { AIMemoryService, AIMemoryType, AIMemoryAccessType, AIMemoryRelationship
 import { MemoryEnabledSalesTacticsService } from '../../sales-tactics-with-memory';
 
 // Mock Supabase client
-jest.mock('../../../supabaseClient', () => ({
-  createClient: jest.fn(() => ({
-    from: jest.fn(() => ({
-      insert: jest.fn(() => ({
-        select: jest.fn(() => ({
-          single: jest.fn(() => ({
-            data: { id: 'mock-memory-id' },
-            error: null
-          }))
-        }))
-      })),
-      select: jest.fn(() => ({
-        eq: jest.fn(() => ({
-          order: jest.fn(() => ({
-            limit: jest.fn(() => ({
-              data: [{ id: 'mock-access-id', memory_id: 'mock-memory-id' }],
+jest.mock('../../../supabaseClient', () => {
+  return {
+    createClient: jest.fn().mockReturnValue({
+      from: jest.fn().mockReturnValue({
+        insert: jest.fn().mockReturnValue({
+          select: jest.fn().mockReturnValue({
+            single: jest.fn().mockReturnValue({
+              data: { id: 'mock-memory-id' },
               error: null
-            }))
-          }))
-        })),
-        in: jest.fn(() => ({
-          eq: jest.fn(() => ({
-            order: jest.fn(() => ({
+            })
+          })
+        }),
+        select: jest.fn().mockReturnValue({
+          eq: jest.fn().mockReturnValue({
+            order: jest.fn().mockReturnValue({
+              limit: jest.fn().mockReturnValue({
+                data: [{ id: 'mock-access-id', memory_id: 'mock-memory-id' }],
+                error: null
+              })
+            })
+          }),
+          in: jest.fn().mockReturnValue({
+            eq: jest.fn().mockReturnValue({
+              order: jest.fn().mockReturnValue({
+                data: [{ id: 'mock-memory-id', content: 'Test memory' }],
+                error: null
+              })
+            })
+          }),
+          overlaps: jest.fn().mockReturnValue({
+            eq: jest.fn().mockReturnValue({
+              data: [{ id: 'mock-tactic-id', category: 'Test Tactic' }],
+              error: null
+            })
+          }),
+          gte: jest.fn().mockReturnValue({
+            lte: jest.fn().mockReturnValue({
               data: [{ id: 'mock-memory-id', content: 'Test memory' }],
               error: null
-            }))
-          }))
-        })),
-        overlaps: jest.fn(() => ({
-          eq: jest.fn(() => ({
-            data: [{ id: 'mock-tactic-id', category: 'Test Tactic' }],
-            error: null
-          }))
-        })),
-        gte: jest.fn(() => ({
-          lte: jest.fn(() => ({
-            data: [{ id: 'mock-memory-id', content: 'Test memory' }],
-            error: null
-          }))
-        }))
-      })),
-      update: jest.fn(() => ({
-        eq: jest.fn(() => ({
-          select: jest.fn(() => ({
-            single: jest.fn(() => ({
-              data: { id: 'mock-memory-id', importance_score: 0.7 },
-              error: null
-            }))
-          }))
-        }))
-      }))
+            })
+          })
+        }),
+        update: jest.fn().mockReturnValue({
+          eq: jest.fn().mockReturnValue({
+            select: jest.fn().mockReturnValue({
+              single: jest.fn().mockReturnValue({
+                data: { id: 'mock-memory-id', importance_score: 0.7 },
+                error: null
+              })
+            })
+          })
+        })
+      })
     })
-  }))
-}));
+  };
+});
 
 // Mock OpenAI API
 jest.mock('openai', () => {

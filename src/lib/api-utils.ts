@@ -3,6 +3,42 @@
  */
 
 /**
+ * Custom API Error class
+ */
+export class ApiError extends Error {
+  statusCode: number;
+
+  constructor(statusCode: number, message: string) {
+    super(message);
+    this.statusCode = statusCode;
+    this.name = 'ApiError';
+  }
+}
+
+/**
+ * Handle API errors consistently
+ * @param error Error to handle
+ * @returns NextResponse with appropriate error status and message
+ */
+export function handleApiError(error: unknown) {
+  console.error('API Error:', error);
+  
+  if (error instanceof ApiError) {
+    return new Response(
+      JSON.stringify({ error: error.message }),
+      { status: error.statusCode, headers: { 'Content-Type': 'application/json' } }
+    );
+  }
+  
+  // Handle other types of errors
+  const message = error instanceof Error ? error.message : 'An unexpected error occurred';
+  return new Response(
+    JSON.stringify({ error: message }),
+    { status: 500, headers: { 'Content-Type': 'application/json' } }
+  );
+}
+
+/**
  * Fetch with error handling
  * @param url URL to fetch
  * @param options Fetch options
