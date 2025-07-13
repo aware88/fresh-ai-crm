@@ -124,13 +124,17 @@ export const createLazyServerClient = async (): Promise<SupabaseClient> => {
     return createMockClient();
   }
 
-  if (!isSupabaseConfigured()) {
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
     return createMockClient();
   }
 
   try {
-    const { createClient } = await import('@/lib/supabase/server');
-    return createClient();
+    // Direct dynamic import to prevent build-time execution
+    const { createClient } = await import('@supabase/supabase-js');
+    return createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    );
   } catch (error) {
     console.error('Failed to create server Supabase client:', error);
     return createMockClient();
@@ -143,13 +147,17 @@ export const createLazyClientClient = async (): Promise<SupabaseClient> => {
     return createMockClient();
   }
 
-  if (!isSupabaseConfigured()) {
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
     return createMockClient();
   }
 
   try {
-    const { createClient } = await import('@/lib/supabase/client');
-    return createClient();
+    // Direct dynamic import to prevent build-time execution
+    const { createClient } = await import('@supabase/supabase-js');
+    return createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    );
   } catch (error) {
     console.error('Failed to create client Supabase client:', error);
     return createMockClient();

@@ -1,19 +1,32 @@
-import { createClient as supabaseCreateClient } from '@supabase/supabase-js';
+// DO NOT import @supabase/supabase-js at module level to prevent build-time execution
 import { Database } from '../../types/supabase';
 import type { CookieOptions } from '@supabase/ssr';
 
 /**
  * Create a Supabase client for use in server-side code
  * This version works in both app/ directory and pages/ directory
+ * CRITICAL: Uses dynamic imports to prevent build-time execution
  */
-export const createServerClient = () => {
-  // Check for build environment
-  const isBuildEnv = process.env.NODE_ENV === 'production' && typeof window === 'undefined' && process.env.NEXT_PHASE === 'phase-production-build';
+export const createServerClient = async () => {
+  // Check for build environment - more comprehensive detection
+  const isBuildEnv = () => {
+    return (
+      process.env.NODE_ENV === 'production' && 
+      typeof window === 'undefined' && 
+      (
+        process.env.NEXT_PHASE === 'phase-production-build' ||
+        process.env.NEXT_PHASE === 'phase-production-server' ||
+        process.env.VERCEL_ENV === 'production' ||
+        process.env.NETLIFY === 'true' ||
+        process.env.CI === 'true'
+      )
+    );
+  };
   
   // Create mock client for environments with missing variables
   const createMockClient = () => {
     // During build, we want to avoid warning logs that might cause confusion
-    if (!isBuildEnv) {
+    if (!isBuildEnv()) {
       console.warn('Using Supabase mock client due to missing environment variables.');
     }
     
@@ -76,7 +89,7 @@ export const createServerClient = () => {
   };
 
   // Always use mock client during build phase to prevent build errors
-  if (isBuildEnv) {
+  if (isBuildEnv()) {
     return createMockClient();
   }
 
@@ -85,8 +98,9 @@ export const createServerClient = () => {
     return createMockClient();
   }
   
-  // Create real client when environment variables are available and not in build phase
+  // CRITICAL: Dynamic import to prevent build-time execution
   try {
+    const { createClient: supabaseCreateClient } = await import('@supabase/supabase-js');
     return supabaseCreateClient<Database>(
       process.env.NEXT_PUBLIC_SUPABASE_URL,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -98,11 +112,24 @@ export const createServerClient = () => {
 };
 
 /**
- * Export aliases to createServerClient for backward compatibility
+ * Synchronous version that returns a promise-wrapped client for immediate use
+ * This maintains backward compatibility for existing code
+ */
+export const createClient = () => {
+  // Return a promise that resolves to the client
+  return createServerClient();
+};
+
+/**
+ * Export aliases for backward compatibility
  * This ensures existing imports continue to work
  */
-export const createClient = createServerClient;
-export const createServerSupabaseClient = createServerClient;
+export const createServerSupabaseClient = createClient;
+
+/**
+ * Async version - preferred for new code
+ */
+export const createAsyncClient = createServerClient;
 
 /**
  * Helper to extract cookies from various contexts
