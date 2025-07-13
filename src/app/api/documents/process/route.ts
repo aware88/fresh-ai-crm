@@ -3,11 +3,53 @@ import { createServerClient } from '../../../../lib/supabase/server';
 import { getUID } from '../../../../lib/auth/utils';
 import OpenAI from 'openai';
 
+// Function to create OpenAI client with fallback for missing API key
+const createOpenAIClient = () => {
+  if (!process.env.OPENAI_API_KEY) {
+    console.warn('OPENAI_API_KEY environment variable is missing in document processor. Using mock client.');
+    // Use unknown as intermediate type before asserting as OpenAI
+    const mockClient: unknown = {
+      chat: {
+        completions: {
+          create: async () => ({
+            choices: [{ message: { content: JSON.stringify({
+              products: [{
+                name: "Mock Product",
+                sku: "MOCK-001",
+                description: "Mock product created due to missing OpenAI API key",
+                category: "Mocks"
+              }],
+              pricing: [{
+                product_name: "Mock Product",
+                price: 99.99,
+                currency: "USD",
+                unit_price: true,
+                quantity: 1,
+                unit: "each",
+                valid_from: null,
+                valid_to: null,
+                notes: "This is mock data as OpenAI API key is not configured"
+              }],
+              metadata: {
+                document_date: new Date().toISOString().split('T')[0],
+                reference_number: "MOCK-REF",
+                additional_notes: "Mock data - OpenAI API key not configured"
+              }
+            })} }],
+            usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 }
+          })
+        }
+      }
+    };
+    return mockClient as OpenAI;
+  }
+  return new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY,
+  });
+};
+
 // Initialize OpenAI client
-// Note: In production, use environment variables for the API key
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+const openai = createOpenAIClient();
 
 // POST /api/documents/process - Process a document with AI
 export async function POST(request: NextRequest) {
