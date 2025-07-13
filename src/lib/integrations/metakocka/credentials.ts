@@ -4,8 +4,8 @@
  * This module handles retrieval and management of Metakocka API credentials
  */
 
-// Import getSupabaseServerClient function for lazy initialization
-import { getSupabaseServerClient } from '@/lib/supabase/lazy-client';
+// Import lazy server client function for initialization
+import { createLazyServerClient } from '@/lib/supabase/lazy-client';
 
 export interface MetakockaCredentials {
   secret_key: string;
@@ -28,7 +28,7 @@ export async function getMetakockaCredentials(
 ): Promise<CredentialsStoreResult> {
   try {
     // Get initialized Supabase client
-    const supabase = await getSupabaseServerClient();
+    const supabase = await createLazyServerClient();
     
     const { data, error } = await supabase
       .from('integration_credentials')
@@ -75,7 +75,7 @@ export async function storeMetakockaCredentials(
 ): Promise<CredentialsStoreResult> {
   try {
     // Get initialized Supabase client
-    const supabase = await getSupabaseServerClient();
+    const supabase = await createLazyServerClient();
     
     // Check if credentials already exist
     const { data: existing } = await supabase
@@ -140,7 +140,7 @@ export async function deleteMetakockaCredentials(
 ): Promise<{ success: boolean; error?: string }> {
   try {
     // Get initialized Supabase client
-    const supabase = await getSupabaseServerClient();
+    const supabase = await createLazyServerClient();
     
     const { error } = await supabase
       .from('integration_credentials')
