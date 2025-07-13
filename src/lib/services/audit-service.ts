@@ -3,38 +3,44 @@ let createClient: any = null;
 
 // Check if we're in a build environment or if Supabase env vars are missing
 const isBuildEnv = () => {
-  return process.env.NODE_ENV === 'production' && 
+  // Enhanced detection for Northflank, Vercel, Netlify and other cloud build environments
+  return (process.env.NODE_ENV === 'production' && 
          typeof window === 'undefined' && 
          (process.env.NEXT_PHASE === 'phase-production-build' || 
-          process.env.NEXT_PHASE === 'phase-production-server');
+          process.env.NEXT_PHASE === 'phase-production-server' ||
+          process.env.VERCEL_ENV === 'production' ||
+          process.env.NETLIFY === 'true' ||
+          process.env.CI === 'true' ||
+          process.env.BUILD_ENV === 'true' ||
+          // Northflank specific environment detection
+          process.env.NORTHFLANK === 'true' ||
+          process.env.KUBERNETES_SERVICE_HOST !== undefined));
 };
-const isSupabaseConfigured = () => !!process.env.NEXT_PUBLIC_SUPABASE_URL && !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+// No longer needed as we check env vars directly in getSupabaseClient
+// const isSupabaseConfigured = () => !!process.env.NEXT_PUBLIC_SUPABASE_URL && !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
 // Lazy-load the Supabase client to avoid build-time issues
 const getSupabaseClient = async () => {
   // Always return mock during build
   if (isBuildEnv()) {
+    console.log('Using mock client in build environment');
     return createMockClient();
   }
 
   // Return mock if not configured
-  if (!isSupabaseConfigured()) {
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+    console.log('Using mock client due to missing environment variables');
     return createMockClient();
   }
 
-  // Lazy load the createClient function
-  if (!createClient) {
-    try {
-      const { createClient: importedCreateClient } = await import('@/lib/supabase/server');
-      createClient = importedCreateClient;
-    } catch (error) {
-      console.error('Error importing Supabase client:', error);
-      return createMockClient();
-    }
-  }
-
+  // Direct dynamic import to prevent build-time execution
   try {
-    return createClient();
+    const { createClient: supabaseCreateClient } = await import('@supabase/supabase-js');
+    return supabaseCreateClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    );
   } catch (error) {
     console.error('Error creating Supabase client:', error);
     return createMockClient();
@@ -142,7 +148,7 @@ export class AuditService {
    */
   static async createAuditLog(params: CreateAuditLogParams): Promise<AuditLog> {
     // Return mock data during build or if Supabase is not configured
-    if (isBuildEnv() || !isSupabaseConfigured()) {
+    if (isBuildEnv() || !process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
       return {
         id: 'mock-audit-log-id',
         user_id: params.user_id || null,
@@ -228,7 +234,7 @@ export class AuditService {
     count: number;
   }> {
     // Return mock data during build or if Supabase is not configured
-    if (isBuildEnv() || !isSupabaseConfigured()) {
+    if (isBuildEnv() || !process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
       return {
         logs: [
           {
@@ -343,7 +349,7 @@ export class AuditService {
    */
   static async getAuditLogById(id: string): Promise<AuditLog | null> {
     // Return mock data during build or if Supabase is not configured
-    if (isBuildEnv() || !isSupabaseConfigured()) {
+    if (isBuildEnv() || !process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
       return {
         id: id,
         user_id: 'mock-user-id',

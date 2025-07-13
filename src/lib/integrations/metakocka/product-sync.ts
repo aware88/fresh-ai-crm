@@ -3,7 +3,7 @@
  * 
  * Handles synchronization of products between the CRM and Metakocka
  */
-import { createClient } from '@supabase/supabase-js';
+// Import services using proper paths to avoid circular dependencies
 // Remove cookies import as it causes issues in service contexts
 // import { cookies } from 'next/headers';
 import { MetakockaClient, MetakockaService, MetakockaProduct, MetakockaError, MetakockaErrorType } from './index';
@@ -11,6 +11,7 @@ import { MetakockaRetryHandler } from './metakocka-retry-handler';
 import { MetakockaErrorLogger, LogCategory } from './error-logger';
 import { Database } from '@/types/supabase';
 import { SupabaseClient } from '@supabase/supabase-js';
+import { createServiceRoleClient } from '@/lib/supabase/service-role';
 
 // Type for CRM product
 type Product = Database['public']['Tables']['products']['Row'];
@@ -42,18 +43,17 @@ interface ProductMapping {
  * Product Synchronization Service
  */
 /**
- * Create a Supabase service client that bypasses RLS policies
- * @returns Supabase client with service role permissions
+ * Get a Supabase service client using the service role client
+ * This ensures build-time safety by avoiding direct imports and using lazy loading
+ * @returns Promise resolving to a Supabase client with service role permissions
  */
-function createServiceClient(): SupabaseClient<Database> {
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    throw new Error('Missing required environment variables for Supabase service client');
+async function getServiceClient(): Promise<SupabaseClient<Database>> {
+  try {
+    return await createServiceRoleClient();
+  } catch (error) {
+    console.error('[PRODUCT SYNC] Error creating service client:', error);
+    throw error;
   }
-  
-  return createClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY
-  );
 }
 
 export class ProductSyncService {
@@ -87,6 +87,7 @@ export class ProductSyncService {
       async () => {
         // Get Metakocka client for user
         const client = await MetakockaService.getClientForUser(userId);
+        const supabase = await getServiceClient();
         
         // Check if product already exists in Metakocka
         const mapping = await this.getProductMapping(product.id, userId, supabaseClient);
@@ -227,7 +228,7 @@ export class ProductSyncService {
     
     try {
       // Get products to sync, using the provided client or creating a new one
-      const supabase = supabaseClient || createServiceClient();
+      const supabase = supabaseClient || await getServiceClient();
       
       // Verify we have a working Supabase client with proper methods
       if (!supabase || typeof supabase.from !== 'function') {
@@ -437,7 +438,7 @@ export class ProductSyncService {
   ): Promise<SyncResult> {
     // Initialize result object
     const result: SyncResult = {
-      success: true,
+      success: false,
       created: 0,
       updated: 0,
       failed: 0,
@@ -460,6 +461,22 @@ export class ProductSyncService {
     try {
       // Get Metakocka client for user
       const client = await MetakockaService.getClientForUser(userId);
+      const supabase = await getServiceClient();
+      
+      // Get organization ID
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('organization_id')
+        .eq('id', userId)
+        .single();
+      
+      if (userError) {
+        throw new Error(`Failed to fetch user's organization: ${userError.message}`);
+      }
+      
+      if (!userData) {
+        throw new Error('User not found');
+      }
       
       // Get products from Metakocka with retry logic
       const response = await MetakockaRetryHandler.executeWithRetry(
@@ -521,7 +538,7 @@ export class ProductSyncService {
       for (const metakockaProduct of products) {
         try {
           // Check if product already exists in CRM
-          const supabase = createServiceClient();
+          const supabase = await getServiceClient();
           
           // Look up by Metakocka ID in mappings
           const { data: mappingData } = await supabase
@@ -715,10 +732,10 @@ export class ProductSyncService {
     userId: string,
     supabaseClient?: SupabaseClient
   ): Promise<ProductMapping | null> {
-    // Use provided client or create service client
-    const supabase = supabaseClient || createServiceClient();
+    // Use provided client or get a service client dynamically
+    const supabase = supabaseClient || await getServiceClient();
     
-    // Get mapping from the dedicated mapping table
+    // Check for mapping in the dedicated mappings table
     const { data, error } = await supabase
       .from('metakocka_product_mappings')
       .select('*')
@@ -726,54 +743,53 @@ export class ProductSyncService {
       .eq('user_id', userId)
       .single();
     
-    if (error || !data) {
-      // Check if there's a legacy mapping in the metadata field
-      const { data: legacyData, error: legacyError } = await supabase
-        .from('products')
-        .select('id, metadata')
-        .eq('id', productId)
-        .eq('user_id', userId)
-        .single();
-      
-      if (legacyError || !legacyData || !legacyData.metadata) {
-        return null;
-      }
-      
-      const metadata = legacyData.metadata as any;
-      
-      if (!metadata.metakockaId || !metadata.countCode) {
-        return null;
-      }
-      
-      // Migrate the legacy mapping to the new table
-      const mapping = {
-        productId: legacyData.id,
-        metakockaId: metadata.metakockaId,
-        metakockaCode: metadata.countCode,
+    if (!error && data) {
+      return {
+        id: data.id,
+        productId: data.product_id,
+        metakockaId: data.metakocka_id,
+        metakockaCode: data.metakocka_code || '',
+        lastSyncedAt: data.last_synced_at,
+        syncStatus: data.sync_status,
+        syncError: data.sync_error,
       };
-      
-      // Save to the new table
-      await this.saveProductMapping(
-        mapping.productId,
-        mapping.metakockaId,
-        mapping.metakockaCode,
-        userId
-      );
-      
-      return mapping;
     }
     
-    return {
-      id: data.id,
-      productId: data.product_id,
-      metakockaId: data.metakocka_id,
-      metakockaCode: data.metakocka_code || '',
-      lastSyncedAt: data.last_synced_at,
-      syncStatus: data.sync_status,
-      syncError: data.sync_error,
-    };
+    // If no mapping in the dedicated table, check for legacy mapping in product metadata
+    const { data: productData, error: productError } = await supabase
+      .from('products')
+      .select('id, metadata')
+      .eq('id', productId)
+      .eq('user_id', userId)
+      .single();
+    
+    if (!productError && productData && productData.metadata) {
+      const metadata = productData.metadata as any;
+      
+      // Check if product has Metakocka mapping in metadata
+      if (metadata.metakockaId) {
+        // Create proper mapping record for future use
+        const mapping = {
+          productId,
+          metakockaId: metadata.metakockaId,
+          metakockaCode: metadata.countCode || `PROD-${productId.substring(0, 8)}`,
+        };
+        
+        // Save the mapping in the dedicated table for future use
+        await this.saveProductMapping(
+          mapping.productId,
+          mapping.metakockaId,
+          mapping.metakockaCode,
+          userId
+        );
+        
+        return mapping;
+      }
+    }
+    
+    return null;
   }
-  
+
   /**
    * Get product mappings for multiple products
    * @param productIds Array of CRM product IDs
@@ -781,10 +797,10 @@ export class ProductSyncService {
    * @returns Array of product mappings
    */
   static async getProductMappings(productIds: string[], userId: string): Promise<ProductMapping[]> {
-    // No need to use cookies for service client
-    const supabase = createServiceClient();
+    // Use dynamic/lazy service client
+    const supabase = await getServiceClient();
     
-    // Get mappings from the dedicated mapping table
+    // Fetch mappings for all productIds
     const { data, error } = await supabase
       .from('metakocka_product_mappings')
       .select('*')
@@ -870,8 +886,8 @@ export class ProductSyncService {
     syncStatus: string = 'synced',
     syncError: string | null = null
   ): Promise<void> {
-    // No need to use cookies for service client
-    const supabase = createServiceClient();
+    // Use dynamic/lazy service client
+    const supabase = await getServiceClient();
     
     // Check if mapping already exists
     const { data, error } = await supabase

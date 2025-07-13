@@ -24,7 +24,7 @@ import {
   TableRow 
 } from '@/components/ui/table';
 import { ArrowLeft, Plus, Trash2 } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
+import { createSafeClient } from '@/lib/supabase/safe-client';
 import { useToast } from '@/components/ui/use-toast';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -55,7 +55,7 @@ export default function NewSalesDocumentPage() {
   const [items, setItems] = useState<DocumentItem[]>([]);
   const router = useRouter();
   const { toast } = useToast();
-  const supabase = createClient();
+  const supabase = createSafeClient();
 
   // Fetch clients for dropdown
   useEffect(() => {

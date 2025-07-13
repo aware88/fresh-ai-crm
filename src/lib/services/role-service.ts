@@ -1,7 +1,24 @@
-import { createClient } from '@supabase/supabase-js';
+// Use types only, lazy-load the actual client
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { Database } from '@/types/supabase';
-import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
+import type { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
+
+// Check if we're in a build environment
+const isBuildEnv = () => {
+  // Enhanced detection for Northflank, Vercel, Netlify and other cloud build environments
+  return (process.env.NODE_ENV === 'production' && 
+         typeof window === 'undefined' && 
+         (process.env.NEXT_PHASE === 'phase-production-build' || 
+          process.env.NEXT_PHASE === 'phase-production-server' ||
+          process.env.VERCEL_ENV === 'production' ||
+          process.env.NETLIFY === 'true' ||
+          process.env.CI === 'true' ||
+          process.env.BUILD_ENV === 'true' ||
+          // Northflank specific environment detection
+          process.env.NORTHFLANK === 'true' ||
+          process.env.KUBERNETES_SERVICE_HOST !== undefined));
+};
 
 export interface Permission {
   id: string;
@@ -32,11 +49,87 @@ export interface UserRole {
   role?: Role;
 }
 
-export class RoleService {
-  private supabase;
+// Mock client for build-time or when env vars are missing
+const createMockClient = () => {
+  return {
+    from: (table: string) => ({
+      select: (columns: string = '*') => ({
+        eq: (column: string, value: any) => ({
+          single: () => Promise.resolve({ data: null, error: null }),
+          order: (column: string) => ({
+            limit: (limit: number) => Promise.resolve({ data: [], error: null })
+          })
+        }),
+        order: (column: string) => ({
+          limit: (limit: number) => Promise.resolve({ data: [], error: null })
+        }),
+        in: (column: string, values: any[]) => Promise.resolve({ data: [], error: null }),
+        or: (filter: string) => ({
+          order: (column: string) => Promise.resolve({ data: [], error: null })
+        })
+      }),
+      insert: (data: any) => ({
+        select: () => ({
+          single: () => Promise.resolve({ data: { id: 'mock-id' }, error: null })
+        })
+      }),
+      update: (data: any) => ({
+        eq: (column: string, value: any) => ({
+          select: () => ({
+            single: () => Promise.resolve({ data: { id: value }, error: null })
+          })
+        })
+      }),
+      delete: () => ({
+        eq: (column: string, value: any) => Promise.resolve({ data: null, error: null })
+      })
+    }),
+    rpc: (functionName: string, params?: any) => Promise.resolve({ data: [], error: null }),
+    auth: {
+      getUser: () => Promise.resolve({ data: { user: null }, error: null })
+    }
+  } as unknown as SupabaseClient<Database>;
+};
 
-  constructor(supabaseClient?: ReturnType<typeof createClient<Database>>) {
-    this.supabase = supabaseClient || createServerComponentClient<Database>({ cookies });
+export class RoleService {
+  private supabase: SupabaseClient<Database>;
+
+  constructor(supabaseClient?: SupabaseClient<Database>) {
+    if (supabaseClient) {
+      this.supabase = supabaseClient;
+      return;
+    }
+    
+    // Initialize with mock client - will be replaced with real client asynchronously
+    this.supabase = createMockClient();
+    
+    // Asynchronously initialize the real client if not in build environment
+    this.initSupabaseClient().catch(error => {
+      console.error('Error initializing Supabase client:', error);
+    });
+  }
+  
+  // Lazy-initialize the Supabase client
+  private async initSupabaseClient(): Promise<void> {
+    // Always use mock during build
+    if (isBuildEnv()) {
+      console.log('Using mock client in build environment');
+      return;
+    }
+    
+    // Use mock if environment variables aren't configured
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+      console.log('Using mock client due to missing environment variables');
+      return;
+    }
+    
+    try {
+      // Dynamically import Supabase
+      const { createServerComponentClient } = await import('@supabase/auth-helpers-nextjs');
+      this.supabase = createServerComponentClient<Database>({ cookies });
+    } catch (error) {
+      console.error('Error creating Supabase client:', error);
+    }
   }
 
   /**

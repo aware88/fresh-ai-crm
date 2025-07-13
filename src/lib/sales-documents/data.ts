@@ -1,7 +1,7 @@
 /**
  * Sales Documents Database Functions
  */
-import { createClient } from '@/lib/supabase/client';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { SalesDocument, SalesDocumentItem, SalesDocumentMapping } from '@/types/sales-document';
 
 /**
@@ -9,8 +9,22 @@ import { SalesDocument, SalesDocumentItem, SalesDocumentMapping } from '@/types/
  * @param document Sales document data
  * @returns Created sales document
  */
+/**
+ * Get Supabase client with build-time safety
+ * Uses dynamic import to prevent build-time execution
+ */
+async function getSupabaseClient(): Promise<SupabaseClient> {
+  try {
+    const { createLazyClient } = await import('@/lib/supabase/lazy-client');
+    return await createLazyClient();
+  } catch (error) {
+    console.error('Error initializing Supabase client in sales-documents/data:', error);
+    throw new Error('Failed to initialize Supabase client');
+  }
+}
+
 export async function createSalesDocument(document: SalesDocument): Promise<SalesDocument> {
-  const supabase = createClient();
+  const supabase = await getSupabaseClient();
   
   // Create the document without items first
   const { data, error } = await supabase
@@ -71,7 +85,7 @@ export async function createSalesDocument(document: SalesDocument): Promise<Sale
  * @returns Updated sales document
  */
 export async function updateSalesDocument(id: string, document: Partial<SalesDocument>): Promise<SalesDocument> {
-  const supabase = createClient();
+  const supabase = await getSupabaseClient();
   
   // Update the document
   const { data, error } = await supabase
@@ -141,7 +155,7 @@ export async function updateSalesDocument(id: string, document: Partial<SalesDoc
  * @returns Sales document
  */
 export async function getSalesDocumentById(id: string): Promise<SalesDocument | null> {
-  const supabase = createClient();
+  const supabase = await getSupabaseClient();
   
   // Get the document
   const { data, error } = await supabase
@@ -186,7 +200,7 @@ export async function getSalesDocuments(filters?: {
   startDate?: string;
   endDate?: string;
 }): Promise<SalesDocument[]> {
-  const supabase = createClient();
+  const supabase = await getSupabaseClient();
   
   // Build the query
   let query = supabase
@@ -230,7 +244,7 @@ export async function getSalesDocuments(filters?: {
  * @returns Success status
  */
 export async function deleteSalesDocument(id: string): Promise<boolean> {
-  const supabase = createClient();
+  const supabase = await getSupabaseClient();
   
   // Delete the document (items will be deleted via cascade)
   const { error } = await supabase
@@ -251,7 +265,7 @@ export async function deleteSalesDocument(id: string): Promise<boolean> {
  * @returns Created mapping
  */
 export async function createSalesDocumentMapping(mapping: SalesDocumentMapping): Promise<SalesDocumentMapping> {
-  const supabase = createClient();
+  const supabase = await getSupabaseClient();
   
   const { data, error } = await supabase
     .from('metakocka_sales_document_mappings')
@@ -284,7 +298,7 @@ export async function createSalesDocumentMapping(mapping: SalesDocumentMapping):
  * @returns Updated mapping
  */
 export async function updateSalesDocumentMapping(id: string, mapping: Partial<SalesDocumentMapping>): Promise<SalesDocumentMapping> {
-  const supabase = createClient();
+  const supabase = await getSupabaseClient();
   
   const { data, error } = await supabase
     .from('metakocka_sales_document_mappings')
@@ -315,7 +329,7 @@ export async function updateSalesDocumentMapping(id: string, mapping: Partial<Sa
  * @returns Sales document mapping
  */
 export async function getSalesDocumentMappingByDocumentId(documentId: string): Promise<SalesDocumentMapping | null> {
-  const supabase = createClient();
+  const supabase = await getSupabaseClient();
   
   const { data, error } = await supabase
     .from('metakocka_sales_document_mappings')
@@ -339,7 +353,7 @@ export async function getSalesDocumentMappingByDocumentId(documentId: string): P
  * @returns Sales document mapping
  */
 export async function getSalesDocumentMappingByMetakockaId(metakockaId: string): Promise<SalesDocumentMapping | null> {
-  const supabase = createClient();
+  const supabase = await getSupabaseClient();
   
   const { data, error } = await supabase
     .from('metakocka_sales_document_mappings')
@@ -363,7 +377,7 @@ export async function getSalesDocumentMappingByMetakockaId(metakockaId: string):
  * @returns Success status
  */
 export async function deleteSalesDocumentMapping(id: string): Promise<boolean> {
-  const supabase = createClient();
+  const supabase = await getSupabaseClient();
   
   const { error } = await supabase
     .from('metakocka_sales_document_mappings')

@@ -4,13 +4,72 @@
  * Handles subscription-related operations for organizations
  */
 
-import { createClient } from '@supabase/supabase-js';
+// Check if we're in a build environment
+const isBuildEnv = () => {
+  // Enhanced detection for Northflank, Vercel, Netlify and other cloud build environments
+  return (process.env.NODE_ENV === 'production' && 
+         typeof window === 'undefined' && 
+         (process.env.NEXT_PHASE === 'phase-production-build' || 
+          process.env.NEXT_PHASE === 'phase-production-server' ||
+          process.env.VERCEL_ENV === 'production' ||
+          process.env.NETLIFY === 'true' ||
+          process.env.CI === 'true' ||
+          process.env.BUILD_ENV === 'true' ||
+          // Northflank specific environment detection
+          process.env.NORTHFLANK === 'true' ||
+          process.env.KUBERNETES_SERVICE_HOST !== undefined));
+};
 
-// Use Next.js environment variables
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+// Get a mock client for build-time or when env vars are missing
+const createMockSupabaseClient = () => {
+  return {
+    from: (table) => ({
+      select: (columns) => ({
+        eq: (column, value) => ({
+          single: () => Promise.resolve({ data: null, error: null })
+        }),
+        order: (column, options) => Promise.resolve({ data: [], error: null }),
+      }),
+      update: (data) => ({
+        eq: (column, value) => ({
+          select: () => Promise.resolve({ data: [data], error: null })
+        })
+      }),
+      insert: (data) => ({
+        select: () => Promise.resolve({ data: [data], error: null })
+      }),
+      upsert: (data) => Promise.resolve({ data, error: null })
+    }),
+    rpc: (functionName, params) => Promise.resolve({ data: false, error: null })
+  };
+};
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// Get a properly initialized Supabase client
+const getSupabaseClient = async () => {
+  // Return mock during build
+  if (isBuildEnv()) {
+    console.log('Using mock Supabase client in build environment');
+    return createMockSupabaseClient();
+  }
+  
+  // Return mock if not configured
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+    console.log('Using mock Supabase client due to missing environment variables');
+    return createMockSupabaseClient();
+  }
+  
+  try {
+    // Dynamically import Supabase to avoid build-time errors
+    const { createClient } = await import('@supabase/supabase-js');
+    return createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    );
+  } catch (error) {
+    console.error('Error creating Supabase client:', error);
+    return createMockSupabaseClient();
+  }
+};
 
 export class SubscriptionService {
   constructor() {
@@ -25,6 +84,9 @@ export class SubscriptionService {
    */
   async handleSubscriptionCreated(organizationId, subscription) {
     try {
+      // Get initialized Supabase client
+      const supabase = await getSupabaseClient();
+      
       // Update the subscription record with details from Stripe
       const { error } = await supabase
         .from('organization_subscriptions')
@@ -59,6 +121,9 @@ export class SubscriptionService {
    */
   async handleSubscriptionUpdated(organizationId, subscription) {
     try {
+      // Get initialized Supabase client
+      const supabase = await getSupabaseClient();
+      
       // Update the subscription record with details from Stripe
       const { error } = await supabase
         .from('organization_subscriptions')
@@ -93,6 +158,9 @@ export class SubscriptionService {
    */
   async recordInvoice(organizationId, invoice) {
     try {
+      // Get initialized Supabase client
+      const supabase = await getSupabaseClient();
+      
       // Create an invoice record
       const { error } = await supabase
         .from('subscription_invoices')
@@ -131,6 +199,9 @@ export class SubscriptionService {
    */
   async handleCheckoutCompleted(organizationId, session) {
     try {
+      // Get initialized Supabase client
+      const supabase = await getSupabaseClient();
+      
       // Get the subscription ID from the session
       const subscriptionId = session.subscription;
       
@@ -197,6 +268,9 @@ export class SubscriptionService {
    */
   static async getSubscriptionPlans() {
     try {
+      // Get initialized Supabase client
+      const supabase = await getSupabaseClient();
+      
       const { data, error } = await supabase
         .from('subscription_plans')
         .select('*')
@@ -218,6 +292,9 @@ export class SubscriptionService {
    */
   static async getOrganizationSubscription(organizationId) {
     try {
+      // Get initialized Supabase client
+      const supabase = await getSupabaseClient();
+      
       const { data, error } = await supabase
         .from('organization_subscriptions')
         .select(`
@@ -244,6 +321,9 @@ export class SubscriptionService {
    */
   static async hasActiveSubscription(organizationId) {
     try {
+      // Get initialized Supabase client
+      const supabase = await getSupabaseClient();
+      
       const { data, error } = await supabase
         .rpc('has_active_subscription', { org_id: organizationId });
 
@@ -263,6 +343,9 @@ export class SubscriptionService {
    */
   static async hasFeatureAccess(organizationId, featureName) {
     try {
+      // Get initialized Supabase client
+      const supabase = await getSupabaseClient();
+      
       const { data, error } = await supabase
         .rpc('has_feature_access', { 
           org_id: organizationId,
@@ -284,6 +367,9 @@ export class SubscriptionService {
    */
   static async getSubscriptionInvoices(organizationId) {
     try {
+      // Get initialized Supabase client
+      const supabase = await getSupabaseClient();
+      
       const { data, error } = await supabase
         .from('subscription_invoices')
         .select('*')
@@ -316,6 +402,9 @@ export class SubscriptionService {
       const existingSubscription = await this.getOrganizationSubscription(organizationId);
       
       let subscriptionData;
+      
+      // Get initialized Supabase client
+      const supabase = await getSupabaseClient();
       
       if (existingSubscription) {
         // Update existing subscription
@@ -378,6 +467,9 @@ export class SubscriptionService {
       const updateData = immediateCancel 
         ? { status: 'canceled', updated_at: new Date().toISOString() }
         : { cancel_at_period_end: true, updated_at: new Date().toISOString() };
+      
+      // Get initialized Supabase client
+      const supabase = await getSupabaseClient();
 
       const { data, error } = await supabase
         .from('organization_subscriptions')

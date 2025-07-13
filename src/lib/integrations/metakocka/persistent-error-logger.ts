@@ -4,9 +4,10 @@
  * An enhanced error logging service for Metakocka integration that persists logs to the database
  * Extends the in-memory logger with database storage capabilities
  */
-import { createClient } from '@supabase/supabase-js';
 import { MetakockaError, MetakockaErrorType } from './types';
 import { LogLevel, LogCategory, LogContext, LogEntry, MetakockaErrorLogger } from './error-logger';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import type { Database } from '@/types/supabase';
 
 // Interface for database log entry
 export interface DbLogEntry extends LogEntry {
@@ -36,14 +37,30 @@ export class MetakockaPersistentErrorLogger extends MetakockaErrorLogger {
    * @param supabaseUrl Supabase URL
    * @param supabaseKey Supabase key
    */
-  static initialize(supabaseUrl: string, supabaseKey: string): void {
+  static async initialize(supabaseUrl: string, supabaseKey: string): Promise<void> {
     if (this.initialized) return;
     
-    this.supabase = createClient(supabaseUrl, supabaseKey);
-    this.initialized = true;
-    
-    // Process any queued entries
-    this.processRetryQueue();
+    try {
+      // Use dynamic import to avoid build-time initialization
+      const { createClient } = await import('@supabase/supabase-js');
+      this.supabase = createClient<Database>(supabaseUrl, supabaseKey);
+      this.initialized = true;
+      
+      // Process any queued entries
+      await this.processRetryQueue();
+    } catch (error) {
+      console.error('[METAKOCKA LOGGER] Error initializing supabase client:', error);
+      // In case of error, provide a mock client for build-time safety
+      this.supabase = {
+        from: () => ({
+          select: () => this.supabase.from(),
+          insert: () => ({ error: new Error('Supabase not properly initialized') }),
+          update: () => ({ error: new Error('Supabase not properly initialized') }),
+          delete: () => ({ error: new Error('Supabase not properly initialized') }),
+          eq: () => this.supabase.from()
+        })
+      };
+    }
   }
   
   /**
@@ -336,16 +353,30 @@ export class MetakockaPersistentErrorLogger extends MetakockaErrorLogger {
         return [];
       }
       
-      // Apply additional filters that require context parsing
-      let filteredLogs = data;
+      // Apply client-side filters for complex context filtering
+      let filteredLogs = [...data];
       
-      if (filter?.contactId) {
-        filteredLogs = filteredLogs.filter(log => {
+      // Apply custom filters
+      if (filter?.userId) {
+        filteredLogs = filteredLogs.filter((log: DbLogEntry) => {
           try {
             const context = typeof log.context === 'string' 
               ? JSON.parse(log.context) 
               : log.context;
-            return context?.contactId === filter.contactId;
+            return context?.userId === filter.userId;
+          } catch (err) {
+            return false;
+          }
+        });
+      }
+      
+      if (filter?.contactId) {
+        filteredLogs = filteredLogs.filter((log: DbLogEntry) => {
+          try {
+            const context = typeof log.context === 'string' 
+              ? JSON.parse(log.context) 
+              : log.context;
+            return context?.documentId === filter.contactId;
           } catch (err) {
             return false;
           }
@@ -353,7 +384,7 @@ export class MetakockaPersistentErrorLogger extends MetakockaErrorLogger {
       }
       
       if (filter?.metakockaId) {
-        filteredLogs = filteredLogs.filter(log => {
+        filteredLogs = filteredLogs.filter((log: DbLogEntry) => {
           try {
             const context = typeof log.context === 'string' 
               ? JSON.parse(log.context) 
@@ -472,19 +503,19 @@ export class MetakockaPersistentErrorLogger extends MetakockaErrorLogger {
       
       // Calculate statistics
       const totalErrors = data.length;
-      const resolvedErrors = data.filter(log => log.resolved).length;
+      const resolvedErrors = data.filter((log: DbLogEntry) => log.resolved).length;
       const resolutionRate = totalErrors > 0 ? resolvedErrors / totalErrors : 0;
       
       // Group by category
       const byCategory: Record<string, number> = {};
-      data.forEach(log => {
+      data.forEach((log: DbLogEntry) => {
         const category = log.category;
         byCategory[category] = (byCategory[category] || 0) + 1;
       });
       
       // Group by day
       const byDay: Record<string, number> = {};
-      data.forEach(log => {
+      data.forEach((log: DbLogEntry) => {
         const date = new Date(log.timestamp).toISOString().split('T')[0];
         byDay[date] = (byDay[date] || 0) + 1;
       });

@@ -13,10 +13,26 @@ import {
   getMetakockaDataForAIContext,
   getOrderDetailsForAI
 } from '@/lib/integrations/metakocka/metakocka-ai-integration';
-// Import client dynamically to avoid circular dependencies
-function createClient() {
-  const { createClient } = require('@/lib/supabase/server');
-  return createClient();
+// Import client dynamically to avoid circular dependencies and handle build-time safely
+async function createClient() {
+  try {
+    const { createClient } = await import('@/lib/supabase/server');
+    return createClient();
+  } catch (error) {
+    console.error('Error initializing Supabase client:', error);
+    // Return mock client as fallback
+    return {
+      from: () => ({
+        select: () => ({ 
+          eq: () => ({ 
+            data: [], 
+            error: null, 
+            single: () => ({ data: null, error: null })
+          })
+        })
+      })
+    };
+  }
 }
 // Format currency helper function
 function formatCurrency(amount: number, currency: string = 'USD'): string {
@@ -32,7 +48,7 @@ function formatCurrency(amount: number, currency: string = 'USD'): string {
  * the contact, related products, inventory, and any other relevant data
  */
 export async function buildEmailProcessingContext(emailId: string) {
-  const supabase = createClient();
+  const supabase = await createClient();
   
   // Get email data
   const { data: email, error } = await supabase

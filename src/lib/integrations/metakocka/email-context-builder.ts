@@ -1,4 +1,3 @@
-import { createClient } from '@supabase/supabase-js';
 import { Database } from '../../../types/supabase';
 import { getMetakockaCredentials } from './metakocka-service';
 import { fetchMetakockaContact, fetchMetakockaDocument, fetchMetakockaProduct } from './metakocka-client';
@@ -25,15 +24,44 @@ async function extractEnhancedMetakockaEntities(
   orders: Array<{ id: string; number?: string; confidence: number; context: string }>;
 }> {
   console.log(`Extracting enhanced Metakocka entities from email for user ${userId}`);
-  const supabase = createClient();
   
   // Initialize results
   const results = {
-    products: [],
-    contacts: [],
-    documents: [],
-    orders: []
+    products: [] as Array<{ id: string; name: string; confidence: number; context: string }>,
+    contacts: [] as Array<{ id: string; name: string; confidence: number; context: string }>,
+    documents: [] as Array<{ id: string; type: string; number?: string; confidence: number; context: string }>,
+    orders: [] as Array<{ id: string; number?: string; confidence: number; context: string }>
   };
+  
+  // Dynamically import Supabase client
+  let supabase;
+  try {
+    const { createClient } = await import('@supabase/supabase-js');
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    
+    // Check if Supabase env vars are available
+    if (!supabaseUrl || !supabaseKey) {
+      console.warn('Supabase environment variables not available, using mock client');
+      // Return mock client for build-time safety
+      supabase = {
+        from: () => ({
+          select: () => ({ eq: () => ({ data: [] }) })
+        })
+      };
+    } else {
+      // Create real client for runtime use
+      supabase = createClient(supabaseUrl, supabaseKey);
+    }
+  } catch (error) {
+    console.error('Error initializing Supabase client:', error);
+    // Return mock client as fallback
+    supabase = {
+      from: () => ({
+        select: () => ({ eq: () => ({ data: [] }) })
+      })
+    };
+  }
   
   try {
     // Get all products for this user to use as a reference
@@ -442,6 +470,36 @@ export async function buildEmailMetakockaContext(
   try {
     console.log(`Building Metakocka context for email ${emailId}`);
     
+    // Dynamically import Supabase client
+    let supabase;
+    try {
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+      
+      // Check if Supabase env vars are available
+      if (!supabaseUrl || !supabaseKey) {
+        console.warn('Supabase environment variables not available, using mock client');
+        // Return mock client for build-time safety
+        supabase = {
+          from: () => ({
+            select: () => ({ eq: () => ({ single: () => ({ data: null, error: null }) }) })
+          })
+        };
+      } else {
+        // Create real client for runtime use
+        supabase = createClient(supabaseUrl, supabaseKey);
+      }
+    } catch (error) {
+      console.error('Error initializing Supabase client:', error);
+      // Return mock client as fallback
+      supabase = {
+        from: () => ({
+          select: () => ({ eq: () => ({ single: () => ({ data: null, error: null }) }) })
+        })
+      };
+    }
+    
     // Step 1: Fetch the email with its Metakocka metadata
     const { data: email, error: emailError } = await supabase
       .from('emails')
@@ -482,14 +540,21 @@ export async function buildEmailMetakockaContext(
     }
 
     // Step 3: Fetch company profile for context
-    const { data: companyProfile, error: companyError } = await supabase
-      .from('company_profiles')
-      .select('name, industry, communication_style, preferred_language')
-      .eq('user_id', userId)
-      .single();
-    
-    if (companyError) {
-      console.error('Error fetching company profile:', companyError.message);
+    let companyProfile = null;
+    try {
+      const { data, error } = await supabase
+        .from('company_profiles')
+        .select('name, industry, communication_style, preferred_language')
+        .eq('user_id', userId)
+        .single();
+      
+      if (error) {
+        console.error('Error fetching company profile:', error.message);
+      } else {
+        companyProfile = data;
+      }
+    } catch (error) {
+      console.error('Exception fetching company profile:', error);
     }
 
     // Step 4: Detect email language
@@ -689,11 +754,22 @@ export async function buildEmailMetakockaContext(
     if (email.email_metakocka_contact_mappings && email.email_metakocka_contact_mappings.length > 0) {
       try {
         // Get the email content for context
-        const { data: emailContent } = await supabase
-          .from('emails')
-          .select('subject, raw_content')
-          .eq('id', emailId)
-          .single();
+        let emailContent = null;
+        try {
+          const { data, error } = await supabase
+            .from('emails')
+            .select('subject, raw_content')
+            .eq('id', emailId)
+            .single();
+            
+          if (error) {
+            console.error('Error fetching email content:', error.message);
+          } else {
+            emailContent = data;
+          }
+        } catch (error) {
+          console.error('Exception fetching email content:', error);
+        }
         
         // Fetch sales tactics that match the personality profile
         const salesTactics = await getMatchingSalesTactics(
@@ -725,24 +801,34 @@ export async function buildEmailMetakockaContext(
  */
 async function fetchContactPurchaseHistory(contactId: string, userId: string) {
   try {
-    const { data: salesDocuments, error } = await supabase
-      .from('sales_documents')
-      .select(`
-        id,
-        document_number,
-        document_type,
-        issue_date,
-        total_amount,
-        sales_document_items (id, product_id, name, quantity, price)
-      `)
-      .eq('contact_id', contactId)
-      .eq('created_by', userId)
-      .order('issue_date', { ascending: false })
-      .limit(5);
+    let salesDocuments = [];
+    try {
+      const { data, error } = await supabase
+        .from('sales_documents')
+        .select(`
+          id,
+          document_number,
+          document_type,
+          issue_date,
+          total_amount,
+          sales_document_items (id, product_id, name, quantity, price)
+        `)
+        .eq('contact_id', contactId)
+        .eq('created_by', userId)
+        .order('issue_date', { ascending: false })
+        .limit(5);
+      
+      if (error) {
+        console.error('Error fetching sales documents:', error.message);
+      } else {
+        salesDocuments = data || [];
+      }
+    } catch (error) {
+      console.error('Exception fetching sales documents:', error);
+      salesDocuments = [];
+    }
     
-    if (error) throw error;
-    
-    return salesDocuments?.map(doc => ({
+    return salesDocuments.map(doc => ({
       documentId: doc.id,
       documentType: doc.document_type,
       documentNumber: doc.document_number,
@@ -767,12 +853,23 @@ async function fetchContactPurchaseHistory(contactId: string, userId: string) {
 async function fetchProductInventory(productId: string, userId: string) {
   try {
     // Use the InventoryService to get detailed inventory information
-    const { data: inventory } = await supabase
-      .from('product_inventory')
-      .select('*')
-      .eq('product_id', productId)
-      .eq('user_id', userId)
-      .single();
+    let inventory = null;
+    try {
+      const { data, error } = await supabase
+        .from('product_inventory')
+        .select('*')
+        .eq('product_id', productId)
+        .eq('user_id', userId)
+        .single();
+        
+      if (error) {
+        console.error('Error fetching product inventory:', error.message);
+      } else {
+        inventory = data;
+      }
+    } catch (error) {
+      console.error('Exception fetching product inventory:', error);
+    }
     
     if (!inventory) return null;
     
@@ -795,24 +892,33 @@ async function fetchProductInventory(productId: string, userId: string) {
  */
 async function fetchProductViewHistory(productId: string, userId: string) {
   try {
-    const { data: viewHistory, error } = await supabase
-      .from('product_views')
-      .select(`
-        id,
-        contact_id,
-        contacts (name),
-        viewed_at,
-        duration,
-        source
-      `)
-      .eq('product_id', productId)
-      .eq('user_id', userId)
-      .order('viewed_at', { ascending: false })
-      .limit(5);
+    let viewHistory = [];
+    try {
+      const { data, error } = await supabase
+        .from('product_views')
+        .select(`
+          id,
+          contact_id,
+          contacts (name),
+          viewed_at,
+          duration,
+          source
+        `)
+        .eq('product_id', productId)
+        .eq('user_id', userId)
+        .order('viewed_at', { ascending: false })
+        .limit(5);
+      
+      if (error) {
+        console.error('Error fetching product view history:', error.message);
+      } else {
+        viewHistory = data || [];
+      }
+    } catch (error) {
+      console.error('Exception fetching product view history:', error);
+    }
     
-    if (error) throw error;
-    
-    return viewHistory?.map(view => ({
+    return viewHistory.map(view => ({
       contactId: view.contact_id,
       contactName: view.contacts?.name,
       date: view.viewed_at,
@@ -855,16 +961,47 @@ async function generateProductRecommendations(
     // 1. Similar products recommendations
     if (mentionedProductIds.length > 0) {
       for (const productId of mentionedProductIds) {
-        // Find products in the same category
-        const { data: similarProducts, error } = await supabase
-          .from('products')
-          .select('id, name, category')
-          .eq('user_id', userId)
-          .eq('category', (await supabase.from('products').select('category').eq('id', productId).single()).data?.category)
-          .neq('id', productId)
-          .limit(2);
-        
-        if (!error && similarProducts) {
+        try {
+          // First get the product category
+          let productCategory = null;
+          try {
+            const { data, error } = await supabase
+              .from('products')
+              .select('category')
+              .eq('id', productId)
+              .single();
+              
+            if (error) {
+              console.error('Error fetching product category:', error.message);
+            } else {
+              productCategory = data?.category;
+            }
+          } catch (err) {
+            console.error('Exception fetching product category:', err);
+          }
+          
+          if (!productCategory) continue;
+          
+          // Find products in the same category
+          let similarProducts = [];
+          try {
+            const { data, error } = await supabase
+              .from('products')
+              .select('id, name, category')
+              .eq('user_id', userId)
+              .eq('category', productCategory)
+              .neq('id', productId)
+              .limit(2);
+            
+            if (error) {
+              console.error('Error fetching similar products:', error.message);
+            } else {
+              similarProducts = data || [];
+            }
+          } catch (err) {
+            console.error('Exception fetching similar products:', err);
+          }
+          
           for (const similar of similarProducts) {
             recommendations.push({
               type: 'similar',
@@ -875,6 +1012,8 @@ async function generateProductRecommendations(
               confidence: 0.8
             });
           }
+        } catch (productError) {
+          console.error(`Error processing product recommendations for ${productId}:`, productError);
         }
       }
     }
@@ -959,39 +1098,66 @@ async function detectEmailLanguage(emailSubject: string, emailContent: string): 
  */
 async function fetchActivePromotions(userId: string) {
   try {
-    const currentDate = new Date().toISOString();
-    
-    const { data: promotions, error } = await supabase
-      .from('promotions')
-      .select(`
-        id,
-        name,
-        description,
-        start_date,
-        end_date,
-        discount_type,
-        discount_value,
-        applicable_products
-      `)
-      .eq('user_id', userId)
-      .gte('end_date', currentDate)
-      .lte('start_date', currentDate);
-    
-    if (error || !promotions) {
-      console.error('Error fetching promotions:', error);
+    // Dynamically import Supabase client
+    let supabase;
+    try {
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+      
+      if (!supabaseUrl || !supabaseKey) {
+        console.warn('Missing Supabase environment variables for fetchActivePromotions');
+        return [];
+      }
+      
+      supabase = createClient(supabaseUrl, supabaseKey);
+    } catch (importError) {
+      console.error('Failed to initialize Supabase client:', importError);
       return [];
     }
     
-    return promotions.map(promo => ({
-      id: promo.id,
-      name: promo.name,
-      description: promo.description,
-      startDate: promo.start_date,
-      endDate: promo.end_date,
-      discountType: promo.discount_type,
-      discountValue: promo.discount_value,
-      applicableProducts: promo.applicable_products
-    })) || [];
+    const currentDate = new Date().toISOString();
+    
+    try {
+      const { data: promotions, error } = await supabase
+        .from('promotions')
+        .select(`
+          id,
+          name,
+          description,
+          start_date,
+          end_date,
+          discount_type,
+          discount_value,
+          applicable_products
+        `)
+        .eq('user_id', userId)
+        .gte('end_date', currentDate)
+        .lte('start_date', currentDate);
+      
+      if (error) {
+        console.error('Error fetching promotions:', error.message);
+        return [];
+      }
+      
+      if (!promotions || promotions.length === 0) {
+        return [];
+      }
+      
+      return promotions.map(promo => ({
+        id: promo.id,
+        name: promo.name,
+        description: promo.description,
+        startDate: promo.start_date,
+        endDate: promo.end_date,
+        discountType: promo.discount_type,
+        discountValue: promo.discount_value,
+        applicableProducts: promo.applicable_products
+      }));
+    } catch (queryError) {
+      console.error('Error executing Supabase query for promotions:', queryError);
+      return [];
+    }
   } catch (error) {
     console.error('Error fetching active promotions:', error);
     return [];

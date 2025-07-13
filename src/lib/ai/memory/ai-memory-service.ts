@@ -5,7 +5,7 @@
  * It handles embedding generation, semantic search, relationship management, and access tracking.
  */
 
-import { createClient } from '@supabase/supabase-js';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { Database } from '@/types/supabase';
 import OpenAI from 'openai';
 
@@ -94,18 +94,34 @@ export type AIMemorySearchResult = {
  * AI Memory Service class for managing AI memory operations
  */
 export class AIMemoryService {
-  private supabase;
-  private openai;
+  private supabase: SupabaseClient;
+  private openai: OpenAI;
   
   constructor() {
-    // Initialize Supabase client
-    const { createClient } = require('../../supabaseClient');
-    this.supabase = createClient();
-    
     // Initialize OpenAI client with new API
     this.openai = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY,
     });
+  }
+  
+  /**
+   * Initialize Supabase client with build-time safety
+   * This is called before any database operations
+   */
+  private async initSupabase() {
+    if (this.supabase) {
+      return this.supabase;
+    }
+    
+    try {
+      // Dynamic import to avoid build-time execution
+      const { createLazyClient } = await import('@/lib/supabase/lazy-client');
+      this.supabase = await createLazyClient();
+      return this.supabase;
+    } catch (error) {
+      console.error('Error initializing Supabase client in AIMemoryService:', error);
+      throw new Error('Failed to initialize Supabase client');
+    }
   }
   
   /**
@@ -139,8 +155,11 @@ export class AIMemoryService {
       // Generate embedding for the memory content
       const embedding = await this.generateEmbedding(memory.content);
       
+      // Get Supabase client
+      const supabase = await this.initSupabase();
+      
       // Store memory with embedding
-      const { data, error } = await this.supabase
+      const { data, error } = await supabase
         .from('ai_memories')
         .insert({
           organization_id: memory.organization_id,
@@ -181,8 +200,11 @@ export class AIMemoryService {
       // Generate embedding for the query
       const queryEmbedding = await this.generateEmbedding(params.query);
       
-      // Build the query
-      let query = this.supabase
+      // Get Supabase client
+      const supabase = await this.initSupabase();
+      
+      // Create base query
+      let query = supabase
         .from('ai_memories')
         .select('*')
         .eq('organization_id', organizationId)
@@ -293,8 +315,11 @@ export class AIMemoryService {
    */
   async getRelatedMemories(memoryId: string, organizationId: string): Promise<AIMemory[]> {
     try {
+      // Get Supabase client
+      const supabase = await this.initSupabase();
+      
       // Get relationships where this memory is the source
-      const { data: sourceRelationships, error: sourceError } = await this.supabase
+      const { data: sourceRelationships, error: sourceError } = await supabase
         .from('ai_memory_relationships')
         .select('target_memory_id')
         .eq('source_memory_id', memoryId)
@@ -306,7 +331,7 @@ export class AIMemoryService {
       }
       
       // Get relationships where this memory is the target
-      const { data: targetRelationships, error: targetError } = await this.supabase
+      const { data: targetRelationships, error: targetError } = await supabase
         .from('ai_memory_relationships')
         .select('source_memory_id')
         .eq('target_memory_id', memoryId)
@@ -330,7 +355,7 @@ export class AIMemoryService {
       }
       
       // Fetch the related memories
-      const { data: relatedMemories, error: memoriesError } = await this.supabase
+      const { data: memories, error: memoriesError } = await supabase
         .from('ai_memories')
         .select('*')
         .in('id', uniqueMemoryIds)
@@ -356,7 +381,10 @@ export class AIMemoryService {
    */
   async connectMemories(relationship: AIMemoryRelationship): Promise<AIMemoryRelationship> {
     try {
-      const { data, error } = await this.supabase
+      // Get Supabase client
+      const supabase = await this.initSupabase();
+      
+      const { data, error } = await supabase
         .from('ai_memory_relationships')
         .insert({
           organization_id: relationship.organization_id,
@@ -388,7 +416,10 @@ export class AIMemoryService {
    */
   async recordMemoryAccess(access: AIMemoryAccess): Promise<AIMemoryAccess> {
     try {
-      const { data, error } = await this.supabase
+      // Get Supabase client
+      const supabase = await this.initSupabase();
+      
+      const { data, error } = await supabase
         .from('ai_memory_access')
         .insert({
           organization_id: access.organization_id,
@@ -428,7 +459,10 @@ export class AIMemoryService {
     outcomeScore: number
   ): Promise<AIMemoryAccess> {
     try {
-      const { data, error } = await this.supabase
+      // Get Supabase client
+      const supabase = await this.initSupabase();
+      
+      const { data, error } = await supabase
         .from('ai_memory_access')
         .update({
           outcome,
@@ -459,8 +493,11 @@ export class AIMemoryService {
    */
   async updateMemoryImportance(memoryId: string, organizationId: string): Promise<AIMemory> {
     try {
+      // Get Supabase client
+      const supabase = await this.initSupabase();
+      
       // Get access records for this memory
-      const { data: accessRecords, error: accessError } = await this.supabase
+      const { data: accessRecords, error: accessError } = await supabase
         .from('ai_memory_access')
         .select('*')
         .eq('memory_id', memoryId)
@@ -505,7 +542,7 @@ export class AIMemoryService {
       }
       
       // Update the memory importance score
-      const { data, error } = await this.supabase
+      const { data, error } = await supabase
         .from('ai_memories')
         .update({
           importance_score: importanceScore,

@@ -5,7 +5,6 @@
  * and reduce API calls. Uses memory caching with time-based invalidation.
  */
 
-import { createClient } from '@supabase/supabase-js';
 import { MetakockaErrorLogger } from './metakocka-error-logger';
 
 interface CacheItem<T> {

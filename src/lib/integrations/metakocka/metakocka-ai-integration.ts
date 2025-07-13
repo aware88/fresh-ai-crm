@@ -56,10 +56,12 @@ type SalesDocumentMapping = {
   } | null;
 };
 
-// Import client dynamically to avoid circular dependencies
-function createClient() {
-  const { createClient } = require('@/lib/supabase/client');
-  return createClient();
+// Import lazy client to avoid circular dependencies and ensure build-time safety
+import { createLazyClient } from '@/lib/supabase/lazy-client';
+
+// Get client asynchronously to ensure build-time safety
+async function getClient() {
+  return await createLazyClient();
 }
 
 /**
@@ -68,7 +70,7 @@ function createClient() {
  * @returns Formatted product data for AI context
  */
 export async function getMetakockaProductData(userId: string) {
-  const supabase = createClient();
+  const supabase = await getClient();
   
   // Get product mappings for this user
   const { data: mappings, error } = await supabase
@@ -124,7 +126,7 @@ export async function getMetakockaProductData(userId: string) {
  * @returns Formatted contact data for AI context
  */
 export async function getMetakockaContactData(userId: string) {
-  const supabase = createClient();
+  const supabase = await getClient();
   
   // Get contact mappings for this user
   const { data: mappings, error } = await supabase
@@ -162,7 +164,7 @@ export async function getMetakockaContactData(userId: string) {
  * @returns Formatted sales document data for AI context
  */
 export async function getMetakockaSalesDocumentData(userId: string) {
-  const supabase = createClient();
+  const supabase = await getClient();
   
   // Get sales document mappings for this user
   const { data: mappings, error } = await supabase
@@ -275,7 +277,7 @@ export async function getMetakockaOrderData(userId: string) {
  * @returns Detailed order data for AI context
  */
 export async function getOrderDetailsForAI(orderId: string, userId: string) {
-  const supabase = createClient();
+  const supabase = await getClient();
   
   // Get order data
   const { data: order, error } = await supabase
@@ -361,7 +363,7 @@ export async function getOrderDetailsForAI(orderId: string, userId: string) {
  */
 export async function getMetakockaDataForAIContext(userId: string) {
   // Check if the user has Metakocka credentials
-  const supabase = createClient();
+  const supabase = await getClient();
   const { data: credentials } = await supabase
     .from('metakocka_credentials')
     .select('*')

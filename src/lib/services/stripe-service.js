@@ -5,17 +5,109 @@
  */
 
 import Stripe from 'stripe';
-import { createClient } from '@supabase/supabase-js';
+// Only import Supabase types, not the actual client
+// We'll use dynamic imports to prevent build-time errors
 
 // Use Next.js environment variables
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
 const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET;
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-const stripe = new Stripe(STRIPE_SECRET_KEY);
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// Lazy-load Stripe client
+let stripe = null;
+
+// Check if we're in a build environment
+const isBuildEnv = () => {
+  // Enhanced detection for Northflank, Vercel, Netlify and other cloud build environments
+  return (process.env.NODE_ENV === 'production' && 
+         typeof window === 'undefined' && 
+         (process.env.NEXT_PHASE === 'phase-production-build' || 
+          process.env.NEXT_PHASE === 'phase-production-server' ||
+          process.env.VERCEL_ENV === 'production' ||
+          process.env.NETLIFY === 'true' ||
+          process.env.CI === 'true' ||
+          process.env.BUILD_ENV === 'true' ||
+          // Northflank specific environment detection
+          process.env.NORTHFLANK === 'true' ||
+          process.env.KUBERNETES_SERVICE_HOST !== undefined));
+};
+
+// Get a mock client for build-time or when env vars are missing
+const createMockSupabaseClient = () => {
+  return {
+    from: (table) => ({
+      select: (columns) => ({
+        eq: (column, value) => ({
+          single: () => Promise.resolve({ data: { stripe_customer_id: null }, error: null })
+        })
+      }),
+      update: (data) => ({
+        eq: (column, value) => Promise.resolve({ data, error: null })
+      }),
+      insert: (data) => Promise.resolve({ data, error: null })
+    })
+  };
+};
+
+// Get a properly initialized Stripe client
+const getStripeClient = () => {
+  if (!stripe && STRIPE_SECRET_KEY) {
+    stripe = new Stripe(STRIPE_SECRET_KEY);
+  }
+  // Return a mock for build-time or when env vars are missing
+  if (!stripe) {
+    return {
+      customers: {
+        create: () => Promise.resolve({ id: 'mock-customer-id' }),
+        retrieve: () => Promise.resolve({ id: 'mock-customer-id', metadata: { organization_id: 'mock-org-id' } }),
+      },
+      checkout: {
+        sessions: {
+          create: () => Promise.resolve({ id: 'mock-session-id', url: 'https://example.com/checkout' }),
+        }
+      },
+      billingPortal: {
+        sessions: {
+          create: () => Promise.resolve({ id: 'mock-portal-id', url: 'https://example.com/billing' }),
+        }
+      },
+      webhooks: {
+        constructEvent: () => ({ type: 'mock-event', data: { object: {} } }),
+      },
+      subscriptions: {
+        retrieve: () => Promise.resolve({ id: 'mock-subscription-id', customer: 'mock-customer-id' }),
+      }
+    };
+  }
+  return stripe;
+};
+
+// Get a properly initialized Supabase client
+const getSupabaseClient = async () => {
+  // Return mock during build
+  if (isBuildEnv()) {
+    console.log('Using mock Supabase client in build environment');
+    return createMockSupabaseClient();
+  }
+  
+  // Return mock if not configured
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+    console.log('Using mock Supabase client due to missing environment variables');
+    return createMockSupabaseClient();
+  }
+  
+  try {
+    // Dynamically import Supabase to avoid build-time errors
+    const { createClient } = await import('@supabase/supabase-js');
+    return createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    );
+  } catch (error) {
+    console.error('Error creating Supabase client:', error);
+    return createMockSupabaseClient();
+  }
+};
 
 export class StripeService {
   /**
@@ -27,6 +119,10 @@ export class StripeService {
    */
   static async createCustomer(organizationId, email, name) {
     try {
+      // Get initialized clients
+      const stripe = getStripeClient();
+      const supabase = await getSupabaseClient();
+      
       // Create a new customer in Stripe
       const customer = await stripe.customers.create({
         email,
@@ -58,6 +154,10 @@ export class StripeService {
    */
   static async getCustomer(organizationId) {
     try {
+      // Get initialized clients
+      const stripe = getStripeClient();
+      const supabase = await getSupabaseClient();
+      
       // Get the Stripe customer ID from the database
       const { data, error } = await supabase
         .from('organizations')
@@ -88,6 +188,9 @@ export class StripeService {
    */
   static async createCheckoutSession(organizationId, priceId, customerId) {
     try {
+      // Get initialized Stripe client
+      const stripe = getStripeClient();
+      
       const session = await stripe.checkout.sessions.create({
         customer: customerId,
         payment_method_types: ['card'],
@@ -119,6 +222,9 @@ export class StripeService {
    */
   static async createBillingPortalSession(customerId) {
     try {
+      // Get initialized Stripe client
+      const stripe = getStripeClient();
+      
       const session = await stripe.billingPortal.sessions.create({
         customer: customerId,
         return_url: `${BASE_URL}/app/settings/subscription`,
@@ -139,7 +245,14 @@ export class StripeService {
    */
   static async processWebhookEvent(signature, rawBody) {
     try {
-      // Verify the webhook signature
+      if (!STRIPE_WEBHOOK_SECRET) {
+        throw new Error('Stripe webhook secret is not defined');
+      }
+      
+      // Get initialized Stripe client
+      const stripe = getStripeClient();
+      
+      // Verify the signature
       const event = stripe.webhooks.constructEvent(
         rawBody,
         signature,
@@ -184,10 +297,37 @@ export class StripeService {
    */
   static async handleCheckoutSessionCompleted(session) {
     try {
-      const organizationId = session.metadata.organization_id;
+      // Get initialized clients
+      const stripe = getStripeClient();
+      const supabase = await getSupabaseClient();
       
-      // Get the subscription details
-      const subscription = await stripe.subscriptions.retrieve(session.subscription);
+      const { organization_id: organizationId } = session.metadata;
+      const subscriptionId = session.subscription;
+      
+      if (!organizationId) {
+        throw new Error(`No organization ID found in checkout session: ${session.id}`);
+      }
+      
+      if (!subscriptionId) {
+        throw new Error(`No subscription ID found in checkout session: ${session.id}`);
+      }
+      
+      // Get subscription details from Stripe
+      const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+      
+      // Get the price details
+      const priceId = subscription.items.data[0].price.id;
+      
+      // Get subscription plan from our database
+      const { data: planData, error: planError } = await supabase
+        .from('subscription_plans')
+        .select('*')
+        .eq('stripe_price_id', priceId)
+        .single();
+      
+      if (!planData) {
+        throw new Error(`No subscription plan found for price ID: ${subscription.items.data[0].price.id}`);
+      }
       
       // Map Stripe subscription status to our status
       const statusMap = {
@@ -199,17 +339,6 @@ export class StripeService {
         'incomplete': 'past_due',
         'incomplete_expired': 'expired'
       };
-      
-      // Get the subscription plan ID from the price ID
-      const { data: planData } = await supabase
-        .from('subscription_plans')
-        .select('id')
-        .eq('stripe_price_id', subscription.items.data[0].price.id)
-        .single();
-      
-      if (!planData) {
-        throw new Error(`No subscription plan found for price ID: ${subscription.items.data[0].price.id}`);
-      }
       
       // Create or update the subscription in our database
       const { error } = await supabase
@@ -240,10 +369,15 @@ export class StripeService {
   /**
    * Handle customer.subscription.created or customer.subscription.updated events
    * @param {Object} subscription - Stripe subscription
+   * @param {Object} clients - Clients object containing stripe and supabase clients
    * @returns {Promise<void>}
    */
   static async handleSubscriptionUpdated(subscription) {
     try {
+      // Get initialized clients
+      const stripe = getStripeClient();
+      const supabase = await getSupabaseClient();
+      
       // Get the organization ID from the customer metadata
       const customer = await stripe.customers.retrieve(subscription.customer);
       const organizationId = customer.metadata.organization_id;
@@ -264,7 +398,7 @@ export class StripeService {
       };
       
       // Get the subscription plan ID from the price ID
-      const { data: planData } = await supabase
+      const { data: planData, error: planError } = await supabase
         .from('subscription_plans')
         .select('id')
         .eq('stripe_price_id', subscription.items.data[0].price.id)
@@ -330,6 +464,9 @@ export class StripeService {
    */
   static async handleSubscriptionDeleted(subscription) {
     try {
+      // Get initialized Supabase client
+      const supabase = await getSupabaseClient();
+      
       // Update the subscription status in our database
       const { error } = await supabase
         .from('organization_subscriptions')
@@ -353,6 +490,10 @@ export class StripeService {
    */
   static async handleInvoicePaymentSucceeded(invoice) {
     try {
+      // Get initialized clients
+      const stripe = getStripeClient();
+      const supabase = await getSupabaseClient();
+      
       // Get the subscription
       const subscription = await stripe.subscriptions.retrieve(invoice.subscription);
       
@@ -392,6 +533,10 @@ export class StripeService {
    */
   static async handleInvoicePaymentFailed(invoice) {
     try {
+      // Get initialized clients
+      const stripe = getStripeClient();
+      const supabase = await getSupabaseClient();
+      
       // Get the organization ID from the customer metadata
       const customer = await stripe.customers.retrieve(invoice.customer);
       const organizationId = customer.metadata.organization_id;

@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { PlusCircle, Search, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react';
 import { SalesDocumentBulkSyncUI } from '@/components/integrations/metakocka/SalesDocumentBulkSyncUI';
 import { SyncSalesDocumentButton } from '@/components/integrations/metakocka/SyncSalesDocumentButton';
-import { createClient } from '@/lib/supabase/client';
+import { createSafeClient } from '@/lib/supabase/safe-client';
 
 interface SalesDocument {
   id: string;
@@ -26,7 +26,7 @@ export default function SalesDocumentsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showBulkSync, setShowBulkSync] = useState(false);
   const router = useRouter();
-  const supabase = createClient();
+  const supabase = createSafeClient();
 
   // Fetch sales documents
   useEffect(() => {
