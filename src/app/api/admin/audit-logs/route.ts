@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { AuditService } from '@/lib/services/audit-service';
+
+// Dynamic import to prevent build-time Supabase client creation
+const getAuditService = async () => {
+  const { AuditService } = await import('@/lib/services/audit-service');
+  return AuditService;
+};
 
 /**
  * GET /api/admin/audit-logs
@@ -74,7 +79,8 @@ export async function GET(request: NextRequest) {
     }
 
     // Get audit logs
-    const { logs, count } = await AuditService.getAuditLogs(filterParams);
+    const auditService = await getAuditService();
+    const { logs, count } = await auditService.getAuditLogs(filterParams);
 
     return NextResponse.json({
       logs,
