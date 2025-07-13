@@ -1,6 +1,9 @@
 import { getServerSession as _getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 
+// Re-export authOptions for use in other parts of the application
+export { authOptions };
+
 export const getServerSession = () => _getServerSession(authOptions);
 
 export async function getCurrentUser() {
