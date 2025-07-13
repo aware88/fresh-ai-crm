@@ -3,17 +3,36 @@ import { createClient as supabaseCreateClient, User } from '@supabase/supabase-j
 // Re-export createClient for backward compatibility
 export const createClient = supabaseCreateClient;
 
-if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
-  throw new Error('Missing env.NEXT_PUBLIC_SUPABASE_URL');
-}
-if (!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-  throw new Error('Missing env.NEXT_PUBLIC_SUPABASE_ANON_KEY');
-}
+// Check if environment variables are available
+const hasSupabaseConfig = process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-export const supabase = supabaseCreateClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-);
+// Create a mock client for development if environment variables are missing
+const createMockClient = () => {
+  console.warn('Missing Supabase environment variables. Using mock client.');
+  return {
+    auth: {
+      getUser: () => Promise.resolve({ data: { user: null }, error: null }),
+      getSession: () => Promise.resolve({ data: { session: null }, error: null }),
+    },
+    from: () => ({
+      select: () => ({
+        eq: () => ({
+          single: () => Promise.resolve({ data: null, error: null }),
+        }),
+      }),
+    }),
+  } as any;
+};
+
+// Create the Supabase client or a mock client if in development
+export const supabase = hasSupabaseConfig
+  ? supabaseCreateClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    )
+  : process.env.NODE_ENV === 'development'
+  ? createMockClient()
+  : (() => { throw new Error('Missing Supabase environment variables'); })();
 
 export const getSupabaseWithAuth = (accessToken: string) => {
   return supabaseCreateClient(

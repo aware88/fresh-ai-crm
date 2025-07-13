@@ -7,11 +7,45 @@ import type { CookieOptions } from '@supabase/ssr';
  * This version works in both app/ directory and pages/ directory
  */
 export const createServerClient = () => {
-  // Simple direct client creation without cookie integration
-  // This approach works in both app/ directory and pages/ directory contexts
+  // Check if Supabase environment variables are available
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+    // In development, provide mock client with empty implementation
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('Missing Supabase environment variables in development mode. Using mock client.');
+      return {
+        auth: {
+          getUser: () => Promise.resolve({ data: { user: null }, error: null }),
+        },
+        from: () => ({
+          select: () => ({
+            eq: () => ({
+              single: () => Promise.resolve({ data: null, error: null }),
+            }),
+          }),
+          insert: () => ({
+            select: () => ({
+              single: () => Promise.resolve({ data: null, error: null }),
+            }),
+          }),
+          update: () => ({
+            eq: () => ({
+              select: () => ({
+                single: () => Promise.resolve({ data: null, error: null }),
+              }),
+            }),
+          }),
+        }),
+      } as any;
+    }
+    
+    // In production, throw an error
+    throw new Error('Missing Supabase environment variables');
+  }
+  
+  // Create real client when environment variables are available
   return supabaseCreateClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   );
 };
 
