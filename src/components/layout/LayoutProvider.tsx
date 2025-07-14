@@ -12,6 +12,7 @@ import { AuthService } from '@/lib/auth/auth-service';
 import PublicLayout from './public/PublicLayout';
 import AuthenticatedLayout from './auth/AuthenticatedLayout';
 import { withAuth } from '@/lib/auth/auth-middleware';
+import AuthProvider from '@/components/auth/AuthProvider';
 
 // List of public paths that don't require authentication
 const PUBLIC_PATHS = ['/', '/signin', '/signup', '/auth/callback'];
@@ -38,6 +39,12 @@ function LayoutProvider({ children }: LayoutProviderProps) {
   // While checking authentication status, render nothing or a loading screen
   if (loading) {
     return <div className="flex items-center justify-center min-h-screen bg-gray-50">Loading...</div>;
+  }
+
+  // --- For /settings and subpages, just wrap with AuthProvider ---
+  // Let the individual settings pages handle their own auth checks
+  if (pathname.startsWith('/settings')) {
+    return <AuthProvider>{children}</AuthProvider>;
   }
 
   // Determine if the current path is public

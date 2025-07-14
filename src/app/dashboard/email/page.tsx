@@ -25,10 +25,10 @@ export default function EmailPage() {
   // Check if email accounts are connected (both Outlook and IMAP)
   useEffect(() => {
     async function checkConnection() {
-      if (status === 'authenticated' && session?.user?.id) {
+      if (status === 'authenticated' && session?.user) {
         try {
           setLoading(true);
-          const response = await fetch('/api/settings/email/status');
+          const response = await fetch('/api/email/status');
           const data = await response.json();
           
           if (data.success) {

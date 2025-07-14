@@ -7,14 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { SettingsForm } from '@/components/settings/settings-form';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
-
-interface ProfileFormData {
-  name: string;
-  bio: string;
-  avatar_url?: string;
-}
 
 export default function ProfileSettings() {
   const { data: session, update: updateSession } = useSession();
@@ -30,7 +23,7 @@ export default function ProfileSettings() {
       .toUpperCase() || 'U';
   };
 
-  const handleSaveProfile = async (formData: ProfileFormData) => {
+  const handleSaveProfile = async (formData: any) => {
     const supabase = createClientComponentClient();
     
     // Update user profile in Supabase
@@ -108,20 +101,20 @@ export default function ProfileSettings() {
     }
   };
 
-  const initialData: ProfileFormData = {
+  const initialData = {
     name: user?.name || '',
     bio: '',
     avatar_url: user?.image || undefined
   };
 
   return (
-    <SettingsForm
-      title="Profile"
-      description="This is how others will see you in the application."
-      backUrl="/dashboard"
-      onSave={handleSaveProfile}
-      initialData={initialData}
-    >
+    <div className="space-y-6">
+      <div>
+        <h3 className="text-lg font-medium">Profile</h3>
+        <p className="text-sm text-muted-foreground">
+          This is how others will see you in the application.
+        </p>
+      </div>
       <Card>
         <CardHeader>
           <CardTitle>Your Profile</CardTitle>
@@ -217,6 +210,6 @@ export default function ProfileSettings() {
           </div>
         </CardContent>
       </Card>
-    </SettingsForm>
+    </div>
   );
 }

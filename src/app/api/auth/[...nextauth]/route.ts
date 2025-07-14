@@ -2,6 +2,7 @@ import { NextAuthOptions } from 'next-auth';
 import { SupabaseAdapter } from '@auth/supabase-adapter';
 import NextAuth from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
+import GoogleProvider from 'next-auth/providers/google';
 import { supabase } from '@/lib/supabaseClient';
 
 const authOptions: NextAuthOptions = {
@@ -67,6 +68,15 @@ const authOptions: NextAuthOptions = {
         }
       }
     }),
+    GoogleProvider({
+      clientId: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      authorization: {
+        params: {
+          scope: 'openid email profile https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/gmail.modify',
+        },
+      },
+    }),
     {
       id: 'supabase',
       name: 'Supabase',
@@ -99,6 +109,17 @@ const authOptions: NextAuthOptions = {
         session.user.email = token.email;
         session.user.image = token.picture;
         
+        // Add OAuth tokens to session for API calls
+        if (token.accessToken) {
+          session.accessToken = token.accessToken as string;
+        }
+        if (token.refreshToken) {
+          session.refreshToken = token.refreshToken as string;
+        }
+        if (token.provider) {
+          session.provider = token.provider as string;
+        }
+        
         // Add additional debug logging
         console.log('Session user ID set to:', session.user.id);
       } else if (token && !session.user) {
@@ -121,6 +142,14 @@ const authOptions: NextAuthOptions = {
       // If we have a user, set the ID in the token
       if (user) {
         token.id = user.id;
+      }
+      
+      // Store OAuth tokens for Google and other providers
+      if (account) {
+        token.accessToken = account.access_token;
+        token.refreshToken = account.refresh_token;
+        token.expiresAt = account.expires_at;
+        token.provider = account.provider;
       }
       
       // Ensure token.sub exists as a fallback user ID

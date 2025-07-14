@@ -110,23 +110,26 @@ export function useOrganization(): UseOrganizationResult {
 
         if (!userPrefs?.current_organization_id) {
           // If no current organization is set, get the first organization the user is a member of
-          const { data: memberData, error: memberError } = await supabase
-            .from('organization_members')
-            .select('organization_id')
-            .eq('user_id', userId);
+          let memberData, memberError;
+          try {
+            const result = await supabase
+              .from('organization_members')
+              .select('organization_id')
+              .eq('user_id', userId);
+            memberData = result.data;
+            memberError = result.error;
+          } catch (queryError) {
+            console.warn('Exception during organization_members query:', queryError);
+            memberError = queryError;
+          }
 
           // Log query results for debugging
           console.log('Organization members query result:', memberData ? `found ${memberData.length} memberships` : 'no data');
           
           // Handle case when there's an error or no organizations yet
           if (memberError) {
-            console.warn('Organization members query error:', memberError.message, 'Code:', memberError.code);
-            // If it's not just a 'no rows' error, log it but continue with fallback
-            if (memberError.code !== 'PGRST116') { 
-              console.error('Non-empty result error from organization_members query');
-            }
-            
-            // Create a default organization as fallback
+            console.warn('Organization members query error:', memberError.message || memberError, 'Code:', memberError.code);
+            // Create a default organization as fallback for any database error
             console.log('Creating default organization due to query error');
             const defaultOrg = createDefaultOrganization(userId);
             setOrganization(defaultOrg);

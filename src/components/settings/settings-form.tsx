@@ -58,13 +58,19 @@ export function SettingsForm({
     }
   };
   
-  // Clone children and inject formData and handleChange
+  // Clone children and inject formData and handleChange only to components that accept them
   const childrenWithProps = React.Children.map(children, child => {
     if (React.isValidElement(child)) {
-      return React.cloneElement(child, {
-        formData,
-        onChange: handleChange,
-      });
+      // Only pass props to custom components, not DOM elements
+      const isCustomComponent = typeof child.type === 'function' || 
+                                (typeof child.type === 'object' && child.type !== null);
+      
+      if (isCustomComponent) {
+        return React.cloneElement(child, {
+          formData,
+          onChange: handleChange,
+        } as any);
+      }
     }
     return child;
   });

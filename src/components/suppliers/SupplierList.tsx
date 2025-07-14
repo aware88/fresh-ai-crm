@@ -45,10 +45,16 @@ export default function SupplierList() {
       setLoading(true);
       setError(null);
       const data = await fetchSuppliers();
-      setSuppliers(data);
+      setSuppliers(data || []);
     } catch (err) {
-      setError('Failed to load suppliers. Please try again.');
       console.error('Error loading suppliers:', err);
+      // Only show error for actual server errors, not authentication issues
+      if (err instanceof Error && err.message.includes('500')) {
+        setError('Failed to load suppliers. Please try again.');
+      } else {
+        // For other errors (like auth issues), just show empty state
+        setSuppliers([]);
+      }
     } finally {
       setLoading(false);
     }

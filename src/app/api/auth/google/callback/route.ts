@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
 import { createServiceRoleClient } from '@/lib/supabase/service-role';
 
-// Microsoft OAuth configuration
-const MICROSOFT_CLIENT_ID = process.env.MICROSOFT_CLIENT_ID;
-const MICROSOFT_CLIENT_SECRET = process.env.MICROSOFT_CLIENT_SECRET;
-const REDIRECT_URI = `${process.env.NEXTAUTH_URL}/api/auth/outlook/callback`;
+// Google OAuth configuration
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
+const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
+const REDIRECT_URI = `${process.env.NEXTAUTH_URL}/api/auth/google/callback`;
 
 export async function GET(request: Request) {
   try {
@@ -15,7 +15,7 @@ export async function GET(request: Request) {
     
     // Handle errors from OAuth provider
     if (error) {
-      console.error('Microsoft OAuth error:', error);
+      console.error('Google OAuth error:', error);
       return NextResponse.redirect(`/settings/email-accounts?error=${encodeURIComponent(error)}`);
     }
     
@@ -40,24 +40,24 @@ export async function GET(request: Request) {
     }
     
     // Log the OAuth flow progress
-    console.log(`Microsoft callback: Processing OAuth code for user ${userId}`);
+    console.log(`Google callback: Processing OAuth code for user ${userId}`);
     
-    // Verify Microsoft OAuth configuration
-    if (!MICROSOFT_CLIENT_ID || !MICROSOFT_CLIENT_SECRET) {
-      console.error('Microsoft callback: Missing Microsoft OAuth credentials');
-      return NextResponse.redirect('/settings/email-accounts?error=Missing Microsoft OAuth credentials');
+    // Verify Google OAuth configuration
+    if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) {
+      console.error('Google callback: Missing Google OAuth credentials');
+      return NextResponse.redirect('/settings/email-accounts?error=Missing Google OAuth credentials');
     }
     
     // Exchange authorization code for tokens
-    console.log('Microsoft callback: Exchanging code for tokens');
-    const tokenResponse = await fetch('https://login.microsoftonline.com/common/oauth2/v2.0/token', {
+    console.log('Google callback: Exchanging code for tokens');
+    const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
       },
       body: new URLSearchParams({
-        client_id: MICROSOFT_CLIENT_ID || '',
-        client_secret: MICROSOFT_CLIENT_SECRET || '',
+        client_id: GOOGLE_CLIENT_ID || '',
+        client_secret: GOOGLE_CLIENT_SECRET || '',
         code,
         redirect_uri: REDIRECT_URI,
         grant_type: 'authorization_code',
@@ -72,15 +72,15 @@ export async function GET(request: Request) {
     
     const tokenData = await tokenResponse.json();
     
-    // Get user info from Microsoft Graph
-    const userInfoResponse = await fetch('https://graph.microsoft.com/v1.0/me', {
+    // Get user info from Google
+    const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
       headers: {
         Authorization: `Bearer ${tokenData.access_token}`,
       },
     });
     
     if (!userInfoResponse.ok) {
-      console.error('Failed to get user info from Microsoft Graph');
+      console.error('Failed to get user info from Google');
       return NextResponse.redirect('/settings/email-accounts?error=Failed to get user info');
     }
     
@@ -97,8 +97,8 @@ export async function GET(request: Request) {
       .from('email_accounts')
       .select('id')
       .eq('user_id', userId)
-      .eq('email', userInfo.mail || userInfo.userPrincipalName)
-      .eq('provider_type', 'microsoft')
+      .eq('email', userInfo.email)
+      .eq('provider_type', 'google')
       .maybeSingle();
     
     let result;
@@ -108,7 +108,7 @@ export async function GET(request: Request) {
       result = await supabase
         .from('email_accounts')
         .update({
-          display_name: userInfo.displayName || userInfo.mail || userInfo.userPrincipalName,
+          display_name: userInfo.name || userInfo.email,
           access_token: tokenData.access_token,
           refresh_token: tokenData.refresh_token,
           token_expires_at: new Date(expiresAt * 1000).toISOString(),
@@ -124,9 +124,9 @@ export async function GET(request: Request) {
         .insert([
           {
             user_id: userId,
-            email: userInfo.mail || userInfo.userPrincipalName,
-            display_name: userInfo.displayName || userInfo.mail || userInfo.userPrincipalName,
-            provider_type: 'microsoft',
+            email: userInfo.email,
+            display_name: userInfo.name || userInfo.email,
+            provider_type: 'google',
             access_token: tokenData.access_token,
             refresh_token: tokenData.refresh_token,
             token_expires_at: new Date(expiresAt * 1000).toISOString(),
@@ -137,14 +137,14 @@ export async function GET(request: Request) {
     }
     
     if (result.error) {
-      console.error('Error storing Microsoft email account:', result.error);
+      console.error('Error storing Google email account:', result.error);
       return NextResponse.redirect('/settings/email-accounts?error=Failed to store email account');
     }
     
     // Redirect back to the email settings page with success message
-    return NextResponse.redirect('/settings/email-accounts?success=true&provider=microsoft');
+    return NextResponse.redirect('/settings/email-accounts?success=true&provider=google');
   } catch (error) {
-    console.error('Error in Microsoft OAuth callback:', error);
+    console.error('Error in Google OAuth callback:', error);
     return NextResponse.redirect('/settings/email-accounts?error=An unexpected error occurred');
   }
-}
+} 

@@ -54,8 +54,9 @@ export default function NotificationPreferences() {
         
         // Initialize modified preferences
         const initialModified: Record<string, { email: boolean; inApp: boolean }> = {};
-        Object.values(data.categories || {}).forEach((templates: NotificationTemplate[]) => {
-          templates.forEach(template => {
+        Object.values(data.categories || {}).forEach((templates) => {
+          const templateArray = templates as NotificationTemplate[];
+          templateArray.forEach(template => {
             initialModified[template.type] = {
               email: template.preference.email_enabled,
               inApp: template.preference.in_app_enabled
@@ -199,7 +200,6 @@ export default function NotificationPreferences() {
               <TabsTrigger key={category} value={category}>{category}</TabsTrigger>
             ))}
           </TabsList>
-          
           <TabsContent value="all" className="space-y-6">
             {allCategories.map(category => (
               <div key={category} className="space-y-4">
@@ -217,7 +217,6 @@ export default function NotificationPreferences() {
               </div>
             ))}
           </TabsContent>
-          
           {allCategories.map(category => (
             <TabsContent key={category} value={category} className="space-y-4">
               {categories[category].map(template => (
@@ -231,7 +230,6 @@ export default function NotificationPreferences() {
             </TabsContent>
           ))}
         </Tabs>
-        
         <div className="mt-6 flex justify-end">
           <Button 
             onClick={savePreferences} 

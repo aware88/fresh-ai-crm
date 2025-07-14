@@ -2,19 +2,39 @@
 
 import React, { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import Link from 'next/link';
 
 export default function EmailAccountsPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [emailAccounts, setEmailAccounts] = useState<any[]>([]);
   const [error, setError] = useState<any>(null);
   const [tableExists, setTableExists] = useState(false);
-  
+  const [oauthMessage, setOauthMessage] = useState<{ type: 'success' | 'error', message: string } | null>(null);
   useEffect(() => {
+    // Check for OAuth callback messages
+    if (searchParams) {
+      const success = searchParams.get('success');
+      const errorParam = searchParams.get('error');
+      
+      if (success === 'true') {
+        const provider = searchParams.get('provider');
+        const providerName = provider === 'google' ? 'Google Gmail' : 
+                           provider === 'microsoft' ? 'Microsoft Outlook' : 'Email';
+        setOauthMessage({ type: 'success', message: `${providerName} account connected successfully!` });
+        // Clear the URL parameters
+        router.replace('/settings/email-accounts');
+      } else if (errorParam) {
+        setOauthMessage({ type: 'error', message: `OAuth error: ${errorParam}` });
+        // Clear the URL parameters
+        router.replace('/settings/email-accounts');
+      }
+    }
+    
     // If not authenticated, redirect to sign in
     if (status === 'unauthenticated') {
       router.push('/signin');
@@ -23,17 +43,21 @@ export default function EmailAccountsPage() {
     
     // If still loading session, wait
     if (status === 'loading') {
+      console.log('Email Settings - Session still loading, waiting...');
       return;
     }
     
     // If authenticated, fetch email accounts
-    if (session?.user?.id) {
+    if (session?.user && 'id' in session.user && session.user.id) {
+      console.log('Email Settings - Authenticated with user ID:', session.user.id);
       fetchEmailAccounts();
+    } else {
+      console.log('Email Settings - Session exists but no user ID found');
     }
-  }, [status, session, router]);
+  }, [status, session, router, searchParams]);
   
   const fetchEmailAccounts = async () => {
-    if (!session?.user?.id) return;
+    if (!session?.user || !('id' in session.user) || !session.user.id) return;
     
     try {
       setLoading(true);
@@ -44,7 +68,7 @@ export default function EmailAccountsPage() {
         const { data, error: fetchError } = await supabase
           .from('email_accounts')
           .select('*')
-          .eq('user_id', session.user.id)
+          .eq('user_id', (session.user as any).id)
           .order('created_at', { ascending: false });
         
         if (fetchError) {
@@ -78,25 +102,110 @@ export default function EmailAccountsPage() {
     }
   };
 
+  if (status === 'loading') {
+    return <div>Loading...</div>;
+  }
+
+  if (status === 'unauthenticated') {
+    router.push('/signin');
+    return null; // Or a loading state
+  }
+
   return (
-    <div className="container mx-auto p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Email Accounts</h1>
+    <div className="space-y-6">
+      <div>
+        <h3 className="text-lg font-medium">Email Accounts</h3>
+        <p className="text-sm text-muted-foreground">
+          Manage your email accounts and settings.
+        </p>
+      </div>
+      
+      <div className="flex justify-between items-center">
+        <h2 className="text-xl font-semibold">Email Accounts</h2>
         <div className="flex space-x-2">
-          <Link 
-            href="/settings/email-accounts/add-outlook"
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+          <button 
+            onClick={() => {
+              // Check if Google OAuth is configured
+              if (!process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID) {
+                alert('Google OAuth is not configured. Please add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET to your environment variables.');
+                return;
+              }
+              window.location.href = '/api/auth/google/connect';
+            }}
+            className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md text-sm font-medium flex items-center gap-2"
+          >
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+              <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+              <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+              <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+            </svg>
+            Add Gmail Account
+          </button>
+          <button 
+            onClick={() => {
+              // Check if Microsoft OAuth is configured
+              if (!process.env.NEXT_PUBLIC_MICROSOFT_CLIENT_ID) {
+                alert('Microsoft OAuth is not configured. Please add MICROSOFT_CLIENT_ID and MICROSOFT_CLIENT_SECRET to your environment variables.');
+                return;
+              }
+              window.location.href = '/api/auth/outlook/connect';
+            }}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium"
           >
             Add Outlook Account
-          </Link>
+          </button>
           <Link 
             href="/settings/email-accounts/add-imap"
-            className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+            className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md text-sm font-medium"
           >
             Add IMAP Account
           </Link>
         </div>
-      </div>
+              </div>
+      
+      {oauthMessage && (
+        <div className={`border-l-4 p-4 mb-6 ${
+          oauthMessage.type === 'success' 
+            ? 'bg-green-50 border-green-500' 
+            : 'bg-red-50 border-red-500'
+        }`}>
+          <div className="flex">
+            <div className="flex-shrink-0">
+              {oauthMessage.type === 'success' ? (
+                <svg className="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                </svg>
+              ) : (
+                <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                </svg>
+              )}
+            </div>
+            <div className="ml-3">
+              <p className={`text-sm ${
+                oauthMessage.type === 'success' ? 'text-green-700' : 'text-red-700'
+              }`}>
+                {oauthMessage.message}
+              </p>
+            </div>
+            <div className="ml-auto pl-3">
+              <button
+                onClick={() => setOauthMessage(null)}
+                className={`inline-flex rounded-md p-1.5 ${
+                  oauthMessage.type === 'success' 
+                    ? 'text-green-500 hover:bg-green-100' 
+                    : 'text-red-500 hover:bg-red-100'
+                }`}
+              >
+                <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       
       {error && (
         <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-6">
@@ -143,14 +252,19 @@ export default function EmailAccountsPage() {
   organization_id UUID,
   provider_type TEXT NOT NULL,
   email TEXT NOT NULL,
+  display_name TEXT,
   username TEXT,
   password TEXT,
+  password_encrypted TEXT,
   imap_host TEXT,
   imap_port INTEGER,
   imap_security TEXT,
   smtp_host TEXT,
   smtp_port INTEGER,
   smtp_security TEXT,
+  access_token TEXT,
+  refresh_token TEXT,
+  token_expires_at TIMESTAMP WITH TIME ZONE,
   is_active BOOLEAN DEFAULT true,
   last_sync_at TIMESTAMP WITH TIME ZONE,
   sync_error TEXT,
@@ -190,15 +304,15 @@ CREATE INDEX email_accounts_email_idx ON public.email_accounts (email);`}
       )}
       
       {/* Instructions */}
-      <div className="bg-white rounded-lg shadow p-6 mb-6">
-        <h2 className="text-lg font-semibold mb-2">Managing Email Accounts</h2>
-        <p className="mb-4">
-          Connect your email accounts to CRM Mind to access emails, contacts, and calendar events.
-          You can connect both Microsoft Outlook accounts (using OAuth) and standard email accounts (using IMAP/SMTP).
+      <div className="bg-card rounded-lg border p-6">
+        <h3 className="text-lg font-semibold mb-2">Managing Email Accounts</h3>
+        <p className="text-sm text-muted-foreground mb-4">
+          Connect your email accounts to CRM Mind to access emails, contacts, and calendar events. You can 
+          connect both Microsoft Outlook accounts (using OAuth) and standard email accounts (using IMAP/SMTP).
         </p>
         <Link 
           href="/docs/email-account-setup-guide.md"
-          className="text-blue-600 hover:underline"
+          className="text-blue-600 hover:underline text-sm"
           target="_blank"
         >
           View detailed setup guide
@@ -207,41 +321,47 @@ CREATE INDEX email_accounts_email_idx ON public.email_accounts (email);`}
       
       {/* Email Accounts List */}
       {tableExists && (
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+        <div className="bg-card rounded-lg border overflow-hidden">
+          <table className="min-w-full divide-y divide-border">
+            <thead className="bg-muted/50">
               <tr>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Email Address
                 </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Provider Type
                 </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Status
                 </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Added On
                 </th>
-                <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="bg-card divide-y divide-border">
               {emailAccounts && emailAccounts.length > 0 ? (
                 emailAccounts.map((account) => (
                   <tr key={account.id}>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">{account.email}</div>
+                      <div className="text-sm font-medium">{account.email}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                        account.provider_type === 'outlook' 
+                        account.provider_type === 'outlook' || account.provider_type === 'microsoft'
                           ? 'bg-blue-100 text-blue-800' 
+                          : account.provider_type === 'google'
+                          ? 'bg-red-100 text-red-800'
                           : 'bg-green-100 text-green-800'
                       }`}>
-                        {account.provider_type === 'outlook' ? 'Microsoft Outlook' : 'IMAP/SMTP'}
+                        {account.provider_type === 'outlook' || account.provider_type === 'microsoft'
+                          ? 'Microsoft Outlook' 
+                          : account.provider_type === 'google'
+                          ? 'Google Gmail'
+                          : 'IMAP/SMTP'}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -280,7 +400,7 @@ CREATE INDEX email_accounts_email_idx ON public.email_accounts (email);`}
                 ))
               ) : (
                 <tr>
-                  <td colSpan={5} className="px-6 py-4 text-center text-sm text-gray-500">
+                  <td colSpan={5} className="px-6 py-4 text-center text-sm text-muted-foreground">
                     No email accounts connected yet. Add an account to get started.
                   </td>
                 </tr>

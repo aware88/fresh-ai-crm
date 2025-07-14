@@ -160,7 +160,7 @@ export function Sidebar({ className }: SidebarProps) {
     },
     {
       title: 'Settings',
-      href: '/dashboard/settings',
+      href: '/settings',
       icon: <Settings className="h-5 w-5" />
     }
   ], []);

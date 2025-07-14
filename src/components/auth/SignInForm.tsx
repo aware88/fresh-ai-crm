@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { supabase } from '@/lib/supabaseClient';
+import { signIn } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
@@ -18,30 +18,26 @@ export default function SignInForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError('');
     setLoading(true);
-    setError(null);
 
     try {
-      if (!supabase) {
-        throw new Error('Supabase client not initialized');
-      }
-
-      const { error } = await supabase.auth.signInWithPassword({
+      const result = await signIn('credentials', {
         email,
         password,
+        redirect: false,
       });
 
-      if (error) {
-        throw error;
+      if (result?.error) {
+        setError('Invalid credentials');
+      } else {
+        // Redirect to dashboard or intended page
+        router.push('/dashboard');
       }
-
-      // Redirect to dashboard on successful sign in
-      router.push('/dashboard');
-      router.refresh();
-    } catch (err: any) {
-      setError(err.message || 'Failed to sign in');
+    } catch (error) {
+      setError('An error occurred during sign in');
     } finally {
       setLoading(false);
     }
@@ -60,6 +56,14 @@ export default function SignInForm() {
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
+        
+        {/* Debug info - only visible during development */}
+        {process.env.NODE_ENV === 'development' && (
+          <div className="mb-4 p-2 bg-gray-100 rounded text-xs">
+            <strong>Debug:</strong> Using NextAuth credentials provider
+          </div>
+        )}
+        
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-2">
             <Label htmlFor="email" className="text-gray-700 font-medium">Email</Label>
