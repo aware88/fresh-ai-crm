@@ -3,6 +3,28 @@ import { supabase } from '@/lib/supabaseClient';
 import { initializeSupplierData } from '@/lib/suppliers/init';
 import OpenAI from 'openai';
 
+// Function to create OpenAI client with fallback for missing API key
+const createOpenAIClient = () => {
+  if (!process.env.OPENAI_API_KEY) {
+    console.warn('OPENAI_API_KEY environment variable is missing in suppliers queries. Using mock client.');
+    // Use unknown as intermediate type before asserting as OpenAI
+    const mockClient: unknown = {
+      chat: {
+        completions: {
+          create: async () => ({
+            choices: [{ message: { content: "I'm a mock AI response because the OpenAI API key is not configured. Please set up your API key in the environment variables to get actual AI responses." } }],
+            usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 }
+          })
+        }
+      }
+    };
+    return mockClient as OpenAI;
+  }
+  return new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY,
+  });
+};
+
 // Initialize Supabase connection
 const initSupabaseConnection = async () => {
   // Keep the initialization function for backward compatibility
@@ -270,9 +292,7 @@ async function generateAIResponse(query: string, contextData: any) {
       return `I'm sorry, I couldn't process your query because the AI service is not properly configured.`;
     }
     
-    const openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY
-    });
+    const openai = createOpenAIClient();
     
     // Format the context data for the AI
     const supplierContext = contextData.suppliers.map((s: any) => `Supplier: ${s.name}, Contact: ${s.contact_name || 'N/A'}, Email: ${s.email || 'N/A'}, Products: ${s.product_categories?.join(', ') || 'N/A'}`).join('\n');

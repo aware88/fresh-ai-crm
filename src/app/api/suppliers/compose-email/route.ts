@@ -3,6 +3,31 @@ import { createServerClient } from '../../../../lib/supabase/server';
 import { getUID } from '../../../../lib/auth/utils';
 import OpenAI from 'openai';
 
+// Function to create OpenAI client with fallback for missing API key
+const createOpenAIClient = () => {
+  if (!process.env.OPENAI_API_KEY) {
+    console.warn('OPENAI_API_KEY environment variable is missing in compose-email. Using mock client.');
+    // Use unknown as intermediate type before asserting as OpenAI
+    const mockClient: unknown = {
+      chat: {
+        completions: {
+          create: async () => ({
+            choices: [{ message: { content: JSON.stringify({
+              subject: "[Mock] Email Subject",
+              body: "Dear [Supplier],\n\nThis is a mock email generated because the OpenAI API key is not configured.\n\nPlease set up your OpenAI API key to use the full functionality.\n\nRegards,\nCRM System"
+            })} }],
+            usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 }
+          })
+        }
+      }
+    };
+    return mockClient as OpenAI;
+  }
+  return new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY,
+  });
+};
+
 /**
  * POST /api/suppliers/compose-email
  * Generate an email draft using AI based on supplier data and user instructions
@@ -98,16 +123,8 @@ async function generateEmailDraft(
   pricing: any[]
 ) {
   try {
-    if (!process.env.OPENAI_API_KEY) {
-      return {
-        subject: `[Draft] Email to ${supplier.name}`,
-        body: `[Error: OpenAI API key not configured. Please set up the API key to use AI-generated emails.]`
-      };
-    }
-
-    const openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY
-    });
+    // Create OpenAI client with fallback
+    const openai = createOpenAIClient();
 
     // Format recent emails for context
     const emailHistory = recentEmails.map(email => 
