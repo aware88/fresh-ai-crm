@@ -58,7 +58,12 @@
     "check:env": "node scripts/check-env.js",
     "doctor": "node scripts/check-env.js",
     "cleanup:all": "node scripts/cleanup-all-data.js",
-    "cleanup:data": "node scripts/cleanup-all-data.js"
+    "cleanup:data": "node scripts/cleanup-all-data.js",
+    "test:ai-agents": "node scripts/test-ai-agents.js",
+    "test:ai-agents:quick": "node scripts/test-ai-agents.js --quick",
+    "test:production-ready": "node scripts/production-readiness-check.js",
+    "pre-deploy": "npm run test:production-ready && npm run test:ai-agents:quick",
+    "validate-system": "node scripts/production-readiness-check.js --verbose && node scripts/test-ai-agents.js --api"
   },
   "dependencies": {
     "@auth/supabase-adapter": "^1.9.1",
