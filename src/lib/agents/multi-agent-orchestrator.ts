@@ -1,3 +1,4 @@
+import { EventEmitter } from 'events';
 import { AgentTask, AgentThought, AgentAction, AgentEvent, AgentState, AgentCapability } from './types';
 import { aiEngine } from './ai-engine';
 import { EmailAgent } from './email-agent';
@@ -127,7 +128,7 @@ export interface OrchestrationMetrics {
   bottlenecks: string[];
 }
 
-export class MultiAgentOrchestrator {
+export class MultiAgentOrchestrator extends EventEmitter {
   private agents: Map<string, Agent> = new Map();
   private workflows: Map<string, WorkflowDefinition> = new Map();
   private executions: Map<string, WorkflowExecution> = new Map();
@@ -137,12 +138,14 @@ export class MultiAgentOrchestrator {
   private executionInterval?: NodeJS.Timeout;
 
   constructor() {
+    super();
     this.initializeDefaultWorkflows();
   }
 
   // Agent Management
   registerAgent(agent: Agent): void {
     this.agents.set(agent.id, agent);
+    this.emit('agent:registered', agent.id);
   }
 
   unregisterAgent(agentId: string): void {
@@ -225,6 +228,7 @@ export class MultiAgentOrchestrator {
 
     try {
       execution.status = 'running';
+      this.emit('workflow:started', execution.id);
       
       // Execute steps in dependency order
       const sortedSteps = this.sortStepsByDependencies(workflow.steps);
@@ -247,6 +251,7 @@ export class MultiAgentOrchestrator {
 
       execution.status = 'completed';
       execution.endTime = new Date();
+      this.emit('workflow:completed', execution.id);
 
     } catch (error) {
       execution.status = 'failed';
@@ -760,5 +765,14 @@ export class MultiAgentOrchestrator {
 
   isRunningStatus(): boolean {
     return this.isRunning;
+  }
+
+  // Agent status management
+  updateAgentStatus(agentId: string, status: 'idle' | 'active' | 'busy' | 'error'): void {
+    const agent = this.agents.get(agentId);
+    if (agent) {
+      agent.status = status;
+      this.emit('agent:status_changed', agentId, status);
+    }
   }
 } 

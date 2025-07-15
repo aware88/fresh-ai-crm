@@ -9,7 +9,7 @@ import {
 } from '@/components/ui/accordion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { FileSpreadsheet, FileText, FileCsv, Download, HelpCircle, Info } from 'lucide-react';
+import { FileSpreadsheet, FileText, File, Download, HelpCircle, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
@@ -57,7 +57,7 @@ export function BulkImportGuide() {
                 
                 <div className="border rounded-lg p-4 bg-white">
                   <div className="flex items-center mb-2">
-                    <FileCsv className="h-5 w-5 text-blue-600 mr-2" />
+                    <File className="h-5 w-5 text-blue-600 mr-2" />
                     <h4 className="font-medium">CSV Files (.csv)</h4>
                   </div>
                   <p className="text-sm text-gray-600">
