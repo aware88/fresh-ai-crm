@@ -14,9 +14,11 @@ import EmailAnalyserClient from "@/app/dashboard/email-analyser/EmailAnalyserCli
 import { FaEnvelope, FaRobot, FaSearch, FaSync, FaCog } from 'react-icons/fa';
 import { Mail, TrendingUp, Inbox, Send, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 export default function EmailPage() {
   const { data: session, status } = useSession();
+  const router = useRouter();
   const [connected, setConnected] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -31,7 +33,7 @@ export default function EmailPage() {
       if (status === 'authenticated' && session?.user) {
         try {
           setLoading(true);
-          const response = await fetch('/api/settings/email/status');
+          const response = await fetch('/api/email/status');
           const data = await response.json();
           
           if (data.success) {
@@ -43,6 +45,7 @@ export default function EmailPage() {
             if (data.connected) {
               setActiveTab('inbox');
             }
+            // Don't auto-redirect - let user choose how to connect
           } else {
             setError(data.error || 'Failed to check email connection');
           }
@@ -117,7 +120,24 @@ export default function EmailPage() {
                 </p>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <Button 
+                    onClick={() => {
+                      // Show warning about verification
+                      const proceed = window.confirm(
+                        "Gmail OAuth is currently under Google verification. " +
+                        "If you get an 'access_denied' error, please use the IMAP setup instead. " +
+                        "Continue with OAuth?"
+                      );
+                      if (proceed) {
+                        window.location.href = '/api/auth/google/connect';
+                      }
+                    }}
+                    className="w-full bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-700 hover:to-orange-700 text-white"
+                  >
+                    <FaEnvelope className="mr-2" />
+                    Connect Gmail (OAuth)
+                  </Button>
                   <Link href="/auth/outlook/connect">
                     <Button className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white">
                       <FaEnvelope className="mr-2" />

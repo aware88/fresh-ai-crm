@@ -45,6 +45,30 @@ export default function ImapAccountForm({ userId }: ImapAccountFormProps) {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  const applyGmailPreset = () => {
+    setFormData(prev => ({
+      ...prev,
+      imapHost: 'imap.gmail.com',
+      imapPort: '993',
+      imapSecurity: 'SSL/TLS',
+      smtpHost: 'smtp.gmail.com',
+      smtpPort: '587',
+      smtpSecurity: 'STARTTLS',
+    }));
+  };
+
+  const applyOutlookPreset = () => {
+    setFormData(prev => ({
+      ...prev,
+      imapHost: 'outlook.office365.com',
+      imapPort: '993',
+      imapSecurity: 'SSL/TLS',
+      smtpHost: 'smtp.office365.com',
+      smtpPort: '587',
+      smtpSecurity: 'STARTTLS',
+    }));
+  };
+
   const handleTestConnection = async (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
     
@@ -204,6 +228,30 @@ export default function ImapAccountForm({ userId }: ImapAccountFormProps) {
         <div>
           <h2 className="text-lg font-semibold mb-4">Account Information</h2>
           
+          {/* Quick Setup Presets */}
+          <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+            <h3 className="text-sm font-medium text-gray-700 mb-2">Quick Setup</h3>
+            <div className="flex space-x-2">
+              <button
+                type="button"
+                onClick={applyGmailPreset}
+                className="px-3 py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200"
+              >
+                Gmail Settings
+              </button>
+              <button
+                type="button"
+                onClick={applyOutlookPreset}
+                className="px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
+              >
+                Outlook Settings
+              </button>
+            </div>
+            <p className="text-xs text-gray-500 mt-2">
+              Click to auto-fill server settings for popular providers
+            </p>
+          </div>
+          
           <div className="mb-4">
             <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
               Email Address*
@@ -324,9 +372,12 @@ export default function ImapAccountForm({ userId }: ImapAccountFormProps) {
               className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               required
             />
-            <p className="text-xs text-gray-500 mt-1">
-              For better security, use an app-specific password if your provider supports it
-            </p>
+            <div className="text-xs text-gray-500 mt-1">
+              <p>For better security, use an app-specific password if your provider supports it</p>
+              <p className="mt-1">
+                <strong>Gmail users:</strong> You must use an App Password. Go to Google Account → Security → App Passwords to generate one.
+              </p>
+            </div>
           </div>
         </div>
       </div>

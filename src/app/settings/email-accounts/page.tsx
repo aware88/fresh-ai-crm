@@ -26,18 +26,24 @@ export default function EmailAccountsPage() {
         const providerName = provider === 'google' ? 'Google Gmail' : 
                            provider === 'microsoft' ? 'Microsoft Outlook' : 'Email';
         setOauthMessage({ type: 'success', message: `${providerName} account connected successfully!` });
-        // Clear the URL parameters
-        router.replace('/settings/email-accounts');
+        // Clear the URL parameters after current render cycle
+        setTimeout(() => {
+          router.replace('/settings/email-accounts');
+        }, 0);
       } else if (errorParam) {
         setOauthMessage({ type: 'error', message: `OAuth error: ${errorParam}` });
-        // Clear the URL parameters
-        router.replace('/settings/email-accounts');
+        // Clear the URL parameters after current render cycle
+        setTimeout(() => {
+          router.replace('/settings/email-accounts');
+        }, 0);
       }
     }
     
     // If not authenticated, redirect to sign in
     if (status === 'unauthenticated') {
-      router.push('/signin');
+      setTimeout(() => {
+        router.push('/signin');
+      }, 0);
       return;
     }
     
@@ -107,8 +113,7 @@ export default function EmailAccountsPage() {
   }
 
   if (status === 'unauthenticated') {
-    router.push('/signin');
-    return null; // Or a loading state
+    return null; // The useEffect will handle the redirect
   }
 
   return (
@@ -125,11 +130,6 @@ export default function EmailAccountsPage() {
         <div className="flex space-x-2">
           <button 
             onClick={() => {
-              // Check if Google OAuth is configured
-              if (!process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID) {
-                alert('Google OAuth is not configured. Please add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET to your environment variables.');
-                return;
-              }
               window.location.href = '/api/auth/google/connect';
             }}
             className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md text-sm font-medium flex items-center gap-2"
@@ -307,9 +307,30 @@ CREATE INDEX email_accounts_email_idx ON public.email_accounts (email);`}
       <div className="bg-card rounded-lg border p-6">
         <h3 className="text-lg font-semibold mb-2">Managing Email Accounts</h3>
         <p className="text-sm text-muted-foreground mb-4">
-          Connect your email accounts to CRM Mind to access emails, contacts, and calendar events. You can 
+          Connect your email accounts to ARIS to access emails, contacts, and calendar events. You can 
           connect both Microsoft Outlook accounts (using OAuth) and standard email accounts (using IMAP/SMTP).
         </p>
+        
+        {/* Gmail IMAP Instructions */}
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+          <h4 className="font-medium text-blue-900 mb-2">📧 Gmail Setup (IMAP)</h4>
+          <p className="text-sm text-blue-800 mb-3">
+            While our Gmail OAuth is under Google verification, you can connect Gmail using IMAP:
+          </p>
+          <div className="text-sm text-blue-800 space-y-1">
+            <p><strong>1.</strong> Enable 2-Factor Authentication on your Gmail account</p>
+            <p><strong>2.</strong> Generate an App Password: Google Account → Security → App Passwords</p>
+            <p><strong>3.</strong> Use these IMAP settings:</p>
+            <div className="bg-blue-100 rounded p-2 mt-2 font-mono text-xs">
+              <div>Server: imap.gmail.com</div>
+              <div>Port: 993</div>
+              <div>Security: SSL/TLS</div>
+              <div>Username: your-email@gmail.com</div>
+              <div>Password: [App Password - not your regular password]</div>
+            </div>
+          </div>
+        </div>
+        
         <Link 
           href="/docs/email-account-setup-guide.md"
           className="text-blue-600 hover:underline text-sm"

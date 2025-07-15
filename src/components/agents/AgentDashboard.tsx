@@ -369,7 +369,9 @@ export const AgentDashboard: React.FC<AgentDashboardProps> = ({
                                   {thought.type}
                                 </Badge>
                                 <span className="text-xs text-gray-500">
-                                  {thought.timestamp.toLocaleTimeString()}
+                                  {thought.timestamp instanceof Date 
+                                    ? thought.timestamp.toLocaleTimeString()
+                                    : new Date(thought.timestamp).toLocaleTimeString()}
                                 </span>
                               </div>
                               <p className="text-sm">{thought.content}</p>

@@ -36,8 +36,25 @@ export async function GET(
       .eq('user_id', session.user.id)
       .single();
     
-    if (membershipError || !membership) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+    // If the organization is "default-org" or the user doesn't have membership,
+    // return default branding settings instead of 403 error
+    if (organizationId === 'default-org' || membershipError || !membership) {
+      // Return default branding settings
+      return NextResponse.json({ 
+        branding: {
+          primary_color: '#0f172a',
+          secondary_color: '#64748b',
+          accent_color: '#2563eb',
+          font_family: 'Inter, system-ui, sans-serif',
+          logo_url: null,
+          favicon_url: null,
+          organization_id: organizationId,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          created_by: session.user.id,
+          updated_by: session.user.id
+        }
+      });
     }
     
     // Get organization branding
