@@ -4,29 +4,19 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm, SubmitHandler } from 'react-hook-form';
-// Import form components directly
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '../ui/form';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { 
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Loader2 } from 'lucide-react';
+import { useForm } from 'react-hook-form';
 import { useToast } from '@/components/ui/use-toast';
 import { Contact, ContactCreateInput, ContactUpdateInput } from '@/lib/contacts/types';
+import { 
+  ArisForm, 
+  ArisFormGrid, 
+  ArisInput, 
+  ArisTextarea, 
+  ArisSelect, 
+  ArisSubmitButton 
+} from '@/components/ui/aris-form';
+import { SelectItem } from '@/components/ui/select';
+import { User, Mail, Phone, Building, Briefcase, FileText, Brain } from 'lucide-react';
 
 // Form schema
 const contactFormSchema = z.object({
@@ -44,15 +34,6 @@ const contactFormSchema = z.object({
 
 type ContactFormValues = z.infer<typeof contactFormSchema>;
 
-// Define field type for form fields
-type FieldType = {
-  onChange: (...event: any[]) => void;
-  onBlur: () => void;
-  value: any;
-  name: string;
-  ref: React.Ref<any>;
-};
-
 interface ContactFormProps {
   contact?: Contact;
   onSuccess?: () => void;
@@ -66,7 +47,7 @@ export default function ContactForm({ contact, onSuccess }: ContactFormProps) {
 
   // Initialize form with default values or existing contact data
   const form = useForm<ContactFormValues>({
-    resolver: zodResolver(contactFormSchema) as any,
+    resolver: zodResolver(contactFormSchema),
     defaultValues: {
       firstName: contact?.firstName || '',
       lastName: contact?.lastName || '',
@@ -81,262 +62,195 @@ export default function ContactForm({ contact, onSuccess }: ContactFormProps) {
     },
   });
 
-  const onSubmit: SubmitHandler<ContactFormValues> = async (values) => {
+  const onSubmit = async (values: ContactFormValues) => {
     setIsSubmitting(true);
     
     try {
-      const endpoint = '/api/contacts' + (isEditing ? `/${contact.id}` : '');
-      const method = isEditing ? 'PUT' : 'POST';
-      
-      // Prepare data for API
-      const contactData = isEditing 
-        ? { id: contact.id, ...values } as ContactUpdateInput
-        : values as ContactCreateInput;
-      
-      const response = await fetch(endpoint, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(contactData),
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to save contact');
+      if (isEditing) {
+        // Update existing contact
+        const updateData: ContactUpdateInput = {
+          id: contact.id,
+          ...values,
+        };
+        
+        const response = await fetch(`/api/contacts/${contact.id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(updateData),
+        });
+        
+        if (!response.ok) {
+          throw new Error('Failed to update contact');
+        }
+        
+        toast({
+          title: 'Success',
+          description: 'Contact updated successfully',
+        });
+      } else {
+        // Create new contact
+        const createData: ContactCreateInput = values;
+        
+        const response = await fetch('/api/contacts', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(createData),
+        });
+        
+        if (!response.ok) {
+          throw new Error('Failed to create contact');
+        }
+        
+        toast({
+          title: 'Success',
+          description: 'Contact created successfully',
+        });
       }
       
-      const result = await response.json();
-      
-      toast({
-        title: isEditing ? 'Contact Updated' : 'Contact Created',
-        description: `${values.firstName} ${values.lastName} has been ${isEditing ? 'updated' : 'added'} to your CRM.`,
-      });
-      
-      // Redirect or callback
       if (onSuccess) {
         onSuccess();
       } else {
-        // If no callback provided, redirect to the contact page or contacts list
-        if (isEditing) {
-          router.push(`/dashboard/contacts/${contact.id}`);
-        } else if (result.data?.id) {
-          router.push(`/dashboard/contacts/${result.data.id}`);
-        } else {
-          router.push('/dashboard/contacts');
-        }
-        router.refresh(); // Refresh the router cache
+        router.push('/dashboard/contacts');
       }
     } catch (error) {
       console.error('Error saving contact:', error);
       toast({
-        variant: 'destructive',
         title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to save contact',
+        description: 'Failed to save contact. Please try again.',
+        variant: 'destructive',
       });
     } finally {
       setIsSubmitting(false);
     }
-  }
+  };
 
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* First Name */}
-          <FormField
-            control={form.control}
-            name="firstName"
-            render={({ field }: any) => (
-              <FormItem>
-                <FormLabel>First Name*</FormLabel>
-                <FormControl>
-                  <Input placeholder="John" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          
-          {/* Last Name */}
-          <FormField
-            control={form.control}
-            name="lastName"
-            render={({ field }: any) => (
-              <FormItem>
-                <FormLabel>Last Name*</FormLabel>
-                <FormControl>
-                  <Input placeholder="Doe" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
+    <ArisForm
+      title={isEditing ? 'Edit Contact' : 'Add New Contact'}
+      description={isEditing ? 'Update contact information' : 'Add a new contact to your CRM'}
+      onSubmit={form.handleSubmit(onSubmit)}
+    >
+      <ArisFormGrid columns={2}>
+        <ArisInput
+          label="First Name"
+          placeholder="John"
+          required
+          icon={<User className="h-4 w-4" />}
+          error={form.formState.errors.firstName?.message}
+          {...form.register('firstName')}
+        />
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Email */}
-          <FormField
-            control={form.control}
-            name="email"
-            render={({ field }: any) => (
-              <FormItem>
-                <FormLabel>Email*</FormLabel>
-                <FormControl>
-                  <Input placeholder="john.doe@example.com" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          
-          {/* Phone */}
-          <FormField
-            control={form.control}
-            name="phone"
-            render={({ field }: any) => (
-              <FormItem>
-                <FormLabel>Phone</FormLabel>
-                <FormControl>
-                  <Input placeholder="+1 (555) 123-4567" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
+        <ArisInput
+          label="Last Name"
+          placeholder="Doe"
+          required
+          icon={<User className="h-4 w-4" />}
+          error={form.formState.errors.lastName?.message}
+          {...form.register('lastName')}
+        />
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Company */}
-          <FormField
-            control={form.control}
-            name="company"
-            render={({ field }: any) => (
-              <FormItem>
-                <FormLabel>Company</FormLabel>
-                <FormControl>
-                  <Input placeholder="Acme Inc." {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          
-          {/* Position */}
-          <FormField
-            control={form.control}
-            name="position"
-            render={({ field }: any) => (
-              <FormItem>
-                <FormLabel>Position</FormLabel>
-                <FormControl>
-                  <Input placeholder="Marketing Manager" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
+        <ArisInput
+          label="Email"
+          type="email"
+          placeholder="john.doe@example.com"
+          required
+          icon={<Mail className="h-4 w-4" />}
+          error={form.formState.errors.email?.message}
+          {...form.register('email')}
+        />
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Status */}
-          <FormField
-            control={form.control}
-            name="status"
-            render={({ field }: any) => (
-              <FormItem>
-                <FormLabel>Status</FormLabel>
-                <Select 
-                  onValueChange={field.onChange}
-                  defaultValue={field.value as string || 'active'}
-                >
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select status" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="inactive">Inactive</SelectItem>
-                    <SelectItem value="lead">Lead</SelectItem>
-                    <SelectItem value="customer">Customer</SelectItem>
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          
-          {/* Personality Type */}
-          <FormField
-            control={form.control}
-            name="personalityType"
-            render={({ field }: any) => (
-              <FormItem>
-                <FormLabel>Personality Type</FormLabel>
-                <FormControl>
-                  <Input placeholder="ENFJ, Analytical, etc." {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
+        <ArisInput
+          label="Phone"
+          type="tel"
+          placeholder="+1 (555) 123-4567"
+          icon={<Phone className="h-4 w-4" />}
+          error={form.formState.errors.phone?.message}
+          {...form.register('phone')}
+        />
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Personality Notes */}
-          <FormField
-            control={form.control}
-            name="personalityNotes"
-            render={({ field }: any) => (
-              <FormItem>
-                <FormLabel>Personality Notes</FormLabel>
-                <FormControl>
-                  <Textarea 
-                    placeholder="Additional personality notes..." 
-                    className="min-h-[120px]"
-                    {...field} 
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          
-          {/* Notes */}
-          <FormField
-            control={form.control}
-            name="notes"
-            render={({ field }: any) => (
-              <FormItem>
-                <FormLabel>Notes</FormLabel>
-                <FormControl>
-                  <Textarea 
-                    placeholder="Additional information about this contact..." 
-                    className="min-h-[120px]"
-                    {...field} 
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
+        <ArisInput
+          label="Company"
+          placeholder="Acme Corp"
+          icon={<Building className="h-4 w-4" />}
+          error={form.formState.errors.company?.message}
+          {...form.register('company')}
+        />
         
-        <div className="flex justify-end space-x-4">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => router.back()}
-          >
-            Cancel
-          </Button>
-          <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {isEditing ? 'Update Contact' : 'Create Contact'}
-          </Button>
-        </div>
-      </form>
-    </Form>
+        <ArisInput
+          label="Position"
+          placeholder="Software Engineer"
+          icon={<Briefcase className="h-4 w-4" />}
+          error={form.formState.errors.position?.message}
+          {...form.register('position')}
+        />
+      </ArisFormGrid>
+      
+      <ArisFormGrid columns={2}>
+        <ArisSelect
+          label="Status"
+          placeholder="Select status"
+          required
+          value={form.watch('status')}
+          onValueChange={(value) => form.setValue('status', value as ContactFormValues['status'])}
+          error={form.formState.errors.status?.message}
+        >
+          <SelectItem value="active">Active</SelectItem>
+          <SelectItem value="inactive">Inactive</SelectItem>
+          <SelectItem value="lead">Lead</SelectItem>
+          <SelectItem value="customer">Customer</SelectItem>
+        </ArisSelect>
+        
+        <ArisInput
+          label="Personality Type"
+          placeholder="ENFP, Analytical, etc."
+          icon={<Brain className="h-4 w-4" />}
+          error={form.formState.errors.personalityType?.message}
+          {...form.register('personalityType')}
+        />
+      </ArisFormGrid>
+      
+      <ArisFormGrid columns={1}>
+        <ArisTextarea
+          label="Notes"
+          placeholder="General notes about this contact..."
+          rows={3}
+          maxLength={500}
+          showCount
+          error={form.formState.errors.notes?.message}
+          {...form.register('notes')}
+        />
+        
+        <ArisTextarea
+          label="Personality Notes"
+          placeholder="Notes about personality, communication style, preferences..."
+          rows={3}
+          maxLength={500}
+          showCount
+          error={form.formState.errors.personalityNotes?.message}
+          {...form.register('personalityNotes')}
+        />
+      </ArisFormGrid>
+      
+      <div className="flex justify-end space-x-3 pt-4">
+        <button
+          type="button"
+          className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          onClick={() => router.back()}
+        >
+          Cancel
+        </button>
+        
+        <ArisSubmitButton
+          loading={isSubmitting}
+          loadingText={isEditing ? 'Updating...' : 'Creating...'}
+        >
+          {isEditing ? 'Update Contact' : 'Create Contact'}
+        </ArisSubmitButton>
+      </div>
+    </ArisForm>
   );
 }

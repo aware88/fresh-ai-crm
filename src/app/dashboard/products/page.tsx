@@ -1,118 +1,124 @@
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { PlusCircle } from "lucide-react";
-import Link from "next/link";
+'use client';
 
-// Mock data - will be replaced with actual data from Supabase later
-const mockProducts = [
+import { useState } from 'react';
+import { motion } from 'framer-motion';
+import { ArisPageHeader } from '@/components/ui/aris-page-header';
+import { ArisStatsCard } from '@/components/ui/aris-stats-card';
+import { ProductsTable, Product } from '@/components/products/ProductsTable';
+import { Button } from '@/components/ui/button';
+import { 
+  Package, 
+  Plus, 
+  TrendingUp, 
+  AlertTriangle, 
+  DollarSign,
+  Boxes
+} from 'lucide-react';
+import Link from 'next/link';
+
+// Mock stats data
+const productStats = [
   {
-    id: "1",
-    sku: "PROD-001",
-    name: "Organic Apples",
-    category: "Fruits",
-    unit: "kg",
-    quantity_on_hand: 150.5,
-    selling_price: 3.99,
-    min_stock_level: 50,
+    title: "Total Products",
+    value: "1,247",
+    change: "+12%",
+    trend: "up" as const,
+    icon: Package,
+    color: "#3B82F6"
   },
   {
-    id: "2",
-    sku: "PROD-002",
-    name: "Fresh Salmon Fillet",
-    category: "Seafood",
-    unit: "kg",
-    quantity_on_hand: 25.2,
-    selling_price: 24.99,
-    min_stock_level: 10,
+    title: "Low Stock Alerts",
+    value: "23",
+    change: "-5%",
+    trend: "down" as const,
+    icon: AlertTriangle,
+    color: "#F59E0B"
   },
   {
-    id: "3",
-    sku: "PROD-003",
-    name: "Free Range Eggs (Dozen)",
-    category: "Dairy & Eggs",
-    unit: "dozen",
-    quantity_on_hand: 42,
-    selling_price: 5.99,
-    min_stock_level: 20,
+    title: "Inventory Value",
+    value: "$47,392",
+    change: "+18%",
+    trend: "up" as const,
+    icon: DollarSign,
+    color: "#8B5CF6"
   },
+  {
+    title: "Categories",
+    value: "12",
+    change: "+2%",
+    trend: "up" as const,
+    icon: Boxes,
+    color: "#EC4899"
+  }
 ];
 
 export default function ProductsPage() {
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+
+  // Action handlers
+  const handleView = (product: Product) => {
+    console.log('View product:', product);
+    setSelectedProduct(product);
+  };
+
+  const handleEdit = (product: Product) => {
+    console.log('Edit product:', product);
+    // Navigate to edit page or open modal
+  };
+
+  const handleDelete = (product: Product) => {
+    console.log('Delete product:', product);
+    // Show confirmation dialog and delete
+  };
+
   return (
-    <div className="container mx-auto px-4 py-6 space-y-6">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Products</h1>
-          <p className="text-muted-foreground">
-            Manage your product catalog and inventory
-          </p>
-        </div>
-        <Link href="/dashboard/products/new">
-          <Button>
-            <PlusCircle className="mr-2 h-4 w-4" />
+    <div className="space-y-6">
+      {/* Header */}
+      <ArisPageHeader
+        title="Products"
+        description="Manage your product catalog, inventory, and pricing"
+        icon={Package}
+      >
+        <Button variant="secondary" size="lg" asChild>
+          <Link href="/dashboard/products/new">
+            <Plus className="mr-2 h-4 w-4" />
             Add Product
-          </Button>
-        </Link>
+          </Link>
+        </Button>
+      </ArisPageHeader>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {productStats.map((stat, index) => (
+          <ArisStatsCard
+            key={stat.title}
+            title={stat.title}
+            value={stat.value}
+            change={stat.change}
+            trend={stat.trend}
+            icon={stat.icon}
+            color={stat.color}
+            index={index}
+          />
+        ))}
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>All Products</CardTitle>
-          <CardDescription>
-            View and manage your product inventory
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>SKU</TableHead>
-                <TableHead>Product Name</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead className="text-right">In Stock</TableHead>
-                <TableHead className="text-right">Price</TableHead>
-                <TableHead className="text-right">Status</TableHead>
-                <TableHead></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {mockProducts.map((product) => (
-                <TableRow key={product.id}>
-                  <TableCell className="font-medium">{product.sku}</TableCell>
-                  <TableCell>{product.name}</TableCell>
-                  <TableCell>{product.category}</TableCell>
-                  <TableCell className="text-right">
-                    {product.quantity_on_hand} {product.unit}
-                    {product.quantity_on_hand <= product.min_stock_level && (
-                      <span className="ml-2 text-xs text-yellow-600">
-                        (Low Stock)
-                      </span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    ${product.selling_price.toFixed(2)}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      product.quantity_on_hand > product.min_stock_level 
-                        ? 'bg-green-100 text-green-800' 
-                        : 'bg-red-100 text-red-800'
-                    }`}>
-                      {product.quantity_on_hand > product.min_stock_level ? 'In Stock' : 'Low Stock'}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button variant="ghost" size="sm" asChild>
-                      <Link href={`/dashboard/inventory/products/${product.id}`}>View</Link>
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      {/* Mobile Add Product Button */}
+      <div className="md:hidden">
+        <Button size="lg" className="w-full bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600" asChild>
+          <Link href="/dashboard/products/new">
+            <Plus className="mr-2 h-4 w-4" />
+            Add Product
+          </Link>
+        </Button>
+      </div>
+
+      {/* Products Table */}
+      <ProductsTable
+        onView={handleView}
+        onEdit={handleEdit}
+        onDelete={handleDelete}
+      />
     </div>
   );
 }

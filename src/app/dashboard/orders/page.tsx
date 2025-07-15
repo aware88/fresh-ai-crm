@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo, useCallback } from 'react';
+import { motion } from 'framer-motion';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -14,7 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { PlusCircle, Search, X, Filter, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, MapPin, Package, Calendar, Clock } from "lucide-react";
+import { PlusCircle, Search, X, Filter, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, MapPin, Package, Calendar, Clock, TrendingUp, DollarSign, ShoppingCart, AlertCircle } from "lucide-react";
 import Link from "next/link";
 
 // Mock data - will be replaced with actual data from Supabase later
@@ -333,6 +334,42 @@ function Pagination({
   );
 }
 
+// Mock stats data
+const orderStats = [
+  {
+    title: "Total Orders",
+    value: "1,247",
+    change: "+12%",
+    trend: "up" as const,
+    icon: ShoppingCart,
+    color: "#3B82F6"
+  },
+  {
+    title: "Revenue",
+    value: "$47,392",
+    change: "+18%",
+    trend: "up" as const,
+    icon: DollarSign,
+    color: "#8B5CF6"
+  },
+  {
+    title: "Pending Orders",
+    value: "23",
+    change: "-5%",
+    trend: "down" as const,
+    icon: Clock,
+    color: "#EC4899"
+  },
+  {
+    title: "Issues",
+    value: "2",
+    change: "-50%",
+    trend: "down" as const,
+    icon: AlertCircle,
+    color: "#F59E0B"
+  }
+];
+
 export default function OrdersPage() {
   // State for filters
   const [searchTerm, setSearchTerm] = useState('');
@@ -397,19 +434,99 @@ export default function OrdersPage() {
   };
 
   return (
-    <div className="container mx-auto px-4 py-6">
-      <div className="space-y-4">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Orders</h1>
-            <p className="text-muted-foreground">Manage and track your customer orders</p>
+    <div className="space-y-6">
+      {/* Header with ARIS Branding */}
+      <motion.div 
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500"
+      >
+        <div className="absolute inset-0 bg-black/5" />
+        <div className="relative p-8">
+          <div className="flex items-center justify-between">
+            <div>
+              <motion.h1 
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.2 }}
+                className="text-4xl font-bold text-white mb-2"
+              >
+                Orders
+              </motion.h1>
+              <motion.p 
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.3 }}
+                className="text-white/90 text-lg"
+              >
+                Manage and track your customer orders
+              </motion.p>
+            </div>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.4 }}
+              className="hidden md:flex items-center gap-4"
+            >
+              <div className="bg-white/20 backdrop-blur-sm rounded-full p-4">
+                <ShoppingCart className="h-12 w-12 text-white" />
+              </div>
+              <Button variant="secondary" size="lg" asChild>
+                <Link href="/dashboard/orders/new">
+                  <PlusCircle className="mr-2 h-4 w-4" />
+                  Create Order
+                </Link>
+              </Button>
+            </motion.div>
           </div>
-          <Link href="/dashboard/orders/new" className="w-full md:w-auto">
-            <Button className="w-full md:w-auto">
+        </div>
+      </motion.div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {orderStats.map((stat, index) => (
+          <motion.div
+            key={stat.title}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 * index }}
+          >
+            <Card className="h-full">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">{stat.title}</p>
+                    <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
+                    <div className="flex items-center mt-1">
+                      <TrendingUp className={`h-4 w-4 ${stat.trend === 'up' ? 'text-green-500' : 'text-red-500'}`} />
+                      <span className={`text-sm font-medium ml-1 ${stat.trend === 'up' ? 'text-green-600' : 'text-red-600'}`}>
+                        {stat.change}
+                      </span>
+                    </div>
+                  </div>
+                  <div 
+                    className="p-3 rounded-full"
+                    style={{ backgroundColor: `${stat.color}20` }}
+                  >
+                    <stat.icon className="h-6 w-6" style={{ color: stat.color }} />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        ))}
+      </div>
+
+      <div className="space-y-4">
+        {/* Mobile Create Order Button */}
+        <div className="md:hidden">
+          <Button size="lg" className="w-full bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600" asChild>
+            <Link href="/dashboard/orders/new">
               <PlusCircle className="mr-2 h-4 w-4" />
               Create Order
-            </Button>
-          </Link>
+            </Link>
+          </Button>
         </div>
 
         {/* Search and Filters */}
@@ -538,7 +655,7 @@ export default function OrdersPage() {
       </div>
 
       <Card>
-        <CardHeader className="pb-2">
+        <CardHeader>
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <CardTitle>Orders</CardTitle>
@@ -550,117 +667,117 @@ export default function OrdersPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>ORDER</TableHead>
+              <TableHead>CUSTOMER</TableHead>
+              <TableHead>DATE</TableHead>
+              <TableHead>ITEMS</TableHead>
+              <TableHead>TOTAL</TableHead>
+              <TableHead>STATUS</TableHead>
+              <TableHead>PAYMENT</TableHead>
+              <TableHead className="text-right">ACTIONS</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {paginatedOrders.length === 0 ? (
               <TableRow>
-                <TableHead>ORDER</TableHead>
-                <TableHead>CUSTOMER</TableHead>
-                <TableHead>DATE</TableHead>
-                <TableHead>ITEMS</TableHead>
-                <TableHead>TOTAL</TableHead>
-                <TableHead>STATUS</TableHead>
-                <TableHead>PAYMENT</TableHead>
-                <TableHead className="text-right">ACTIONS</TableHead>
+                <TableCell colSpan={8} className="h-24 text-center">
+                  No orders found
+                </TableCell>
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {paginatedOrders.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={8} className="h-24 text-center">
-                    No orders found
-                  </TableCell>
-                </TableRow>
-              ) : (
-                paginatedOrders.map((order) => (
-                <TableRow key={order.id}>
-                  <TableCell className="font-medium">
-                    <div className="flex items-center gap-2">
-                      <span>{order.id}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="font-medium">{order.customer}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {order.email}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4 text-muted-foreground" />
-                      <div className="flex flex-col">
-                        <div className="font-medium">{formatDate(order.date).relativeTime}</div>
-                        <div className="text-xs text-muted-foreground" title={formatDate(order.date).fullDate}>
-                          {new Date(order.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </div>
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex flex-col gap-1">
-                      <div className="flex items-center gap-1">
-                        <Package className="h-3.5 w-3.5 text-muted-foreground" />
-                        <span className="text-sm">
-                          {order.items} {order.items === 1 ? 'item' : 'items'}
-                        </span>
-                      </div>
-                      <div className="text-xs text-muted-foreground truncate max-w-[120px]" title={order.orderItems.map(item => `${item.quantity}x ${item.name}`).join(', ')}>
-                        {order.orderItems.slice(0, 2).map(item => `${item.quantity}x ${item.name}`).join(', ')}
-                        {order.orderItems.length > 2 ? '...' : ''}
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell className="font-medium">
+            ) : (
+              paginatedOrders.map((order) => (
+              <TableRow key={order.id}>
+                <TableCell className="font-medium">
+                  <div className="flex items-center gap-2">
+                    <span>{order.id}</span>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="font-medium">{order.customer}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {order.email}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-2">
+                    <Calendar className="h-4 w-4 text-muted-foreground" />
                     <div className="flex flex-col">
-                      <div>{formatCurrency(order.total)}</div>
-                      <div className="text-xs text-muted-foreground">
+                      <div className="font-medium">{formatDate(order.date).relativeTime}</div>
+                      <div className="text-xs text-muted-foreground" title={formatDate(order.date).fullDate}>
+                        {new Date(order.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </div>
+                    </div>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-center gap-1">
+                      <Package className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span className="text-sm">
                         {order.items} {order.items === 1 ? 'item' : 'items'}
-                      </div>
+                      </span>
                     </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex flex-col gap-1">
-                      <Badge variant={statusVariantMap[order.status].variant as any}>
-                        {statusVariantMap[order.status].label}
-                      </Badge>
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <MapPin className="h-3 w-3" />
-                        <span className="truncate max-w-[100px]" title={order.location}>
-                          {order.location}
-                        </span>
-                      </div>
+                    <div className="text-xs text-muted-foreground truncate max-w-[120px]" title={order.orderItems.map(item => `${item.quantity}x ${item.name}`).join(', ')}>
+                      {order.orderItems.slice(0, 2).map(item => `${item.quantity}x ${item.name}`).join(', ')}
+                      {order.orderItems.length > 2 ? '...' : ''}
                     </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={paymentStatusVariantMap[order.paymentStatus].variant as any}>
-                      {paymentStatusVariantMap[order.paymentStatus].label}
+                  </div>
+                </TableCell>
+                <TableCell className="font-medium">
+                  <div className="flex flex-col">
+                    <div>{formatCurrency(order.total)}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {order.items} {order.items === 1 ? 'item' : 'items'}
+                    </div>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="flex flex-col gap-1">
+                    <Badge variant={statusVariantMap[order.status].variant as any}>
+                      {statusVariantMap[order.status].label}
                     </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end">
-                      <Button variant="ghost" size="sm" asChild>
-                        <Link href={`/dashboard/orders/${order.id}`} className="text-foreground">
-                          View
-                        </Link>
-                      </Button>
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <MapPin className="h-3 w-3" />
+                      <span className="truncate max-w-[100px]" title={order.location}>
+                        {order.location}
+                      </span>
                     </div>
-                  </TableCell>
-                </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-          
-          {/* Pagination */}
-          <div className="px-6 pb-4">
-            <Pagination
-              currentPage={currentPage}
-              totalPages={totalPages}
-              onPageChange={handlePageChange}
-              pageSize={pageSize}
-              onPageSizeChange={handlePageSizeChange}
-              totalItems={totalItems}
-            />
-          </div>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <Badge variant={paymentStatusVariantMap[order.paymentStatus].variant as any}>
+                    {paymentStatusVariantMap[order.paymentStatus].label}
+                  </Badge>
+                </TableCell>
+                <TableCell className="text-right">
+                  <div className="flex justify-end">
+                    <Button variant="ghost" size="sm" asChild>
+                      <Link href={`/dashboard/orders/${order.id}`} className="text-foreground">
+                        View
+                      </Link>
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+        
+        {/* Pagination */}
+        <div className="px-6 pb-4">
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={handlePageChange}
+            pageSize={pageSize}
+            onPageSizeChange={handlePageSizeChange}
+            totalItems={totalItems}
+          />
+        </div>
         </CardContent>
       </Card>
     </div>
