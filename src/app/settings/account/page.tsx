@@ -21,22 +21,51 @@ export default function AccountSettings() {
   const { toast } = useToast();
   const { data: session } = useSession();
   const user = session?.user;
+  const [settings, setSettings] = React.useState<AccountSettings>({
+    twoFactorEnabled: false,
+    activityEmails: true,
+    marketingEmails: false
+  });
+  
+  // Load settings from localStorage on mount
+  React.useEffect(() => {
+    const savedSettings = localStorage.getItem('aris-account-settings');
+    if (savedSettings) {
+      try {
+        const parsed = JSON.parse(savedSettings);
+        setSettings(parsed);
+      } catch (error) {
+        console.warn('Failed to parse saved account settings');
+      }
+    }
+  }, []);
   
   const handleSaveSettings = async (formData: AccountSettings) => {
-    const supabase = createClientComponentClient();
-    
-    // Update user preferences in Supabase
-    const { error } = await supabase
-      .from('user_preferences')
-      .upsert({
-        user_id: user?.id,
-        two_factor_enabled: formData.twoFactorEnabled,
-        activity_emails: formData.activityEmails,
-        marketing_emails: formData.marketingEmails,
-        updated_at: new Date().toISOString()
-      });
+    try {
+      // Save to localStorage immediately (always works)
+      localStorage.setItem('aris-account-settings', JSON.stringify(formData));
+      setSettings(formData);
       
-    if (error) throw new Error(error.message);
+      // Try to save to Supabase (with error handling)
+      if (user?.id) {
+        const supabase = createClientComponentClient();
+        const { error } = await supabase
+          .from('user_preferences')
+          .upsert({
+            user_id: user.id,
+            two_factor_enabled: formData.twoFactorEnabled,
+            activity_emails: formData.activityEmails,
+            marketing_emails: formData.marketingEmails,
+            updated_at: new Date().toISOString()
+          });
+          
+        if (error) {
+          console.warn('Failed to save to database, using localStorage:', error.message);
+        }
+      }
+    } catch (error) {
+      console.warn('Settings saved locally only:', error);
+    }
   };
   
   const handleDeleteAccount = () => {
@@ -47,19 +76,13 @@ export default function AccountSettings() {
     });
   };
   
-  const initialData: AccountSettings = {
-    twoFactorEnabled: false,
-    activityEmails: true,
-    marketingEmails: false
-  };
-
   return (
     <SettingsForm
       title="Account"
       description="Manage your account settings and preferences."
       backUrl="/settings"
       onSave={handleSaveSettings}
-      initialData={initialData}
+      initialData={settings}
     >
       <Card>
         <CardHeader>

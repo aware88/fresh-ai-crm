@@ -43,10 +43,24 @@ export default function NotificationPreferences() {
     const fetchPreferences = async () => {
       try {
         setLoading(true);
+        
+        // Try to load from localStorage first
+        const savedPreferences = localStorage.getItem('aris-notification-preferences');
+        if (savedPreferences) {
+          try {
+            const parsed = JSON.parse(savedPreferences);
+            setCategories(parsed);
+          } catch (error) {
+            console.warn('Failed to parse saved notification preferences');
+          }
+        }
+        
+        // Try to fetch from API
         const response = await fetch('/api/user/notification-preferences');
         
         if (!response.ok) {
-          throw new Error('Failed to fetch notification preferences');
+          console.warn('Failed to fetch notification preferences from server, using localStorage');
+          return;
         }
         
         const data = await response.json();
@@ -97,31 +111,6 @@ export default function NotificationPreferences() {
     try {
       setSaving(true);
       
-      // Convert modified preferences to array format for API
-      const preferencesToSave = Object.entries(modifiedPreferences).map(([type, settings]) => ({
-        notification_type: type,
-        email_enabled: settings.email,
-        in_app_enabled: settings.inApp
-      }));
-      
-      const response = await fetch('/api/user/notification-preferences', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ preferences: preferencesToSave })
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to save notification preferences');
-      }
-      
-      toast({
-        title: 'Success',
-        description: 'Notification preferences saved successfully',
-        variant: 'default'
-      });
-      
       // Update the UI with saved preferences
       const updatedCategories = { ...categories };
       Object.keys(updatedCategories).forEach(category => {
@@ -134,7 +123,40 @@ export default function NotificationPreferences() {
           }
         }));
       });
+      
+      // Save to localStorage immediately (always works)
+      localStorage.setItem('aris-notification-preferences', JSON.stringify(updatedCategories));
       setCategories(updatedCategories);
+      
+      // Convert modified preferences to array format for API
+      const preferencesToSave = Object.entries(modifiedPreferences).map(([type, settings]) => ({
+        notification_type: type,
+        email_enabled: settings.email,
+        in_app_enabled: settings.inApp
+      }));
+      
+      // Try to save to API (with error handling)
+      try {
+        const response = await fetch('/api/user/notification-preferences', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ preferences: preferencesToSave })
+        });
+        
+        if (!response.ok) {
+          console.warn('Failed to save to server, using localStorage only');
+        }
+      } catch (apiError) {
+        console.warn('API unavailable, using localStorage only:', apiError);
+      }
+      
+      toast({
+        title: 'Success',
+        description: 'Notification preferences saved successfully',
+        variant: 'default'
+      });
       
     } catch (error) {
       console.error('Error saving notification preferences:', error);

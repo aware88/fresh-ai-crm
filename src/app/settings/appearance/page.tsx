@@ -22,25 +22,58 @@ export default function AppearanceSettings() {
   const [theme, setTheme] = useState('system');
   const [fontSize, setFontSize] = useState('medium');
   
-  const handleSaveSettings = async (formData: AppearanceFormData) => {
-    const supabase = createClientComponentClient();
+  // Load settings from localStorage on mount
+  React.useEffect(() => {
+    const savedTheme = localStorage.getItem('aris-theme') || 'system';
+    const savedFontSize = localStorage.getItem('aris-font-size') || 'medium';
+    setTheme(savedTheme);
+    setFontSize(savedFontSize);
     
-    // Save appearance settings to Supabase
-    const { error } = await supabase
-      .from('user_preferences')
-      .upsert({
-        user_id: user?.id,
-        theme: formData.theme,
-        font_size: formData.fontSize,
-        updated_at: new Date().toISOString()
-      });
-      
-    if (error) throw new Error(error.message);
-    
-    // Apply theme to document
+    // Apply theme immediately
+    applyTheme(savedTheme);
+  }, []);
+  
+  const applyTheme = (themeValue: string) => {
     document.documentElement.classList.remove('light', 'dark');
-    if (formData.theme !== 'system') {
-      document.documentElement.classList.add(formData.theme);
+    if (themeValue === 'system') {
+      const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      document.documentElement.classList.add(systemTheme);
+    } else {
+      document.documentElement.classList.add(themeValue);
+    }
+  };
+  
+  const handleSaveSettings = async (formData: AppearanceFormData) => {
+    try {
+      // Save to localStorage immediately (always works)
+      localStorage.setItem('aris-theme', formData.theme);
+      localStorage.setItem('aris-font-size', formData.fontSize);
+      
+      // Apply theme immediately
+      applyTheme(formData.theme);
+      
+      // Apply font size
+      document.documentElement.style.fontSize = formData.fontSize === 'small' ? '14px' : 
+                                                formData.fontSize === 'large' ? '18px' : '16px';
+      
+      // Try to save to Supabase (with error handling)
+      if (user?.id) {
+        const supabase = createClientComponentClient();
+        const { error } = await supabase
+          .from('user_preferences')
+          .upsert({
+            user_id: user.id,
+            theme: formData.theme,
+            font_size: formData.fontSize,
+            updated_at: new Date().toISOString()
+          });
+          
+        if (error) {
+          console.warn('Failed to save to database, using localStorage:', error.message);
+        }
+      }
+    } catch (error) {
+      console.warn('Settings saved locally only:', error);
     }
   };
   

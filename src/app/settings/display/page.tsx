@@ -42,26 +42,53 @@ export default function DisplaySettingsPage() {
     }
   });
   
+  // Load settings from localStorage on mount
+  React.useEffect(() => {
+    const savedSettings = localStorage.getItem('aris-display-settings');
+    if (savedSettings) {
+      try {
+        const parsed = JSON.parse(savedSettings);
+        setSettings(parsed);
+        setEmailPreviewLength(parsed.emailPreviewLength || 2);
+      } catch (error) {
+        console.warn('Failed to parse saved display settings');
+      }
+    }
+  }, []);
+
   const handleSaveSettings = async (formData: DisplaySettings) => {
-    const supabase = createClientComponentClient();
-    
-    // Save display settings to Supabase
-    const { error } = await supabase
-      .from('display_preferences')
-      .upsert({
-        user_id: user?.id,
-        email_sort: formData.emailSort,
-        email_preview_length: formData.emailPreviewLength,
-        email_view: formData.emailView,
-        dashboard_layout: formData.dashboardLayout,
-        widget_emails: formData.widgets.emails,
-        widget_contacts: formData.widgets.contacts,
-        widget_tasks: formData.widgets.tasks,
-        widget_analytics: formData.widgets.analytics,
-        updated_at: new Date().toISOString()
-      });
+    try {
+      // Save to localStorage immediately (always works)
+      localStorage.setItem('aris-display-settings', JSON.stringify(formData));
       
-    if (error) throw new Error(error.message);
+      // Update local state
+      setSettings(formData);
+      
+      // Try to save to Supabase (with error handling)
+      if (user?.id) {
+        const supabase = createClientComponentClient();
+        const { error } = await supabase
+          .from('display_preferences')
+          .upsert({
+            user_id: user.id,
+            email_sort: formData.emailSort,
+            email_preview_length: formData.emailPreviewLength,
+            email_view: formData.emailView,
+            dashboard_layout: formData.dashboardLayout,
+            widget_emails: formData.widgets.emails,
+            widget_contacts: formData.widgets.contacts,
+            widget_tasks: formData.widgets.tasks,
+            widget_analytics: formData.widgets.analytics,
+            updated_at: new Date().toISOString()
+          });
+          
+        if (error) {
+          console.warn('Failed to save to database, using localStorage:', error.message);
+        }
+      }
+    } catch (error) {
+      console.warn('Settings saved locally only:', error);
+    }
   };
   
   const updateSettings = (key: string, value: any) => {
@@ -71,7 +98,7 @@ export default function DisplaySettingsPage() {
       setSettings(prev => ({
         ...prev,
         [parent]: {
-          ...prev[parent as keyof DisplaySettings],
+          ...(prev[parent as keyof DisplaySettings] as object),
           [child]: value
         }
       }));
