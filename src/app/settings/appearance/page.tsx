@@ -77,9 +77,10 @@ export default function AppearanceSettings() {
     }
   };
   
+  // Use current state values for initial data
   const initialData: AppearanceFormData = {
-    theme: 'system',
-    fontSize: 'medium'
+    theme: theme,
+    fontSize: fontSize
   };
 
   return (
@@ -99,7 +100,7 @@ export default function AppearanceSettings() {
         </CardHeader>
         <CardContent className="space-y-6">
           <RadioGroup 
-            defaultValue={theme} 
+            value={theme} 
             onValueChange={(value) => {
               setTheme(value);
               const form = document.getElementById('appearance-form') as HTMLFormElement;
