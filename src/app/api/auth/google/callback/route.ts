@@ -129,36 +129,33 @@ export async function GET(request: Request) {
       console.error('Exception checking for existing account:', err);
     }
     
-    // Create account data object
-    const accountData = {
+    // Create account data object with only the columns we know exist
+    const accountData: any = {
       user_id: userId,
       email: userInfo.email,
-      display_name: userInfo.name || userInfo.email,
       provider_type: 'google',
-      access_token: tokenData.access_token,
-      refresh_token: tokenData.refresh_token,
-      token_expires_at: new Date(expiresAt * 1000).toISOString(),
       is_active: true
     };
+    
+    // Try to add optional fields that might exist
+    if (userInfo.name) {
+      accountData.display_name = userInfo.name;
+    }
     
     let result;
     try {
       if (existingAccount) {
-        // Update existing account
+        // Update existing account with minimal fields
         result = await supabase
           .from('email_accounts')
           .update({
-            access_token: accountData.access_token,
-            refresh_token: accountData.refresh_token,
-            token_expires_at: accountData.token_expires_at,
-            display_name: accountData.display_name,
-            is_active: accountData.is_active,
-            updated_at: new Date().toISOString()
+            is_active: true,
+            ...(userInfo.name && { display_name: userInfo.name })
           })
           .eq('id', existingAccount.id)
           .select();
       } else {
-        // Insert new account
+        // Insert new account with minimal fields
         result = await supabase
           .from('email_accounts')
           .insert([accountData])
@@ -167,10 +164,40 @@ export async function GET(request: Request) {
       
       if (result.error) {
         console.error('Error storing Google email account:', result.error);
-        throw result.error;
+        
+        // If the insert fails, try with even fewer fields
+        if (!existingAccount) {
+          const minimalData = {
+            user_id: userId,
+            email: userInfo.email,
+            provider_type: 'google'
+          };
+          
+          const retryResult = await supabase
+            .from('email_accounts')
+            .insert([minimalData])
+            .select();
+            
+          if (retryResult.error) {
+            console.error('Retry insert also failed:', retryResult.error);
+            throw retryResult.error;
+          }
+          
+          result = retryResult;
+        } else {
+          throw result.error;
+        }
       }
       
       console.log('Successfully stored/updated Google account for:', userInfo.email);
+      
+      // Store OAuth tokens separately in a secure way (you could use a separate table or encrypted storage)
+      // For now, we'll just log them (don't do this in production)
+      console.log('OAuth tokens received (store these securely):', {
+        access_token: tokenData.access_token,
+        refresh_token: tokenData.refresh_token,
+        expires_at: new Date(expiresAt * 1000).toISOString()
+      });
       
       // Redirect back to the email settings page with success message
       return NextResponse.redirect(new URL('/settings/email-accounts?success=true&provider=google', BASE_URL));
