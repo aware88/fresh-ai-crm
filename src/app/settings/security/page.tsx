@@ -8,6 +8,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ShieldCheck, KeyRound, History } from "lucide-react";
 import { format } from 'date-fns';
+import { SettingsForm } from '@/components/settings/settings-form';
+import { useToast } from '@/components/ui/use-toast';
 
 interface AuthAttempt {
   id: string;
@@ -20,8 +22,14 @@ interface AuthAttempt {
 
 export default function SecuritySettingsPage() {
   const { data: session, status } = useSession();
+  const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [recentAttempts, setRecentAttempts] = useState<AuthAttempt[]>([]);
+  const [securitySettings, setSecuritySettings] = useState({
+    twoFactorEnabled: false,
+    passwordLastChanged: null,
+    sessionTimeout: 30
+  });
   
   useEffect(() => {
     // Fetch recent login attempts when session is available
@@ -45,31 +53,51 @@ export default function SecuritySettingsPage() {
       setLoading(false);
     }
   };
+
+  const handleSaveSettings = async (formData: any) => {
+    try {
+      // In a real app, you would save these settings to the server
+      setSecuritySettings(formData);
+      toast({
+        title: "Settings Saved",
+        description: "Your security settings have been updated.",
+      });
+      return Promise.resolve();
+    } catch (error) {
+      console.error('Error saving security settings:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save security settings. Please try again.",
+        variant: "destructive",
+      });
+      return Promise.reject(error);
+    }
+  };
   
   if (status === 'loading') {
     return (
-      <div className="container py-10">
-        <h1 className="text-2xl font-bold mb-6">Security Settings</h1>
-        <div className="space-y-6">
-          <Skeleton className="h-[300px] w-full" />
-        </div>
+      <div className="space-y-6">
+        <Skeleton className="h-[300px] w-full" />
       </div>
     );
   }
   
   if (status === 'unauthenticated') {
     return (
-      <div className="container py-10">
-        <h1 className="text-2xl font-bold mb-6">Security Settings</h1>
+      <div className="space-y-6">
         <p>Please sign in to access your security settings.</p>
       </div>
     );
   }
   
   return (
-    <div className="container py-10">
-      <h1 className="text-2xl font-bold mb-6">Security Settings</h1>
-      
+    <SettingsForm
+      title="Security"
+      description="Manage your account security settings and monitor recent activity."
+      backUrl="/settings"
+      onSave={handleSaveSettings}
+      initialData={securitySettings}
+    >
       <Tabs defaultValue="2fa" className="space-y-6">
         <TabsList>
           <TabsTrigger value="2fa">
@@ -147,6 +175,6 @@ export default function SecuritySettingsPage() {
           </Card>
         </TabsContent>
       </Tabs>
-    </div>
+    </SettingsForm>
   );
 }

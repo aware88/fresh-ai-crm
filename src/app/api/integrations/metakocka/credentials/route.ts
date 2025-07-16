@@ -4,7 +4,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '../../../../../lib/supabase/server';
 import { cookies } from 'next/headers';
-import { getSession } from '../../../../../lib/auth/session';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '../../../auth/[...nextauth]/route';
 import { MetakockaService, MetakockaCredentials, MetakockaError } from '../../../../../lib/integrations/metakocka';
 
 /**
@@ -13,11 +14,10 @@ import { MetakockaService, MetakockaCredentials, MetakockaError } from '../../..
  */
 export async function GET(request: NextRequest) {
   try {
-    // Get authenticated user
-    const supabase = createServerClient();
-    const session = await getSession();
+    // Get authenticated user using NextAuth
+    const session = await getServerSession(authOptions);
     
-    if (!session) {
+    if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
@@ -49,11 +49,10 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    // Get authenticated user
-    const supabase = createServerClient();
-    const session = await getSession();
+    // Get authenticated user using NextAuth
+    const session = await getServerSession(authOptions);
     
-    if (!session) {
+    if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
@@ -71,10 +70,10 @@ export async function POST(request: NextRequest) {
     const credentials: MetakockaCredentials = {
       companyId: body.companyId,
       secretKey: body.secretKey,
-      apiEndpoint: body.apiEndpoint,
+      apiEndpoint: body.apiEndpoint || 'https://main.metakocka.si/rest/eshop/v1/json/',
     };
     
-    // Test credentials before saving
+    // Test connection if requested
     if (body.testConnection) {
       try {
         await MetakockaService.testCredentials(credentials);
@@ -82,8 +81,7 @@ export async function POST(request: NextRequest) {
         if (error instanceof MetakockaError) {
           return NextResponse.json(
             { 
-              error: 'Invalid credentials', 
-              details: error.message,
+              error: error.message,
               type: error.type,
               code: error.code
             },
@@ -99,7 +97,7 @@ export async function POST(request: NextRequest) {
     
     if (!success) {
       return NextResponse.json(
-        { error: 'Failed to save credentials' },
+        { error: 'Failed to save Metakocka credentials' },
         { status: 500 }
       );
     }
@@ -116,24 +114,27 @@ export async function POST(request: NextRequest) {
 
 /**
  * DELETE /api/integrations/metakocka/credentials
- * Delete Metakocka credentials
+ * Delete Metakocka credentials for the current user
  */
 export async function DELETE(request: NextRequest) {
   try {
-    // Get authenticated user
-    const supabase = createServerClient();
-    const session = await getSession();
+    // Get authenticated user using NextAuth
+    const session = await getServerSession(authOptions);
     
-    if (!session) {
+    if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    // Delete credentials
-    const success = await MetakockaService.deleteCredentials(session.user.id);
+    // Delete credentials by deactivating them
+    const supabase = await createServerClient();
+    const { error } = await supabase
+      .from('metakocka_credentials')
+      .update({ is_active: false })
+      .eq('user_id', session.user.id);
     
-    if (!success) {
+    if (error) {
       return NextResponse.json(
-        { error: 'Failed to delete credentials' },
+        { error: 'Failed to delete Metakocka credentials' },
         { status: 500 }
       );
     }

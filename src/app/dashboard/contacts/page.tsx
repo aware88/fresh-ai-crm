@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { SyncAllContactsButton } from '@/components/contacts/SyncAllContactsButton';
 import { SyncContactButton } from '@/components/contacts/SyncContactButton';
 import { 
@@ -37,17 +38,35 @@ import {
   Loader2,
   ChevronLeft,
   ChevronRight,
-  AlertCircle
+  AlertCircle,
+  Users,
+  UserCheck,
+  BarChart3,
+  History,
+  Phone,
+  MapPin,
+  Calendar,
+  X,
+  Filter
 } from 'lucide-react';
 import { Contact } from '@/lib/contacts/types';
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/components/ui/use-toast';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export default function ContactsPage() {
+  const [activeTab, setActiveTab] = useState('contacts');
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [personalityFilter, setPersonalityFilter] = useState<string>('all');
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -94,17 +113,20 @@ export default function ContactsPage() {
     fetchContacts();
   }, [searchParams]);
 
-  // Filter contacts based on search term
+  // Filter contacts based on search term and personality filter
   const filteredContacts = contacts.filter(contact => {
     const fullName = `${contact.firstName} ${contact.lastName}`.toLowerCase();
     const searchLower = searchTerm.toLowerCase();
     
-    return (
+    const matchesSearch = !searchTerm || 
       fullName.includes(searchLower) ||
       contact.email.toLowerCase().includes(searchLower) ||
-      (contact.company && contact.company.toLowerCase().includes(searchLower)) ||
-      (contact.personalityType && contact.personalityType.toLowerCase().includes(searchLower))
-    );
+      (contact.company && contact.company.toLowerCase().includes(searchLower));
+    
+    const matchesPersonality = personalityFilter === 'all' || 
+      (contact.personalityType && contact.personalityType.toLowerCase() === personalityFilter.toLowerCase());
+    
+    return matchesSearch && matchesPersonality;
   });
 
   // Delete a contact
@@ -154,158 +176,310 @@ export default function ContactsPage() {
     });
   };
 
+  // Get unique personality types for filter
+  const personalityTypes = Array.from(new Set(contacts.map(c => c.personalityType).filter(Boolean)));
+
+  // Check if any filters are active
+  const hasActiveFilters = searchTerm || personalityFilter !== 'all';
+  
+  // Clear all filters
+  const clearAllFilters = () => {
+    setSearchTerm('');
+    setPersonalityFilter('all');
+  };
+
   return (
-    <div className="flex flex-col space-y-6 p-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <div className="flex-1">
-          <h1 className="text-2xl font-semibold aris-text-gradient">Contacts</h1>
-          <p className="text-gray-500">Manage your contacts and their personality profiles</p>
-        </div>
-        <div className="flex gap-3">
-          <SyncAllContactsButton 
-            variant="outline"
-            size="sm"
-            className="mr-2 rounded-xl border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-all duration-200"
-            onSyncComplete={(result) => {
-              if (result.success) {
-                toast({
-                  title: 'Contacts synced',
-                  description: `Successfully synced ${result.created + result.updated} contacts with Metakocka`,
-                });
-                // Refresh the page to show updated sync status
-                router.refresh();
-              }
-            }}
-          >
-            Sync All to Metakocka
-          </SyncAllContactsButton>
-          <Button asChild className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 hover:from-blue-700 hover:via-purple-700 hover:to-pink-700 text-white rounded-xl shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all duration-200">
-            <Link href="/dashboard/contacts/new">
-              <UserPlus className="h-4 w-4 mr-2" />
-              New Contact
-            </Link>
-          </Button>
-        </div>
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">Contacts</h1>
+        <p className="text-muted-foreground">
+          Manage your contacts and their personality profiles with AI-powered insights
+        </p>
       </div>
-      
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Contacts List */}
-        <div className="lg:col-span-2">
-          <Card className="border border-gray-100/50 shadow-md hover:shadow-lg transition-all duration-300 rounded-2xl overflow-hidden">
-            <CardHeader className="bg-gradient-to-r from-blue-600/5 via-purple-600/5 to-pink-600/5 border-b pb-4">
+
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid grid-cols-4 mb-6 p-1 bg-blue-50 rounded-xl shadow-inner border border-blue-100">
+          <TabsTrigger 
+            value="contacts" 
+            className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white rounded-lg flex items-center justify-center gap-2 transition-all duration-200 hover:bg-blue-100 data-[state=active]:hover:bg-blue-500"
+          >
+            <Users className="h-4 w-4" /> Contacts
+          </TabsTrigger>
+          <TabsTrigger 
+            value="segments" 
+            className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white rounded-lg flex items-center justify-center gap-2 transition-all duration-200 hover:bg-blue-100 data-[state=active]:hover:bg-blue-500"
+          >
+            <UserCheck className="h-4 w-4" /> Segments
+          </TabsTrigger>
+          <TabsTrigger 
+            value="analytics" 
+            className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white rounded-lg flex items-center justify-center gap-2 transition-all duration-200 hover:bg-blue-100 data-[state=active]:hover:bg-blue-500"
+          >
+            <BarChart3 className="h-4 w-4" /> Analytics
+          </TabsTrigger>
+          <TabsTrigger 
+            value="history" 
+            className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white rounded-lg flex items-center justify-center gap-2 transition-all duration-200 hover:bg-blue-100 data-[state=active]:hover:bg-blue-500"
+          >
+            <History className="h-4 w-4" /> History
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="contacts" className="mt-0">
+          <Card className="border-0 shadow-lg bg-gradient-to-b from-white to-blue-50 overflow-hidden">
+            <CardHeader className="bg-gradient-to-r from-blue-500 to-indigo-600 pb-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center">
-                  <div className="p-2 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 rounded-xl shadow-md mr-3">
-                    <User className="h-5 w-5 text-white" />
+                  <div className="p-2 bg-white bg-opacity-20 rounded-full mr-3">
+                    <Users className="h-5 w-5 text-white" />
                   </div>
                   <div>
-                    <CardTitle className="text-gray-800">Contact List</CardTitle>
-                    <CardDescription className="text-gray-500">
-                      {filteredContacts.length} contacts found
+                    <CardTitle className="text-white">Contact Management</CardTitle>
+                    <CardDescription className="text-blue-100">
+                      Manage your contacts and their personality profiles
                     </CardDescription>
                   </div>
                 </div>
-                <Button 
-                  variant="outline" 
-                  className="border-gray-200 hover:border-gray-300 hover:bg-gray-50 rounded-xl transition-all duration-200"
-                  onClick={() => router.push('/dashboard/contacts/new')}
-                >
-                  <UserPlus className="h-4 w-4 mr-2" /> Add Contact
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent className="p-0">
-              <div className="p-4">
-                <div className="relative">
-                  <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                  <Input 
-                    placeholder="Search contacts..." 
-                    className="pl-10 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-blue-500/20"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                  />
+                <div className="flex gap-2">
+                  <SyncAllContactsButton 
+                    variant="outline"
+                    size="sm"
+                    className="bg-white bg-opacity-20 hover:bg-opacity-30 text-white border-white border-opacity-20"
+                    onSyncComplete={(result) => {
+                      if (result.success) {
+                        toast({
+                          title: 'Contacts synced',
+                          description: `Successfully synced ${result.created + result.updated} contacts with Metakocka`,
+                        });
+                        // Refresh the page to show updated sync status
+                        router.refresh();
+                      }
+                    }}
+                  >
+                    Sync All to Metakocka
+                  </SyncAllContactsButton>
+                  <Link href="/dashboard/contacts/new">
+                    <Button variant="outline" className="bg-white bg-opacity-20 hover:bg-opacity-30 text-white border-white border-opacity-20">
+                      <UserPlus className="mr-2 h-4 w-4" />
+                      New Contact
+                    </Button>
+                  </Link>
                 </div>
               </div>
-              
+            </CardHeader>
+            <CardContent className="p-6">
+              {/* Search and Filters */}
+              <div className="space-y-3 mb-6">
+                <div className="flex flex-col sm:flex-row gap-3">
+                  {/* Search Bar */}
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      type="text"
+                      placeholder="Search contacts by name, email, or company..."
+                      className="pl-9 pr-9"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                    {searchTerm && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="absolute right-1 top-1/2 h-8 w-8 -translate-y-1/2 text-muted-foreground hover:bg-transparent hover:text-foreground"
+                        onClick={() => setSearchTerm('')}
+                      >
+                        <X className="h-4 w-4" />
+                        <span className="sr-only">Clear search</span>
+                      </Button>
+                    )}
+                  </div>
+
+                  {/* Personality Filter */}
+                  <div className="w-full sm:w-48">
+                    <Select
+                      value={personalityFilter}
+                      onValueChange={setPersonalityFilter}
+                    >
+                      <SelectTrigger className="w-full">
+                        <div className="flex items-center gap-2">
+                          <Filter className="h-4 w-4 text-muted-foreground" />
+                          <SelectValue placeholder="Personality" />
+                        </div>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Personalities</SelectItem>
+                        {personalityTypes.map((type) => (
+                          <SelectItem key={type} value={type || ''}>
+                            {type}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                {/* Active Filters */}
+                {hasActiveFilters && (
+                  <div className="flex flex-wrap items-center gap-2 pt-1">
+                    <span className="text-sm text-muted-foreground">Filters:</span>
+                    
+                    {searchTerm && (
+                      <Badge variant="secondary" className="px-2 py-1 text-xs font-normal">
+                        Search: "{searchTerm}"
+                        <button
+                          onClick={() => setSearchTerm('')}
+                          className="ml-1.5 rounded-full hover:bg-accent"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
+                    )}
+                    
+                    {personalityFilter !== 'all' && (
+                      <Badge variant="secondary" className="px-2 py-1 text-xs font-normal">
+                        Personality: {personalityFilter}
+                        <button
+                          onClick={() => setPersonalityFilter('all')}
+                          className="ml-1.5 rounded-full hover:bg-accent"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
+                    )}
+                    
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-auto p-0 text-xs text-muted-foreground hover:text-foreground"
+                      onClick={clearAllFilters}
+                    >
+                      Clear all
+                    </Button>
+                  </div>
+                )}
+              </div>
+
               {loading ? (
                 <div className="flex justify-center items-center py-12">
-                  <div className="p-3 rounded-full bg-gradient-to-r from-blue-600/10 via-purple-600/10 to-pink-600/10">
-                    <Loader2 className="h-8 w-8 text-gradient-to-r from-blue-600 via-purple-600 to-pink-600 animate-spin" />
+                  <div className="flex flex-col items-center space-y-4">
+                    <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+                    <p className="text-gray-500">Loading contacts...</p>
                   </div>
                 </div>
               ) : error ? (
                 <div className="flex flex-col items-center justify-center py-12 text-center">
-                  <div className="p-3 rounded-full bg-red-50 mb-2">
+                  <div className="p-3 rounded-full bg-red-50 mb-4">
                     <AlertCircle className="h-10 w-10 text-red-500" />
                   </div>
                   <p className="text-red-500 font-medium">{error}</p>
-                  <p className="text-gray-500 mt-1 max-w-md">
+                  <p className="text-gray-500 mt-2 max-w-md">
                     There was a problem loading your contacts. Please try again later.
                   </p>
                 </div>
               ) : filteredContacts.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12 text-center">
-                  <User className="h-10 w-10 text-gray-300 mb-2" />
+                  <div className="p-3 rounded-full bg-blue-50 mb-4">
+                    <Users className="h-10 w-10 text-blue-500" />
+                  </div>
                   <p className="text-gray-500 font-medium">No contacts found</p>
-                  <p className="text-gray-400 mt-1 max-w-md">
-                    {searchTerm ? 'Try a different search term' : 'Extract contacts from emails to populate your CRM'}
+                  <p className="text-gray-400 mt-2 max-w-md">
+                    {searchTerm || personalityFilter !== 'all' ? 'Try adjusting your filters' : 'Add your first contact to get started'}
                   </p>
+                  <Button 
+                    variant="outline" 
+                    className="mt-4 rounded-xl border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-all duration-200"
+                    onClick={() => router.push('/dashboard/contacts/new')}
+                  >
+                    <UserPlus className="h-4 w-4 mr-2" />
+                    Add New Contact
+                  </Button>
                 </div>
               ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="bg-gradient-to-r from-blue-600/5 via-purple-600/5 to-pink-600/5 border-b border-gray-200">
-                        <TableHead className="font-medium">Name</TableHead>
-                        <TableHead className="font-medium">Email</TableHead>
-                        <TableHead className="font-medium">Company</TableHead>
-                        <TableHead className="font-medium">Personality</TableHead>
-                        <TableHead className="font-medium">Last Contact</TableHead>
-                        <TableHead className="text-right font-medium">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredContacts.map((contact) => (
-                        <TableRow 
-                          key={contact.id} 
-                          className={`cursor-pointer transition-all duration-200 ${selectedContact?.id === contact.id 
-                            ? 'bg-gradient-to-r from-blue-600/10 via-purple-600/10 to-pink-600/10 border-l-4 border-blue-600' 
-                            : 'hover:bg-gray-50'}`}
-                          onClick={() => {
-                            setSelectedContact(contact);
-                            window.history.pushState({}, '', `/dashboard/contacts?id=${contact.id}`);
-                          }}
-                        >
-                          <TableCell className="font-medium">
-                            {contact.firstName} {contact.lastName}
-                          </TableCell>
-                          <TableCell>{contact.email}</TableCell>
-                          <TableCell>{contact.company || 'N/A'}</TableCell>
-                          <TableCell>
-                            {contact.personalityType ? (
-                              <Badge className="bg-gradient-to-r from-blue-600/10 via-purple-600/10 to-pink-600/10 text-gray-700 border-gray-200 rounded-full px-3 py-1">
-                                {contact.personalityType}
-                              </Badge>
-                            ) : 'Unknown'}
-                          </TableCell>
-                          <TableCell>{contact.lastInteraction ? formatDate(contact.lastInteraction) : 'Never'}</TableCell>
-                          <TableCell className="text-right">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>NAME</TableHead>
+                      <TableHead>EMAIL</TableHead>
+                      <TableHead>COMPANY</TableHead>
+                      <TableHead>PERSONALITY</TableHead>
+                      <TableHead>LAST CONTACT</TableHead>
+                      <TableHead className="text-right">ACTIONS</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredContacts.map((contact) => (
+                      <TableRow 
+                        key={contact.id} 
+                        className="cursor-pointer transition-colors hover:bg-gray-50"
+                        onClick={() => router.push(`/dashboard/contacts/${contact.id}`)}
+                      >
+                        <TableCell className="font-medium">
+                          <div className="flex items-center gap-3">
+                            <div className="h-10 w-10 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 flex items-center justify-center text-white font-medium">
+                              {contact.firstName?.[0]}{contact.lastName?.[0]}
+                            </div>
+                            <div>
+                              <div className="font-medium">{contact.firstName} {contact.lastName}</div>
+                              <div className="text-sm text-gray-500">{contact.email}</div>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Mail className="h-4 w-4 text-gray-400" />
+                            <span>{contact.email}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Building className="h-4 w-4 text-gray-400" />
+                            <span>{contact.company || 'N/A'}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {contact.personalityType ? (
+                            <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                              <Brain className="h-3 w-3 mr-1" />
+                              {contact.personalityType}
+                            </Badge>
+                          ) : (
+                            <span className="text-gray-400">Unknown</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Calendar className="h-4 w-4 text-gray-400" />
+                            <span>{contact.lastInteraction ? formatDate(contact.lastInteraction) : 'Never'}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-1">
                             <Button 
                               variant="ghost" 
                               size="icon" 
-                              className="h-8 w-8 rounded-full hover:bg-blue-600/10 transition-all duration-200" 
+                              className="h-8 w-8 rounded-full hover:bg-blue-50 transition-all duration-200" 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                router.push(`/dashboard/contacts/${contact.id}`);
+                              }}
+                            >
+                              <User className="h-4 w-4 text-blue-600" />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-8 w-8 rounded-full hover:bg-green-50 transition-all duration-200" 
                               onClick={(e) => {
                                 e.stopPropagation();
                                 router.push(`/dashboard/contacts/${contact.id}/edit`);
                               }}
                             >
-                              <Edit className="h-4 w-4 text-blue-600" />
+                              <Edit className="h-4 w-4 text-green-600" />
                             </Button>
                             <Button 
                               variant="ghost" 
                               size="icon" 
-                              className="h-8 w-8 rounded-full hover:bg-red-600/10 transition-all duration-200" 
+                              className="h-8 w-8 rounded-full hover:bg-red-50 transition-all duration-200" 
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleDeleteContact(contact.id);
@@ -313,172 +487,98 @@ export default function ContactsPage() {
                             >
                               <Trash2 className="h-4 w-4 text-red-500" />
                             </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               )}
             </CardContent>
-            <CardFooter className="flex justify-between p-4 border-t">
-              <div className="text-sm text-gray-500 bg-gradient-to-r from-blue-600/5 via-purple-600/5 to-pink-600/5 px-4 py-2 rounded-xl">
-                Showing {filteredContacts.length} of {contacts.length} contacts
-              </div>
-              <div className="flex space-x-2">
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  disabled 
-                  className="rounded-xl border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-all duration-200"
-                >
-                  <ChevronLeft className="h-4 w-4 mr-1" /> Previous
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  disabled
-                  className="rounded-xl border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-all duration-200"
-                >
-                  Next <ChevronRight className="h-4 w-4 ml-1" />
-                </Button>
-              </div>
-            </CardFooter>
           </Card>
-        </div>
-        
-        {/* Contact Details */}
-        <div className="lg:col-span-1">
-          {selectedContact ? (
-            <Card className="border border-gray-100/50 shadow-md hover:shadow-lg transition-all duration-300 rounded-2xl overflow-hidden h-full">
-              <CardHeader className="bg-gradient-to-r from-blue-600/5 via-purple-600/5 to-pink-600/5 border-b pb-4">
-                <div className="flex items-center">
-                  <div className="h-12 w-12 rounded-xl bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 flex items-center justify-center text-white text-lg font-medium mr-3 shadow-md">
-                    {selectedContact.firstName?.[0]}{selectedContact.lastName?.[0]}
-                  </div>
-                  <div>
-                    <CardTitle className="text-gray-800">Contact Details</CardTitle>
-                    <CardDescription className="text-gray-500">
-                      View and manage contact information
-                    </CardDescription>
-                  </div>
+        </TabsContent>
+
+        <TabsContent value="segments" className="mt-0">
+          <Card className="border-0 shadow-lg bg-gradient-to-b from-white to-blue-50 overflow-hidden">
+            <CardHeader className="bg-gradient-to-r from-blue-500 to-indigo-600 pb-4">
+              <div className="flex items-center">
+                <div className="p-2 bg-white bg-opacity-20 rounded-full mr-3">
+                  <UserCheck className="h-5 w-5 text-white" />
                 </div>
-              </CardHeader>
-              <CardContent className="p-6 space-y-6">
-                <div className="text-center">
-                  <h3 className="text-xl font-semibold">
-                    {selectedContact.firstName} {selectedContact.lastName}
-                  </h3>
-                  {selectedContact.personalityType && (
-                    <Badge className="mt-2 bg-gradient-to-r from-blue-600/10 via-purple-600/10 to-pink-600/10 text-gray-700 border-gray-200 rounded-full px-3 py-1">
-                      {selectedContact.personalityType}
-                    </Badge>
-                  )}
-                  <div className="mt-3">
-                    <SyncContactButton
-                      contactId={selectedContact.id}
-                      variant="outline"
-                      size="sm"
-                      className="rounded-xl border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-all duration-200"
-                      onSyncComplete={(result) => {
-                        if (result.success) {
-                          toast({
-                            title: 'Contact synced',
-                            description: 'Contact was successfully synced with Metakocka',
-                          });
-                        }
-                      }}
-                    />
-                  </div>
+                <div>
+                  <CardTitle className="text-white">Contact Segments</CardTitle>
+                  <CardDescription className="text-blue-100">
+                    Organize contacts into targeted segments for better engagement
+                  </CardDescription>
                 </div>
-                
-                <Separator />
-                
-                <div className="space-y-5">
-                  <div className="flex items-start">
-                    <div className="p-2 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 rounded-xl shadow-sm mr-3">
-                      <Mail className="h-4 w-4 text-white" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500 font-medium">Email</p>
-                      <p className="font-medium">{selectedContact.email}</p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-start">
-                    <div className="p-2 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 rounded-xl shadow-sm mr-3">
-                      <Building className="h-4 w-4 text-white" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500 font-medium">Company</p>
-                      <p className="font-medium">{selectedContact.company || 'Not specified'}</p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-start">
-                    <div className="p-2 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 rounded-xl shadow-sm mr-3">
-                      <Brain className="h-4 w-4 text-white" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500 font-medium">Personality Notes</p>
-                      <p className="text-sm">{selectedContact.personalityNotes || 'No personality notes available'}</p>
-                    </div>
-                  </div>
-                </div>
-                
-                <Separator />
-                
-                <div className="bg-gradient-to-r from-blue-600/5 via-purple-600/5 to-pink-600/5 p-4 rounded-xl">
-                  <p className="text-sm font-medium aris-text-gradient mb-2">Contact History</p>
-                  <div className="text-sm space-y-1">
-                    <p><span className="font-medium">Created:</span> {formatDate(selectedContact.createdAt)}</p>
-                    <p><span className="font-medium">Last Updated:</span> {formatDate(selectedContact.updatedAt)}</p>
-                    <p><span className="font-medium">Last Interaction:</span> {selectedContact.lastInteraction ? formatDate(selectedContact.lastInteraction) : 'Never'}</p>
-                  </div>
-                </div>
-              </CardContent>
-              <CardFooter className="flex justify-between p-4 border-t">
-                <Button 
-                  variant="outline" 
-                  className="border-red-200 text-red-600 hover:bg-red-50 rounded-xl transition-all duration-200" 
-                  onClick={() => handleDeleteContact(selectedContact.id)}
-                >
-                  <Trash2 className="h-4 w-4 mr-2" /> Delete
-                </Button>
-                <div className="flex gap-2">
-                  <Button 
-                    variant="outline"
-                    className="rounded-xl border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-all duration-200"
-                    onClick={() => router.push(`/dashboard/contacts/${selectedContact.id}`)}
-                  >
-                    View Details
-                  </Button>
-                  <Button className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 hover:from-blue-700 hover:via-purple-700 hover:to-pink-700 text-white rounded-xl shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all duration-200">
-                    <Edit className="h-4 w-4 mr-2" /> Edit Contact
-                  </Button>
-                </div>
-              </CardFooter>
-            </Card>
-          ) : (
-            <Card className="border border-gray-100/50 shadow-md hover:shadow-lg transition-all duration-300 rounded-2xl h-full flex flex-col justify-center items-center p-8 text-center bg-gradient-to-r from-blue-600/5 via-purple-600/5 to-pink-600/5">
-              <div className="p-5 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 rounded-2xl shadow-md mb-5">
-                <User className="h-10 w-10 text-white" />
               </div>
-              <h3 className="text-xl font-medium aris-text-gradient">No Contact Selected</h3>
-              <p className="text-gray-500 mt-3 max-w-xs">
-                Select a contact from the list to view their details and personality profile
-              </p>
-              <Button 
-                variant="outline" 
-                className="mt-5 rounded-xl border-gray-200 hover:border-gray-300 hover:bg-white/50 transition-all duration-200"
-                onClick={() => router.push('/dashboard/contacts/new')}
-              >
-                <UserPlus className="h-4 w-4 mr-2" /> Add New Contact
-              </Button>
-            </Card>
-          )}
-        </div>
-      </div>
+            </CardHeader>
+            <CardContent className="p-6">
+              <div className="text-center py-12">
+                <UserCheck className="h-16 w-16 mx-auto text-gray-400 mb-4" />
+                <h3 className="text-lg font-semibold mb-2">Contact Segmentation</h3>
+                <p className="text-gray-600 mb-4">
+                  Advanced contact segmentation and targeting features coming soon
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="analytics" className="mt-0">
+          <Card className="border-0 shadow-lg bg-gradient-to-b from-white to-blue-50 overflow-hidden">
+            <CardHeader className="bg-gradient-to-r from-blue-500 to-indigo-600 pb-4">
+              <div className="flex items-center">
+                <div className="p-2 bg-white bg-opacity-20 rounded-full mr-3">
+                  <BarChart3 className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <CardTitle className="text-white">Contact Analytics</CardTitle>
+                  <CardDescription className="text-blue-100">
+                    Insights and analytics about your contact relationships
+                  </CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="p-6">
+              <div className="text-center py-12">
+                <BarChart3 className="h-16 w-16 mx-auto text-gray-400 mb-4" />
+                <h3 className="text-lg font-semibold mb-2">Contact Analytics</h3>
+                <p className="text-gray-600 mb-4">
+                  Advanced analytics and reporting features coming soon
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="history" className="mt-0">
+          <Card className="border-0 shadow-lg bg-gradient-to-b from-white to-blue-50 overflow-hidden">
+            <CardHeader className="bg-gradient-to-r from-blue-500 to-indigo-600 pb-4">
+              <div className="flex items-center">
+                <div className="p-2 bg-white bg-opacity-20 rounded-full mr-3">
+                  <History className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <CardTitle className="text-white">Contact History</CardTitle>
+                  <CardDescription className="text-blue-100">
+                    View contact changes, interactions, and audit trail
+                  </CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="p-6">
+              <div className="text-center py-12">
+                <History className="h-16 w-16 mx-auto text-gray-400 mb-4" />
+                <h3 className="text-lg font-semibold mb-2">Contact History</h3>
+                <p className="text-gray-600 mb-4">
+                  Contact history and audit trail features coming soon
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

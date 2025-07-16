@@ -57,12 +57,7 @@ export default function SignInForm() {
           </Alert>
         )}
         
-        {/* Debug info - only visible during development */}
-        {process.env.NODE_ENV === 'development' && (
-          <div className="mb-4 p-2 bg-gray-100 rounded text-xs">
-            <strong>Debug:</strong> Using NextAuth credentials provider
-          </div>
-        )}
+
         
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-2">

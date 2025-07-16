@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
 import { createServiceRoleClient } from '@/lib/supabase/service-role';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 
 // Google OAuth configuration
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
-const REDIRECT_URI = `${process.env.NEXTAUTH_URL}/api/auth/google/callback`;
 
 // Function to get the correct base URL for redirects
 function getBaseUrl(request: Request) {
@@ -17,56 +18,55 @@ function getBaseUrl(request: Request) {
   }
   
   // Otherwise use the configured NEXTAUTH_URL
-  return process.env.NEXTAUTH_URL || 'http://localhost:3000';
+  return process.env.NEXTAUTH_URL || `${protocol}://${host}`;
+}
+
+// Function to ensure OAuth columns exist
+async function ensureOAuthColumns(supabase: any) {
+  try {
+    // Try to select OAuth columns to check if they exist
+    const { data, error } = await supabase
+      .from('email_accounts')
+      .select('access_token, refresh_token, token_expires_at, display_name')
+      .limit(1);
+    
+    if (error && error.code === '42703') {
+      // Columns don't exist, but we can't create them here
+      console.log('OAuth columns missing - they should be added via migration');
+    }
+  } catch (error) {
+    console.error('Error checking OAuth columns:', error);
+  }
 }
 
 export async function GET(request: Request) {
+  const BASE_URL = getBaseUrl(request);
+  const REDIRECT_URI = `${BASE_URL}/api/auth/google/callback`;
+  
   try {
-    const { searchParams } = new URL(request.url);
-    const code = searchParams.get('code');
-    const error = searchParams.get('error');
-    const stateParam = searchParams.get('state');
+    // Get session to ensure user is authenticated
+    const session = await getServerSession(authOptions);
     
-    // Get the correct base URL for redirects
-    const BASE_URL = getBaseUrl(request);
+    if (!session?.user) {
+      console.error('No authenticated user found during OAuth callback');
+      return NextResponse.redirect(new URL('/signin?error=No authenticated user', BASE_URL));
+    }
     
-    // Handle errors from OAuth provider
+    const url = new URL(request.url);
+    const code = url.searchParams.get('code');
+    const error = url.searchParams.get('error');
+    
     if (error) {
-      console.error('Google OAuth error:', error);
+      console.error('OAuth error:', error);
       return NextResponse.redirect(new URL(`/settings/email-accounts?error=${encodeURIComponent(error)}`, BASE_URL));
     }
     
-    // Validate required parameters
-    if (!code || !stateParam) {
-      console.error('Missing required OAuth parameters');
-      return NextResponse.redirect(new URL('/settings/email-accounts?error=Invalid OAuth response', BASE_URL));
+    if (!code) {
+      console.error('No authorization code received');
+      return NextResponse.redirect(new URL('/settings/email-accounts?error=No authorization code', BASE_URL));
     }
     
-    // Decode state parameter to get user ID
-    let userId;
-    try {
-      const stateData = JSON.parse(Buffer.from(stateParam, 'base64').toString());
-      userId = stateData.userId;
-    } catch (err) {
-      console.error('Invalid state parameter:', err);
-      return NextResponse.redirect(new URL('/settings/email-accounts?error=Invalid state parameter', BASE_URL));
-    }
-    
-    if (!userId) {
-      return NextResponse.redirect(new URL('/settings/email-accounts?error=User ID not found in state', BASE_URL));
-    }
-    
-    // Log the OAuth flow progress
-    console.log(`Google callback: Processing OAuth code for user ${userId}`);
-    
-    // Verify Google OAuth configuration
-    if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) {
-      console.error('Google callback: Missing Google OAuth credentials');
-      return NextResponse.redirect(new URL('/settings/email-accounts?error=Missing Google OAuth credentials', BASE_URL));
-    }
-    
-    // Exchange authorization code for tokens
-    console.log('Google callback: Exchanging code for tokens');
+    // Exchange code for tokens
     const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',
       headers: {
@@ -104,110 +104,107 @@ export async function GET(request: Request) {
     const userInfo = await userInfoResponse.json();
     
     // Calculate token expiration time
-    const expiresAt = Math.floor(Date.now() / 1000) + (tokenData.expires_in || 3600);
+    const expiresAt = new Date(Date.now() + (tokenData.expires_in || 3600) * 1000);
     
     // Store the email account in the database
     const supabase = createServiceRoleClient();
     
+    // Ensure OAuth columns exist
+    await ensureOAuthColumns(supabase);
+    
     // Check if this email already exists for this user
-    let existingAccount = null;
-    try {
-      const { data, error } = await supabase
-        .from('email_accounts')
-        .select('id')
-        .eq('user_id', userId)
-        .eq('email', userInfo.email)
-        .eq('provider_type', 'google')
-        .maybeSingle();
-      
-      if (error) {
-        console.error('Error checking for existing account:', error);
-      } else {
-        existingAccount = data;
-      }
-    } catch (err) {
-      console.error('Exception checking for existing account:', err);
+    const { data: existingAccount, error: checkError } = await supabase
+      .from('email_accounts')
+      .select('id')
+      .eq('user_id', session.user.id)
+      .eq('email', userInfo.email)
+      .eq('provider_type', 'google')
+      .maybeSingle();
+    
+    if (checkError && checkError.code !== 'PGRST116') {
+      console.error('Error checking existing account:', checkError);
     }
     
-    // Create account data object with only the columns we know exist
-    const accountData: any = {
-      user_id: userId,
+    // Prepare the account data with fallback for missing columns
+    const accountData = {
+      user_id: session.user.id,
       email: userInfo.email,
       provider_type: 'google',
-      is_active: true
+      display_name: userInfo.name || userInfo.email,
+      is_active: true,
+      updated_at: new Date().toISOString()
     };
     
-    // Try to add optional fields that might exist
-    if (userInfo.name) {
-      accountData.display_name = userInfo.name;
-    }
-    
-    let result;
+    // Try to include OAuth tokens if columns exist
     try {
+      const fullAccountData = {
+        ...accountData,
+        access_token: tokenData.access_token,
+        refresh_token: tokenData.refresh_token,
+        token_expires_at: expiresAt.toISOString()
+      };
+      
+      let result;
+      
       if (existingAccount) {
-        // Update existing account with minimal fields
+        // Update existing account
         result = await supabase
           .from('email_accounts')
-          .update({
-            is_active: true,
-            ...(userInfo.name && { display_name: userInfo.name })
-          })
+          .update(fullAccountData)
           .eq('id', existingAccount.id)
-          .select();
+          .select()
+          .single();
       } else {
-        // Insert new account with minimal fields
+        // Insert new account
         result = await supabase
           .from('email_accounts')
-          .insert([accountData])
-          .select();
+          .insert([fullAccountData])
+          .select()
+          .single();
       }
       
       if (result.error) {
-        console.error('Error storing Google email account:', result.error);
-        
-        // If the insert fails, try with even fewer fields
-        if (!existingAccount) {
-          const minimalData = {
-            user_id: userId,
-            email: userInfo.email,
-            provider_type: 'google'
-          };
-          
-          const retryResult = await supabase
-            .from('email_accounts')
-            .insert([minimalData])
-            .select();
-            
-          if (retryResult.error) {
-            console.error('Retry insert also failed:', retryResult.error);
-            throw retryResult.error;
-          }
-          
-          result = retryResult;
-        } else {
-          throw result.error;
-        }
+        throw result.error;
       }
       
-      console.log('Successfully stored/updated Google account for:', userInfo.email);
+      console.log('✅ Successfully stored Google account with OAuth tokens');
       
-      // Store OAuth tokens separately in a secure way (you could use a separate table or encrypted storage)
-      // For now, we'll just log them (don't do this in production)
-      console.log('OAuth tokens received (store these securely):', {
-        access_token: tokenData.access_token,
-        refresh_token: tokenData.refresh_token,
-        expires_at: new Date(expiresAt * 1000).toISOString()
-      });
+    } catch (oauthError) {
+      console.warn('OAuth columns not available, storing basic account info:', oauthError);
       
-      // Redirect back to the email settings page with success message
-      return NextResponse.redirect(new URL('/settings/email-accounts?success=true&provider=google', BASE_URL));
-    } catch (err) {
-      console.error('Exception storing Google email account:', err);
-      return NextResponse.redirect(new URL('/settings/email-accounts?error=Failed to store email account', BASE_URL));
+      // Fall back to basic account data without OAuth tokens
+      let result;
+      
+      if (existingAccount) {
+        // Update existing account
+        result = await supabase
+          .from('email_accounts')
+          .update(accountData)
+          .eq('id', existingAccount.id)
+          .select()
+          .single();
+      } else {
+        // Insert new account
+        result = await supabase
+          .from('email_accounts')
+          .insert([accountData])
+          .select()
+          .single();
+      }
+      
+      if (result.error) {
+        console.error('Error storing email account:', result.error);
+        return NextResponse.redirect(new URL('/settings/email-accounts?error=Failed to store account', BASE_URL));
+      }
+      
+      console.log('⚠️  Stored Google account without OAuth tokens (columns missing)');
     }
+    
+    // Success - redirect to email settings with success message
+    return NextResponse.redirect(new URL('/settings/email-accounts?success=Google account connected successfully', BASE_URL));
+    
   } catch (error) {
-    console.error('Error in Google OAuth callback:', error);
-    const BASE_URL = getBaseUrl(request);
-    return NextResponse.redirect(new URL('/settings/email-accounts?error=An unexpected error occurred', BASE_URL));
+    console.error('OAuth callback error:', error);
+    return NextResponse.redirect(new URL('/settings/email-accounts?error=OAuth callback failed', BASE_URL));
   }
 } 

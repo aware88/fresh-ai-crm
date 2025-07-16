@@ -34,7 +34,7 @@ interface ReliabilityScore {
 }
 
 interface SupplierAIChatProps {
-  supplierId: string;
+  supplierId?: string;
 }
 
 export default function SupplierAIChat({ supplierId }: SupplierAIChatProps): React.ReactElement {

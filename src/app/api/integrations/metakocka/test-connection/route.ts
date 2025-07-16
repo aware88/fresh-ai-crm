@@ -4,7 +4,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '../../../../../lib/supabase/server';
 import { cookies } from 'next/headers';
-import { getSession } from '../../../../../lib/auth/session';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '../../../auth/[...nextauth]/route';
 import { MetakockaService, MetakockaCredentials, MetakockaError } from '../../../../../lib/integrations/metakocka';
 
 /**
@@ -13,11 +14,10 @@ import { MetakockaService, MetakockaCredentials, MetakockaError } from '../../..
  */
 export async function POST(request: NextRequest) {
   try {
-    // Get authenticated user
-    const supabase = createServerClient();
-    const session = await getSession();
+    // Get authenticated user using NextAuth
+    const session = await getServerSession(authOptions);
     
-    if (!session) {
+    if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     

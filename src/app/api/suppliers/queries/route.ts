@@ -231,7 +231,7 @@ async function fetchContextData(userId: string) {
     const { data: suppliers } = await supabase
       .from('suppliers')
       .select('*')
-      .eq('created_by', userId);
+      .eq('user_id', userId);
     
     // Fetch products
     const { data: products } = await supabase

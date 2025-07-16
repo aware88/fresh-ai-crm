@@ -9,7 +9,9 @@ export async function GET(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const { id } = params;
+  // Await params to fix Next.js 15 requirement
+  const resolvedParams = await params;
+  const { id } = resolvedParams;
   
   if (!id) {
     return NextResponse.json(
@@ -48,7 +50,9 @@ export async function PUT(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const { id } = params;
+  // Await params to fix Next.js 15 requirement
+  const resolvedParams = await params;
+  const { id } = resolvedParams;
   
   if (!id) {
     return NextResponse.json(
@@ -90,7 +94,9 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const { id } = params;
+  // Await params to fix Next.js 15 requirement
+  const resolvedParams = await params;
+  const { id } = resolvedParams;
   
   if (!id) {
     return NextResponse.json(

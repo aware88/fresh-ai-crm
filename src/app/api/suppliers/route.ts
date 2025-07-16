@@ -1,163 +1,97 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabaseClient';
-import { Supplier } from '@/types/supplier';
-import { initializeSupplierData } from '@/lib/suppliers/init';
-import { getServerSession } from '@/lib/auth';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
+import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
 
-// Keep the initialization function for backward compatibility
-// but we'll use Supabase for data storage now
-const initSupabaseConnection = async () => {
-  // This is a placeholder for any initialization that might be needed
-  // We'll keep the initializeSupplierData call for backward compatibility
-  await initializeSupplierData();
-};
-
-// Get all suppliers
-export async function GET() {
-  await initSupabaseConnection();
+export async function GET(request: NextRequest) {
   try {
-    // Get the current user's session
-    const session = await getServerSession();
+    // Get session
+    const session = await getServerSession(authOptions);
     
-    if (!session?.user) {
-      console.log('No authenticated user session found, returning empty suppliers list');
-      // Return empty array instead of error when not authenticated
-      return NextResponse.json([]);
+    if (!session?.user?.id) {
+      console.error('No session or user ID found');
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    // Create Supabase client
+    const supabase = createServerComponentClient({ cookies });
     
-    const userId = session.user.id;
-    if (!userId) {
-      console.log('No user ID found in session, returning empty suppliers list');
-      return NextResponse.json([]);
-    }
-    
-    // Fetch suppliers from Supabase
+    // Fetch suppliers for the current user
     const { data: suppliers, error } = await supabase
       .from('suppliers')
       .select('*')
-      .eq('created_by', userId);
-    
+      .eq('user_id', session.user.id)
+      .order('created_at', { ascending: false });
+
     if (error) {
-      console.error('Error fetching suppliers from Supabase:', error);
-      return NextResponse.json(
-        { error: 'Failed to fetch suppliers' },
-        { status: 500 }
-      );
+      console.error('Supabase error:', error);
+      return NextResponse.json({ error: 'Failed to fetch suppliers', details: error.message }, { status: 500 });
     }
-    
-    return NextResponse.json(suppliers || []);
+
+    return NextResponse.json({ suppliers: suppliers || [] });
   } catch (error) {
-    console.error('Error fetching suppliers:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch suppliers' },
-      { status: 500 }
-    );
+    console.error('API error:', error);
+    return NextResponse.json({ 
+      error: 'Internal server error', 
+      details: error instanceof Error ? error.message : 'Unknown error' 
+    }, { status: 500 });
   }
 }
 
-// Create a new supplier
 export async function POST(request: NextRequest) {
-  await initSupabaseConnection();
   try {
-    const { name, email, phone, website, notes } = await request.json();
+    // Get session
+    const session = await getServerSession(authOptions);
     
+    if (!session?.user?.id) {
+      console.error('No session or user ID found');
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Parse request body
+    const body = await request.json();
+    const { name, email, phone, address, notes } = body;
+
+    // Validate required fields
     if (!name || !email) {
-      return NextResponse.json(
-        { error: 'Name and email are required' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Name and email are required' }, { status: 400 });
     }
+
+    // Create Supabase client
+    const supabase = createServerComponentClient({ cookies });
     
-    // Get the current user's session
-    const session = await getServerSession();
-    
-    if (!session?.user) {
-      console.error('Error getting user: Auth session missing!');
-      return NextResponse.json(
-        { error: 'Authentication error' },
-        { status: 401 }
-      );
-    }
-    
-    const userId = session.user.id;
-    if (!userId) {
-      return NextResponse.json(
-        { error: 'User not authenticated' },
-        { status: 401 }
-      );
-    }
-    
-    // Check if supplier with same email already exists
-    const { data: existingSuppliers, error: checkError } = await supabase
-      .from('suppliers')
-      .select('id')
-      .eq('email', email)
-      .eq('created_by', userId);
-    
-    if (checkError) {
-      console.error('Error checking existing supplier:', checkError);
-      return NextResponse.json(
-        { error: 'Failed to check existing supplier' },
-        { status: 500 }
-      );
-    }
-    
-    if (existingSuppliers && existingSuppliers.length > 0) {
-      return NextResponse.json(
-        { error: 'Supplier with this email already exists', supplierId: existingSuppliers[0].id },
-        { status: 409 }
-      );
-    }
-    
-    // Create new supplier in Supabase
-    const { data: newSupplier, error: insertError } = await supabase
+    // Insert new supplier
+    const { data: supplier, error } = await supabase
       .from('suppliers')
       .insert({
         name,
         email,
         phone,
-        website,
+        address,
         notes,
-        reliability_score: 0,
-        created_by: userId
+        user_id: session.user.id
       })
       .select()
       .single();
-    
-    if (insertError) {
-      console.error('Error creating supplier in Supabase:', insertError);
-      return NextResponse.json(
-        { error: 'Failed to create supplier' },
-        { status: 500 }
-      );
+
+    if (error) {
+      console.error('Supabase error:', error);
+      return NextResponse.json({ error: 'Failed to create supplier', details: error.message }, { status: 500 });
     }
-    
-    // Map the database column names to our interface property names
-    const mappedSupplier: Supplier = {
-      id: newSupplier.id,
-      name: newSupplier.name,
-      email: newSupplier.email,
-      phone: newSupplier.phone,
-      website: newSupplier.website,
-      notes: newSupplier.notes,
-      reliabilityScore: newSupplier.reliability_score,
-      createdAt: new Date(newSupplier.created_at),
-      updatedAt: new Date(newSupplier.updated_at)
-    };
-    
-    return NextResponse.json(mappedSupplier);
+
+    return NextResponse.json({ supplier });
   } catch (error) {
-    console.error('Error creating supplier:', error);
-    return NextResponse.json(
-      { error: 'Failed to create supplier' },
-      { status: 500 }
-    );
+    console.error('API error:', error);
+    return NextResponse.json({ 
+      error: 'Internal server error', 
+      details: error instanceof Error ? error.message : 'Unknown error' 
+    }, { status: 500 });
   }
 }
 
 // Update an existing supplier by ID
 export async function PUT(request: NextRequest) {
-  await initSupabaseConnection();
   try {
     const { id, name, email, phone, website, notes, reliabilityScore } = await request.json();
     
@@ -168,39 +102,28 @@ export async function PUT(request: NextRequest) {
       );
     }
     
-    // Get the current user's session
-    const session = await getServerSession();
+    // Get session
+    const session = await getServerSession(authOptions);
     
-    if (!session?.user) {
-      console.error('Error getting user: Auth session missing!');
-      return NextResponse.json(
-        { error: 'Authentication error' },
-        { status: 401 }
-      );
+    if (!session?.user?.id) {
+      console.error('No session or user ID found');
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    
-    const userId = session.user.id;
-    if (!userId) {
-      return NextResponse.json(
-        { error: 'User not authenticated' },
-        { status: 401 }
-      );
-    }
+
+    // Create Supabase client
+    const supabase = createServerComponentClient({ cookies });
     
     // Check if supplier exists and belongs to the user
     const { data: existingSupplier, error: checkError } = await supabase
       .from('suppliers')
       .select('*')
       .eq('id', id)
-      .eq('created_by', userId)
+      .eq('user_id', session.user.id)
       .single();
     
     if (checkError) {
-      console.error('Error checking existing supplier:', checkError);
-      return NextResponse.json(
-        { error: 'Supplier not found or access denied' },
-        { status: 404 }
-      );
+      console.error('Supabase error:', checkError);
+      return NextResponse.json({ error: 'Supplier not found or access denied', details: checkError.message }, { status: 404 });
     }
     
     // Update supplier in Supabase
@@ -212,47 +135,30 @@ export async function PUT(request: NextRequest) {
         phone,
         website,
         notes,
-        reliability_score: reliabilityScore || existingSupplier.reliability_score
+        reliabilityScore: reliabilityScore || existingSupplier.reliabilityScore
       })
       .eq('id', id)
-      .eq('created_by', userId)
+      .eq('user_id', session.user.id)
       .select()
       .single();
     
     if (updateError) {
-      console.error('Error updating supplier in Supabase:', updateError);
-      return NextResponse.json(
-        { error: 'Failed to update supplier' },
-        { status: 500 }
-      );
+      console.error('Supabase error:', updateError);
+      return NextResponse.json({ error: 'Failed to update supplier', details: updateError.message }, { status: 500 });
     }
     
-    // Map the database column names to our interface property names
-    const mappedSupplier: Supplier = {
-      id: updatedSupplier.id,
-      name: updatedSupplier.name,
-      email: updatedSupplier.email,
-      phone: updatedSupplier.phone,
-      website: updatedSupplier.website,
-      notes: updatedSupplier.notes,
-      reliabilityScore: updatedSupplier.reliability_score,
-      createdAt: new Date(updatedSupplier.created_at),
-      updatedAt: new Date(updatedSupplier.updated_at)
-    };
-    
-    return NextResponse.json(mappedSupplier);
+    return NextResponse.json({ supplier: updatedSupplier });
   } catch (error) {
-    console.error('Error updating supplier:', error);
-    return NextResponse.json(
-      { error: 'Failed to update supplier' },
-      { status: 500 }
-    );
+    console.error('API error:', error);
+    return NextResponse.json({ 
+      error: 'Internal server error', 
+      details: error instanceof Error ? error.message : 'Unknown error' 
+    }, { status: 500 });
   }
 }
 
 // Delete a supplier by ID
 export async function DELETE(request: NextRequest) {
-  await initSupabaseConnection();
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
@@ -264,39 +170,28 @@ export async function DELETE(request: NextRequest) {
       );
     }
     
-    // Get the current user's session
-    const session = await getServerSession();
+    // Get session
+    const session = await getServerSession(authOptions);
     
-    if (!session?.user) {
-      console.error('Error getting user: Auth session missing!');
-      return NextResponse.json(
-        { error: 'Authentication error' },
-        { status: 401 }
-      );
+    if (!session?.user?.id) {
+      console.error('No session or user ID found');
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    
-    const userId = session.user.id;
-    if (!userId) {
-      return NextResponse.json(
-        { error: 'User not authenticated' },
-        { status: 401 }
-      );
-    }
+
+    // Create Supabase client
+    const supabase = createServerComponentClient({ cookies });
     
     // Check if supplier exists and belongs to the user
     const { data: existingSupplier, error: checkError } = await supabase
       .from('suppliers')
       .select('id')
       .eq('id', id)
-      .eq('created_by', userId)
+      .eq('user_id', session.user.id)
       .single();
     
     if (checkError) {
-      console.error('Error checking existing supplier:', checkError);
-      return NextResponse.json(
-        { error: 'Supplier not found or access denied' },
-        { status: 404 }
-      );
+      console.error('Supabase error:', checkError);
+      return NextResponse.json({ error: 'Supplier not found or access denied', details: checkError.message }, { status: 404 });
     }
     
     // Delete supplier from Supabase
@@ -304,22 +199,19 @@ export async function DELETE(request: NextRequest) {
       .from('suppliers')
       .delete()
       .eq('id', id)
-      .eq('created_by', userId);
+      .eq('user_id', session.user.id);
     
     if (deleteError) {
-      console.error('Error deleting supplier from Supabase:', deleteError);
-      return NextResponse.json(
-        { error: 'Failed to delete supplier' },
-        { status: 500 }
-      );
+      console.error('Supabase error:', deleteError);
+      return NextResponse.json({ error: 'Failed to delete supplier', details: deleteError.message }, { status: 500 });
     }
     
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Error deleting supplier:', error);
-    return NextResponse.json(
-      { error: 'Failed to delete supplier' },
-      { status: 500 }
-    );
+    console.error('API error:', error);
+    return NextResponse.json({ 
+      error: 'Internal server error', 
+      details: error instanceof Error ? error.message : 'Unknown error' 
+    }, { status: 500 });
   }
 }

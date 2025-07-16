@@ -23,6 +23,7 @@ const authOptions: NextAuthOptions = {
         sameSite: 'lax',
         path: '/',
         secure: process.env.NODE_ENV === 'production',
+        // In development, don't set domain to allow cookies to work with both localhost and 127.0.0.1
         domain: process.env.NODE_ENV === 'production' ? process.env.NEXTAUTH_URL?.replace(/https?:\/\//, '') : undefined,
       },
     },
@@ -158,7 +159,7 @@ const authOptions: NextAuthOptions = {
       }
       
       return token;
-    },
+    }
   },
   pages: {
     signIn: '/signin',

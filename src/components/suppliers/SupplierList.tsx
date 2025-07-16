@@ -48,11 +48,11 @@ export default function SupplierList() {
       setSuppliers(data || []);
     } catch (err) {
       console.error('Error loading suppliers:', err);
-      // Only show error for actual server errors, not authentication issues
-      if (err instanceof Error && err.message.includes('500')) {
+      // Only show error for actual server errors (500), not for empty results or auth issues
+      if (err instanceof Error && err.message.includes('500') && !err.message.includes('401') && !err.message.includes('403')) {
         setError('Failed to load suppliers. Please try again.');
       } else {
-        // For other errors (like auth issues), just show empty state
+        // For other errors (like auth issues or empty results), just show empty state
         setSuppliers([]);
       }
     } finally {
@@ -123,28 +123,6 @@ export default function SupplierList() {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-6">
-        <div className="flex items-center">
-          <div className="p-2 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full mr-3 shadow-md">
-            <FileText className="h-5 w-5 text-white" />
-          </div>
-          <div>
-            <h2 className="text-xl font-semibold bg-gradient-to-r from-blue-700 to-indigo-700 bg-clip-text text-transparent">Suppliers</h2>
-            {loading && suppliers.length > 0 && (
-              <div className="flex items-center text-blue-500 text-sm">
-                <Loader2 className="h-3 w-3 animate-spin mr-1" />
-                <span>Refreshing...</span>
-              </div>
-            )}
-          </div>
-        </div>
-        <Button 
-          onClick={handleOpenAddDialog} 
-          className="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white shadow-md hover:shadow-lg transition-all duration-200"
-        >
-          <Plus className="mr-2 h-4 w-4" /> Add Supplier
-        </Button>
-      </div>
 
       {error && (
         <div className="bg-gradient-to-r from-red-50 to-pink-50 border border-red-100 text-red-700 px-5 py-4 rounded-lg mb-6 flex items-center shadow-md">
@@ -159,103 +137,83 @@ export default function SupplierList() {
       )}
 
       {loading && suppliers.length === 0 ? (
-        <div className="flex flex-col items-center justify-center min-h-[200px] py-10 bg-gradient-to-b from-blue-50 to-white rounded-lg shadow-sm border border-blue-100">
-          <div className="relative">
-            <div className="h-16 w-16 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 p-1 shadow-lg">
-              <div className="h-full w-full rounded-full bg-white flex items-center justify-center">
-                <Loader2 className="h-8 w-8 text-indigo-600 animate-spin" />
-              </div>
-            </div>
-          </div>
-          <p className="mt-6 text-base text-blue-700 font-medium">
-            Loading suppliers...
-          </p>
-          <p className="text-sm text-blue-500 mt-2">This may take a few moments</p>
+        <div className="flex items-center justify-center py-8">
+          <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
+          <span className="ml-2 text-muted-foreground">Loading suppliers...</span>
         </div>
       ) : suppliers.length === 0 ? (
-        <div className="text-center py-12 border border-blue-100 rounded-lg bg-gradient-to-b from-blue-50 to-white shadow-sm">
-          <div className="flex justify-center mb-6">
-            <div className="p-4 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full shadow-md">
-              <FileText className="h-8 w-8 text-white" />
-            </div>
-          </div>
-          <h3 className="text-blue-800 font-medium text-lg mb-2">No suppliers yet</h3>
-          <p className="text-blue-600 mb-6 max-w-md mx-auto">Add your first supplier to start managing your supply chain efficiently.</p>
-          <Button 
-            onClick={handleOpenAddDialog} 
-            className="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white shadow-md hover:shadow-lg transition-all duration-200"
-          >
+        <div className="text-center py-8">
+          <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+          <h3 className="text-lg font-medium mb-2">No suppliers yet</h3>
+          <p className="text-muted-foreground mb-4">Add your first supplier to start managing your supply chain efficiently.</p>
+          <Button onClick={handleOpenAddDialog} data-add-supplier>
             <Plus className="mr-2 h-4 w-4" /> Add Supplier
           </Button>
         </div>
       ) : (
-        <div className="rounded-lg overflow-hidden border border-blue-100 shadow-sm">
-          <Table>
-            <TableHeader className="bg-gradient-to-r from-blue-50 to-indigo-50">
-              <TableRow className="hover:bg-transparent border-blue-100">
-                <TableHead className="text-blue-700 font-medium">Name</TableHead>
-                <TableHead className="text-blue-700 font-medium">Email</TableHead>
-                <TableHead className="text-blue-700 font-medium">Phone</TableHead>
-                <TableHead className="text-blue-700 font-medium">Website</TableHead>
-                <TableHead className="text-blue-700 font-medium">Reliability</TableHead>
-                <TableHead className="text-blue-700 font-medium text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {suppliers.map((supplier) => {
-                const reliability = formatReliabilityScore(supplier.reliabilityScore || 0);
-                
-                return (
-                <TableRow key={supplier.id} className="border-blue-50 hover:bg-blue-50/30">
-                  <TableCell className="font-medium">{supplier.name}</TableCell>
-                  <TableCell>{supplier.email}</TableCell>
-                  <TableCell>{supplier.phone || '-'}</TableCell>
-                  <TableCell>
-                    {supplier.website ? (
-                      <a 
-                        href={supplier.website.startsWith('http') ? supplier.website : `https://${supplier.website}`} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="text-blue-600 hover:text-blue-800 flex items-center"
-                      >
-                        {supplier.website}
-                        <ExternalLink className="ml-1 h-3 w-3" />
-                      </a>
-                    ) : '-'}
-                  </TableCell>
-                  <TableCell>
-                    <span 
-                      className={`px-2 py-1 rounded-full text-xs font-medium bg-${reliability.color}-100 text-${reliability.color}-800`}
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Name</TableHead>
+              <TableHead>Email</TableHead>
+              <TableHead>Phone</TableHead>
+              <TableHead>Website</TableHead>
+              <TableHead>Reliability</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {suppliers.map((supplier) => {
+              const reliability = formatReliabilityScore(supplier.reliabilityScore || 0);
+              
+              return (
+              <TableRow key={supplier.id} className="cursor-pointer hover:bg-blue-50 transition-colors">
+                <TableCell className="font-medium">{supplier.name}</TableCell>
+                <TableCell>{supplier.email}</TableCell>
+                <TableCell>{supplier.phone || '-'}</TableCell>
+                <TableCell>
+                  {supplier.website ? (
+                    <a 
+                      href={supplier.website.startsWith('http') ? supplier.website : `https://${supplier.website}`} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:text-blue-800 flex items-center"
                     >
-                      {reliability.label}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end space-x-2">
-                      <Button 
-                        variant="ghost" 
-                        size="sm"
-                        className="text-blue-600 hover:text-blue-800 hover:bg-blue-100"
-                        onClick={() => handleOpenEditDialog(supplier)}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="sm"
-                        className="text-red-600 hover:text-red-800 hover:bg-red-100"
-                        onClick={() => handleOpenDeleteDialog(supplier.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              );
-              })}
-            </TableBody>
-          </Table>
-        </div>
+                      {supplier.website}
+                      <ExternalLink className="ml-1 h-3 w-3" />
+                    </a>
+                  ) : '-'}
+                </TableCell>
+                <TableCell>
+                  <span 
+                    className={`px-2 py-1 rounded-full text-xs font-medium bg-${reliability.color}-100 text-${reliability.color}-800`}
+                  >
+                    {reliability.label}
+                  </span>
+                </TableCell>
+                <TableCell className="text-right">
+                  <div className="flex justify-end space-x-2">
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={() => handleOpenEditDialog(supplier)}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={() => handleOpenDeleteDialog(supplier.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            );
+            })}
+          </TableBody>
+        </Table>
       )}
 
       {/* Add/Edit Supplier Dialog */}

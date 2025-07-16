@@ -2,11 +2,16 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from '@/lib/auth';
 import { createServiceRoleClient } from '@/lib/supabase/service-role';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    console.log('Email status API: Getting session...');
+    console.log('Email status API: Request headers:', Object.fromEntries(request.headers.entries()));
     const session = await getServerSession();
+    console.log('Email status API: Session result:', session ? 'present' : 'missing');
+    console.log('Email status API: Session user:', session?.user ? 'present' : 'missing');
     
     if (!session || !session.user) {
+      console.log('Email status API: No session or user found, returning 401');
       return NextResponse.json(
         { success: false, error: 'Unauthorized' },
         { status: 401 }
@@ -15,8 +20,10 @@ export async function GET() {
 
     // Get user ID from session - it could be in id or sub field
     const userId = (session.user as any).id || (session.user as any).sub;
+    console.log('Email status API: User ID from session:', userId);
     
     if (!userId) {
+      console.log('Email status API: No user ID found in session');
       return NextResponse.json(
         { success: false, error: 'User ID not found in session' },
         { status: 401 }

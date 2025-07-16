@@ -298,27 +298,6 @@ export default function ContactDetailsClient({ id }: ContactDetailsClientProps) 
             
             <Separator />
             
-            <div className="flex space-x-2 pt-2">
-              <Button 
-                variant="outline" 
-                className="flex-1"
-                onClick={() => router.push(`/dashboard/contacts/${id}/edit`)}
-              >
-                <Edit className="h-4 w-4 mr-2" />
-                Edit
-              </Button>
-              <Button 
-                variant="destructive" 
-                className="flex-1"
-                onClick={handleDeleteContact}
-              >
-                <Trash2 className="h-4 w-4 mr-2" />
-                Delete
-              </Button>
-            </div>
-            
-            <Separator className="my-4" />
-            
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div>
@@ -367,6 +346,30 @@ export default function ContactDetailsClient({ id }: ContactDetailsClientProps) 
               )}
             </div>
           </CardContent>
+          <CardFooter className="flex justify-between gap-2 pt-6">
+            <Button 
+              variant="destructive" 
+              onClick={handleDeleteContact}
+              className="flex-1"
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete
+            </Button>
+            <Button 
+              variant="outline" 
+              onClick={() => router.push(`/dashboard/contacts/${id}`)}
+              className="flex-1"
+            >
+              View Details
+            </Button>
+            <Button 
+              onClick={() => router.push(`/dashboard/contacts/${id}/edit`)}
+              className="flex-1"
+            >
+              <Edit className="h-4 w-4 mr-2" />
+              Edit Contact
+            </Button>
+          </CardFooter>
         </Card>
         
         {/* Right Column */}

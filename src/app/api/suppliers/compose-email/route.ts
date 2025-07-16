@@ -53,14 +53,14 @@ export async function POST(request: NextRequest) {
     }
 
     // Create Supabase client
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
 
     // Fetch supplier data
     const { data: supplier, error: supplierError } = await supabase
       .from('suppliers')
       .select('*')
       .eq('id', supplierId)
-      .eq('created_by', uid)
+      .eq('user_id', uid)
       .single();
 
     if (supplierError || !supplier) {

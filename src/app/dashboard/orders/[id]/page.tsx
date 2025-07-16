@@ -79,12 +79,15 @@ interface PageProps {
   searchParams: { [key: string]: string | string[] | undefined };
 }
 
-export default function OrderDetailPage({ params }: PageProps) {
+export default async function OrderDetailPage({ params }: PageProps) {
   // In a real app, you would fetch the order by ID from your database
   // const order = await fetchOrderById(params.id);
   
+  // Await params to fix Next.js 15 requirement
+  const resolvedParams = await params;
+  
   // For now, we'll use the mock data with the ID from params
-  const order = { ...mockOrder, id: params.id };
+  const order = { ...mockOrder, id: resolvedParams.id };
   
   // If order is not found, return 404
   if (!order) {

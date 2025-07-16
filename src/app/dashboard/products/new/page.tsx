@@ -39,7 +39,7 @@ export default function NewProductPage() {
       await new Promise(resolve => setTimeout(resolve, 1000));
       
       // Redirect to products list after successful creation
-      router.push('/dashboard/inventory/products');
+      router.push('/dashboard/products');
     } catch (error) {
       console.error('Error creating product:', error);
     } finally {
@@ -66,7 +66,7 @@ export default function NewProductPage() {
     <div className="container mx-auto px-4 py-6">
       <div className="mb-6">
         <Button variant="ghost" asChild>
-          <Link href="/dashboard/inventory/products" className="flex items-center">
+          <Link href="/dashboard/products" className="flex items-center">
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to Products
           </Link>
@@ -216,7 +216,7 @@ export default function NewProductPage() {
                 <Button 
                   type="button" 
                   variant="outline" 
-                  onClick={() => router.push('/dashboard/inventory/products')}
+                  onClick={() => router.push('/dashboard/products')}
                   disabled={isLoading}
                 >
                   Cancel

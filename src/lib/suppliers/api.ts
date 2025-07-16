@@ -18,7 +18,8 @@ export const fetchSuppliers = async (): Promise<Supplier[]> => {
     console.error('Supplier fetch error:', errorData);
     throw new Error(`Failed to fetch suppliers: ${response.status}`);
   }
-  return response.json();
+  const data = await response.json();
+  return data.suppliers || data; // Handle both new format { suppliers: [...] } and old format [...]
 };
 
 /**
@@ -58,7 +59,8 @@ export const createSupplier = async (supplierData: Omit<Supplier, 'id' | 'create
     throw new Error(error.error || `Failed to create supplier: ${response.status}`);
   }
   
-  return response.json();
+  const data = await response.json();
+  return data.supplier || data; // Handle both new format { supplier: {...} } and old format {...}
 };
 
 /**
@@ -80,7 +82,8 @@ export const updateSupplier = async (supplier: Supplier): Promise<Supplier> => {
     throw new Error(error.error || `Failed to update supplier: ${response.status}`);
   }
   
-  return response.json();
+  const data = await response.json();
+  return data.supplier || data; // Handle both new format { supplier: {...} } and old format {...}
 };
 
 /**

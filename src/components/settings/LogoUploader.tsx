@@ -40,6 +40,12 @@ export function LogoUploader() {
             if (data.logoPath) {
               setCurrentLogo(data.logoPath);
               localStorage.setItem('companyLogo', data.logoPath);
+              
+              // Emit formdata event for the parent SettingsForm
+              document.dispatchEvent(new CustomEvent('formdata', {
+                bubbles: true,
+                detail: { logoUrl: data.logoPath }
+              }));
             }
           }
         } catch (error) {
@@ -81,7 +87,14 @@ export function LogoUploader() {
       // Create preview URL
       const reader = new FileReader();
       reader.onload = (e) => {
-        setPreviewUrl(e.target?.result as string);
+        const result = e.target?.result as string;
+        setPreviewUrl(result);
+        
+        // Emit formdata event for the parent SettingsForm
+        document.dispatchEvent(new CustomEvent('formdata', {
+          bubbles: true,
+          detail: { logoUrl: result }
+        }));
       };
       reader.readAsDataURL(file);
       
@@ -98,29 +111,22 @@ export function LogoUploader() {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleCompanyNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newName = e.target.value;
+    setCompanyName(newName);
     
-    // Save company name to localStorage regardless of logo upload
-    if (companyName.trim()) {
-      localStorage.setItem('companyName', companyName.trim());
-      toast({
-        title: "Company name saved",
-        description: "Your company name has been updated",
-      });
-    }
+    // Save company name to localStorage
+    localStorage.setItem('companyName', newName.trim());
     
-    // If no logo file is selected, just save the company name
-    if (!logoFile) {
-      if (!companyName.trim()) {
-        toast({
-          title: "No changes made",
-          description: "Please enter a company name or select a logo file",
-          variant: "destructive",
-        });
-      }
-      return;
-    }
+    // Emit formdata event for the parent SettingsForm
+    document.dispatchEvent(new CustomEvent('formdata', {
+      bubbles: true,
+      detail: { companyName: newName }
+    }));
+  };
+
+  const handleUploadLogo = async () => {
+    if (!logoFile) return;
     
     setIsLoading(true);
     
@@ -151,6 +157,12 @@ export function LogoUploader() {
         // Dispatch a custom event to notify other components about the localStorage update
         window.dispatchEvent(new Event('localStorageUpdated'));
         
+        // Emit formdata event for the parent SettingsForm
+        document.dispatchEvent(new CustomEvent('formdata', {
+          bubbles: true,
+          detail: { logoUrl: data.logoPath }
+        }));
+        
         toast({
           title: "Logo uploaded successfully",
           description: "Your logo has been updated",
@@ -168,6 +180,25 @@ export function LogoUploader() {
     }
   };
 
+  const handleRemoveLogo = () => {
+    localStorage.removeItem('companyLogo');
+    setCurrentLogo(null);
+    
+    // Dispatch a custom event to notify other components
+    window.dispatchEvent(new Event('localStorageUpdated'));
+    
+    // Emit formdata event for the parent SettingsForm
+    document.dispatchEvent(new CustomEvent('formdata', {
+      bubbles: true,
+      detail: { logoUrl: '' }
+    }));
+    
+    toast({
+      title: 'Logo removed',
+      description: 'Your company logo has been removed',
+    });
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -177,7 +208,7 @@ export function LogoUploader() {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="space-y-6">
           <div className="flex flex-col items-center space-y-4">
             {/* Current logo display */}
             {currentLogo && !previewUrl && (
@@ -219,7 +250,7 @@ export function LogoUploader() {
               <input
                 type="text"
                 value={companyName}
-                onChange={(e) => setCompanyName(e.target.value)}
+                onChange={handleCompanyNameChange}
                 placeholder="Enter your company name"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
@@ -274,20 +305,23 @@ export function LogoUploader() {
                   Cancel
                 </Button>
               )}
-              <Button 
-                type="submit" 
-                disabled={isLoading && (!logoFile && !companyName.trim())}
-                className="flex items-center"
-              >
-                {isLoading ? (
-                  <>Saving...</>
-                ) : (
-                  <>
-                    <ImageIcon className="mr-2 h-4 w-4" />
-                    {logoFile ? 'Upload Logo' : companyName.trim() ? 'Save Company Name' : 'Save Changes'}
-                  </>
-                )}
-              </Button>
+              {logoFile && (
+                <Button 
+                  type="button" 
+                  onClick={handleUploadLogo}
+                  disabled={isLoading}
+                  className="flex items-center"
+                >
+                  {isLoading ? (
+                    <>Uploading...</>
+                  ) : (
+                    <>
+                      <ImageIcon className="mr-2 h-4 w-4" />
+                      Upload Logo
+                    </>
+                  )}
+                </Button>
+              )}
             </div>
             
             {/* Remove logo button */}
@@ -296,18 +330,7 @@ export function LogoUploader() {
                 <Button 
                   type="button"
                   variant="destructive"
-                  onClick={() => {
-                    localStorage.removeItem('companyLogo');
-                    setCurrentLogo(null);
-                    
-                    // Dispatch a custom event to notify other components
-                    window.dispatchEvent(new Event('localStorageUpdated'));
-                    
-                    toast({
-                      title: 'Logo removed',
-                      description: 'Your company logo has been removed',
-                    });
-                  }}
+                  onClick={handleRemoveLogo}
                   className="flex items-center"
                 >
                   <X className="mr-2 h-4 w-4" />
@@ -316,7 +339,7 @@ export function LogoUploader() {
               </div>
             )}
           </div>
-        </form>
+        </div>
       </CardContent>
     </Card>
   );

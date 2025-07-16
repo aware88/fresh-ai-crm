@@ -1,5 +1,6 @@
 'use client';
 
+import { use } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
@@ -29,8 +30,9 @@ interface PageParams {
   id: string;
 }
 
-export default function EditProductPage({ params }: { params: PageParams }) {
+export default function EditProductPage({ params }: { params: Promise<PageParams> }) {
   const router = useRouter();
+  const resolvedParams = use(params);
   const [isLoading, setIsLoading] = useState(false);
   
   const [formData, setFormData] = useState({
@@ -69,7 +71,7 @@ export default function EditProductPage({ params }: { params: PageParams }) {
       min_stock_level: mockProduct.min_stock_level.toString(),
       quantity_on_hand: mockProduct.quantity_on_hand.toString(),
     });
-  }, [params.id]);
+  }, [resolvedParams.id]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -83,7 +85,7 @@ export default function EditProductPage({ params }: { params: PageParams }) {
       await new Promise(resolve => setTimeout(resolve, 1000));
       
       // Redirect to product detail after successful update
-      router.push(`/dashboard/inventory/products/${params.id}`);
+      router.push(`/dashboard/products/${resolvedParams.id}`);
     } catch (error) {
       console.error('Error updating product:', error);
     } finally {
@@ -110,7 +112,7 @@ export default function EditProductPage({ params }: { params: PageParams }) {
     <div className="container mx-auto px-4 py-6">
       <div className="mb-6">
         <Button variant="ghost" asChild>
-          <Link href={`/dashboard/inventory/products/${params.id}`} className="flex items-center">
+          <Link href={`/dashboard/products/${resolvedParams.id}`} className="flex items-center">
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to Product
           </Link>
@@ -256,7 +258,7 @@ export default function EditProductPage({ params }: { params: PageParams }) {
                 <Button 
                   type="button" 
                   variant="outline" 
-                  onClick={() => router.push(`/dashboard/inventory/products/${params.id}`)}
+                  onClick={() => router.push(`/dashboard/products/${resolvedParams.id}`)}
                   disabled={isLoading}
                 >
                   Cancel

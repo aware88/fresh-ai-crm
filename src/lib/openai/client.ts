@@ -28,6 +28,11 @@ export const getOpenAIClient = (): OpenAI => {
       throw new Error('Missing OPENAI_API_KEY environment variable');
     }
     
+    // Validate API key format
+    if (!apiKey.startsWith('sk-') || apiKey.length < 20) {
+      throw new Error('Invalid OPENAI_API_KEY format. API key should start with "sk-" and be properly formatted.');
+    }
+    
     openAIClient = new OpenAI({
       apiKey,
       // Add any default configuration here
@@ -410,123 +415,72 @@ If you continue to experience issues, please contact support.`;
   }
 };
 
-export const analyzeEmail = async (emailContent: string, salesTacticsContext?: string) => {
+/**
+ * Analyzes email content using OpenAI's GPT model
+ * @param {string} emailContent - The email content to analyze
+ * @returns {Promise<string>} Analysis result
+ */
+export const analyzeEmail = async (emailContent: string): Promise<string> => {
   try {
+    // Check if OpenAI API key is available
+    if (!process.env.OPENAI_API_KEY) {
+      console.warn('OpenAI API key not configured. Returning mock analysis.');
+      return JSON.stringify({
+        analysis: {
+          personality: {
+            traits: ['Professional', 'Friendly'],
+            communication_style: 'Direct and clear',
+            tone: 'Positive'
+          },
+          context: {
+            relationship_type: 'Business',
+            urgency_level: 'Medium',
+            topic_category: 'General Business'
+          },
+          insights: {
+            key_points: ['Welcome message', 'Introduction to system'],
+            sentiment: 'Positive',
+            intent: 'Informational'
+          },
+          recommendations: {
+            response_suggestions: [
+              'Thank you for the warm welcome!',
+              'I look forward to using the system.'
+            ],
+            next_steps: ['Explore the system features', 'Set up preferences']
+          }
+        },
+        note: 'This is a mock analysis as OpenAI API key is not configured.'
+      });
+    }
+
     const openai = getOpenAIClient();
     
-    // Get ALL personality profile data from all sources (CSV, mock data, Excel sheets)
-    // Using the comprehensive version to ensure all uploaded data is considered
-    const personalityData = getAllFormattedDataForPrompt(); // Use all available profiles for comprehensive analysis
-    
-    // Load user identity information
-    const userIdentity = loadUserIdentity();
-    let userIdentityPrompt = '';
-    
-    if (userIdentity && (userIdentity.name || userIdentity.email || userIdentity.company)) {
-      userIdentityPrompt = `
-USER IDENTITY INFORMATION:
-- Name: ${userIdentity.name || 'Not specified'}
-- Company: ${userIdentity.company || 'Not specified'}
-- Email: ${userIdentity.email || 'Not specified'}
+    const systemPrompt = `You are an expert email analyst for a CRM system. Analyze the provided email and return a JSON response with the following structure:
 
-IMPORTANT: When analyzing email threads, identify which emails are from the user (matching the identity above) and which are from customers/clients. Focus your analysis ONLY on the customer/client emails, not on the user's emails. If the email thread contains both user and customer emails, analyze only the customer's communication style and personality.
-`;  
+{
+  "analysis": {
+    "personality": {
+      "traits": ["trait1", "trait2"],
+      "communication_style": "description",
+      "tone": "tone_description"
+    },
+    "context": {
+      "relationship_type": "type",
+      "urgency_level": "high/medium/low",
+      "topic_category": "category"
+    },
+    "insights": {
+      "key_points": ["point1", "point2"],
+      "sentiment": "positive/neutral/negative",
+      "intent": "intent_description"
+    },
+    "recommendations": {
+      "response_suggestions": ["suggestion1", "suggestion2"],
+      "next_steps": ["step1", "step2"]
     }
-    
-    // Company context is no longer available in this version
-    const companyContextPrompt = '';
-    
-    // Add sales tactics context if available
-    const salesTacticsPrompt = salesTacticsContext ? `
-### 📊 SALES TACTICS TO INCORPORATE
-
-The following sales tactics have been selected based on the recipient's personality profile and are most likely to be effective. Incorporate these naturally into your response:
-
-${salesTacticsContext}
-
-IMPORTANT: Do not explicitly mention these tactics in your response. Instead, subtly incorporate the principles and approaches they suggest. Your response should sound completely natural and human, not like you're following a formula.
-` : '';
-    
-    const systemPrompt = `You are a senior AI communication assistant trained in psychological profiling, behavioral sales, and human-centered messaging. You are used across business roles, including sales, support, recruitment, and supplier management.
-
-You must analyze written input such as emails, LinkedIn messages, or website inquiries, and accurately match the sender to known psychological profiles, using real behavioral science and language analysis.
-
----
-
-### 🧠 DATA SOURCES YOU MUST CONSIDER
-
-Before analysis, you must study all profiles from all available datasets:
-
-1. **Primary Profile Database** – sourced from the \`ai_profiler\` table (imported from CSV/Excel). Each entry includes:
-   - Personality_Type
-   - Sales_Strategy
-   - Emotional_Trigger
-   - Tone_Preference
-   - Cognitive_Bias
-   - Messaging_Do / Messaging_Dont
-   - Suggested_Subject_Lines
-   - Framework
-   - Top_Trigger_Words / Avoid_Words
-   - Lead_Score, Conversion_Likelihood, Recommended_Channel
-
-2. **Secondary Reference Dataset** – from \`test_profiles\` (fake or AI-generated personalities), used if the primary dataset has no high-confidence match.
-
-3. **Live Interaction Context** (optional) – email threads, LinkedIn links, website copy, or PDF excerpts provided by the user.
-
-**You MUST reference these datasets explicitly when making your match.**${userIdentityPrompt}
-
-${salesTacticsPrompt}
-
----
-
-### 🔍 YOUR TASK
-
-1. **Analyze the message.** Look for:
-   - Tone, sentiment, confidence
-   - Vocabulary (data-heavy, emotional, assertive, indirect, etc.)
-   - Use of reasoning (logic vs. intuition)
-   - Clarity of intention (goal-oriented vs. curious vs. polite)
-
-2. **Match the sender's style and intent to the most accurate profile** from all available datasets. Justify your match.
-
-3. **If no exact match exists**, choose the closest and explain why. You may also combine profiles and explain how.
-
-4. **Provide a complete response** using the matched profile as a guide.
-
-${personalityData}
-${companyContextPrompt}
-
----
-
-### 💡 OUTPUT STRUCTURE
-
-**🔎 Profile Match**  
-- Best match(es): [e.g. "Driver from ai_profiler" or "Amiable from test_profiles"]  
-- Confidence: High / Medium / Low  
-- Why this match: (based on tone, values, structure, vocabulary...)  
-
-**🧠 Behavioral Insight**  
-- Key traits this person demonstrates  
-- Emotional triggers likely to resonate  
-- Likely decision-making style  
-- Cognitive biases at play (from profile or inferred)
-
-**🎯 Strategy**  
-- Best tone to use (direct / polite / storytelling / confident / humble...)  
-- What to emphasize (logic, urgency, safety, credibility, feeling understood...)  
-- What to avoid  
-- If sales: best channel, frequency, subject line style
-
-**✉️ Suggested Response**  
-A natural, 100% human-sounding message you would send as a reply — short, tailored, and aligned with the match.
-
-**📘 Notes on Alignment**  
-- How the message aligns with the identified profile  
-- Why this approach is likely to succeed  
-- If multiple profiles were combined, how and why  
-- If sales tactics were incorporated, which ones and how they were applied  
-
----
+  }
+}
 
 ⚠️ IMPORTANT: NEVER copy-paste profile fields. Use them as inspiration to write natural human language. Your goal is to **guide the user to reply smarter**, not to sound like an AI.`;
     
@@ -553,9 +507,319 @@ A natural, 100% human-sounding message you would send as a reply — short, tail
       top_p: 1,
     });
 
-    return response.choices[0].message.content;
-  } catch (error) {
+    const rawResponse = response.choices[0].message.content || 'No response generated';
+    
+    // Try to extract JSON from the response
+    try {
+      // Look for JSON content between ```json and ``` or just try to parse the whole response
+      let jsonContent = rawResponse;
+      
+      // If the response is wrapped in code blocks, extract the JSON
+      const jsonMatch = rawResponse.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
+      if (jsonMatch) {
+        jsonContent = jsonMatch[1];
+      }
+      
+      // Try to parse the JSON to validate it
+      const parsed = JSON.parse(jsonContent);
+      
+      // Return the validated JSON string
+      return JSON.stringify(parsed);
+    } catch (parseError) {
+      console.error('Failed to parse OpenAI response as JSON:', parseError);
+      console.error('Raw OpenAI response:', rawResponse);
+      
+      // Return a structured fallback response
+      return JSON.stringify({
+        analysis: {
+          personality: {
+            traits: ['Analysis completed'],
+            communication_style: 'Professional',
+            tone: 'Neutral'
+          },
+          context: {
+            relationship_type: 'Business',
+            urgency_level: 'Medium',
+            topic_category: 'General'
+          },
+          insights: {
+            key_points: ['Email processed successfully'],
+            sentiment: 'Neutral',
+            intent: 'Communication'
+          },
+          recommendations: {
+            response_suggestions: ['Thank you for your email'],
+            next_steps: ['Review and respond appropriately']
+          }
+        },
+        note: 'OpenAI response could not be parsed as JSON. Using fallback analysis.',
+        raw_response: rawResponse.substring(0, 500) // Include first 500 chars for debugging
+      });
+    }
+  } catch (error: any) {
     console.error('Error analyzing email:', error);
-    throw new Error('Failed to analyze email');
+    
+    // Provide a helpful fallback response based on the error type
+    if (error.status === 401) {
+      console.error('OpenAI API key is invalid. Please check your API key configuration.');
+      return JSON.stringify({
+        analysis: {
+          personality: {
+            traits: ['Unable to analyze - API key issue'],
+            communication_style: 'Unknown',
+            tone: 'Unknown'
+          },
+          context: {
+            relationship_type: 'Unknown',
+            urgency_level: 'Unknown',
+            topic_category: 'Unknown'
+          },
+          insights: {
+            key_points: ['API key configuration error'],
+            sentiment: 'Unknown',
+            intent: 'Unknown'
+          },
+          recommendations: {
+            response_suggestions: ['Please configure a valid OpenAI API key'],
+            next_steps: ['Visit OpenAI dashboard to generate a new API key']
+          }
+        },
+        error: 'OpenAI API key is invalid or expired. Please update your API key in the environment variables.'
+      });
+    }
+    
+    // Generic fallback for other errors
+    return JSON.stringify({
+      analysis: {
+        personality: {
+          traits: ['Analysis unavailable'],
+          communication_style: 'Unknown',
+          tone: 'Unknown'
+        },
+        context: {
+          relationship_type: 'Unknown',
+          urgency_level: 'Medium',
+          topic_category: 'General'
+        },
+        insights: {
+          key_points: ['Unable to analyze at this time'],
+          sentiment: 'Unknown',
+          intent: 'Unknown'
+        },
+        recommendations: {
+          response_suggestions: ['Please try again later'],
+          next_steps: ['Check system configuration']
+        }
+      },
+      error: 'Failed to analyze email. Please try again later.'
+    });
+  }
+};
+
+/**
+ * Analyzes email content for sales opportunities using OpenAI's GPT model
+ * @param {string} emailContent - The email content to analyze for sales
+ * @returns {Promise<string>} Sales analysis result
+ */
+export const analyzeSalesOpportunity = async (emailContent: string): Promise<string> => {
+  try {
+    // Check if OpenAI API key is available
+    if (!process.env.OPENAI_API_KEY) {
+      console.warn('OpenAI API key not configured. Returning mock sales analysis.');
+      return JSON.stringify({
+        analysis: {
+          lead_qualification: {
+            score: 7,
+            level: 'Qualified',
+            reasoning: 'Mock analysis - appears to be a business inquiry'
+          },
+          opportunity_assessment: {
+            potential_value: 'Medium',
+            timeline: 'Short-term',
+            decision_maker: 'Likely',
+            budget_indicators: ['None detected']
+          },
+          sales_insights: {
+            pain_points: ['General business needs'],
+            buying_signals: ['Interest in product/service'],
+            objection_likelihood: 'Low'
+          },
+          recommendations: {
+            next_actions: ['Schedule discovery call', 'Send product information'],
+            approach: 'Consultative',
+            urgency: 'Medium'
+          }
+        },
+        note: 'This is a mock sales analysis as OpenAI API key is not configured.'
+      });
+    }
+
+    const openai = getOpenAIClient();
+    
+    const systemPrompt = `You are an expert sales analyst for a CRM system. Analyze the provided email for sales opportunities and return a JSON response with the following structure:
+
+{
+  "analysis": {
+    "lead_qualification": {
+      "score": 1-10,
+      "level": "Hot/Warm/Cold/Qualified/Unqualified",
+      "reasoning": "explanation"
+    },
+    "opportunity_assessment": {
+      "potential_value": "High/Medium/Low",
+      "timeline": "Immediate/Short-term/Long-term",
+      "decision_maker": "Likely/Possible/Unlikely",
+      "budget_indicators": ["indicator1", "indicator2"]
+    },
+    "sales_insights": {
+      "pain_points": ["pain1", "pain2"],
+      "buying_signals": ["signal1", "signal2"],
+      "objection_likelihood": "High/Medium/Low"
+    },
+    "recommendations": {
+      "next_actions": ["action1", "action2"],
+      "approach": "Consultative/Direct/Educational",
+      "urgency": "High/Medium/Low"
+    }
+  }
+}
+
+Focus on identifying sales opportunities, qualifying leads, and providing actionable sales recommendations.`;
+    
+    // Limit email content length if it's too long
+    const maxEmailLength = 1500;
+    const truncatedEmail = emailContent.length > maxEmailLength 
+      ? emailContent.substring(0, maxEmailLength) + '... [content truncated for length]'
+      : emailContent;
+    
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        {
+          role: "system",
+          content: systemPrompt
+        },
+        {
+          role: "user",
+          content: truncatedEmail
+        }
+      ],
+      temperature: 0.7,
+      max_tokens: 1500,
+      top_p: 1,
+    });
+
+    const rawResponse = response.choices[0].message.content || 'No response generated';
+    
+    // Try to extract JSON from the response
+    try {
+      // Look for JSON content between ```json and ``` or just try to parse the whole response
+      let jsonContent = rawResponse;
+      
+      // If the response is wrapped in code blocks, extract the JSON
+      const jsonMatch = rawResponse.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
+      if (jsonMatch) {
+        jsonContent = jsonMatch[1];
+      }
+      
+      // Try to parse the JSON to validate it
+      const parsed = JSON.parse(jsonContent);
+      
+      // Return the validated JSON string
+      return JSON.stringify(parsed);
+    } catch (parseError) {
+      console.error('Failed to parse OpenAI sales response as JSON:', parseError);
+      console.error('Raw OpenAI sales response:', rawResponse);
+      
+      // Return a structured fallback response
+      return JSON.stringify({
+        analysis: {
+          lead_qualification: {
+            score: 5,
+            level: 'Qualified',
+            reasoning: 'Analysis completed'
+          },
+          opportunity_assessment: {
+            potential_value: 'Medium',
+            timeline: 'Short-term',
+            decision_maker: 'Possible',
+            budget_indicators: ['Standard inquiry']
+          },
+          sales_insights: {
+            pain_points: ['Business needs identified'],
+            buying_signals: ['Interest expressed'],
+            objection_likelihood: 'Medium'
+          },
+          recommendations: {
+            next_actions: ['Follow up with prospect'],
+            approach: 'Consultative',
+            urgency: 'Medium'
+          }
+        },
+        note: 'OpenAI response could not be parsed as JSON. Using fallback sales analysis.',
+        raw_response: rawResponse.substring(0, 500) // Include first 500 chars for debugging
+      });
+    }
+  } catch (error: any) {
+    console.error('Error analyzing sales opportunity:', error);
+    
+    // Provide a helpful fallback response based on the error type
+    if (error.status === 401) {
+      console.error('OpenAI API key is invalid. Please check your API key configuration.');
+      return JSON.stringify({
+        analysis: {
+          lead_qualification: {
+            score: 0,
+            level: 'Unable to analyze - API key issue',
+            reasoning: 'OpenAI API key is invalid or expired'
+          },
+          opportunity_assessment: {
+            potential_value: 'Unknown',
+            timeline: 'Unknown',
+            decision_maker: 'Unknown',
+            budget_indicators: ['API key configuration error']
+          },
+          sales_insights: {
+            pain_points: ['API key configuration error'],
+            buying_signals: ['Unable to analyze'],
+            objection_likelihood: 'Unknown'
+          },
+          recommendations: {
+            next_actions: ['Configure valid OpenAI API key'],
+            approach: 'Technical',
+            urgency: 'High'
+          }
+        },
+        error: 'OpenAI API key is invalid or expired. Please update your API key in the environment variables.'
+      });
+    }
+    
+    // Generic fallback for other errors
+    return JSON.stringify({
+      analysis: {
+        lead_qualification: {
+          score: 0,
+          level: 'Analysis unavailable',
+          reasoning: 'Technical error occurred'
+        },
+        opportunity_assessment: {
+          potential_value: 'Unknown',
+          timeline: 'Unknown',
+          decision_maker: 'Unknown',
+          budget_indicators: ['Technical error']
+        },
+        sales_insights: {
+          pain_points: ['Unable to analyze at this time'],
+          buying_signals: ['Technical error'],
+          objection_likelihood: 'Unknown'
+        },
+        recommendations: {
+          next_actions: ['Try again later', 'Check system configuration'],
+          approach: 'Technical',
+          urgency: 'Medium'
+        }
+      },
+      error: 'Failed to analyze sales opportunity. Please try again later.'
+    });
   }
 };
