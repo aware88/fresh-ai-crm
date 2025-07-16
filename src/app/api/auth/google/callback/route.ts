@@ -5,7 +5,20 @@ import { createServiceRoleClient } from '@/lib/supabase/service-role';
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
 const REDIRECT_URI = `${process.env.NEXTAUTH_URL}/api/auth/google/callback`;
-const BASE_URL = process.env.NEXTAUTH_URL || 'http://localhost:3000';
+
+// Function to get the correct base URL for redirects
+function getBaseUrl(request: Request) {
+  const host = request.headers.get('host');
+  const protocol = request.headers.get('x-forwarded-proto') || 'http';
+  
+  // If we're in development and accessing via 127.0.0.1, use that
+  if (host && host.includes('127.0.0.1')) {
+    return `${protocol}://${host}`;
+  }
+  
+  // Otherwise use the configured NEXTAUTH_URL
+  return process.env.NEXTAUTH_URL || 'http://localhost:3000';
+}
 
 export async function GET(request: Request) {
   try {
@@ -13,6 +26,9 @@ export async function GET(request: Request) {
     const code = searchParams.get('code');
     const error = searchParams.get('error');
     const stateParam = searchParams.get('state');
+    
+    // Get the correct base URL for redirects
+    const BASE_URL = getBaseUrl(request);
     
     // Handle errors from OAuth provider
     if (error) {
@@ -113,55 +129,32 @@ export async function GET(request: Request) {
       console.error('Exception checking for existing account:', err);
     }
     
-    // Create account data object with minimal required fields
+    // Create account data object
     const accountData = {
       user_id: userId,
       email: userInfo.email,
+      display_name: userInfo.name || userInfo.email,
       provider_type: 'google',
+      access_token: tokenData.access_token,
+      refresh_token: tokenData.refresh_token,
+      token_expires_at: new Date(expiresAt * 1000).toISOString(),
       is_active: true
     };
-    
-    // Try to add OAuth fields - if they fail, we'll continue with just the basic fields
-    try {
-      Object.assign(accountData, {
-        access_token: tokenData.access_token,
-        refresh_token: tokenData.refresh_token,
-        expires_at: new Date(expiresAt * 1000).toISOString()
-      });
-    } catch (err) {
-      console.error('Error adding OAuth fields:', err);
-    }
-    
-    // Try to add display_name if available
-    try {
-      if (userInfo.name) {
-        Object.assign(accountData, {
-          display_name: userInfo.name
-        });
-      }
-    } catch (err) {
-      console.error('Error adding display_name:', err);
-    }
     
     let result;
     try {
       if (existingAccount) {
-        // Update existing account - only include fields that should be updated
-        const updateData = {
-          access_token: accountData.access_token,
-          refresh_token: accountData.refresh_token,
-          expires_at: accountData.expires_at,
-          is_active: accountData.is_active
-        };
-        
-        // Add display_name if available
-        if ('display_name' in accountData) {
-          updateData.display_name = accountData.display_name;
-        }
-        
+        // Update existing account
         result = await supabase
           .from('email_accounts')
-          .update(updateData)
+          .update({
+            access_token: accountData.access_token,
+            refresh_token: accountData.refresh_token,
+            token_expires_at: accountData.token_expires_at,
+            display_name: accountData.display_name,
+            is_active: accountData.is_active,
+            updated_at: new Date().toISOString()
+          })
           .eq('id', existingAccount.id)
           .select();
       } else {
@@ -187,6 +180,7 @@ export async function GET(request: Request) {
     }
   } catch (error) {
     console.error('Error in Google OAuth callback:', error);
+    const BASE_URL = getBaseUrl(request);
     return NextResponse.redirect(new URL('/settings/email-accounts?error=An unexpected error occurred', BASE_URL));
   }
 } 

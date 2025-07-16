@@ -3,7 +3,21 @@ import { getServerSession } from '@/lib/auth';
 
 // Google OAuth configuration
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
-const REDIRECT_URI = `${process.env.NEXTAUTH_URL}/api/auth/google/callback`;
+
+// Function to get the correct redirect URI
+function getRedirectUri(request: Request) {
+  const host = request.headers.get('host');
+  const protocol = request.headers.get('x-forwarded-proto') || 'http';
+  
+  // If we're in development and accessing via 127.0.0.1, use that
+  if (host && host.includes('127.0.0.1')) {
+    return `${protocol}://${host}/api/auth/google/callback`;
+  }
+  
+  // Otherwise use the configured NEXTAUTH_URL
+  return `${process.env.NEXTAUTH_URL}/api/auth/google/callback`;
+}
+
 const SCOPES = [
   'openid',
   'email',
@@ -13,7 +27,7 @@ const SCOPES = [
   'https://www.googleapis.com/auth/gmail.modify'
 ].join(' ');
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const session = await getServerSession();
     
@@ -37,6 +51,9 @@ export async function GET() {
       );
     }
 
+    // Get the correct redirect URI based on the request
+    const REDIRECT_URI = getRedirectUri(request);
+    
     // Construct the Google OAuth authorization URL
     const authUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
     authUrl.searchParams.append('client_id', GOOGLE_CLIENT_ID || '');
@@ -49,13 +66,15 @@ export async function GET() {
     // Add state parameter with user ID for security and to identify the user on callback
     const state = Buffer.from(JSON.stringify({ userId: session.user.id })).toString('base64');
     authUrl.searchParams.append('state', state);
-
-    // Redirect to Google OAuth authorization page
+    
+    console.log('Google connect: Redirecting to auth URL with redirect URI:', REDIRECT_URI);
+    
+    // Redirect to Google OAuth authorization URL
     return NextResponse.redirect(authUrl.toString());
-  } catch (error: any) {
-    console.error('Error initiating Google connection:', error);
+  } catch (error) {
+    console.error('Error in Google connect:', error);
     return NextResponse.json(
-      { success: false, error: 'Connection Error', details: error.message || 'Unknown error' },
+      { success: false, error: 'Internal Server Error', details: 'An unexpected error occurred' },
       { status: 500 }
     );
   }

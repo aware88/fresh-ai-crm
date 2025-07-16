@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, ReactNode } from 'react';
+import React, { useState, ReactNode, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { Separator } from '@/components/ui/separator';
@@ -29,13 +29,24 @@ export function SettingsForm({
   const [isSaving, setIsSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   
-  const handleChange = (key: string, value: any) => {
-    setFormData((prev: any) => ({
-      ...prev,
-      [key]: value
-    }));
-    setHasChanges(true);
-  };
+  // Listen for custom formdata events from child components
+  useEffect(() => {
+    const handleFormData = (event: CustomEvent) => {
+      const newData = event.detail;
+      setFormData((prev: any) => ({
+        ...prev,
+        ...newData
+      }));
+      setHasChanges(true);
+    };
+
+    // Add event listener for custom formdata events
+    document.addEventListener('formdata', handleFormData as EventListener);
+    
+    return () => {
+      document.removeEventListener('formdata', handleFormData as EventListener);
+    };
+  }, []);
   
   const handleSave = async () => {
     try {
@@ -58,23 +69,6 @@ export function SettingsForm({
     }
   };
   
-  // Clone children and inject formData and handleChange only to components that accept them
-  const childrenWithProps = React.Children.map(children, child => {
-    if (React.isValidElement(child)) {
-      // Only pass props to custom components, not DOM elements
-      const isCustomComponent = typeof child.type === 'function' || 
-                                (typeof child.type === 'object' && child.type !== null);
-      
-      if (isCustomComponent) {
-        return React.cloneElement(child, {
-          formData,
-          onChange: handleChange,
-        } as any);
-      }
-    }
-    return child;
-  });
-  
   return (
     <div className="space-y-6">
       <NavigationHeader title={title} backUrl={backUrl} />
@@ -85,7 +79,8 @@ export function SettingsForm({
       
       <Separator />
       
-      {childrenWithProps}
+      {/* Render children without injecting props */}
+      {children}
       
       <div className="flex justify-end">
         <Button 
