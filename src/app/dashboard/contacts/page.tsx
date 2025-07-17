@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { SyncAllContactsButton } from '@/components/contacts/SyncAllContactsButton';
 import { SyncContactButton } from '@/components/contacts/SyncContactButton';
 import { 
   Card, 
@@ -241,23 +240,6 @@ export default function ContactsPage() {
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <SyncAllContactsButton 
-                    variant="outline"
-                    size="sm"
-                    className="bg-white bg-opacity-20 hover:bg-opacity-30 text-white border-white border-opacity-20"
-                    onSyncComplete={(result) => {
-                      if (result.success) {
-                        toast({
-                          title: 'Contacts synced',
-                          description: `Successfully synced ${result.created + result.updated} contacts with Metakocka`,
-                        });
-                        // Refresh the page to show updated sync status
-                        router.refresh();
-                      }
-                    }}
-                  >
-                    Sync All to Metakocka
-                  </SyncAllContactsButton>
                   <Link href="/dashboard/contacts/new">
                     <Button variant="outline" className="bg-white bg-opacity-20 hover:bg-opacity-30 text-white border-white border-opacity-20">
                       <UserPlus className="mr-2 h-4 w-4" />

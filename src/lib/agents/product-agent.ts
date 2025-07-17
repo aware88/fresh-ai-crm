@@ -65,75 +65,10 @@ export interface MetakockaIntegration {
   getRecommendations: (productId: string, customerContext: CustomerContext) => Promise<any[]>;
 }
 
-// Mock Metakocka integration for development
+// Mock Metakocka integration for development (will be replaced with real integration)
 class MockMetakockaService implements MetakockaIntegration {
-  private products = [
-    {
-      id: 'prod_001',
-      name: 'CRM Professional Suite',
-      description: 'Complete CRM solution with advanced features for growing businesses',
-      price: 49.99,
-      originalPrice: 59.99,
-      category: 'software',
-      brand: 'ARIS',
-      features: ['Contact Management', 'Sales Pipeline', 'Email Integration', 'Reporting'],
-      specifications: {
-        users: 'Up to 50',
-        storage: '100GB',
-        integrations: 'Unlimited',
-        support: '24/7'
-      },
-      availability: { inStock: true, quantity: 999, leadTime: 'Immediate' }
-    },
-    {
-      id: 'prod_002',
-      name: 'CRM Enterprise Edition',
-      description: 'Enterprise-grade CRM with advanced analytics and customization',
-      price: 99.99,
-      originalPrice: 129.99,
-      category: 'software',
-      brand: 'ARIS',
-      features: ['Advanced Analytics', 'Custom Fields', 'API Access', 'White Label'],
-      specifications: {
-        users: 'Unlimited',
-        storage: '1TB',
-        integrations: 'Unlimited',
-        support: 'Dedicated Account Manager'
-      },
-      availability: { inStock: true, quantity: 999, leadTime: 'Immediate' }
-    },
-    {
-      id: 'prod_003',
-      name: 'Email Marketing Add-on',
-      description: 'Powerful email marketing automation integrated with your CRM',
-      price: 19.99,
-      category: 'software',
-      brand: 'ARIS',
-      features: ['Email Templates', 'Automation', 'Analytics', 'A/B Testing'],
-      specifications: {
-        emails: '10,000/month',
-        templates: '100+',
-        automation: 'Advanced',
-        support: 'Email'
-      },
-      availability: { inStock: true, quantity: 999, leadTime: 'Immediate' }
-    },
-    {
-      id: 'prod_004',
-      name: 'Mobile CRM App',
-      description: 'Access your CRM on the go with our mobile application',
-      price: 9.99,
-      category: 'software',
-      brand: 'ARIS',
-      features: ['Offline Access', 'Push Notifications', 'Mobile Forms', 'GPS Tracking'],
-      specifications: {
-        platforms: 'iOS, Android',
-        offline: 'Full functionality',
-        sync: 'Real-time',
-        support: 'In-app'
-      },
-      availability: { inStock: true, quantity: 999, leadTime: 'Immediate' }
-    }
+  private products: any[] = [
+    // Mock product data removed - will be replaced with real Metakocka integration
   ];
 
   async searchProducts(criteria: ProductSearchCriteria): Promise<any[]> {
@@ -154,7 +89,7 @@ class MockMetakockaService implements MetakockaIntegration {
     if (criteria.features) {
       results = results.filter(p => 
         criteria.features!.some(feature => 
-          p.features.some(pf => pf.toLowerCase().includes(feature.toLowerCase()))
+          p.features.some((pf: string) => pf.toLowerCase().includes(feature.toLowerCase()))
         )
       );
     }
@@ -254,7 +189,9 @@ export class ProductAgent {
       );
       
       // Get related products
-      const relatedProducts = await this.metakocka.getRecommendations(product.id, customerContext);
+      const relatedProducts = customerContext 
+        ? await this.metakocka.getRecommendations(product.id, customerContext)
+        : [];
       
       recommendations.push({
         id: product.id,
@@ -304,9 +241,9 @@ export class ProductAgent {
           id: (Date.now() + 1).toString(),
           agentId: agent.id,
           timestamp: new Date(),
-          type: 'reasoning' as const,
+          type: 'observation' as const,
           content: `Analyzing customer profile: ${customerContext.company || customerContext.email} - ${customerContext.size} business in ${customerContext.industry || 'unknown'} industry`,
-          metadata: { customerAnalysis: customerContext }
+          metadata: { criteria, customerContext }
         });
       }
 
@@ -315,9 +252,9 @@ export class ProductAgent {
         id: (Date.now() + 2).toString(),
         agentId: agent.id,
         timestamp: new Date(),
-        type: 'planning' as const,
+        type: 'observation' as const,
         content: 'Searching Metakocka database and applying intelligent matching algorithms',
-        metadata: { searchStrategy: 'ai_powered_matching' }
+        metadata: { criteria, customerContext }
       });
 
       const recommendations = await this.searchProducts(criteria, customerContext);
@@ -326,9 +263,9 @@ export class ProductAgent {
         id: (Date.now() + 3).toString(),
         agentId: agent.id,
         timestamp: new Date(),
-        type: 'action' as const,
+        type: 'observation' as const,
         content: `Found ${recommendations.length} product recommendations with average match score of ${(recommendations.reduce((sum, r) => sum + r.matchScore, 0) / recommendations.length * 100).toFixed(1)}%`,
-        metadata: { recommendationsCount: recommendations.length, results: recommendations.slice(0, 3) }
+        metadata: { criteria, customerContext }
       });
 
       // Generate business insights
@@ -338,9 +275,9 @@ export class ProductAgent {
         id: (Date.now() + 4).toString(),
         agentId: agent.id,
         timestamp: new Date(),
-        type: 'reflection' as const,
+        type: 'observation' as const,
         content: `Generated business insights: ${insights.summary}`,
-        metadata: { insights }
+        metadata: { criteria, customerContext }
       });
 
       // Prepare actions
@@ -533,7 +470,7 @@ Provide a concise, compelling explanation of why this product fits the customer'
     customerSegments: Record<string, number>;
   } {
     const allSearches = Array.from(this.searchHistory.values()).flat();
-    const categories = allSearches.map(s => s.category).filter(Boolean);
+    const categories = allSearches.map(s => s.category).filter((cat): cat is string => Boolean(cat));
     const segments = Array.from(this.customerProfiles.values()).map(c => c.size).filter(Boolean);
     
     return {

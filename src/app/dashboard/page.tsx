@@ -60,12 +60,61 @@ const item = {
     opacity: 1, 
     y: 0,
     transition: {
-      type: 'spring',
+      type: 'spring' as const,
       stiffness: 100,
       damping: 15
     }
   }
 };
+
+// Types for dashboard data
+interface DashboardStat {
+  name: string;
+  value: string;
+  change: string;
+  changeType: 'positive' | 'negative' | 'neutral';
+}
+
+interface RecentActivity {
+  id: string;
+  type: 'email' | 'order' | 'ai_agent' | 'interaction' | 'task';
+  title: string;
+  description: string;
+  timestamp: string;
+  icon: string;
+  color: string;
+}
+
+// Helper function to get time ago string
+function getTimeAgo(timestamp: string): string {
+  const now = new Date();
+  const activityTime = new Date(timestamp);
+  const diffInMinutes = Math.floor((now.getTime() - activityTime.getTime()) / (1000 * 60));
+  
+  if (diffInMinutes < 1) return 'Just now';
+  if (diffInMinutes < 60) return `${diffInMinutes} minutes ago`;
+  
+  const diffInHours = Math.floor(diffInMinutes / 60);
+  if (diffInHours < 24) return `${diffInHours} hours ago`;
+  
+  const diffInDays = Math.floor(diffInHours / 24);
+  return `${diffInDays} days ago`;
+}
+
+// Helper function to get icon component
+function getIconComponent(iconName: string) {
+  const iconMap: Record<string, any> = {
+    Mail,
+    CheckCircle,
+    AlertCircle,
+    Brain,
+    Users,
+    Package,
+    MessageSquare: MessageSquareText,
+    Activity
+  };
+  return iconMap[iconName] || Activity;
+}
 
 // Main Dashboard Component
 export default function DashboardPage() {
@@ -77,6 +126,13 @@ export default function DashboardPage() {
   const { plan, isActive, hasFeature } = useSubscriptionFeatures(organizationId);
   const { toast } = useToast();
   const router = useRouter();
+  
+  // State for dashboard data
+  const [stats, setStats] = useState<DashboardStat[]>([]);
+  const [recentActivities, setRecentActivities] = useState<RecentActivity[]>([]);
+  const [isLoadingStats, setIsLoadingStats] = useState(true);
+  const [isLoadingActivities, setIsLoadingActivities] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   
   // Animation state for interactive elements
   const [activeTab, setActiveTab] = useState<string>("all");
@@ -91,13 +147,65 @@ export default function DashboardPage() {
   const checkFeatureAccess = (featureKey: string) => {
     return !featureKey || hasFeature(featureKey, true);
   };
-  
-  const stats = [
-    { name: 'Unread Emails', value: '12', change: '+2.5%', changeType: 'positive' as const },
-    { name: 'Upcoming Tasks', value: '5', change: '+1', changeType: 'negative' as const },
-    { name: 'New Messages', value: '8', change: '+3', changeType: 'positive' as const },
-    { name: 'Completed Orders', value: '24', change: '+12%', changeType: 'positive' as const },
-  ];
+
+  // Fetch dashboard stats
+  const fetchDashboardStats = async () => {
+    setIsLoadingStats(true);
+    setError(null);
+    
+    try {
+      const response = await fetch('/api/dashboard/stats');
+      if (!response.ok) {
+        throw new Error('Failed to fetch dashboard statistics');
+      }
+      
+      const statsData = await response.json();
+      setStats(statsData);
+    } catch (err) {
+      console.error('Error fetching dashboard stats:', err);
+      setError('Failed to load dashboard statistics');
+      // Fallback to mock data
+      setStats([
+        { name: 'Unread Emails', value: '0', change: '0%', changeType: 'neutral' },
+        { name: 'Upcoming Tasks', value: '0', change: '0%', changeType: 'neutral' },
+        { name: 'New Messages', value: '0', change: '0%', changeType: 'neutral' },
+        { name: 'Completed Orders', value: '0', change: '0%', changeType: 'neutral' },
+      ]);
+    } finally {
+      setIsLoadingStats(false);
+    }
+  };
+
+  // Fetch recent activities
+  const fetchRecentActivities = async () => {
+    setIsLoadingActivities(true);
+    setError(null);
+    
+    try {
+      const response = await fetch('/api/dashboard/activities');
+      if (!response.ok) {
+        throw new Error('Failed to fetch recent activities');
+      }
+      
+      const activitiesData = await response.json();
+      setRecentActivities(activitiesData);
+    } catch (err) {
+      console.error('Error fetching recent activities:', err);
+      setError('Failed to load recent activities');
+      // Fallback to empty array
+      setRecentActivities([]);
+    } finally {
+      setIsLoadingActivities(false);
+    }
+  };
+
+  // Load data on component mount
+  useEffect(() => {
+    if (session) {
+      fetchDashboardStats();
+      fetchRecentActivities();
+    }
+  }, [session]);
 
   const quickActions = [
     { 
@@ -191,26 +299,46 @@ export default function DashboardPage() {
           animate="show"
           className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8"
         >
-          {stats.map((stat, index) => (
-            <motion.div key={stat.name} variants={item}>
-              <Card className="hover:shadow-lg transition-shadow duration-200 border-0 bg-white/80 backdrop-blur-sm">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-600">{stat.name}</p>
-                      <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
+          {isLoadingStats ? (
+            // Loading skeleton for stats
+            [1, 2, 3, 4].map((i) => (
+              <motion.div key={i} variants={item}>
+                <Card className="hover:shadow-lg transition-shadow duration-200 border-0 bg-white/80 backdrop-blur-sm">
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-2">
+                        <div className="h-4 bg-gray-200 rounded w-24 animate-pulse"></div>
+                        <div className="h-8 bg-gray-300 rounded w-16 animate-pulse"></div>
+                      </div>
+                      <div className="h-4 bg-gray-200 rounded w-12 animate-pulse"></div>
                     </div>
-                    <div className={cn(
-                      "text-sm font-medium",
-                      stat.changeType === 'positive' ? 'text-green-600' : 'text-red-600'
-                    )}>
-                      {stat.change}
+                  </CardContent>
+                </Card>
+              </motion.div>
+            ))
+          ) : (
+            stats.map((stat, index) => (
+              <motion.div key={stat.name} variants={item}>
+                <Card className="hover:shadow-lg transition-shadow duration-200 border-0 bg-white/80 backdrop-blur-sm">
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-gray-600">{stat.name}</p>
+                        <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
+                      </div>
+                      <div className={cn(
+                        "text-sm font-medium",
+                        stat.changeType === 'positive' ? 'text-green-600' : 
+                        stat.changeType === 'negative' ? 'text-red-600' : 'text-gray-600'
+                      )}>
+                        {stat.change}
+                      </div>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-          ))}
+                  </CardContent>
+                </Card>
+              </motion.div>
+            ))
+          )}
         </motion.div>
 
         {/* Quick Actions */}
@@ -274,29 +402,70 @@ export default function DashboardPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                <div className="flex items-center gap-3 p-3 rounded-lg bg-blue-50 border border-blue-200">
-                  <Mail className="w-5 h-5 text-blue-600" />
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-900">New email from customer</p>
-                    <p className="text-xs text-gray-600">2 minutes ago</p>
-                  </div>
+              {isLoadingActivities ? (
+                <div className="space-y-4">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="flex items-center gap-3 p-3 rounded-lg bg-gray-50 animate-pulse">
+                      <div className="w-5 h-5 bg-gray-300 rounded"></div>
+                      <div className="flex-1 space-y-2">
+                        <div className="h-4 bg-gray-300 rounded w-3/4"></div>
+                        <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-                <div className="flex items-center gap-3 p-3 rounded-lg bg-green-50 border border-green-200">
-                  <CheckCircle className="w-5 h-5 text-green-600" />
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-900">Order completed successfully</p>
-                    <p className="text-xs text-gray-600">15 minutes ago</p>
-                  </div>
+              ) : recentActivities.length > 0 ? (
+                <div className="space-y-4">
+                  {recentActivities.map((activity) => {
+                    const IconComponent = getIconComponent(activity.icon);
+                    const colorClasses = {
+                      blue: 'bg-blue-50 border-blue-200 text-blue-600',
+                      green: 'bg-green-50 border-green-200 text-green-600',
+                      purple: 'bg-purple-50 border-purple-200 text-purple-600',
+                      yellow: 'bg-yellow-50 border-yellow-200 text-yellow-600',
+                      indigo: 'bg-indigo-50 border-indigo-200 text-indigo-600',
+                      teal: 'bg-teal-50 border-teal-200 text-teal-600',
+                      gray: 'bg-gray-50 border-gray-200 text-gray-600',
+                    };
+                    
+                    const colorClass = colorClasses[activity.color as keyof typeof colorClasses] || colorClasses.gray;
+                    
+                    return (
+                      <div key={activity.id} className={`flex items-center gap-3 p-3 rounded-lg border ${colorClass.split(' ').slice(0, 2).join(' ')}`}>
+                        <IconComponent className={`w-5 h-5 ${colorClass.split(' ')[2]}`} />
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-gray-900">{activity.title}</p>
+                          <p className="text-xs text-gray-600">{activity.description}</p>
+                          <p className="text-xs text-gray-500 mt-1">{getTimeAgo(activity.timestamp)}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
-                <div className="flex items-center gap-3 p-3 rounded-lg bg-purple-50 border border-purple-200">
-                  <Brain className="w-5 h-5 text-purple-600" />
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-900">AI agent processed 5 emails</p>
-                    <p className="text-xs text-gray-600">30 minutes ago</p>
-                  </div>
+              ) : (
+                <div className="text-center py-8">
+                  <Activity className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                  <p className="text-gray-500 mb-2">No recent activity</p>
+                  <p className="text-sm text-gray-400">Your activities will appear here when you start using the system</p>
                 </div>
-              </div>
+              )}
+              
+              {error && (
+                <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                  <p className="text-sm text-red-600">{error}</p>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="mt-2"
+                    onClick={() => {
+                      fetchDashboardStats();
+                      fetchRecentActivities();
+                    }}
+                  >
+                    Retry
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
         </motion.div>

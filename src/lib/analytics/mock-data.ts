@@ -65,12 +65,8 @@ export const mockProductData = [
 ];
 
 /**
- * Mock price trends data
+ * Mock price trends data - will be replaced with real data
  */
-export const mockPriceData = [
-  { name: 'Product A', min: 100, avg: 120, max: 150 },
-  { name: 'Product B', min: 200, avg: 250, max: 300 },
-  { name: 'Product C', min: 50, avg: 75, max: 100 },
-  { name: 'Product D', min: 300, avg: 350, max: 400 },
-  { name: 'Product E', min: 150, avg: 175, max: 200 }
+export const mockPriceData: any[] = [
+  // Mock data removed - will be replaced with real analytics data
 ];

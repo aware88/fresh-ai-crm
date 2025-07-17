@@ -1,127 +1,145 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient } from '../../../lib/supabase/server';
-import { getUID } from '../../../lib/auth/utils';
+import { NextResponse } from 'next/server';
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
 
-// GET /api/products - Get all products for the current user
-export async function GET(request: NextRequest) {
+export async function GET(request: Request) {
   try {
-    const searchParams = request.nextUrl.searchParams;
-    const category = searchParams.get('category');
-    const query = searchParams.get('query');
+    const supabase = createRouteHandlerClient({ cookies });
     
-    // Get user ID from session
-    const uid = await getUID();
-    if (!uid) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    // Check if user is authenticated
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
     }
 
-    // Create Supabase client
-    const supabase = createServerClient();
-    
-    // Build query
-    let dbQuery = supabase
+    const userId = session.user.id;
+    const organizationId = (session.user as any).organizationId || userId;
+
+    // Fetch products from database
+    const { data: products, error } = await supabase
       .from('products')
       .select('*')
-      .eq('user_id', uid);
-    
-    // Apply filters if provided
-    if (category) {
-      dbQuery = dbQuery.eq('category', category);
-    }
-    
-    if (query) {
-      dbQuery = dbQuery.ilike('name', `%${query}%`);
-    }
-    
-    // Execute query
-    const { data: products, error } = await dbQuery.order('name');
-    
+      .eq('organization_id', organizationId)
+      .order('created_at', { ascending: false });
+
     if (error) {
       console.error('Error fetching products:', error);
-      return NextResponse.json({ error: 'Failed to fetch products' }, { status: 500 });
+      return NextResponse.json(
+        { error: 'Failed to fetch products' },
+        { status: 500 }
+      );
     }
-    
-    return NextResponse.json(products);
-  } catch (err) {
-    console.error('Error in products API:', err);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+
+    return NextResponse.json({ products: products || [] });
+  } catch (error) {
+    console.error('Products API error:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
   }
 }
 
-// POST /api/products - Create a new product
-export async function POST(request: NextRequest) {
+export async function POST(request: Request) {
   try {
+    const supabase = createRouteHandlerClient({ cookies });
+    
+    // Check if user is authenticated
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    const userId = session.user.id;
+    const organizationId = (session.user as any).organizationId || userId;
+
     const body = await request.json();
-    
+    const { name, sku, description, category, unit, selling_price, cost_price, min_stock_level, quantity_on_hand } = body;
+
     // Validate required fields
-    const { name } = body;
     if (!name) {
-      return NextResponse.json({ error: 'Product name is required' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'Product name is required' },
+        { status: 400 }
+      );
     }
-    
-    // Get user ID from session
-    const uid = await getUID();
-    if (!uid) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    
-    // Create Supabase client
-    const supabase = createServerClient();
-    
-    // Add user_id to the product data
-    const productData = {
-      ...body,
-      user_id: uid
-    };
-    
-    // Insert into database
-    const { data, error } = await supabase
+
+    // Insert new product
+    const { data: product, error } = await supabase
       .from('products')
-      .insert(productData)
+      .insert({
+        name,
+        sku,
+        description,
+        category,
+        unit: unit || 'pcs',
+        selling_price: selling_price ? parseFloat(selling_price) : null,
+        cost_price: cost_price ? parseFloat(cost_price) : null,
+        min_stock_level: min_stock_level ? parseInt(min_stock_level) : 0,
+        quantity_on_hand: quantity_on_hand ? parseFloat(quantity_on_hand) : 0,
+        user_id: userId,
+        organization_id: organizationId
+      })
       .select()
       .single();
-    
+
     if (error) {
       console.error('Error creating product:', error);
-      return NextResponse.json({ error: 'Failed to create product' }, { status: 500 });
+      return NextResponse.json(
+        { error: 'Failed to create product' },
+        { status: 500 }
+      );
     }
-    
-    return NextResponse.json(data, { status: 201 });
-  } catch (err) {
-    console.error('Error in products API:', err);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+
+    return NextResponse.json({ product }, { status: 201 });
+  } catch (error) {
+    console.error('Products POST API error:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
   }
 }
 
 // PUT /api/products - Update an existing product
-export async function PUT(request: NextRequest) {
+export async function PUT(request: Request) {
   try {
-    const body = await request.json();
+    const supabase = createRouteHandlerClient({ cookies });
     
-    // Validate required fields
+    // Check if user is authenticated
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    const userId = session.user.id;
+    const organizationId = (session.user as any).organizationId || userId;
+
+    const body = await request.json();
     const { id, name } = body;
+
     if (!id) {
       return NextResponse.json({ error: 'Product ID is required' }, { status: 400 });
     }
     if (!name) {
       return NextResponse.json({ error: 'Product name is required' }, { status: 400 });
     }
-    
-    // Get user ID from session
-    const uid = await getUID();
-    if (!uid) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    
-    // Create Supabase client
-    const supabase = createServerClient();
-    
+
     // Update in database
     const { data, error } = await supabase
       .from('products')
       .update(body)
       .eq('id', id)
-      .eq('user_id', uid)  // Ensure user can only update their own products
+      .eq('user_id', userId)  // Ensure user can only update their own products
       .select()
       .single();
     
@@ -135,37 +153,45 @@ export async function PUT(request: NextRequest) {
     }
     
     return NextResponse.json(data);
-  } catch (err) {
-    console.error('Error in products API:', err);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  } catch (error) {
+    console.error('Products PUT API error:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
   }
 }
 
 // DELETE /api/products - Delete a product
-export async function DELETE(request: NextRequest) {
+export async function DELETE(request: Request) {
   try {
-    const searchParams = request.nextUrl.searchParams;
-    const id = searchParams.get('id');
+    const supabase = createRouteHandlerClient({ cookies });
+    
+    // Check if user is authenticated
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    const userId = session.user.id;
+    const organizationId = (session.user as any).organizationId || userId;
+
+         const url = new URL(request.url);
+     const id = url.searchParams.get('id');
     
     if (!id) {
       return NextResponse.json({ error: 'Product ID is required' }, { status: 400 });
     }
-    
-    // Get user ID from session
-    const uid = await getUID();
-    if (!uid) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    
-    // Create Supabase client
-    const supabase = createServerClient();
     
     // Delete from database
     const { error } = await supabase
       .from('products')
       .delete()
       .eq('id', id)
-      .eq('user_id', uid);  // Ensure user can only delete their own products
+      .eq('user_id', userId);  // Ensure user can only delete their own products
     
     if (error) {
       console.error('Error deleting product:', error);
@@ -173,8 +199,11 @@ export async function DELETE(request: NextRequest) {
     }
     
     return NextResponse.json({ success: true });
-  } catch (err) {
-    console.error('Error in products API:', err);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  } catch (error) {
+    console.error('Products DELETE API error:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
   }
 }

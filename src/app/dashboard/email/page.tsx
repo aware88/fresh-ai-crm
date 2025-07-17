@@ -19,7 +19,7 @@ import { AnalysisResultsModal } from '@/components/email/AnalysisResultsModal';
 import { SalesAgentResultsModal } from '@/components/email/SalesAgentResultsModal';
 import { AnalysisLoadingModal } from '@/components/email/AnalysisResultsModal';
 import { SalesAgentLoadingModal } from '@/components/email/SalesAgentResultsModal';
-import TestEmailsClient from '@/components/email/TestEmailsClient';
+
 
 export default function EmailPage() {
   const { data: session, status } = useSession();
@@ -27,7 +27,7 @@ export default function EmailPage() {
   const [connected, setConnected] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [activeTab, setActiveTab] = useState('test-emails');
+  const [activeTab, setActiveTab] = useState('inbox');
   const [outlookConnected, setOutlookConnected] = useState(false);
   const [imapAccounts, setImapAccounts] = useState<any[]>([]);
   const [selectedAccount, setSelectedAccount] = useState<string>('');
@@ -393,11 +393,7 @@ export default function EmailPage() {
 
         {/* Email Dashboard */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="test-emails" className="flex items-center gap-2">
-              <MessageSquare className="h-4 w-4" />
-              Test Emails
-            </TabsTrigger>
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="inbox" className="flex items-center gap-2">
               <Inbox className="h-4 w-4" />
               Gmail Inbox
@@ -411,15 +407,6 @@ export default function EmailPage() {
               Compose
             </TabsTrigger>
           </TabsList>
-
-          <TabsContent value="test-emails" className="space-y-6">
-            <TestEmailsClient
-              onAnalyzeEmail={handleAnalyzeEmail}
-              onSalesAgent={handleSalesAgent}
-              isAnalyzing={isAnalyzing}
-              isSalesProcessing={isSalesProcessing}
-            />
-          </TabsContent>
 
           <TabsContent value="inbox" className="space-y-6">
             <Card className="border-0 bg-white/80 backdrop-blur-sm">

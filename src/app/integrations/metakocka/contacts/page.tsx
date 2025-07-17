@@ -4,11 +4,11 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ContactMappingsTable } from '@/components/integrations/metakocka/ContactMappingsTable';
-import { BulkContactSyncButton } from '@/components/integrations/metakocka/BulkContactSyncButton';
+
 import { getUnsyncedPartnersFromMetakocka } from '@/lib/integrations/metakocka/contact-sync-api';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
-import { Loader2, RefreshCw } from 'lucide-react';
+import { Loader2, RefreshCw, Download } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 
 interface UnsyncedPartner {
@@ -25,6 +25,8 @@ export default function MetakockaContactsPage() {
   const [unsyncedPartners, setUnsyncedPartners] = useState<UnsyncedPartner[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [syncingAll, setSyncingAll] = useState(false);
+  const [syncingIndividual, setSyncingIndividual] = useState<string | null>(null);
   const { toast } = useToast();
 
   const fetchUnsyncedPartners = async () => {
@@ -43,6 +45,82 @@ export default function MetakockaContactsPage() {
       setError(err instanceof Error ? err.message : 'Failed to load unsynced partners');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleSyncAll = async () => {
+    setSyncingAll(true);
+    try {
+      const response = await fetch('/api/integrations/metakocka/contacts/sync-from-metakocka', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          metakockaIds: unsyncedPartners.map(p => p.id)
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to sync contacts');
+      }
+
+      const result = await response.json();
+      
+      toast({
+        title: "Sync Complete",
+        description: `Successfully imported ${result.created} contacts from Metakocka`,
+      });
+      
+      // Refresh the list
+      fetchUnsyncedPartners();
+    } catch (err) {
+      console.error('Error syncing contacts:', err);
+      toast({
+        title: "Sync Failed",
+        description: err instanceof Error ? err.message : 'Failed to sync contacts',
+        variant: "destructive",
+      });
+    } finally {
+      setSyncingAll(false);
+    }
+  };
+
+  const handleSyncIndividual = async (partnerId: string) => {
+    setSyncingIndividual(partnerId);
+    try {
+      const response = await fetch('/api/integrations/metakocka/contacts/sync-from-metakocka', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          metakockaIds: [partnerId]
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to sync contact');
+      }
+
+      const result = await response.json();
+      
+      toast({
+        title: "Sync Complete",
+        description: `Successfully imported contact from Metakocka`,
+      });
+      
+      // Refresh the list
+      fetchUnsyncedPartners();
+    } catch (err) {
+      console.error('Error syncing contact:', err);
+      toast({
+        title: "Sync Failed",
+        description: err instanceof Error ? err.message : 'Failed to sync contact',
+        variant: "destructive",
+      });
+    } finally {
+      setSyncingIndividual(null);
     }
   };
 
@@ -76,7 +154,6 @@ export default function MetakockaContactsPage() {
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
           <TabsTrigger value="mappings">Contact Mappings</TabsTrigger>
-          <TabsTrigger value="export">Export to Metakocka</TabsTrigger>
           <TabsTrigger value="import">Import from Metakocka</TabsTrigger>
         </TabsList>
         
@@ -94,36 +171,7 @@ export default function MetakockaContactsPage() {
           </Card>
         </TabsContent>
         
-        <TabsContent value="export" className="mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Export Contacts to Metakocka</CardTitle>
-              <CardDescription>
-                Sync your CRM contacts to Metakocka as partners
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="bg-muted p-4 rounded-md">
-                <p className="text-sm">
-                  This will create or update partners in Metakocka based on your CRM contacts. 
-                  Any existing mappings will be updated, and new mappings will be created for contacts 
-                  that don't exist in Metakocka yet.
-                </p>
-              </div>
-              
-              <div className="flex justify-center">
-                <BulkContactSyncButton 
-                  direction="to-metakocka"
-                  size="lg"
-                  variant="default"
-                  onSyncComplete={handleSyncComplete}
-                >
-                  Sync All Contacts to Metakocka
-                </BulkContactSyncButton>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+
         
         <TabsContent value="import" className="mt-6">
           <Card>
@@ -174,14 +222,24 @@ export default function MetakockaContactsPage() {
                     <p className="text-sm text-muted-foreground">
                       {unsyncedPartners.length} unsynced partners found
                     </p>
-                    <BulkContactSyncButton
-                      direction="from-metakocka"
+                    <Button
                       variant="default"
                       size="sm"
-                      onSyncComplete={handleSyncComplete}
+                      onClick={handleSyncAll}
+                      disabled={syncingAll}
                     >
-                      Import All
-                    </BulkContactSyncButton>
+                      {syncingAll ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Importing...
+                        </>
+                      ) : (
+                        <>
+                          <Download className="mr-2 h-4 w-4" />
+                          Import All
+                        </>
+                      )}
+                    </Button>
                   </div>
                   
                   <Separator />
@@ -207,15 +265,24 @@ export default function MetakockaContactsPage() {
                               {partner.type === 'B' ? 'Business' : 'Person'}
                             </td>
                             <td className="py-2 px-4 text-right">
-                              <BulkContactSyncButton
-                                direction="from-metakocka"
+                              <Button
                                 variant="outline"
                                 size="sm"
-                                metakockaIds={[partner.id]}
-                                onSyncComplete={handleSyncComplete}
+                                onClick={() => handleSyncIndividual(partner.id)}
+                                disabled={syncingIndividual === partner.id}
                               >
-                                Import
-                              </BulkContactSyncButton>
+                                {syncingIndividual === partner.id ? (
+                                  <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    Importing...
+                                  </>
+                                ) : (
+                                  <>
+                                    <Download className="mr-2 h-4 w-4" />
+                                    Import
+                                  </>
+                                )}
+                              </Button>
                             </td>
                           </tr>
                         ))}

@@ -62,6 +62,7 @@ Each component is documented in detail in its own document within this directory
 - [Email Integration](./email-integration.md)
 - [AI Context Builder](./ai-context-builder.md)
 - [Email Templates](./email-templates.md)
+- [Auto-Sync System](./auto-sync.md) - **NEW: Automatic background synchronization**
 - [Testing Guide](./testing-guide.md)
 - [Recent Changes](./recent-changes.md)
 - [Open Tasks](./open-tasks.md)

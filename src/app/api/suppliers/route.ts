@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 
 export async function GET(request: NextRequest) {
@@ -14,8 +14,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Create Supabase client
-    const supabase = createServerComponentClient({ cookies });
+    // Create Supabase client with proper Next.js 15+ cookie handling
+    const supabase = createRouteHandlerClient({ cookies });
     
     // Fetch suppliers for the current user
     const { data: suppliers, error } = await supabase
@@ -58,8 +58,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Name and email are required' }, { status: 400 });
     }
 
-    // Create Supabase client
-    const supabase = createServerComponentClient({ cookies });
+    // Create Supabase client with proper Next.js 15+ cookie handling
+    const supabase = createRouteHandlerClient({ cookies });
     
     // Insert new supplier
     const { data: supplier, error } = await supabase
@@ -110,8 +110,8 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Create Supabase client
-    const supabase = createServerComponentClient({ cookies });
+    // Create Supabase client with proper Next.js 15+ cookie handling
+    const supabase = createRouteHandlerClient({ cookies });
     
     // Check if supplier exists and belongs to the user
     const { data: existingSupplier, error: checkError } = await supabase
@@ -178,8 +178,8 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Create Supabase client
-    const supabase = createServerComponentClient({ cookies });
+    // Create Supabase client with proper Next.js 15+ cookie handling
+    const supabase = createRouteHandlerClient({ cookies });
     
     // Check if supplier exists and belongs to the user
     const { data: existingSupplier, error: checkError } = await supabase

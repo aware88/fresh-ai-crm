@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertCircle, CheckCircle2 } from 'lucide-react';
 import { checkMetakockaCredentials, saveMetakockaCredentials, deleteMetakockaCredentials, testMetakockaConnection } from '@/lib/integrations/metakocka/client-api';
+import AutoSyncControl from '@/components/integrations/metakocka/AutoSyncControl';
 
 export default function MetakockaIntegrationPage() {
   const [loading, setLoading] = useState(true);
@@ -240,6 +241,11 @@ export default function MetakockaIntegrationPage() {
         </CardFooter>
       </Card>
       
+      {/* Auto-sync control - only show if credentials are saved */}
+      {hasCredentials && (
+        <AutoSyncControl />
+      )}
+
       <Card>
         <CardHeader>
           <CardTitle>About Metakocka Integration</CardTitle>

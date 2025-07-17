@@ -309,22 +309,6 @@ export default function ContactDetailsClient({ id }: ContactDetailsClientProps) 
                   </p>
                 </div>
                 <div className="flex space-x-2">
-                  <SyncContactButton 
-                    contactId={id}
-                    direction="to-metakocka"
-                    variant="outline"
-                    size="sm"
-                    onSyncComplete={(result) => {
-                      // Update sync status after successful sync
-                      if (result.success) {
-                        setSyncStatus({
-                          synced: true,
-                          metakockaId: result.metakockaId,
-                          lastSynced: new Date().toISOString(),
-                        });
-                      }
-                    }}
-                  />
                   {syncStatus.synced && syncStatus.metakockaId && (
                     <SyncContactButton 
                       metakockaId={syncStatus.metakockaId}
