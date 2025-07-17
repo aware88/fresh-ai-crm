@@ -83,6 +83,13 @@ For detailed setup instructions, see the [Setup Guide](./SETUP.md).
 - 📧 **Email Integration**: Connect with Resend, SendGrid, or other email providers
 - 📱 **SMS Notifications**: Twilio integration for SMS alerts
 
+### Subscription System
+- 💳 **3-Tier Pricing**: Clean Starter, Pro, and Premium plans
+- 🔒 **Automatic Limit Enforcement**: User and contact limits enforced automatically
+- 📊 **Real-time Usage Tracking**: Monitor usage and limits in real-time
+- 🚀 **Beta Strategy**: Free tiers for user acquisition, Premium for revenue
+- 👥 **Team Management**: Invite team members with subscription-aware limits
+
 ### Developer Experience
 - 🛠 **Developer Friendly**: Well-documented codebase with TypeScript support
 - 🧪 **Comprehensive Testing**: Unit, integration, and end-to-end tests
