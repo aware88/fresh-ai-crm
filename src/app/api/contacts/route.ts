@@ -1,25 +1,72 @@
-import { NextResponse } from 'next/server';
-import { loadContacts, createContact, updateContact, deleteContact, isUsingSupabase } from '../../../lib/contacts/data';
-import { Contact, ContactCreateInput, ContactUpdateInput } from '../../../lib/contacts/types';
+import { NextRequest, NextResponse } from 'next/server';
+import { loadContacts, createContact, updateContact, deleteContact, isUsingSupabase } from '@/lib/contacts/data';
+import { Contact, ContactCreateInput, ContactUpdateInput } from '@/lib/contacts/types';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
+import { EnhancedSubscriptionService } from '@/lib/services/subscription-service-extension';
+import { createLazyServerClient } from '@/lib/supabase/lazy-client';
 
 /**
  * GET /api/contacts
  */
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const contacts = await loadContacts();
     return NextResponse.json({ contacts, usingSupabase: isUsingSupabase() });
   } catch (error) {
-    console.error('Error loading contacts:', error);
-    return NextResponse.json({ error: 'Failed to load contacts', contacts: [] }, { status: 500 });
+    console.error('Error fetching contacts:', error);
+    return NextResponse.json({ error: 'Failed to fetch contacts' }, { status: 500 });
   }
 }
 
 /**
  * POST /api/contacts
  */
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
+    // Get session to get organization ID
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
+    const organizationId = (session.user as any).organizationId;
+    
+    // Check subscription limits before creating contact
+    if (organizationId) {
+      const enhancedSubscriptionService = new EnhancedSubscriptionService();
+      const supabase = await createLazyServerClient();
+      
+      // Get current contact count
+      const { count, error: countError } = await supabase
+        .from('contacts')
+        .select('*', { count: 'exact', head: true })
+        .eq('organization_id', organizationId);
+      
+      if (countError) {
+        console.error('Error counting contacts:', countError);
+        return NextResponse.json({ 
+          error: 'Failed to check contact limits' 
+        }, { status: 500 });
+      }
+      
+      const currentContactCount = count || 0;
+      
+      // Check if organization can add more contacts
+      const { canAdd, reason } = await enhancedSubscriptionService.canAddMoreContacts(
+        organizationId,
+        currentContactCount
+      );
+      
+      if (!canAdd) {
+        return NextResponse.json({ 
+          error: reason || 'Contact limit reached',
+          limitReached: true,
+          currentCount: currentContactCount
+        }, { status: 403 });
+      }
+    }
+    
     const data = await request.json();
     const newContact = await createContact(data as ContactCreateInput);
     
@@ -43,7 +90,7 @@ export async function PUT(request: Request) {
     const updatedContact = await updateContact(data as ContactUpdateInput);
     
     if (!updatedContact) {
-      return NextResponse.json({ error: 'Contact not found or invalid data' }, { status: 404 });
+      return NextResponse.json({ error: 'Contact not found' }, { status: 404 });
     }
     
     return NextResponse.json({ contact: updatedContact, usingSupabase: isUsingSupabase() });
@@ -55,9 +102,6 @@ export async function PUT(request: Request) {
 
 /**
  * DELETE /api/contacts
- * 
- * Note: This endpoint is kept for backward compatibility.
- * New code should use DELETE /api/contacts/[id] instead.
  */
 export async function DELETE(request: Request) {
   try {
@@ -65,10 +109,8 @@ export async function DELETE(request: Request) {
     const id = searchParams.get('id');
     
     if (!id) {
-      return NextResponse.json({ error: 'Missing contact ID' }, { status: 400 });
+      return NextResponse.json({ error: 'Contact ID is required' }, { status: 400 });
     }
-    
-    console.warn('Deprecated API endpoint used: DELETE /api/contacts?id=. Use DELETE /api/contacts/[id] instead.');
     
     const success = await deleteContact(id);
     
@@ -76,7 +118,7 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: 'Contact not found' }, { status: 404 });
     }
     
-    return NextResponse.json({ success: true, usingSupabase: isUsingSupabase() });
+    return NextResponse.json({ message: 'Contact deleted successfully' });
   } catch (error) {
     console.error('Error deleting contact:', error);
     return NextResponse.json({ error: 'Failed to delete contact' }, { status: 500 });

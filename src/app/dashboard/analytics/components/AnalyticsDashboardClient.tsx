@@ -25,7 +25,8 @@ import {
   Users, 
   Building2,
   RefreshCw,
-  CreditCard
+  CreditCard,
+  BarChart3
 } from 'lucide-react';
 
 import { AnalyticsData } from '@/lib/analytics/types';
@@ -125,47 +126,49 @@ export default function AnalyticsDashboardClient({ initialData, organizationId }
           Refresh Data
         </Button>
       </div>
-      
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
-          {error}
+      {/* Remove error message, show empty state if any data is empty or error */}
+      {(isLoading || !analyticsData || !analyticsData.counts || !supplierData || !productData || !priceData || error) ? (
+        <div className="flex flex-col items-center justify-center py-12 text-center">
+          <BarChart3 className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+          <p className="text-gray-500 mb-2">No analytics data yet</p>
+          <p className="text-sm text-gray-400">Your analytics will appear here as you use the system</p>
+        </div>
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <StatCard
+            title="Total Suppliers"
+            value={analyticsData.counts.suppliers}
+            description="Active suppliers in your system"
+            icon={<Building2 className="h-4 w-4" />}
+            trend="up"
+            trendValue="+12% from last month"
+          />
+          <StatCard
+            title="Total Products"
+            value={analyticsData.counts.products}
+            description="Products in your inventory"
+            icon={<ShoppingBag className="h-4 w-4" />}
+            trend="up"
+            trendValue="+8% from last month"
+          />
+          <StatCard
+            title="Documents"
+            value={analyticsData.counts.documents}
+            description="Sales documents created"
+            icon={<Users className="h-4 w-4" />}
+            trend="neutral"
+            trendValue="No change from last month"
+          />
+          <StatCard
+            title="Average Price"
+            value={`$${analyticsData.pricing.average.toFixed(2)}`}
+            description={`Range: $${analyticsData.pricing.minimum.toFixed(2)} - $${analyticsData.pricing.maximum.toFixed(2)}`}
+            icon={<DollarSign className="h-4 w-4" />}
+            trend="down"
+            trendValue="-3% from last month"
+          />
         </div>
       )}
-      
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          title="Total Suppliers"
-          value={analyticsData.counts.suppliers}
-          description="Active suppliers in your system"
-          icon={<Building2 className="h-4 w-4" />}
-          trend="up"
-          trendValue="+12% from last month"
-        />
-        <StatCard
-          title="Total Products"
-          value={analyticsData.counts.products}
-          description="Products in your inventory"
-          icon={<ShoppingBag className="h-4 w-4" />}
-          trend="up"
-          trendValue="+8% from last month"
-        />
-        <StatCard
-          title="Documents"
-          value={analyticsData.counts.documents}
-          description="Sales documents created"
-          icon={<Users className="h-4 w-4" />}
-          trend="neutral"
-          trendValue="No change from last month"
-        />
-        <StatCard
-          title="Average Price"
-          value={`$${analyticsData.pricing.average.toFixed(2)}`}
-          description={`Range: $${analyticsData.pricing.minimum.toFixed(2)} - $${analyticsData.pricing.maximum.toFixed(2)}`}
-          icon={<DollarSign className="h-4 w-4" />}
-          trend="down"
-          trendValue="-3% from last month"
-        />
-      </div>
       
       <Tabs defaultValue={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList>

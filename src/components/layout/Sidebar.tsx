@@ -99,6 +99,52 @@ export function Sidebar({ className }: SidebarProps) {
   const pathname = usePathname() || '';
   const { isOpen: isMobileMenuOpen, toggleMenu, closeMenu } = useMobileMenu();
   const [searchQuery, setSearchQuery] = useState('');
+  const [logoPath, setLogoPath] = useState<string | null>(null);
+  const [companyName, setCompanyName] = useState('ARIS');
+
+  // Check if we're in a browser environment
+  const isBrowser = typeof window !== 'undefined';
+
+  // Load logo and company name from localStorage
+  useEffect(() => {
+    if (!isBrowser) return;
+    
+    const loadLogoAndCompanyName = () => {
+      // Check for logo in localStorage
+      const savedLogo = localStorage.getItem('companyLogo');
+      if (savedLogo) {
+        setLogoPath(savedLogo);
+      }
+      
+      // Check for company name in localStorage
+      const savedCompanyName = localStorage.getItem('companyName');
+      if (savedCompanyName) {
+        setCompanyName(savedCompanyName);
+      }
+    };
+    
+    // Initial load
+    loadLogoAndCompanyName();
+    
+    // Listen for storage events (when localStorage is updated in another tab)
+    const handleStorageChange = (event: StorageEvent) => {
+      if (event.key === 'companyLogo' || event.key === 'companyName') {
+        loadLogoAndCompanyName();
+      }
+    };
+    
+    // Add event listener for localStorage changes
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Add event listener for our custom event (same-tab updates)
+    window.addEventListener('localStorageUpdated', loadLogoAndCompanyName);
+    
+    // Cleanup
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('localStorageUpdated', loadLogoAndCompanyName);
+    };
+  }, [isBrowser]);
 
   // Close mobile menu when pathname changes
   useEffect(() => {
@@ -214,15 +260,30 @@ export function Sidebar({ className }: SidebarProps) {
         <div className="flex h-16 items-center justify-center border-b border-gray-100">
           <Link href="/dashboard" className="flex items-center justify-center">
             <div className="flex items-center">
-              <Image 
-                src="/images/aris-logo.svg" 
-                alt="ARIS Logo" 
-                width={40}
-                height={40}
-                className="object-contain" 
-                priority
-              />
-              <span className="ml-2 font-semibold text-lg bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-transparent bg-clip-text">ARIS</span>
+              <div className="h-10 w-10 flex items-center justify-center overflow-hidden">
+                {logoPath ? (
+                  <Image 
+                    src={logoPath} 
+                    alt="Company Logo" 
+                    width={40}
+                    height={40}
+                    className="object-contain"
+                    priority
+                  />
+                ) : (
+                  <Image 
+                    src="/images/aris-logo.svg" 
+                    alt="ARIS Logo" 
+                    width={40}
+                    height={40}
+                    className="object-contain" 
+                    priority
+                  />
+                )}
+              </div>
+              <span className="ml-2 font-semibold text-lg bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-transparent bg-clip-text">
+                {companyName}
+              </span>
             </div>
           </Link>
         </div>

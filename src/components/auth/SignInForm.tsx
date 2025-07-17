@@ -91,6 +91,15 @@ export default function SignInForm() {
             {loading ? 'Signing In...' : 'Sign In'}
           </Button>
         </form>
+        
+        <div className="text-center mt-4">
+          <Link 
+            href="/forgot-password" 
+            className="text-sm text-gray-600 hover:text-purple-600 font-medium hover:underline transition-colors"
+          >
+            Forgot your password?
+          </Link>
+        </div>
       </div>
       <div className="p-8 pt-2">
         <p className="text-sm text-center text-gray-600">

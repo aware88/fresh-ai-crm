@@ -15,7 +15,7 @@ import { withAuth } from '@/lib/auth/auth-middleware';
 import AuthProvider from '@/components/auth/AuthProvider';
 
 // List of public paths that don't require authentication
-const PUBLIC_PATHS = ['/', '/signin', '/signup', '/auth/callback'];
+const PUBLIC_PATHS = ['/', '/signin', '/signup', '/auth/callback', '/forgot-password', '/reset-password'];
 
 interface LayoutProviderProps {
   children: React.ReactNode;

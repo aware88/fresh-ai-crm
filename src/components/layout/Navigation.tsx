@@ -86,36 +86,8 @@ export function Navigation({ className = '' }: NavigationProps) {
   return (
     <nav className={`bg-white shadow-sm border-b h-16 flex items-center px-4 sm:px-6 ${className}`}>
       <div className="flex items-center justify-between w-full">
-        <div className="flex items-center">
-          <Link href="/dashboard" className="flex items-center">
-            <div className="h-8 w-8 flex items-center justify-center overflow-hidden">
-              {logoPath ? (
-                <Image 
-                  src={logoPath} 
-                  alt="Company Logo" 
-                  width={32}
-                  height={32}
-                  className="object-contain"
-                  priority
-                />
-              ) : (
-                <Image 
-                  src="/images/aris-logo.svg" 
-                  alt="ARIS Logo" 
-                  width={32}
-                  height={32}
-                  className="object-contain" 
-                  priority
-                />
-              )}
-            </div>
-            {companyName && (
-              <span className="ml-2 text-base font-semibold bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-transparent bg-clip-text">
-                {companyName}
-              </span>
-            )}
-          </Link>
-        </div>
+        {/* Remove logo and company name from top nav */}
+        <div />
         <div className="flex items-center space-x-4">
           <button 
             type="button" 
@@ -125,7 +97,6 @@ export function Navigation({ className = '' }: NavigationProps) {
             <Bell className="h-5 w-5 text-gray-600" />
             <span className="absolute top-2 right-2 h-2 w-2 bg-gradient-to-r from-blue-600 to-pink-600 rounded-full"></span>
           </button>
-          
           <div className="relative">
             <button 
               type="button" 
@@ -138,7 +109,6 @@ export function Navigation({ className = '' }: NavigationProps) {
                 <User className="h-4 w-4" />
               </div>
             </button>
-            
             {isMenuOpen && (
               <div className="absolute right-0 mt-2 w-48 rounded-xl shadow-lg bg-white ring-1 ring-gray-100 overflow-hidden">
                 <div className="py-1">

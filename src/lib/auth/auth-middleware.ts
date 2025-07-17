@@ -6,7 +6,7 @@ import { AuthService } from './auth-service';
 import React from 'react';
 
 // List of public paths that don't require authentication
-const PUBLIC_PATHS = ['/', '/signin', '/signup', '/auth/callback'];
+const PUBLIC_PATHS = ['/', '/signin', '/signup', '/auth/callback', '/forgot-password', '/reset-password'];
 
 /**
  * Authentication middleware component that protects routes
@@ -22,8 +22,7 @@ export function withAuth<P extends object>(Component: React.ComponentType<P>) {
     useEffect(() => {
       const checkAuth = async () => {
         const isPublicPath = PUBLIC_PATHS.includes(pathname) || 
-                            pathname.startsWith('/auth/') || 
-                            pathname.includes('reset-password');
+                            pathname.startsWith('/auth/');
         
         // Don't check for authentication on public paths
         if (isPublicPath) {

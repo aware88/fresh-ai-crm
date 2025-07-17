@@ -1,15 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabaseClient';
+import { createServerClient } from '../../../../lib/supabase/server';
+import { getUID } from '../../../../lib/auth/utils';
 import { v4 as uuidv4 } from 'uuid';
 import fs from 'fs';
 import path from 'path';
-import { initializeSupplierData } from '@/lib/suppliers/init';
-
-// Initialize Supabase connection
-const initSupabaseConnection = async () => {
-  // Keep the initialization function for backward compatibility
-  await initializeSupplierData();
-};
 
 // Define allowed file types
 const allowedFileTypes = ['application/pdf', 'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'text/csv'];
@@ -22,7 +16,6 @@ const fileTypeExtensions = {
 
 // Get all documents for a supplier
 export async function GET(request: NextRequest) {
-  await initSupabaseConnection();
   try {
     const { searchParams } = new URL(request.url);
     const supplierId = searchParams.get('supplierId');
@@ -34,31 +27,21 @@ export async function GET(request: NextRequest) {
       );
     }
     
-    // Get the current user's ID
-    const { data: userData, error: userError } = await supabase.auth.getUser();
-    
-    if (userError) {
-      console.error('Error getting user:', userError);
-      return NextResponse.json(
-        { error: 'Authentication error' },
-        { status: 401 }
-      );
+    // Get user ID from session
+    const uid = await getUID();
+    if (!uid) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    
-    const userId = userData.user?.id;
-    if (!userId) {
-      return NextResponse.json(
-        { error: 'User not authenticated' },
-        { status: 401 }
-      );
-    }
+
+    // Create Supabase client
+    const supabase = await createServerClient();
     
     // Fetch documents from Supabase
     const { data: documents, error } = await supabase
       .from('supplier_documents')
       .select('*')
       .eq('supplier_id', supplierId)
-      .eq('created_by', userId);
+      .eq('created_by', uid);
     
     if (error) {
       console.error('Error fetching supplier documents from Supabase:', error);
@@ -80,7 +63,6 @@ export async function GET(request: NextRequest) {
 
 // Upload a document for a supplier
 export async function POST(request: NextRequest) {
-  await initSupabaseConnection();
   try {
     const formData = await request.formData();
     const supplierId = formData.get('supplierId') as string;
@@ -102,31 +84,21 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // Get the current user's ID
-    const { data: userData, error: userError } = await supabase.auth.getUser();
-    
-    if (userError) {
-      console.error('Error getting user:', userError);
-      return NextResponse.json(
-        { error: 'Authentication error' },
-        { status: 401 }
-      );
+    // Get user ID from session
+    const uid = await getUID();
+    if (!uid) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    
-    const userId = userData.user?.id;
-    if (!userId) {
-      return NextResponse.json(
-        { error: 'User not authenticated' },
-        { status: 401 }
-      );
-    }
+
+    // Create Supabase client
+    const supabase = await createServerClient();
     
     // Check if supplier exists and belongs to the user
     const { data: supplier, error: supplierError } = await supabase
       .from('suppliers')
       .select('id')
       .eq('id', supplierId)
-      .eq('created_by', userId)
+      .eq('user_id', uid)
       .single();
     
     if (supplierError) {
@@ -162,7 +134,7 @@ export async function POST(request: NextRequest) {
         document_type: documentType,
         file_path: filePath,
         metadata: { original_name: file.name, size: file.size },
-        created_by: userId
+        created_by: uid
       })
       .select()
       .single();
@@ -191,7 +163,6 @@ export async function POST(request: NextRequest) {
 
 // Delete a document
 export async function DELETE(request: NextRequest) {
-  await initSupabaseConnection();
   try {
     const { searchParams } = new URL(request.url);
     const documentId = searchParams.get('id');
@@ -203,31 +174,21 @@ export async function DELETE(request: NextRequest) {
       );
     }
     
-    // Get the current user's ID
-    const { data: userData, error: userError } = await supabase.auth.getUser();
-    
-    if (userError) {
-      console.error('Error getting user:', userError);
-      return NextResponse.json(
-        { error: 'Authentication error' },
-        { status: 401 }
-      );
+    // Get user ID from session
+    const uid = await getUID();
+    if (!uid) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    
-    const userId = userData.user?.id;
-    if (!userId) {
-      return NextResponse.json(
-        { error: 'User not authenticated' },
-        { status: 401 }
-      );
-    }
+
+    // Create Supabase client
+    const supabase = await createServerClient();
     
     // Get document details before deletion
     const { data: document, error: fetchError } = await supabase
       .from('supplier_documents')
       .select('*')
       .eq('id', documentId)
-      .eq('created_by', userId)
+      .eq('created_by', uid)
       .single();
     
     if (fetchError) {
@@ -243,7 +204,7 @@ export async function DELETE(request: NextRequest) {
       .from('supplier_documents')
       .delete()
       .eq('id', documentId)
-      .eq('created_by', userId);
+      .eq('created_by', uid);
     
     if (deleteError) {
       console.error('Error deleting document from Supabase:', deleteError);

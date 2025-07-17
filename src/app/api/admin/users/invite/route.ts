@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
 import { requirePermission } from '@/lib/auth/middleware';
+import { EnhancedSubscriptionService } from '@/lib/services/subscription-service-extension';
 
 // POST /api/admin/users/invite - Invite a new user
 export async function POST(request: NextRequest) {
@@ -31,7 +32,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
 
     // Check if user already exists
     const { data: existingUser } = await supabase
@@ -45,6 +46,50 @@ export async function POST(request: NextRequest) {
         { error: 'User with this email already exists' },
         { status: 400 }
       );
+    }
+
+    // If organization_id is provided, check subscription limits
+    if (organization_id) {
+      // Verify organization exists
+      const { data: organization, error: orgError } = await supabase
+        .from('organizations')
+        .select('id')
+        .eq('id', organization_id)
+        .single();
+
+      if (orgError || !organization) {
+        return NextResponse.json({ error: 'Organization not found' }, { status: 404 });
+      }
+
+      // Check subscription limits before adding user
+      const enhancedSubscriptionService = new EnhancedSubscriptionService();
+      
+      // Get current user count for the organization
+      const { count: currentUserCount, error: countError } = await supabase
+        .from('user_organizations')
+        .select('*', { count: 'exact', head: true })
+        .eq('organization_id', organization_id);
+      
+      if (countError) {
+        console.error('Error counting users:', countError);
+        return NextResponse.json({ 
+          error: 'Failed to check user limits' 
+        }, { status: 500 });
+      }
+
+      // Check if organization can add more users
+      const { canAdd, reason } = await enhancedSubscriptionService.canAddMoreUsers(
+        organization_id,
+        currentUserCount || 0
+      );
+
+      if (!canAdd) {
+        return NextResponse.json({ 
+          error: reason || 'User limit reached',
+          limitReached: true,
+          currentCount: currentUserCount || 0
+        }, { status: 403 });
+      }
     }
 
     // Create user metadata
@@ -69,29 +114,20 @@ export async function POST(request: NextRequest) {
 
     // If organization_id is provided, add user to the organization
     if (organization_id) {
-      // Verify organization exists
-      const { data: organization, error: orgError } = await supabase
-        .from('organizations')
-        .select('id')
-        .eq('id', organization_id)
-        .single();
+      // Add user to organization
+      const { error: userOrgError } = await supabase
+        .from('user_organizations')
+        .insert({
+          user_id: userId,
+          organization_id
+        });
 
-      if (orgError || !organization) {
-        console.error('Organization not found:', orgError);
-        // Continue even if organization not found
-      } else {
-        // Add user to organization
-        const { error: userOrgError } = await supabase
-          .from('user_organizations')
-          .insert({
-            user_id: userId,
-            organization_id
-          });
-
-        if (userOrgError) {
-          console.error('Error adding user to organization:', userOrgError);
-          // Continue even if adding to organization fails
-        }
+      if (userOrgError) {
+        console.error('Error adding user to organization:', userOrgError);
+        return NextResponse.json(
+          { error: 'Failed to add user to organization' },
+          { status: 500 }
+        );
       }
     }
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
 import { requirePermission } from '@/lib/auth/middleware';
+import { EnhancedSubscriptionService } from '@/lib/services/subscription-service-extension';
 
 // GET /api/admin/organizations/[id]/users - Get users for an organization
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
@@ -107,6 +108,36 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       return NextResponse.json({ error: 'Organization not found' }, { status: 404 });
     }
 
+    // Check subscription limits before adding user
+    const enhancedSubscriptionService = new EnhancedSubscriptionService();
+    
+    // Get current user count for the organization
+    const { count: currentUserCount, error: countError } = await supabase
+      .from('user_organizations')
+      .select('*', { count: 'exact', head: true })
+      .eq('organization_id', organizationId);
+    
+    if (countError) {
+      console.error('Error counting users:', countError);
+      return NextResponse.json({ 
+        error: 'Failed to check user limits' 
+      }, { status: 500 });
+    }
+
+    // Check if organization can add more users
+    const { canAdd, reason } = await enhancedSubscriptionService.canAddMoreUsers(
+      organizationId,
+      currentUserCount || 0
+    );
+
+    if (!canAdd) {
+      return NextResponse.json({ 
+        error: reason || 'User limit reached',
+        limitReached: true,
+        currentCount: currentUserCount || 0
+      }, { status: 403 });
+    }
+
     // Check if user exists or create a new one
     let userId;
     const { data: existingUser } = await supabase
@@ -175,7 +206,11 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       }
     }
 
-    return NextResponse.json({ success: true, user_id: userId }, { status: 201 });
+    return NextResponse.json({ 
+      success: true, 
+      user_id: userId,
+      message: 'User added to organization successfully'
+    }, { status: 201 });
   } catch (error) {
     console.error('Error in organization users API:', error);
     return NextResponse.json(

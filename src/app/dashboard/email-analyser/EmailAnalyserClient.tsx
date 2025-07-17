@@ -350,22 +350,16 @@ Fresh AI CRM Team`;
           </CardHeader>
           <CardContent>
             {loading ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-6 w-6 animate-spin" />
-                <span className="ml-2">Loading emails...</span>
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <Mail className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+                <p className="text-gray-500 mb-2">No emails found</p>
+                <p className="text-sm text-gray-400">Your emails will appear here as you use the system</p>
               </div>
-            ) : emails.length === 0 ? (
-              <div className="text-center py-8">
-                <Mail className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-                <p className="text-gray-500">No emails found</p>
-                <p className="text-sm text-gray-400">Connect your email accounts to start analyzing emails</p>
-                <Button
-                  onClick={() => router.push('/dashboard/email')}
-                  className="mt-4"
-                  variant="outline"
-                >
-                  Connect Email Accounts
-                </Button>
+            ) : (emails.length === 0 || error) ? (
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <Mail className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+                <p className="text-gray-500 mb-2">No emails found</p>
+                <p className="text-sm text-gray-400">Your emails will appear here as you use the system</p>
               </div>
             ) : (
               <ScrollArea className="h-96">

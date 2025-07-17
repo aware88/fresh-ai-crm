@@ -204,9 +204,7 @@ export default function ProductsPage() {
             <CardContent>
               {loading ? (
                 <LoadingSkeleton />
-              ) : error ? (
-                <ErrorMessage message={error} />
-              ) : filteredProducts.length === 0 ? (
+              ) : (filteredProducts.length === 0 || error) ? (
                 <EmptyState />
               ) : (
                 <div className="rounded-md border">

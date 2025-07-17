@@ -24,6 +24,11 @@ const sidebarNavItems = [
     group: 'User'
   },
   {
+    title: 'Subscription',
+    href: '/settings/subscription',
+    group: 'Billing'
+  },
+  {
     title: 'Company Branding',
     href: '/settings/branding',
     group: 'Company'

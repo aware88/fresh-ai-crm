@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
-import { requirePermission } from '@/middleware/auth-middleware';
+import { createServiceRoleClient } from '@/lib/supabase/service-role';
+import { requirePermission } from '@/lib/auth/middleware';
 import { cookies } from 'next/headers';
 import { RoleService } from '@/services/RoleService';
 
@@ -15,14 +16,14 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
 
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
 
     // Get organizations with user count
     const { data: organizations, error } = await supabase
       .from('organizations')
       .select(`
         *,
-        users:user_organizations(count)
+        users:organization_members(count)
       `);
 
     if (error) {
@@ -31,7 +32,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Process the data to get user counts
-    const orgsWithUserCount = organizations.map(org => ({
+    const orgsWithUserCount = organizations.map((org: any) => ({
       ...org,
       user_count: org.users?.[0]?.count || 0,
       users: undefined // Remove the users array
@@ -84,7 +85,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
 
     // Check if slug is already in use
     const { data: existingOrg } = await supabase
@@ -101,7 +102,38 @@ export async function POST(request: NextRequest) {
     }
 
     // Prepare organization data
-    const orgData: any = { name, slug };
+    let createdBy = admin_user_id; // For signup flow
+    
+    if (!isSignupFlow) {
+      // For regular admin flow, get current user from auth
+      const { data: { user } } = await supabase.auth.getUser();
+      createdBy = user?.id;
+    }
+    
+    if (!createdBy) {
+      return NextResponse.json(
+        { error: 'Unable to determine user for organization creation' },
+        { status: 400 }
+      );
+    }
+    
+    // For signup flow, verify the user exists in auth.users
+    if (isSignupFlow) {
+      const { data: userExists, error: userCheckError } = await supabase.auth.admin.getUserById(createdBy);
+      if (userCheckError || !userExists.user) {
+        console.error('User not found in auth.users:', createdBy, userCheckError);
+        return NextResponse.json(
+          { error: 'User not found. Please ensure the user account is created first.' },
+          { status: 400 }
+        );
+      }
+    }
+    
+    const orgData: any = { 
+      name, 
+      slug,
+      created_by: createdBy
+    };
     
     // Add subscription plan if provided
     if (subscription_plan) {
@@ -110,7 +142,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Create the organization
-    const { data: organization, error } = await supabase
+    console.log('Creating organization with data:', orgData);
+    
+    // Use service role client for organization creation if it's signup flow
+    const clientToUse = isSignupFlow ? createServiceRoleClient() : supabase;
+    
+    const { data: organization, error } = await clientToUse
       .from('organizations')
       .insert(orgData)
       .select()
@@ -119,75 +156,42 @@ export async function POST(request: NextRequest) {
     if (error) {
       console.error('Error creating organization:', error);
       return NextResponse.json(
-        { error: 'Failed to create organization' },
+        { error: 'Failed to create organization', details: error.message },
         { status: 500 }
       );
     }
     
     // If this is from signup flow and admin_user_id is provided, assign admin role
     if (isSignupFlow && admin_user_id && organization) {
-      // Add user to organization with admin role
-      const { error: userOrgError } = await supabase
-        .from('user_organizations')
-        .insert({
-          user_id: admin_user_id,
-          organization_id: organization.id,
-          role: 'admin'
-        });
-      
-      if (userOrgError) {
-        console.error('Error assigning user to organization:', userOrgError);
-        // Don't fail the request, but log the error
-      }
-      
-      // Get predefined role IDs for admin and owner
       try {
-        const supabase = createServerClient();
+        // Use service role client to bypass RLS for initial organization member creation
+        const serviceSupabase = createServiceRoleClient();
         
-        // Get admin role ID
-        const { data: adminRole } = await supabase
-          .from('roles')
-          .select('id')
-          .eq('name', 'admin')
-          .single();
-          
-        // Get owner role ID
-        const { data: ownerRole } = await supabase
-          .from('roles')
-          .select('id')
-          .eq('name', 'owner')
-          .single();
+        console.log('Adding user to organization:', { 
+          user_id: admin_user_id, 
+          organization_id: organization.id,
+          role: 'admin',
+          is_owner: true 
+        });
         
-        if (adminRole?.id) {
-          // Assign admin role to user
-          const { error: adminRoleError } = await supabase
-            .from('user_roles')
-            .insert({
-              user_id: admin_user_id,
-              role_id: adminRole.id
-            });
-            
-          if (adminRoleError) {
-            console.error('Error assigning admin role to user:', adminRoleError);
-          }
+        // Add user to organization with admin role and owner status
+        const { error: userOrgError } = await serviceSupabase
+          .from('organization_members')
+          .insert({
+            user_id: admin_user_id,
+            organization_id: organization.id,
+            role: 'admin',
+            is_owner: true
+          });
+        
+        if (userOrgError) {
+          console.error('Error assigning user to organization:', userOrgError);
+          // Don't fail the request, but log the error
+        } else {
+          console.log('Successfully added user to organization');
         }
-        
-        if (ownerRole?.id) {
-          // Assign owner role to user
-          const { error: ownerRoleError } = await supabase
-            .from('user_roles')
-            .insert({
-              user_id: admin_user_id,
-              role_id: ownerRole.id
-            });
-            
-          if (ownerRoleError) {
-            console.error('Error assigning owner role to user:', ownerRoleError);
-          }
-        }
-      } catch (roleError) {
-        console.error('Error assigning roles to user:', roleError);
-        // Don't fail the request, but log the error
+      } catch (memberError) {
+        console.error('Exception during member assignment:', memberError);
       }
     }
 

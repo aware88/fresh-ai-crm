@@ -40,6 +40,18 @@ export class EnhancedSubscriptionService extends SubscriptionService {
         await this.createPredefinedPlan(plan);
       }
     }
+    
+    // Clean up old plans that are no longer in the predefined list
+    const predefinedPlanNames = predefinedPlans.map(p => p.name);
+    const obsoletePlans = existingPlans?.filter(plan => !predefinedPlanNames.includes(plan.name)) || [];
+    
+    for (const obsoletePlan of obsoletePlans) {
+      console.log(`Deactivating obsolete plan: ${obsoletePlan.name}`);
+      await supabase
+        .from('subscription_plans')
+        .update({ is_active: false })
+        .eq('id', obsoletePlan.id);
+    }
   }
   
   /**
@@ -48,6 +60,7 @@ export class EnhancedSubscriptionService extends SubscriptionService {
   private async createPredefinedPlan(plan: SubscriptionPlanDefinition): Promise<void> {
     const supabase = await createLazyServerClient();
     
+    // Create monthly plan
     const { error } = await supabase
       .from('subscription_plans')
       .insert({
@@ -64,7 +77,7 @@ export class EnhancedSubscriptionService extends SubscriptionService {
       throw new Error(`Failed to create subscription plan ${plan.name}`);
     }
     
-    // If the plan has an annual option, create that as well
+    // Create annual plan if different from monthly
     if (plan.annualPrice > 0 && plan.annualPrice !== plan.monthlyPrice) {
       const { error: annualError } = await supabase
         .from('subscription_plans')
@@ -85,7 +98,7 @@ export class EnhancedSubscriptionService extends SubscriptionService {
   }
   
   /**
-   * Update an existing subscription plan with predefined plan data
+   * Update an existing subscription plan from a predefined plan
    */
   private async updatePredefinedPlan(planId: string, plan: SubscriptionPlanDefinition): Promise<void> {
     const supabase = await createLazyServerClient();
@@ -96,7 +109,7 @@ export class EnhancedSubscriptionService extends SubscriptionService {
         description: plan.description,
         price: plan.monthlyPrice,
         features: plan.features,
-        updated_at: new Date().toISOString()
+        is_active: true
       })
       .eq('id', planId);
     
@@ -107,50 +120,53 @@ export class EnhancedSubscriptionService extends SubscriptionService {
   }
   
   /**
-   * Create a trial subscription for an organization
+   * Get available plans for individuals
    */
-  async createTrialSubscription(
-    organizationId: string,
-    planId: string
-  ): Promise<{ data: OrganizationSubscription | null; error: any }> {
-    // Get the plan to determine trial period
-    const predefinedPlan = predefinedPlans.find(p => p.id === planId);
-    const trialDays = predefinedPlan?.trialDays || 14;
+  async getIndividualPlans(): Promise<SubscriptionPlan[]> {
+    const supabase = await createLazyServerClient();
     
-    // Calculate trial end date
-    const trialStart = new Date();
-    const trialEnd = new Date(trialStart);
-    trialEnd.setDate(trialEnd.getDate() + trialDays);
+    const individualPlanNames = predefinedPlans
+      .filter(p => !p.isOrganizationPlan)
+      .map(p => p.name);
     
-    // Create the subscription with trial status
-    return this.createSubscription(
-      organizationId,
-      planId,
-      'trialing',
-      trialStart,
-      trialEnd
-    );
+    const { data, error } = await supabase
+      .from('subscription_plans')
+      .select('*')
+      .in('name', individualPlanNames)
+      .eq('is_active', true)
+      .order('price', { ascending: true });
+    
+    if (error) {
+      console.error('Error fetching individual plans:', error);
+      throw new Error('Failed to fetch individual plans');
+    }
+    
+    return data as SubscriptionPlan[];
   }
   
   /**
-   * Calculate the price for additional users
+   * Get available plans for organizations
    */
-  calculateAdditionalUserPrice(
-    plan: SubscriptionPlan,
-    userCount: number
-  ): number {
-    // Find the predefined plan that matches this database plan
-    const predefinedPlan = predefinedPlans.find(p => p.name === plan.name);
+  async getOrganizationPlans(): Promise<SubscriptionPlan[]> {
+    const supabase = await createLazyServerClient();
     
-    if (!predefinedPlan) return 0;
+    const organizationPlanNames = predefinedPlans
+      .filter(p => p.isOrganizationPlan)
+      .map(p => p.name);
     
-    const baseUserLimit = predefinedPlan.userLimit;
-    const additionalUserPrice = predefinedPlan.additionalUserPrice || 0;
+    const { data, error } = await supabase
+      .from('subscription_plans')
+      .select('*')
+      .in('name', organizationPlanNames)
+      .eq('is_active', true)
+      .order('price', { ascending: true });
     
-    if (userCount <= baseUserLimit) return 0;
+    if (error) {
+      console.error('Error fetching organization plans:', error);
+      throw new Error('Failed to fetch organization plans');
+    }
     
-    const additionalUsers = userCount - baseUserLimit;
-    return additionalUsers * additionalUserPrice;
+    return data as SubscriptionPlan[];
   }
   
   /**
@@ -174,20 +190,22 @@ export class EnhancedSubscriptionService extends SubscriptionService {
       return { canAdd: false, reason: 'Subscription plan not recognized' };
     }
     
-    // Check if the plan supports additional users
-    if (predefinedPlan.additionalUserPrice) {
-      // Plans with additional user pricing can always add more users
+    // Check user limit
+    const userLimit = predefinedPlan.userLimit;
+    
+    // -1 indicates unlimited users
+    if (userLimit === -1) {
       return { canAdd: true };
     }
     
-    // For plans with fixed user limits, check against the limit
-    if (currentUserCount < predefinedPlan.userLimit) {
+    // Check if current user count is below the limit
+    if (currentUserCount < userLimit) {
       return { canAdd: true };
     }
     
     return { 
       canAdd: false, 
-      reason: `Your plan is limited to ${predefinedPlan.userLimit} users. Please upgrade to add more users.`
+      reason: `Your ${predefinedPlan.name} plan is limited to ${userLimit} users. Please upgrade to add more users.`
     };
   }
   
@@ -221,9 +239,106 @@ export class EnhancedSubscriptionService extends SubscriptionService {
       return { canAdd: true };
     }
     
+    // Find the predefined plan for better error message
+    const predefinedPlan = predefinedPlans.find(p => p.name === plan.name);
+    const planName = predefinedPlan?.name || 'current';
+    
     return { 
       canAdd: false, 
-      reason: `Your plan is limited to ${maxContacts} contacts. Please upgrade to add more contacts.`
+      reason: `Your ${planName} plan is limited to ${maxContacts} contacts. Please upgrade to add more contacts.`
     };
+  }
+  
+  /**
+   * Get the predefined plan definition for a database plan
+   */
+  getPredefinedPlanDefinition(planName: string): SubscriptionPlanDefinition | null {
+    return predefinedPlans.find(p => p.name === planName) || null;
+  }
+  
+  /**
+   * Check if a plan is suitable for organizations
+   */
+  isOrganizationPlan(planName: string): boolean {
+    const predefinedPlan = predefinedPlans.find(p => p.name === planName);
+    return predefinedPlan?.isOrganizationPlan || false;
+  }
+  
+  /**
+   * Get the appropriate default plan for a user type
+   */
+  getDefaultPlan(isOrganization: boolean): SubscriptionPlanDefinition | null {
+    if (isOrganization) {
+      return predefinedPlans.find(p => p.isOrganizationPlan) || null;
+    } else {
+      return predefinedPlans.find(p => p.popular && !p.isOrganizationPlan) || 
+             predefinedPlans.find(p => !p.isOrganizationPlan) || null;
+    }
+  }
+  
+  /**
+   * Create a trial subscription with the appropriate plan
+   */
+  async createTrialSubscription(
+    organizationId: string,
+    planId: string,
+    isOrganization: boolean = false
+  ): Promise<{ data: OrganizationSubscription | null; error: any }> {
+    try {
+      const supabase = await createLazyServerClient();
+      
+      // Get the plan to ensure it exists and is appropriate
+      const { data: plan, error: planError } = await supabase
+        .from('subscription_plans')
+        .select('*')
+        .eq('id', planId)
+        .single();
+      
+      if (planError || !plan) {
+        return { data: null, error: 'Invalid subscription plan' };
+      }
+      
+      // Check if the plan is appropriate for the user type
+      if (isOrganization && !this.isOrganizationPlan(plan.name)) {
+        return { data: null, error: 'Selected plan is not available for organizations' };
+      }
+      
+      if (!isOrganization && this.isOrganizationPlan(plan.name)) {
+        return { data: null, error: 'Selected plan is only available for organizations' };
+      }
+      
+      // Get the predefined plan for trial days
+      const predefinedPlan = this.getPredefinedPlanDefinition(plan.name);
+      const trialDays = predefinedPlan?.trialDays || 0;
+      
+      // Calculate trial end date
+      const trialEndDate = new Date();
+      trialEndDate.setDate(trialEndDate.getDate() + trialDays);
+      
+      // Create the subscription
+      const { data: subscription, error } = await supabase
+        .from('organization_subscriptions')
+        .insert({
+          organization_id: organizationId,
+          subscription_plan_id: planId,
+          status: trialDays > 0 ? 'trialing' : 'active',
+          current_period_start: new Date().toISOString(),
+          current_period_end: trialEndDate.toISOString(),
+          cancel_at_period_end: false,
+          subscription_provider: 'system',
+          provider_subscription_id: `trial-${Date.now()}`,
+          metadata: { 
+            trial: trialDays > 0,
+            trial_days: trialDays
+          }
+        })
+        .select()
+        .single();
+      
+      return { data: subscription, error };
+    } catch (error) {
+      console.error('Error creating trial subscription:', error);
+      return { data: null, error };
+    }
   }
 }

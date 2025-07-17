@@ -132,7 +132,9 @@ export default function DashboardPage() {
   const [recentActivities, setRecentActivities] = useState<RecentActivity[]>([]);
   const [isLoadingStats, setIsLoadingStats] = useState(true);
   const [isLoadingActivities, setIsLoadingActivities] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  // Separate error states for stats and activities
+  const [statsError, setStatsError] = useState<string | null>(null);
+  const [activitiesError, setActivitiesError] = useState<string | null>(null);
   
   // Animation state for interactive elements
   const [activeTab, setActiveTab] = useState<string>("all");
@@ -151,7 +153,7 @@ export default function DashboardPage() {
   // Fetch dashboard stats
   const fetchDashboardStats = async () => {
     setIsLoadingStats(true);
-    setError(null);
+    setStatsError(null);
     
     try {
       const response = await fetch('/api/dashboard/stats');
@@ -163,14 +165,8 @@ export default function DashboardPage() {
       setStats(statsData);
     } catch (err) {
       console.error('Error fetching dashboard stats:', err);
-      setError('Failed to load dashboard statistics');
-      // Fallback to mock data
-      setStats([
-        { name: 'Unread Emails', value: '0', change: '0%', changeType: 'neutral' },
-        { name: 'Upcoming Tasks', value: '0', change: '0%', changeType: 'neutral' },
-        { name: 'New Messages', value: '0', change: '0%', changeType: 'neutral' },
-        { name: 'Completed Orders', value: '0', change: '0%', changeType: 'neutral' },
-      ]);
+      setStatsError('Failed to load dashboard statistics.');
+      setStats([]); // No fallback/mock data on error
     } finally {
       setIsLoadingStats(false);
     }
@@ -179,7 +175,7 @@ export default function DashboardPage() {
   // Fetch recent activities
   const fetchRecentActivities = async () => {
     setIsLoadingActivities(true);
-    setError(null);
+    setActivitiesError(null);
     
     try {
       const response = await fetch('/api/dashboard/activities');
@@ -191,9 +187,8 @@ export default function DashboardPage() {
       setRecentActivities(activitiesData);
     } catch (err) {
       console.error('Error fetching recent activities:', err);
-      setError('Failed to load recent activities');
-      // Fallback to empty array
-      setRecentActivities([]);
+      setActivitiesError('Failed to load recent activities.');
+      setRecentActivities([]); // No fallback data
     } finally {
       setIsLoadingActivities(false);
     }
@@ -258,6 +253,8 @@ export default function DashboardPage() {
     }
   ];
 
+  const firstName = (session?.user as any)?.first_name || (session?.user as any)?.name?.split(' ')[0] || '';
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100">
       <div className="container mx-auto px-4 py-8">
@@ -271,7 +268,7 @@ export default function DashboardPage() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-                Welcome back!
+                {`Welcome back${firstName ? ', ' + firstName : ''}!`}
               </h1>
               <p className="text-gray-600 mt-2">
                 Here's what's happening with your business today.
@@ -279,7 +276,7 @@ export default function DashboardPage() {
             </div>
             <div className="flex items-center gap-4">
               <Badge variant="outline" className="bg-gradient-to-r from-green-500 to-blue-500 text-white border-0">
-                {plan?.name || 'Free'} Plan
+                {plan?.name ? `${plan.name} Plan` : 'Free Plan'}
               </Badge>
               <Button 
                 onClick={() => router.push('/dashboard/agents')}
@@ -316,6 +313,12 @@ export default function DashboardPage() {
                 </Card>
               </motion.div>
             ))
+          ) : (stats.length === 0 || statsError) ? (
+            <div className="col-span-4 text-center py-8">
+              <BarChart3 className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+              <p className="text-gray-500 mb-2">No statistics yet</p>
+              <p className="text-sm text-gray-400">Your dashboard statistics will appear here as you use the system</p>
+            </div>
           ) : (
             stats.map((stat, index) => (
               <motion.div key={stat.name} variants={item}>
@@ -414,7 +417,13 @@ export default function DashboardPage() {
                     </div>
                   ))}
                 </div>
-              ) : recentActivities.length > 0 ? (
+              ) : (recentActivities.length === 0 || activitiesError) ? (
+                <div className="text-center py-8">
+                  <Activity className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                  <p className="text-gray-500 mb-2">No recent activity</p>
+                  <p className="text-sm text-gray-400">Your activities will appear here when you start using the system</p>
+                </div>
+              ) : (
                 <div className="space-y-4">
                   {recentActivities.map((activity) => {
                     const IconComponent = getIconComponent(activity.icon);
@@ -427,9 +436,7 @@ export default function DashboardPage() {
                       teal: 'bg-teal-50 border-teal-200 text-teal-600',
                       gray: 'bg-gray-50 border-gray-200 text-gray-600',
                     };
-                    
                     const colorClass = colorClasses[activity.color as keyof typeof colorClasses] || colorClasses.gray;
-                    
                     return (
                       <div key={activity.id} className={`flex items-center gap-3 p-3 rounded-lg border ${colorClass.split(' ').slice(0, 2).join(' ')}`}>
                         <IconComponent className={`w-5 h-5 ${colorClass.split(' ')[2]}`} />
@@ -441,29 +448,6 @@ export default function DashboardPage() {
                       </div>
                     );
                   })}
-                </div>
-              ) : (
-                <div className="text-center py-8">
-                  <Activity className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                  <p className="text-gray-500 mb-2">No recent activity</p>
-                  <p className="text-sm text-gray-400">Your activities will appear here when you start using the system</p>
-                </div>
-              )}
-              
-              {error && (
-                <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-                  <p className="text-sm text-red-600">{error}</p>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="mt-2"
-                    onClick={() => {
-                      fetchDashboardStats();
-                      fetchRecentActivities();
-                    }}
-                  >
-                    Retry
-                  </Button>
                 </div>
               )}
             </CardContent>

@@ -188,19 +188,13 @@ export default function AgentsPage() {
     );
   }
 
-  if (error) {
+  if (systemData.agents.length === 0 || error) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="text-red-500 text-6xl mb-4">⚠️</div>
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">System Error</h2>
-          <p className="text-gray-600 mb-4">{error}</p>
-          <button
-            onClick={fetchSystemData}
-            className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg"
-          >
-            Retry
-          </button>
+          <div className="text-gray-400 text-6xl mb-4">🤖</div>
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">No agents found</h2>
+          <p className="text-gray-600 mb-4">Your agents will appear here as you add them to the system.</p>
         </div>
       </div>
     );

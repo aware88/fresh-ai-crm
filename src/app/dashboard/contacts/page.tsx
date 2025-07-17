@@ -348,33 +348,15 @@ export default function ContactsPage() {
                     <p className="text-gray-500">Loading contacts...</p>
                   </div>
                 </div>
-              ) : error ? (
+              ) : (contacts.length === 0 || error) ? (
                 <div className="flex flex-col items-center justify-center py-12 text-center">
-                  <div className="p-3 rounded-full bg-red-50 mb-4">
-                    <AlertCircle className="h-10 w-10 text-red-500" />
-                  </div>
-                  <p className="text-red-500 font-medium">{error}</p>
-                  <p className="text-gray-500 mt-2 max-w-md">
-                    There was a problem loading your contacts. Please try again later.
-                  </p>
-                </div>
-              ) : filteredContacts.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-12 text-center">
-                  <div className="p-3 rounded-full bg-blue-50 mb-4">
-                    <Users className="h-10 w-10 text-blue-500" />
+                  <div className="p-3 rounded-full bg-gray-50 mb-4">
+                    <Users className="h-10 w-10 text-gray-400" />
                   </div>
                   <p className="text-gray-500 font-medium">No contacts found</p>
-                  <p className="text-gray-400 mt-2 max-w-md">
-                    {searchTerm || personalityFilter !== 'all' ? 'Try adjusting your filters' : 'Add your first contact to get started'}
+                  <p className="text-gray-500 mt-2 max-w-md">
+                    Your contacts will appear here as you add them to the system.
                   </p>
-                  <Button 
-                    variant="outline" 
-                    className="mt-4 rounded-xl border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-all duration-200"
-                    onClick={() => router.push('/dashboard/contacts/new')}
-                  >
-                    <UserPlus className="h-4 w-4 mr-2" />
-                    Add New Contact
-                  </Button>
                 </div>
               ) : (
                 <Table>

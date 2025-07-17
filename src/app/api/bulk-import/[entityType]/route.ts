@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
 import { parseExcelFile, parseCsvFile, parseWordDocument } from '@/lib/fileParser';
 import { getServerSession } from '@/lib/auth';
+import { EnhancedSubscriptionService } from '@/lib/services/subscription-service-extension';
 
 // Process contacts data
 async function processContacts(data: any[], supabase: any, userId: string, orgId: string) {
@@ -52,8 +53,8 @@ async function processSuppliers(data: any[], supabase: any, userId: string, orgI
   for (const row of data) {
     try {
       // Basic validation
-      if (!row.name) {
-        errors.push({ row, error: 'Name is required' });
+      if (!row.name && !row.email) {
+        errors.push({ row, error: 'Name or email is required' });
         continue;
       }
 
@@ -61,10 +62,10 @@ async function processSuppliers(data: any[], supabase: any, userId: string, orgI
       const { error } = await supabase
         .from('suppliers')
         .insert({
-          name: row.name,
-          email: row.email || null,
+          name: row.name || 'Unknown',
+          email: row.email,
           phone: row.phone || null,
-          website: row.website || null,
+          company: row.company || null,
           address: row.address || null,
           notes: row.notes || null,
           user_id: userId,
@@ -93,7 +94,7 @@ async function processProducts(data: any[], supabase: any, userId: string, orgId
     try {
       // Basic validation
       if (!row.name) {
-        errors.push({ row, error: 'Name is required' });
+        errors.push({ row, error: 'Product name is required' });
         continue;
       }
 
@@ -104,8 +105,12 @@ async function processProducts(data: any[], supabase: any, userId: string, orgId
           name: row.name,
           sku: row.sku || null,
           description: row.description || null,
-          price: parseFloat(row.price) || 0,
           category: row.category || null,
+          unit: row.unit || 'pcs',
+          selling_price: row.selling_price ? parseFloat(row.selling_price) : null,
+          cost_price: row.cost_price ? parseFloat(row.cost_price) : null,
+          min_stock_level: row.min_stock_level ? parseInt(row.min_stock_level) : 0,
+          quantity_on_hand: row.quantity_on_hand ? parseFloat(row.quantity_on_hand) : 0,
           user_id: userId,
           organization_id: orgId
         });
@@ -131,43 +136,21 @@ async function processPrices(data: any[], supabase: any, userId: string, orgId: 
   for (const row of data) {
     try {
       // Basic validation
-      if (!row.product_id && !row.product_sku) {
-        errors.push({ row, error: 'Product ID or SKU is required' });
+      if (!row.product_id || !row.price) {
+        errors.push({ row, error: 'Product ID and price are required' });
         continue;
-      }
-
-      if (!row.price) {
-        errors.push({ row, error: 'Price is required' });
-        continue;
-      }
-
-      // Find product by ID or SKU
-      let productId = row.product_id;
-      
-      if (!productId && row.product_sku) {
-        const { data: product } = await supabase
-          .from('products')
-          .select('id')
-          .eq('sku', row.product_sku)
-          .eq('organization_id', orgId)
-          .single();
-        
-        if (product) {
-          productId = product.id;
-        } else {
-          errors.push({ row, error: `Product with SKU ${row.product_sku} not found` });
-          continue;
-        }
       }
 
       // Insert into prices table
       const { error } = await supabase
         .from('prices')
         .insert({
-          product_id: productId,
+          product_id: row.product_id,
           price: parseFloat(row.price),
+          price_type: row.price_type || 'selling',
           currency: row.currency || 'USD',
-          effective_date: row.effective_date || new Date().toISOString(),
+          valid_from: row.valid_from ? new Date(row.valid_from).toISOString() : new Date().toISOString(),
+          valid_to: row.valid_to ? new Date(row.valid_to).toISOString() : null,
           user_id: userId,
           organization_id: orgId
         });
@@ -268,6 +251,40 @@ export async function POST(
       );
     }
 
+    // Check subscription limits for contacts
+    if (entityType === 'contacts' && orgId) {
+      const enhancedSubscriptionService = new EnhancedSubscriptionService();
+      
+      // Get current contact count
+      const { count: currentContactCount, error: countError } = await supabase
+        .from('contacts')
+        .select('*', { count: 'exact', head: true })
+        .eq('organization_id', orgId);
+      
+      if (countError) {
+        console.error('Error counting contacts:', countError);
+        return NextResponse.json({ 
+          error: 'Failed to check contact limits' 
+        }, { status: 500 });
+      }
+      
+      // Check if organization can add the number of contacts being imported
+      const { canAdd, reason } = await enhancedSubscriptionService.canAddMoreContacts(
+        orgId,
+        (currentContactCount || 0) + data.length
+      );
+      
+      if (!canAdd) {
+        return NextResponse.json({
+          error: `Cannot import ${data.length} contacts. ${reason}`,
+          limitReached: true,
+          currentCount: currentContactCount || 0,
+          attemptedImport: data.length,
+          canImport: false
+        }, { status: 403 });
+      }
+    }
+
     // Process data based on entity type
     let result;
     switch (entityType) {
@@ -300,9 +317,9 @@ export async function POST(
       totalErrors: result.errors.length
     });
   } catch (error) {
-    console.error('Error processing bulk import:', error);
+    console.error('Error in bulk import:', error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'An unknown error occurred' },
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }
