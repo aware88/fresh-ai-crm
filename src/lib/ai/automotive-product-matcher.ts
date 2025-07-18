@@ -18,6 +18,47 @@ export interface CarSpecification {
   fuelType?: string;
   bodyType?: string;
   engine?: string;
+  vin?: string;
+  engineCode?: string;
+  generationCode?: string;
+  productionStartDate?: string;
+  productionEndDate?: string;
+  technicalSpecs?: TechnicalSpecifications;
+}
+
+export interface TechnicalSpecifications {
+  dimensions?: {
+    length?: number;
+    width?: number;
+    height?: number;
+    wheelbase?: number;
+    weight?: number;
+  };
+  engine?: {
+    displacement?: number;
+    cylinders?: number;
+    horsepower?: number;
+    torque?: number;
+    fuelSystem?: string;
+  };
+  suspension?: {
+    front?: string;
+    rear?: string;
+  };
+  brakes?: {
+    front?: string;
+    rear?: string;
+  };
+  wheels?: {
+    frontSize?: string;
+    rearSize?: string;
+    boltPattern?: string;
+  };
+  electrical?: {
+    batteryType?: string;
+    alternatorCapacity?: number;
+    starterType?: string;
+  };
 }
 
 export interface ProductMatch {
@@ -981,6 +1022,497 @@ REQUIREMENTS:
 5. Consider seasonal relevance and maintenance schedules
 6. Prioritize based on customer profile alignment
 
-Generate 3-5 highly targeted upsell opportunities that would genuinely benefit this customer.`;
+ Generate 3-5 highly targeted upsell opportunities that would genuinely benefit this customer.`;
    }
-} 
+
+   /**
+    * Decode VIN and extract detailed vehicle specifications
+    */
+   async decodeVIN(vin: string): Promise<CarSpecification | null> {
+     try {
+       console.log(`[Automotive Matcher] Decoding VIN: ${vin}`);
+       
+       // Basic VIN validation
+       if (!this.validateVIN(vin)) {
+         console.warn(`[Automotive Matcher] Invalid VIN format: ${vin}`);
+         return null;
+       }
+
+       // Extract basic information from VIN structure
+       const vinData = this.extractVINData(vin);
+       
+       // Use AI to decode VIN and get detailed specifications
+       const decodedSpecs = await this.aiDecodeVIN(vin, vinData);
+       
+       return decodedSpecs;
+       
+     } catch (error) {
+       console.error(`[Automotive Matcher] Error decoding VIN ${vin}:`, error);
+       return null;
+     }
+   }
+
+   /**
+    * Validate VIN format and checksum
+    */
+   private validateVIN(vin: string): boolean {
+     // Basic VIN validation: 17 characters, no I, O, Q
+     if (vin.length !== 17) return false;
+     if (/[IOQ]/.test(vin.toUpperCase())) return false;
+     
+     // VIN checksum validation (9th character)
+     const weights = [8, 7, 6, 5, 4, 3, 2, 10, 0, 9, 8, 7, 6, 5, 4, 3, 2];
+     const values: { [key: string]: number } = {
+       'A': 1, 'B': 2, 'C': 3, 'D': 4, 'E': 5, 'F': 6, 'G': 7, 'H': 8,
+       'J': 1, 'K': 2, 'L': 3, 'M': 4, 'N': 5, 'P': 7, 'R': 9, 'S': 2,
+       'T': 3, 'U': 4, 'V': 5, 'W': 6, 'X': 7, 'Y': 8, 'Z': 9,
+       '0': 0, '1': 1, '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9
+     };
+     
+     let sum = 0;
+     for (let i = 0; i < 17; i++) {
+       if (i === 8) continue; // Skip check digit
+       sum += (values[vin[i]] || 0) * weights[i];
+     }
+     
+     const checkDigit = sum % 11;
+     const expectedCheckDigit = checkDigit === 10 ? 'X' : checkDigit.toString();
+     
+     return vin[8] === expectedCheckDigit;
+   }
+
+   /**
+    * Extract basic data from VIN structure
+    */
+   private extractVINData(vin: string): any {
+     return {
+       wmi: vin.substring(0, 3),        // World Manufacturer Identifier
+       vds: vin.substring(3, 9),        // Vehicle Descriptor Section
+       vis: vin.substring(9, 17),       // Vehicle Identifier Section
+       manufacturerCode: vin.substring(0, 3),
+       modelYear: this.decodeModelYear(vin[9]),
+       plantCode: vin[10],
+       serialNumber: vin.substring(11, 17)
+     };
+   }
+
+   /**
+    * Decode model year from VIN character
+    */
+   private decodeModelYear(char: string): number {
+     // VIN year code mapping - handles both 1980s and 2010s cycles
+     const currentYear = new Date().getFullYear();
+     
+     // For letters A-Y (excluding I, O, Q, U, Z)
+     const letterYearMap: { [key: string]: number[] } = {
+       'A': [1980, 2010], 'B': [1981, 2011], 'C': [1982, 2012], 'D': [1983, 2013],
+       'E': [1984, 2014], 'F': [1985, 2015], 'G': [1986, 2016], 'H': [1987, 2017],
+       'J': [1988, 2018], 'K': [1989, 2019], 'L': [1990, 2020], 'M': [1991, 2021],
+       'N': [1992, 2022], 'P': [1993, 2023], 'R': [1994, 2024], 'S': [1995, 2025],
+       'T': [1996, 2026], 'V': [1997, 2027], 'W': [1998, 2028], 'X': [1999, 2029],
+       'Y': [2000, 2030]
+     };
+     
+     // For numbers 1-9
+     const numberYearMap: { [key: string]: number } = {
+       '1': 2001, '2': 2002, '3': 2003, '4': 2004, '5': 2005,
+       '6': 2006, '7': 2007, '8': 2008, '9': 2009
+     };
+     
+     // Handle numbers first
+     if (numberYearMap[char]) {
+       return numberYearMap[char];
+     }
+     
+     // Handle letters - choose the most recent valid year
+     if (letterYearMap[char]) {
+       const possibleYears = letterYearMap[char];
+       // Return the year that makes most sense (not in the future, not too old)
+       for (let i = possibleYears.length - 1; i >= 0; i--) {
+         if (possibleYears[i] <= currentYear + 1) {
+           return possibleYears[i];
+         }
+       }
+       return possibleYears[0]; // Fallback to oldest if all are in future
+     }
+     
+     return currentYear;
+   }
+
+   /**
+    * Use AI to decode VIN and get detailed specifications
+    */
+   private async aiDecodeVIN(vin: string, vinData: any): Promise<CarSpecification | null> {
+     try {
+       const vinDecodePrompt = `Decode this VIN and provide detailed vehicle specifications:
+
+VIN: ${vin}
+World Manufacturer Identifier (WMI): ${vinData.wmi}
+Vehicle Descriptor Section (VDS): ${vinData.vds}
+Vehicle Identifier Section (VIS): ${vinData.vis}
+Model Year: ${vinData.modelYear}
+Plant Code: ${vinData.plantCode}
+Serial Number: ${vinData.serialNumber}
+
+Please provide detailed vehicle specifications including:
+- Exact brand and model
+- Year, variant, and trim level
+- Engine specifications
+- Body type and drivetrain
+- Technical specifications
+- Production information
+
+Use automotive industry databases and VIN decoding standards.`;
+
+       const response = await this.openai.chat.completions.create({
+         model: "gpt-4o",
+         messages: [
+           {
+             role: "system",
+             content: "You are an automotive VIN decoder expert with access to comprehensive vehicle databases. Decode VINs and provide detailed, accurate vehicle specifications."
+           },
+           {
+             role: "user",
+             content: vinDecodePrompt
+           }
+         ],
+         functions: [{
+           name: "decode_vin_specifications",
+           description: "Decode VIN and provide detailed vehicle specifications",
+           parameters: {
+             type: "object",
+             properties: {
+               brand: { type: "string" },
+               model: { type: "string" },
+               year: { type: "number" },
+               variant: { type: "string" },
+               fuelType: { type: "string" },
+               bodyType: { type: "string" },
+               engine: { type: "string" },
+               engineCode: { type: "string" },
+               generationCode: { type: "string" },
+               productionStartDate: { type: "string" },
+               productionEndDate: { type: "string" },
+               technicalSpecs: {
+                 type: "object",
+                 properties: {
+                   dimensions: {
+                     type: "object",
+                     properties: {
+                       length: { type: "number" },
+                       width: { type: "number" },
+                       height: { type: "number" },
+                       wheelbase: { type: "number" },
+                       weight: { type: "number" }
+                     }
+                   },
+                   engine: {
+                     type: "object",
+                     properties: {
+                       displacement: { type: "number" },
+                       cylinders: { type: "number" },
+                       horsepower: { type: "number" },
+                       torque: { type: "number" },
+                       fuelSystem: { type: "string" }
+                     }
+                   },
+                   suspension: {
+                     type: "object",
+                     properties: {
+                       front: { type: "string" },
+                       rear: { type: "string" }
+                     }
+                   },
+                   brakes: {
+                     type: "object",
+                     properties: {
+                       front: { type: "string" },
+                       rear: { type: "string" }
+                     }
+                   },
+                   wheels: {
+                     type: "object",
+                     properties: {
+                       frontSize: { type: "string" },
+                       rearSize: { type: "string" },
+                       boltPattern: { type: "string" }
+                     }
+                   },
+                   electrical: {
+                     type: "object",
+                     properties: {
+                       batteryType: { type: "string" },
+                       alternatorCapacity: { type: "number" },
+                       starterType: { type: "string" }
+                     }
+                   }
+                 }
+               }
+             },
+             required: ["brand", "model", "year"]
+           }
+         }],
+         function_call: { name: "decode_vin_specifications" }
+       });
+
+       const functionCall = response.choices[0].message.function_call;
+       if (functionCall && functionCall.arguments) {
+         const result = JSON.parse(functionCall.arguments);
+         return {
+           ...result,
+           vin: vin
+         };
+       }
+
+       return null;
+
+     } catch (error) {
+       console.error(`[Automotive Matcher] Error in AI VIN decoding:`, error);
+       return null;
+     }
+   }
+
+   /**
+    * Get technical specifications database information
+    */
+   async getTechnicalSpecifications(carSpec: CarSpecification): Promise<TechnicalSpecifications | null> {
+     try {
+       const techSpecsPrompt = `Provide detailed technical specifications for this vehicle:
+
+Vehicle: ${carSpec.brand} ${carSpec.model} ${carSpec.year}
+${carSpec.variant ? `Variant: ${carSpec.variant}` : ''}
+${carSpec.engine ? `Engine: ${carSpec.engine}` : ''}
+${carSpec.vin ? `VIN: ${carSpec.vin}` : ''}
+
+Please provide comprehensive technical specifications including:
+- Exact dimensions and weight
+- Engine specifications (displacement, horsepower, torque)
+- Suspension and brake systems
+- Wheel specifications and bolt patterns
+- Electrical system specifications
+
+Use automotive technical databases and manufacturer specifications.`;
+
+       const response = await this.openai.chat.completions.create({
+         model: "gpt-4o",
+         messages: [
+           {
+             role: "system",
+             content: "You are an automotive technical specifications expert with access to comprehensive technical databases. Provide accurate, detailed technical specifications for vehicles."
+           },
+           {
+             role: "user",
+             content: techSpecsPrompt
+           }
+         ],
+         functions: [{
+           name: "get_technical_specifications",
+           description: "Get detailed technical specifications for a vehicle",
+           parameters: {
+             type: "object",
+             properties: {
+               dimensions: {
+                 type: "object",
+                 properties: {
+                   length: { type: "number", description: "Length in mm" },
+                   width: { type: "number", description: "Width in mm" },
+                   height: { type: "number", description: "Height in mm" },
+                   wheelbase: { type: "number", description: "Wheelbase in mm" },
+                   weight: { type: "number", description: "Weight in kg" }
+                 }
+               },
+               engine: {
+                 type: "object",
+                 properties: {
+                   displacement: { type: "number", description: "Displacement in cc" },
+                   cylinders: { type: "number" },
+                   horsepower: { type: "number", description: "Horsepower in HP" },
+                   torque: { type: "number", description: "Torque in Nm" },
+                   fuelSystem: { type: "string" }
+                 }
+               },
+               suspension: {
+                 type: "object",
+                 properties: {
+                   front: { type: "string" },
+                   rear: { type: "string" }
+                 }
+               },
+               brakes: {
+                 type: "object",
+                 properties: {
+                   front: { type: "string" },
+                   rear: { type: "string" }
+                 }
+               },
+               wheels: {
+                 type: "object",
+                 properties: {
+                   frontSize: { type: "string" },
+                   rearSize: { type: "string" },
+                   boltPattern: { type: "string" }
+                 }
+               },
+               electrical: {
+                 type: "object",
+                 properties: {
+                   batteryType: { type: "string" },
+                   alternatorCapacity: { type: "number" },
+                   starterType: { type: "string" }
+                 }
+               }
+             }
+           }
+         }],
+         function_call: { name: "get_technical_specifications" }
+       });
+
+       const functionCall = response.choices[0].message.function_call;
+       if (functionCall && functionCall.arguments) {
+         const result = JSON.parse(functionCall.arguments);
+         return result;
+       }
+
+       return null;
+
+     } catch (error) {
+       console.error(`[Automotive Matcher] Error getting technical specifications:`, error);
+       return null;
+     }
+   }
+
+   /**
+    * Enhanced product matching with technical specifications
+    */
+   async enhancedProductMatch(
+     query: string,
+     carSpec: CarSpecification,
+     organizationId: string,
+     requiredCategory?: string
+   ): Promise<AutomotiveMatchingResult> {
+     try {
+       // Get technical specifications if not already present
+       if (!carSpec.technicalSpecs) {
+         const techSpecs = await this.getTechnicalSpecifications(carSpec);
+         if (techSpecs) {
+           carSpec.technicalSpecs = techSpecs;
+         }
+       }
+
+       // Perform enhanced matching with technical specifications
+       const enhancedPrompt = `Enhanced product matching with technical specifications:
+
+Customer Query: ${query}
+Vehicle: ${carSpec.brand} ${carSpec.model} ${carSpec.year}
+${carSpec.variant ? `Variant: ${carSpec.variant}` : ''}
+${carSpec.engine ? `Engine: ${carSpec.engine}` : ''}
+${carSpec.vin ? `VIN: ${carSpec.vin}` : ''}
+
+TECHNICAL SPECIFICATIONS:
+${carSpec.technicalSpecs ? JSON.stringify(carSpec.technicalSpecs, null, 2) : 'Technical specifications not available'}
+
+Required Category: ${requiredCategory || 'Any'}
+
+Please provide highly accurate product matches considering:
+1. Exact technical compatibility (dimensions, bolt patterns, electrical specs)
+2. Performance requirements (horsepower, torque, weight)
+3. OEM specifications and aftermarket alternatives
+4. Installation requirements and compatibility
+5. Quality levels (OEM, OES, aftermarket)
+
+Provide confidence scores based on technical compatibility.`;
+
+       const response = await this.openai.chat.completions.create({
+         model: "gpt-4o",
+         messages: [
+           {
+             role: "system",
+             content: "You are an advanced automotive parts specialist with deep technical knowledge. Use technical specifications to provide highly accurate product matches."
+           },
+           {
+             role: "user",
+             content: enhancedPrompt
+           }
+         ],
+         functions: [{
+           name: "enhanced_product_matching",
+           description: "Advanced product matching with technical specifications",
+           parameters: {
+             type: "object",
+             properties: {
+               matches: {
+                 type: "array",
+                 items: {
+                   type: "object",
+                   properties: {
+                     productName: { type: "string" },
+                     productCode: { type: "string" },
+                     category: { type: "string" },
+                     matchScore: { type: "number", minimum: 0, maximum: 1 },
+                     technicalMatch: { type: "number", minimum: 0, maximum: 1 },
+                     matchReason: { type: "string" },
+                     technicalReason: { type: "string" },
+                     qualityLevel: { type: "string", enum: ["OEM", "OES", "aftermarket", "premium"] },
+                     installationComplexity: { type: "string", enum: ["simple", "moderate", "complex"] },
+                     requiredTools: { type: "array", items: { type: "string" } },
+                     compatibilityNotes: { type: "string" }
+                   },
+                   required: ["productName", "category", "matchScore", "technicalMatch", "matchReason"]
+                 }
+               },
+               technicalAnalysis: { type: "string" },
+               recommendedQuality: { type: "string" },
+               installationNotes: { type: "string" }
+             },
+             required: ["matches", "technicalAnalysis"]
+           }
+         }],
+         function_call: { name: "enhanced_product_matching" }
+       });
+
+       const functionCall = response.choices[0].message.function_call;
+       if (functionCall && functionCall.arguments) {
+         const result = JSON.parse(functionCall.arguments);
+         
+         // Convert to ProductMatch format
+         const matches = result.matches.map((match: any) => ({
+           productId: `enhanced_${Date.now()}_${Math.random()}`,
+           productName: match.productName,
+           productCode: match.productCode,
+           matchScore: match.matchScore,
+           matchReason: match.matchReason,
+           category: match.category,
+           compatibility: {
+             brand: carSpec.brand,
+             models: [carSpec.model],
+             years: [carSpec.year]
+           },
+           metadata: {
+             technicalMatch: match.technicalMatch,
+             technicalReason: match.technicalReason,
+             qualityLevel: match.qualityLevel,
+             installationComplexity: match.installationComplexity,
+             requiredTools: match.requiredTools,
+             compatibilityNotes: match.compatibilityNotes
+           }
+         }));
+
+                   return {
+            matches,
+            suggestions: this.categorizeMatches(matches, carSpec),
+            confidence: this.calculateOverallConfidence(matches),
+            reasoning: `Enhanced technical analysis: ${result.technicalAnalysis}`,
+            upsellOpportunities: [],
+            carSpecification: carSpec
+          };
+       }
+
+               // Fallback to regular matching
+        return await this.matchProducts(carSpec, query, organizationId, requiredCategory || '');
+
+      } catch (error) {
+        console.error(`[Automotive Matcher] Error in enhanced product matching:`, error);
+        return await this.matchProducts(carSpec, query, organizationId, requiredCategory || '');
+      }
+   }
+ }  
