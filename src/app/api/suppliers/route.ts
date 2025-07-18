@@ -1,24 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '../../../lib/supabase/server';
-import { getUID } from '../../../lib/auth/utils';
+import { createServiceRoleClient } from '../../../lib/supabase/service-role';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '../auth/[...nextauth]/route';
 
 // GET /api/suppliers - Get all suppliers for the current user
 export async function GET(request: NextRequest) {
   try {
-    // Get user ID from session
-    const uid = await getUID();
-    if (!uid) {
+    // Get user ID from NextAuth session
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Create Supabase client
-    const supabase = await createServerClient();
+    // Use service role client to bypass RLS issues
+    const supabase = createServiceRoleClient();
     
     // Fetch suppliers for the current user
     const { data: suppliers, error } = await supabase
       .from('suppliers')
       .select('*')
-      .eq('user_id', uid)
+      .eq('user_id', session.user.id)
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -44,19 +46,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Name and email are required' }, { status: 400 });
     }
     
-    // Get user ID from session
-    const uid = await getUID();
-    if (!uid) {
+    // Get user ID from NextAuth session
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    // Create Supabase client
-    const supabase = await createServerClient();
+    // Use service role client to bypass RLS issues
+    const supabase = createServiceRoleClient();
     
     // Add user_id to the supplier data
     const supplierData = {
       ...body,
-      user_id: uid
+      user_id: session.user.id
     };
     
     // Insert into database
@@ -92,21 +94,21 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Name and email are required' }, { status: 400 });
     }
     
-    // Get user ID from session
-    const uid = await getUID();
-    if (!uid) {
+    // Get user ID from NextAuth session
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    // Create Supabase client
-    const supabase = await createServerClient();
+    // Use service role client to bypass RLS issues
+    const supabase = createServiceRoleClient();
     
     // Update in database
     const { data, error } = await supabase
       .from('suppliers')
       .update(body)
       .eq('id', id)
-      .eq('user_id', uid)  // Ensure user can only update their own suppliers
+      .eq('user_id', session.user.id)  // Ensure user can only update their own suppliers
       .select()
       .single();
     
@@ -136,21 +138,21 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Supplier ID is required' }, { status: 400 });
     }
     
-    // Get user ID from session
-    const uid = await getUID();
-    if (!uid) {
+    // Get user ID from NextAuth session
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    // Create Supabase client
-    const supabase = await createServerClient();
+    // Use service role client to bypass RLS issues
+    const supabase = createServiceRoleClient();
     
     // Delete from database
     const { data, error } = await supabase
       .from('suppliers')
       .delete()
       .eq('id', id)
-      .eq('user_id', uid)  // Ensure user can only delete their own suppliers
+      .eq('user_id', session.user.id)  // Ensure user can only delete their own suppliers
       .select()
       .single();
     

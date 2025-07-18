@@ -1,5 +1,6 @@
 import { Order } from './types';
 import { OrderDetailClient } from './OrderDetailClient';
+import { redirect } from 'next/navigation';
 
 // Mock data - in a real app, this would come from your API
 const mockOrder: Order = {
@@ -80,11 +81,16 @@ interface PageProps {
 }
 
 export default async function OrderDetailPage({ params }: PageProps) {
-  // In a real app, you would fetch the order by ID from your database
-  // const order = await fetchOrderById(params.id);
-  
   // Await params to fix Next.js 15 requirement
   const resolvedParams = await params;
+  
+  // If the ID is 'new', redirect to the new order page
+  if (resolvedParams.id === 'new') {
+    redirect('/dashboard/orders/new');
+  }
+  
+  // In a real app, you would fetch the order by ID from your database
+  // const order = await fetchOrderById(resolvedParams.id);
   
   // For now, we'll use the mock data with the ID from params
   const order = { ...mockOrder, id: resolvedParams.id };

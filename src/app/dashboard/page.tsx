@@ -34,7 +34,8 @@ import {
   AlertCircle,
   Building2,
   ChevronRight,
-  Brain
+  Brain,
+  RefreshCw
 } from "lucide-react";
 
 // Dynamic imports for code splitting
@@ -278,6 +279,20 @@ export default function DashboardPage() {
               <Badge variant="outline" className="bg-gradient-to-r from-green-500 to-blue-500 text-white border-0">
                 {plan?.name ? `${plan.name} Plan` : 'Free Plan'}
               </Badge>
+              {(statsError || activitiesError) && (
+                <Button 
+                  onClick={() => {
+                    fetchDashboardStats();
+                    fetchRecentActivities();
+                  }}
+                  variant="outline"
+                  size="sm"
+                  className="text-gray-600 hover:text-gray-800"
+                >
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  Retry
+                </Button>
+              )}
               <Button 
                 onClick={() => router.push('/dashboard/agents')}
                 className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white"
@@ -316,8 +331,15 @@ export default function DashboardPage() {
           ) : (stats.length === 0 || statsError) ? (
             <div className="col-span-4 text-center py-8">
               <BarChart3 className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-              <p className="text-gray-500 mb-2">No statistics yet</p>
-              <p className="text-sm text-gray-400">Your dashboard statistics will appear here as you use the system</p>
+              <p className="text-gray-500 mb-2">
+                {statsError ? 'Unable to load statistics' : 'No statistics yet'}
+              </p>
+              <p className="text-sm text-gray-400">
+                {statsError 
+                  ? 'There was an issue loading your dashboard data. Please try again.' 
+                  : 'Your dashboard statistics will appear here as you use the system'
+                }
+              </p>
             </div>
           ) : (
             stats.map((stat, index) => (
@@ -420,8 +442,15 @@ export default function DashboardPage() {
               ) : (recentActivities.length === 0 || activitiesError) ? (
                 <div className="text-center py-8">
                   <Activity className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                  <p className="text-gray-500 mb-2">No recent activity</p>
-                  <p className="text-sm text-gray-400">Your activities will appear here when you start using the system</p>
+                  <p className="text-gray-500 mb-2">
+                    {activitiesError ? 'Unable to load activities' : 'No recent activity'}
+                  </p>
+                  <p className="text-sm text-gray-400">
+                    {activitiesError 
+                      ? 'There was an issue loading your recent activities. Please try again.' 
+                      : 'Your activities will appear here when you start using the system'
+                    }
+                  </p>
                 </div>
               ) : (
                 <div className="space-y-4">

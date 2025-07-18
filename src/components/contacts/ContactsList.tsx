@@ -6,6 +6,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { EmptyState } from '@/components/ui/empty-state';
 
 interface Contact {
   id: string;
@@ -135,9 +136,19 @@ export default function ContactsList() {
           </div>
           <div className="overflow-y-auto max-h-[600px]">
             {filteredContacts.length === 0 ? (
-              <p className="p-4 text-gray-500 text-center">
-                {searchTerm ? 'No contacts match your search' : 'No contacts found'}
-              </p>
+              <div className="p-4">
+                <EmptyState
+                  title={searchTerm ? 'No contacts match your search' : 'No contacts found'}
+                  description={searchTerm 
+                    ? `We couldn't find any contacts matching "${searchTerm}". Try adjusting your search terms.`
+                    : 'Connect your Microsoft account to sync your contacts or add them manually.'
+                  }
+                  action={!searchTerm ? {
+                    label: "Connect Microsoft",
+                    onClick: () => window.location.href = '/api/auth/signin/microsoft'
+                  } : undefined}
+                />
+              </div>
             ) : (
               <ul className="divide-y">
                 {filteredContacts.map(contact => (

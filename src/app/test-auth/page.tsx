@@ -1,110 +1,180 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { signIn, signOut, useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
 
-export default function TestAuth() {
-  const [session, setSession] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+export default function TestAuthPage() {
+  const { data: session, status } = useSession();
   const router = useRouter();
+  const [email, setEmail] = useState('test@example.com');
+  const [password, setPassword] = useState('password123');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  // Fetch session status
-  useEffect(() => {
-    async function checkSession() {
-      try {
-        const res = await fetch('/api/auth/session');
-        const data = await res.json();
-        
-        setSession(data);
-        console.log('Session data:', data);
-      } catch (err) {
-        console.error('Error fetching session:', err);
-        setError('Failed to fetch session');
-      } finally {
-        setLoading(false);
-      }
-    }
-    
-    checkSession();
-  }, []);
+  const handleSignIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
 
-  // Test API endpoint with session
-  const testApiEndpoint = async () => {
     try {
-      const res = await fetch('/api/emails/process', { 
-        method: 'POST',
-        credentials: 'include'
+      const result = await signIn('credentials', {
+        email,
+        password,
+        redirect: false,
       });
-      
-      const data = await res.json();
-      alert(`API Response: ${res.status} ${res.statusText}\n${JSON.stringify(data, null, 2)}`);
+
+      if (result?.error) {
+        setError(result.error);
+      } else {
+        console.log('Sign in successful');
+      }
     } catch (err) {
-      console.error('Error calling API:', err);
-      alert(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      setError('An error occurred during sign in');
+      console.error(err);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const signIn = () => {
-    router.push('/signin');
-  };
-
-  const signOut = async () => {
+  const handleSignOut = async () => {
     try {
-      await fetch('/api/auth/signout', { method: 'POST' });
-      router.push('/signin');
+      await signOut({ redirect: false });
+      console.log('Sign out successful');
     } catch (err) {
-      console.error('Error signing out:', err);
+      console.error('Sign out error:', err);
     }
   };
 
-  if (loading) {
-    return <div className="flex justify-center items-center h-screen">Loading...</div>;
-  }
+  const testSettingsPage = () => {
+    router.push('/settings/user-identity');
+  };
+
+  const testDashboard = () => {
+    router.push('/dashboard');
+  };
 
   return (
-    <div className="container mx-auto p-4 max-w-3xl">
+    <div className="container mx-auto p-8 max-w-2xl">
       <Card>
         <CardHeader>
           <CardTitle>Authentication Test Page</CardTitle>
           <CardDescription>
-            This page tests your NextAuth session and API endpoints
+            Test the authentication system and debug session issues
           </CardDescription>
         </CardHeader>
-        
-        <CardContent className="space-y-4">
-          <div className="bg-slate-100 p-4 rounded-md">
-            <h3 className="font-medium mb-2">Session Status:</h3>
-            <pre className="text-xs overflow-auto max-h-60 bg-slate-200 p-2 rounded">
-              {JSON.stringify(session, null, 2)}
-            </pre>
+        <CardContent className="space-y-6">
+          {/* Session Status */}
+          <div className="space-y-2">
+            <Label>Session Status:</Label>
+            <Badge variant={status === 'authenticated' ? 'default' : status === 'loading' ? 'secondary' : 'destructive'}>
+              {status}
+            </Badge>
           </div>
-          
-          {error && (
-            <div className="bg-red-100 text-red-800 p-4 rounded-md">
-              {error}
+
+          {/* Session Data */}
+          {session && (
+            <div className="space-y-2">
+              <Label>Session Data:</Label>
+              <div className="bg-gray-100 p-3 rounded text-sm">
+                <pre>{JSON.stringify(session, null, 2)}</pre>
+              </div>
             </div>
           )}
-        </CardContent>
-        
-        <CardFooter className="flex flex-col gap-2 sm:flex-row sm:justify-between">
-          <div className="space-x-2">
-            {!session?.user ? (
-              <Button onClick={signIn}>Sign In</Button>
-            ) : (
-              <Button variant="outline" onClick={signOut}>Sign Out</Button>
-            )}
+
+          {/* Sign In Form */}
+          {status !== 'authenticated' && (
+            <form onSubmit={handleSignIn} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="email">Email:</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Enter email"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="password">Password:</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Enter password"
+                />
+              </div>
+
+              {error && (
+                <div className="text-red-600 text-sm">{error}</div>
+              )}
+
+              <Button type="submit" disabled={loading}>
+                {loading ? 'Signing In...' : 'Sign In'}
+              </Button>
+            </form>
+          )}
+
+          {/* Sign Out Button */}
+          {status === 'authenticated' && (
+            <Button onClick={handleSignOut} variant="destructive">
+              Sign Out
+            </Button>
+          )}
+
+          {/* Test Navigation */}
+          <div className="space-y-2">
+            <Label>Test Navigation:</Label>
+            <div className="flex space-x-2">
+              <Button onClick={testSettingsPage} variant="outline">
+                Test Settings Page
+              </Button>
+              <Button onClick={testDashboard} variant="outline">
+                Test Dashboard
+              </Button>
+            </div>
           </div>
-          
-          <Button 
-            onClick={testApiEndpoint}
-            variant="secondary"
-          >
-            Test API Endpoint
-          </Button>
-        </CardFooter>
+
+          {/* API Test */}
+          <div className="space-y-2">
+            <Label>API Tests:</Label>
+            <div className="flex space-x-2">
+              <Button 
+                onClick={() => fetch('/api/auth/session').then(r => r.json()).then(console.log)}
+                variant="outline"
+                size="sm"
+              >
+                Test Session API
+              </Button>
+              <Button 
+                onClick={() => fetch('/api/user-identity').then(r => r.json()).then(console.log)}
+                variant="outline"
+                size="sm"
+              >
+                Test User Identity API
+              </Button>
+            </div>
+          </div>
+
+          {/* Instructions */}
+          <div className="bg-blue-50 p-4 rounded">
+            <h3 className="font-semibold mb-2">Instructions:</h3>
+            <ol className="list-decimal list-inside space-y-1 text-sm">
+              <li>Try signing in with the test credentials</li>
+              <li>Check the session status and data</li>
+              <li>Test navigation to settings and dashboard</li>
+              <li>Check the browser console for any errors</li>
+              <li>Use the API test buttons to check endpoint responses</li>
+            </ol>
+          </div>
+        </CardContent>
       </Card>
     </div>
   );

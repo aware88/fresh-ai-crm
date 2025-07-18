@@ -103,6 +103,7 @@ export default function SyncOrdersFromMetakockaButton({
             className={className}
             onClick={unsyncedCount === null ? checkUnsyncedOrders : syncFromMetakocka}
             disabled={isLoading}
+
           >
             <div className="flex items-center">
               <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />

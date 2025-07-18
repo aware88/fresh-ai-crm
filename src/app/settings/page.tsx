@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -10,35 +11,70 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { SettingsForm } from '@/components/settings/settings-form';
 import { useToast } from '@/components/ui/use-toast';
+import Link from 'next/link';
 
 export default function ProfileSettings() {
-  const { data: session, update: updateSession } = useSession();
+  const { data: session, update: updateSession, status } = useSession();
   const { toast } = useToast();
+  const router = useRouter();
   const user = session?.user;
   const [isUploading, setIsUploading] = useState(false);
+
   const [formData, setFormData] = useState({
-    name: user?.name || '',
+    name: '',
     bio: '',
-    avatar_url: user?.image || undefined
+    avatar_url: undefined as string | undefined
   });
 
-  // Load saved profile data from localStorage on mount
+  // Load saved profile data from localStorage on mount and initialize with session data
   useEffect(() => {
-    const savedProfile = localStorage.getItem('user-profile');
-    if (savedProfile) {
-      try {
-        const parsed = JSON.parse(savedProfile);
-        setFormData(prev => ({
-          ...prev,
-          name: parsed.name || user?.name || '',
-          bio: parsed.bio || '',
-          avatar_url: parsed.avatar_url || user?.image || undefined
-        }));
-      } catch (error) {
-        console.warn('Failed to parse saved profile data');
+    if (user) {
+      // First set the default values from session
+      // If user.name is empty, try to get it from localStorage or use email prefix
+      let userName = user.name;
+      if (!userName) {
+        const savedProfile = localStorage.getItem('user-profile');
+        if (savedProfile) {
+          try {
+            const parsed = JSON.parse(savedProfile);
+            userName = parsed.name;
+          } catch (e) {
+            // Ignore parsing errors
+          }
+        }
+        // Final fallback to email prefix
+        if (!userName) {
+          userName = user.email?.split('@')[0] || '';
+        }
+      }
+
+      const defaultFormData = {
+        name: userName,
+        bio: '',
+        avatar_url: user.image || undefined
+      };
+
+      // Then check for saved profile data
+      const savedProfile = localStorage.getItem('user-profile');
+      if (savedProfile) {
+        try {
+          const parsed = JSON.parse(savedProfile);
+          setFormData({
+            name: parsed.name || userName,
+            bio: parsed.bio || '',
+            avatar_url: parsed.avatar_url || user.image || undefined
+          });
+        } catch (error) {
+          console.warn('Failed to parse saved profile data');
+          setFormData(defaultFormData);
+        }
+      } else {
+        setFormData(defaultFormData);
       }
     }
   }, [user]);
+
+
   
   // Get initials for avatar fallback
   const getInitials = (name: string) => {
@@ -49,29 +85,93 @@ export default function ProfileSettings() {
       .toUpperCase() || 'U';
   };
 
-  const handleSaveProfile = async (formData: any) => {
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file size (1MB max)
+    if (file.size > 1024 * 1024) {
+      toast({
+        title: "File too large",
+        description: "Please choose a file smaller than 1MB.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: "Invalid file type",
+        description: "Please choose an image file.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsUploading(true);
+
     try {
-      // Save to localStorage first (always works)
-      localStorage.setItem('user-profile', JSON.stringify({
-        name: formData.name,
-        bio: formData.bio,
-        avatar_url: formData.avatar_url || user?.image,
-        updated_at: new Date().toISOString()
+      // Create a FormData object to send the file
+      const formData = new FormData();
+      formData.append('file', file);
+
+      // Upload to a simple file upload endpoint
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to upload file');
+      }
+
+      const data = await response.json();
+      
+      // Update the form data with the new avatar URL
+      setFormData(prev => ({
+        ...prev,
+        avatar_url: data.url
       }));
 
-      // Try to save to Supabase (with error handling)
+      toast({
+        title: "Avatar updated",
+        description: "Your profile picture has been updated successfully.",
+      });
+    } catch (error) {
+      console.error('Error uploading avatar:', error);
+      toast({
+        title: "Upload failed",
+        description: "Failed to upload your avatar. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleSaveProfile = async (data: any) => {
+    try {
+      // Save profile data to localStorage (always works)
+      const profileData = {
+        name: data.name,
+        bio: data.bio,
+        avatar_url: data.avatar_url
+      };
+      
+      localStorage.setItem('user-profile', JSON.stringify(profileData));
+      
+      // Try to save to Supabase if available
       if (user?.id) {
         try {
           const supabase = createClientComponentClient();
-          
-          // Update user profile in Supabase
           const { error } = await supabase
             .from('profiles')
             .upsert({
               id: user.id,
-              full_name: formData.name,
-              bio: formData.bio,
-              avatar_url: formData.avatar_url || user?.image,
+              name: data.name,
+              bio: data.bio,
+              avatar_url: data.avatar_url,
               updated_at: new Date().toISOString()
             });
             
@@ -83,154 +183,78 @@ export default function ProfileSettings() {
         }
       }
       
-      // Update session to reflect changes immediately
-      try {
-        await updateSession({
-          ...session,
-          user: {
-            ...user,
-            name: formData.name,
-            image: formData.avatar_url || user?.image
-          }
-        });
-      } catch (sessionError) {
-        console.warn('Session update failed:', sessionError);
-      }
-      
-      toast({
-        title: "Profile Updated",
-        description: "Your profile has been updated successfully.",
-      });
-    } catch (error: any) {
-      console.error('Error saving profile:', error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to save profile. Please try again.",
-        variant: "destructive",
-      });
-      throw error;
-    }
-  };
-  
-  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files || !e.target.files[0]) return;
-    
-    const file = e.target.files[0];
-    if (file.size > 1024 * 1024) { // 1MB limit
-      toast({
-        title: "File too large",
-        description: "File size must be less than 1MB",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    try {
-      setIsUploading(true);
-      
-      // Create a data URL for immediate preview
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const dataUrl = e.target?.result as string;
-        
-        // Update local form data with data URL for immediate preview
-        const updatedFormData = {
-          ...formData,
-          avatar_url: dataUrl
-        };
-        setFormData(updatedFormData);
-        
-        // Dispatch form data event
-        document.dispatchEvent(new CustomEvent('formdata', {
-          bubbles: true,
-          detail: { avatar_url: dataUrl }
-        }));
-      };
-      reader.readAsDataURL(file);
-      
-      // Try to upload to Supabase storage (with error handling)
-      try {
-        const supabase = createClientComponentClient();
-        
-        // Upload the file to Supabase storage
-        const fileExt = file.name.split('.').pop();
-        const fileName = `${user?.id}-${Math.random().toString(36).substring(2)}.${fileExt}`;
-        
-        const { error: uploadError, data } = await supabase.storage
-          .from('avatars')
-          .upload(fileName, file);
-          
-        if (uploadError) throw uploadError;
-        
-        // Get the public URL
-        const { data: { publicUrl } } = supabase.storage
-          .from('avatars')
-          .getPublicUrl(fileName);
-        
-        // Update local form data with actual URL
-        const updatedFormData = {
-          ...formData,
-          avatar_url: publicUrl
-        };
-        setFormData(updatedFormData);
-        
-        // Dispatch form data event
-        document.dispatchEvent(new CustomEvent('formdata', {
-          bubbles: true,
-          detail: { avatar_url: publicUrl }
-        }));
-        
-        // Update session
+      // Update the session with the new name
+      if (data.name !== user?.name) {
         try {
           await updateSession({
             ...session,
             user: {
-              ...user,
-              image: publicUrl
+              ...session?.user,
+              name: data.name,
+              image: data.avatar_url
             }
           });
         } catch (sessionError) {
           console.warn('Session update failed:', sessionError);
         }
-        
-        toast({
-          title: "Avatar Updated",
-          description: "Your avatar has been updated successfully.",
-        });
-        
-      } catch (storageError: any) {
-        console.warn('Storage upload failed, using local preview:', storageError);
-        toast({
-          title: "Upload Warning",
-          description: "Avatar preview updated, but cloud storage failed. Changes saved locally.",
-          variant: "default",
-        });
       }
       
-    } catch (error: any) {
-      console.error('Error uploading avatar:', error);
+      // Update local form data
+      setFormData(profileData);
+      
+    } catch (error) {
+      console.error('Error saving profile:', error);
       toast({
         title: "Error",
-        description: "Error uploading avatar: " + error.message,
+        description: "Failed to save profile. Please try again.",
         variant: "destructive",
       });
-    } finally {
-      setIsUploading(false);
+      throw error;
     }
   };
 
-  const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
-    
-    // Dispatch form data event
-    document.dispatchEvent(new CustomEvent('formdata', {
-      bubbles: true,
-      detail: { [field]: value }
-    }));
+  const handleSignIn = () => {
+    router.push('/signin');
   };
+
+  if (status === 'loading') {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="animate-spin h-8 w-8 border-4 border-blue-500 rounded-full border-t-transparent mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (status === 'unauthenticated') {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Authentication Required</CardTitle>
+          <CardDescription>
+            You need to be signed in to access your profile settings.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-muted-foreground">
+            Please sign in to view and manage your profile settings.
+          </p>
+          <div className="flex space-x-4">
+            <Button onClick={handleSignIn}>
+              Sign In
+            </Button>
+            <Button variant="outline" asChild>
+              <Link href="/dashboard">
+                Back to Dashboard
+              </Link>
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <SettingsForm
@@ -249,7 +273,7 @@ export default function ProfileSettings() {
         <CardContent className="space-y-6">
           <div className="flex items-center space-x-4">
             <Avatar className="h-20 w-20">
-              <AvatarImage src={user?.image || ''} alt={user?.name || 'User'} />
+              <AvatarImage src={formData.avatar_url || user?.image || ''} alt={user?.name || 'User'} />
               <AvatarFallback className="text-xl">
                 {user?.name ? getInitials(user.name) : 'U'}
               </AvatarFallback>
@@ -279,38 +303,44 @@ export default function ProfileSettings() {
               </p>
             </div>
           </div>
-          
-          <form id="profile-form" className="grid gap-4">
-            <div className="grid gap-2">
-              <Label htmlFor="name">Name</Label>
-              <Input 
-                id="name" 
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="name">Display Name</Label>
+              <Input
+                id="name"
                 name="name"
                 value={formData.name}
-                onChange={(e) => handleInputChange('name', e.target.value)}
+                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                placeholder="Enter your display name"
               />
             </div>
-            
-            <div className="grid gap-2">
-              <Label htmlFor="email">Email</Label>
-              <Input id="email" defaultValue={user?.email || ''} disabled />
-              <p className="text-xs text-muted-foreground">
-                Your email address is used for login and cannot be changed here.
-              </p>
-            </div>
-            
-            <div className="grid gap-2">
+
+            <div className="space-y-2">
               <Label htmlFor="bio">Bio</Label>
-              <textarea
+              <Input
                 id="bio"
                 name="bio"
-                className="min-h-[100px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm"
-                placeholder="Tell us a little about yourself"
                 value={formData.bio}
-                onChange={(e) => handleInputChange('bio', e.target.value)}
+                onChange={(e) => setFormData(prev => ({ ...prev, bio: e.target.value }))}
+                placeholder="Tell us a little about yourself"
               />
             </div>
-          </form>
+
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                value={user?.email || ''}
+                disabled
+                className="bg-muted"
+              />
+              <p className="text-xs text-muted-foreground">
+                Your email address cannot be changed here.
+              </p>
+            </div>
+          </div>
         </CardContent>
       </Card>
     </SettingsForm>

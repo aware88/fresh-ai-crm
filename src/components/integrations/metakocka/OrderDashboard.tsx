@@ -15,6 +15,7 @@ import { Loader2, RefreshCw, Search } from 'lucide-react';
 import { syncOrder, syncMultipleOrders, getBulkOrderSyncStatus } from '@/lib/integrations/metakocka/order-api';
 import SyncOrdersFromMetakockaButton from './SyncOrdersFromMetakockaButton';
 import OrderList from '@/components/integrations/metakocka/OrderList';
+import { EmptyState } from '@/components/ui/empty-state';
 
 interface OrderDashboardProps {
   userId: string;
@@ -336,8 +337,18 @@ export default function OrderDashboard({ status }: OrderDashboardProps) {
           isSyncing={isSyncing}
         />
       ) : (
-        <div className="text-center py-12 border rounded-lg">
-          <p className="text-gray-500">No orders found</p>
+        <div className="py-12">
+          <EmptyState
+            title="No orders found"
+            description={activeStatusFilter 
+              ? `No orders with status "${activeStatusFilter}" found.`
+              : "No orders available. Start by creating your first order or syncing from Metakocka."
+            }
+            action={{
+              label: "Refresh Orders",
+              onClick: fetchOrders
+            }}
+          />
         </div>
       )}
     </div>

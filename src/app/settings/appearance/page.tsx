@@ -19,42 +19,43 @@ interface AppearanceFormData {
 export default function AppearanceSettings() {
   const { data: session } = useSession();
   const user = session?.user;
-  const [theme, setTheme] = useState('system');
+  // Force light theme as default and only option for now
+  const [theme, setTheme] = useState('light');
   const [fontSize, setFontSize] = useState('medium');
   
   // Load settings from localStorage on mount
   React.useEffect(() => {
-    const savedTheme = localStorage.getItem('aris-theme') || 'system';
+    const savedTheme = localStorage.getItem('aris-theme') || 'light';
     const savedFontSize = localStorage.getItem('aris-font-size') || 'medium';
-    setTheme(savedTheme);
+    // Force light theme regardless of saved preference
+    setTheme('light');
     setFontSize(savedFontSize);
     
-    // Apply theme immediately
-    applyTheme(savedTheme);
+    // Apply light theme immediately
+    applyTheme('light');
   }, []);
   
   const applyTheme = (themeValue: string) => {
     document.documentElement.classList.remove('light', 'dark');
-    if (themeValue === 'system') {
-      const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-      document.documentElement.classList.add(systemTheme);
-    } else {
-      document.documentElement.classList.add(themeValue);
-    }
+    // Always apply light theme for now
+    document.documentElement.classList.add('light');
   };
   
   const handleSaveSettings = async (formData: AppearanceFormData) => {
     try {
-      // Save to localStorage immediately (always works)
-      localStorage.setItem('aris-theme', formData.theme);
-      localStorage.setItem('aris-font-size', formData.fontSize);
+      // Force light theme in saved data
+      const saveData = { ...formData, theme: 'light' };
       
-      // Apply theme immediately
-      applyTheme(formData.theme);
+      // Save to localStorage immediately (always works)
+      localStorage.setItem('aris-theme', saveData.theme);
+      localStorage.setItem('aris-font-size', saveData.fontSize);
+      
+      // Apply theme immediately (always light)
+      applyTheme(saveData.theme);
       
       // Apply font size
-      document.documentElement.style.fontSize = formData.fontSize === 'small' ? '14px' : 
-                                                formData.fontSize === 'large' ? '18px' : '16px';
+      document.documentElement.style.fontSize = saveData.fontSize === 'small' ? '14px' : 
+                                                saveData.fontSize === 'large' ? '18px' : '16px';
       
       // Try to save to Supabase (with error handling)
       if (user?.id) {
@@ -63,8 +64,8 @@ export default function AppearanceSettings() {
           .from('user_preferences')
           .upsert({
             user_id: user.id,
-            theme: formData.theme,
-            font_size: formData.fontSize,
+            theme: saveData.theme,
+            font_size: saveData.fontSize,
             updated_at: new Date().toISOString()
           });
           
@@ -102,13 +103,16 @@ export default function AppearanceSettings() {
           <RadioGroup 
             value={theme} 
             onValueChange={(value) => {
-              setTheme(value);
-              const form = document.getElementById('appearance-form') as HTMLFormElement;
-              if (form) {
-                form.dispatchEvent(new CustomEvent('formdata', {
-                  bubbles: true,
-                  detail: { theme: value }
-                }));
+              // Only allow light theme for now
+              if (value === 'light') {
+                setTheme(value);
+                const form = document.getElementById('appearance-form') as HTMLFormElement;
+                if (form) {
+                  form.dispatchEvent(new CustomEvent('formdata', {
+                    bubbles: true,
+                    detail: { theme: value }
+                  }));
+                }
               }
             }}
             className="grid grid-cols-1 md:grid-cols-3 gap-4"
@@ -130,37 +134,37 @@ export default function AppearanceSettings() {
               </Label>
             </div>
             
-            <div>
+            <div className="relative">
               <RadioGroupItem 
                 value="dark" 
                 id="theme-dark" 
-                className="sr-only" 
+                className="sr-only"
+                disabled
               />
               <Label
                 htmlFor="theme-dark"
-                className={`flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground cursor-pointer ${
-                  theme === 'dark' ? 'border-primary' : ''
-                }`}
+                className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 opacity-50 cursor-not-allowed relative"
               >
                 <MoonIcon className="h-6 w-6 mb-3" />
                 <span className="text-sm font-medium">Dark</span>
+                <span className="text-xs text-muted-foreground mt-1">Coming soon</span>
               </Label>
             </div>
             
-            <div>
+            <div className="relative">
               <RadioGroupItem 
                 value="system" 
                 id="theme-system" 
-                className="sr-only" 
+                className="sr-only"
+                disabled
               />
               <Label
                 htmlFor="theme-system"
-                className={`flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground cursor-pointer ${
-                  theme === 'system' ? 'border-primary' : ''
-                }`}
+                className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 opacity-50 cursor-not-allowed relative"
               >
                 <ComputerDesktopIcon className="h-6 w-6 mb-3" />
                 <span className="text-sm font-medium">System</span>
+                <span className="text-xs text-muted-foreground mt-1">Coming soon</span>
               </Label>
             </div>
           </RadioGroup>

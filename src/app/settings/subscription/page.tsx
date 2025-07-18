@@ -85,38 +85,68 @@ export default function SubscriptionPage() {
   const [selectedBillingCycle, setSelectedBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
   const [isProcessing, setIsProcessing] = useState(false);
 
-  const organizationId = (session?.user as any)?.organizationId || '';
+  // Determine if user is part of an organization or individual
+  const organizationId = (session?.user as any)?.organizationId;
+  const userId = session?.user?.id;
+  const isIndividualUser = !organizationId && userId;
 
   useEffect(() => {
-    if (organizationId) {
+    if (organizationId || isIndividualUser) {
       fetchSubscriptionData();
     }
-  }, [organizationId]);
+  }, [organizationId, isIndividualUser]);
 
   const fetchSubscriptionData = async () => {
     setIsLoading(true);
     setError(null);
     
     try {
-      // Fetch current subscription
-      const subscriptionResponse = await fetch(`/api/subscription/current?organizationId=${organizationId}`);
-      if (subscriptionResponse.ok) {
-        const subscriptionData = await subscriptionResponse.json();
-        setCurrentSubscription(subscriptionData.subscription);
+      // Fetch current subscription - use different endpoints for individual vs organization
+      if (organizationId) {
+        // Organization subscription
+        const subscriptionResponse = await fetch(`/api/subscription/current?organizationId=${organizationId}`, {
+          credentials: 'include'
+        });
+        if (subscriptionResponse.ok) {
+          const subscriptionData = await subscriptionResponse.json();
+          setCurrentSubscription(subscriptionData.subscription);
+        }
+        
+        // Fetch recent invoices for organization
+        const invoicesResponse = await fetch(`/api/subscription/invoices?organizationId=${organizationId}&limit=5`, {
+          credentials: 'include'
+        });
+        if (invoicesResponse.ok) {
+          const invoicesData = await invoicesResponse.json();
+          setRecentInvoices(invoicesData.invoices || []);
+        }
+      } else if (isIndividualUser) {
+        // Individual user subscription - use user ID
+        const subscriptionResponse = await fetch(`/api/subscription/current?userId=${userId}`, {
+          credentials: 'include'
+        });
+        if (subscriptionResponse.ok) {
+          const subscriptionData = await subscriptionResponse.json();
+          setCurrentSubscription(subscriptionData.subscription);
+        }
+        
+        // Fetch recent invoices for individual user
+        const invoicesResponse = await fetch(`/api/subscription/invoices?userId=${userId}&limit=5`, {
+          credentials: 'include'
+        });
+        if (invoicesResponse.ok) {
+          const invoicesData = await invoicesResponse.json();
+          setRecentInvoices(invoicesData.invoices || []);
+        }
       }
       
-      // Fetch available plans
-      const plansResponse = await fetch('/api/subscription/plans');
+      // Fetch available plans (same for both)
+      const plansResponse = await fetch('/api/subscription/plans', {
+        credentials: 'include'
+      });
       if (plansResponse.ok) {
         const plansData = await plansResponse.json();
         setAvailablePlans(plansData.plans || []);
-      }
-      
-      // Fetch recent invoices
-      const invoicesResponse = await fetch(`/api/subscription/invoices?organizationId=${organizationId}&limit=5`);
-      if (invoicesResponse.ok) {
-        const invoicesData = await invoicesResponse.json();
-        setRecentInvoices(invoicesData.invoices || []);
       }
     } catch (err) {
       console.error('Error fetching subscription data:', err);
@@ -143,8 +173,10 @@ export default function SubscriptionPage() {
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include',
         body: JSON.stringify({
-          organizationId,
+          organizationId: organizationId || undefined,
+          userId: isIndividualUser ? userId : undefined,
           planId: selectedPlan.id,
           billingCycle: selectedBillingCycle,
           subscriptionId: currentSubscription.id,
@@ -186,6 +218,7 @@ export default function SubscriptionPage() {
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include',
         body: JSON.stringify({
           organizationId,
           subscriptionId: currentSubscription.id,
