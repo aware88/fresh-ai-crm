@@ -142,6 +142,82 @@ export interface IntegrationsConfig {
   };
 }
 
+export interface EULanguageConfig {
+  enabled: boolean;
+  languages: {
+    [key: string]: {
+      code: string;
+      name: string;
+      nativeName: string;
+      enabled: boolean;
+      defaultCurrency: string;
+      businessHours: string;
+      timeZone: string;
+      vatRate: number;
+      shippingDays: number;
+      returnDays: number;
+      formalityLevel: 'formal' | 'informal' | 'mixed';
+      culturalNotes: string;
+    };
+  };
+}
+
+export interface EUCurrencyConfig {
+  enabled: boolean;
+  baseCurrency: string;
+  supportedCurrencies: {
+    [key: string]: {
+      code: string;
+      name: string;
+      symbol: string;
+      enabled: boolean;
+      exchangeRateSource: string;
+      decimalPlaces: number;
+    };
+  };
+}
+
+export interface EUCountryConfig {
+  enabled: boolean;
+  countries: {
+    [key: string]: {
+      code: string;
+      name: string;
+      language: string;
+      currency: string;
+      timeZone: string;
+      businessHours: string;
+      vatRate: number;
+      shippingDays: number;
+      returnDays: number;
+      postalCodeFormat: string;
+      phoneFormat: string;
+      addressFormat: string;
+      holidayCalendar: string[];
+      shippingRestrictions: string[];
+      paymentMethods: string[];
+    };
+  };
+}
+
+export interface SeasonalRecommendationConfig {
+  enabled: boolean;
+  seasons: {
+    [key: string]: {
+      name: string;
+      startMonth: number;
+      endMonth: number;
+      productCategories: string[];
+      upsellStrategies: string[];
+      marketingMessages: {
+        [language: string]: string;
+      };
+    };
+  };
+  weatherBasedRecommendations: boolean;
+  maintenanceScheduleIntegration: boolean;
+}
+
 export class OrganizationSettingsService {
   private supabase: ReturnType<typeof createLazyServerClient>;
 
@@ -268,6 +344,808 @@ export class OrganizationSettingsService {
    */
   async getIntegrationsConfig(organizationId: string): Promise<IntegrationsConfig | null> {
     return await this.getSetting<IntegrationsConfig>(organizationId, 'integrations');
+  }
+
+  /**
+   * Get EU language configuration
+   */
+  async getEULanguageConfig(organizationId: string): Promise<EULanguageConfig> {
+    const setting = await this.getSetting(organizationId, 'eu_language_config');
+    
+    if (!setting) {
+      return this.getDefaultEULanguageConfig();
+    }
+    
+    return setting as EULanguageConfig;
+  }
+
+  /**
+   * Get EU currency configuration
+   */
+  async getEUCurrencyConfig(organizationId: string): Promise<EUCurrencyConfig> {
+    const setting = await this.getSetting(organizationId, 'eu_currency_config');
+    
+    if (!setting) {
+      return this.getDefaultEUCurrencyConfig();
+    }
+    
+    return setting as EUCurrencyConfig;
+  }
+
+  /**
+   * Get EU country configuration
+   */
+  async getEUCountryConfig(organizationId: string): Promise<EUCountryConfig> {
+    const setting = await this.getSetting(organizationId, 'eu_country_config');
+    
+    if (!setting) {
+      return this.getDefaultEUCountryConfig();
+    }
+    
+    return setting as EUCountryConfig;
+  }
+
+  /**
+   * Get seasonal recommendation configuration
+   */
+  async getSeasonalRecommendationConfig(organizationId: string): Promise<SeasonalRecommendationConfig> {
+    const setting = await this.getSetting(organizationId, 'seasonal_recommendation_config');
+    
+    if (!setting) {
+      return this.getDefaultSeasonalRecommendationConfig();
+    }
+    
+    return setting as SeasonalRecommendationConfig;
+  }
+
+  /**
+   * Set EU language configuration
+   */
+  async setEULanguageConfig(
+    organizationId: string,
+    config: EULanguageConfig,
+    userId: string
+  ): Promise<void> {
+    await this.updateSetting(
+      organizationId,
+      'eu_language_config',
+      config,
+      userId,
+      'EU multilanguage support configuration'
+    );
+  }
+
+  /**
+   * Set EU currency configuration
+   */
+  async setEUCurrencyConfig(
+    organizationId: string,
+    config: EUCurrencyConfig,
+    userId: string
+  ): Promise<void> {
+    await this.updateSetting(
+      organizationId,
+      'eu_currency_config',
+      config,
+      userId,
+      'EU currency support configuration'
+    );
+  }
+
+  /**
+   * Set EU country configuration
+   */
+  async setEUCountryConfig(
+    organizationId: string,
+    config: EUCountryConfig,
+    userId: string
+  ): Promise<void> {
+    await this.updateSetting(
+      organizationId,
+      'eu_country_config',
+      config,
+      userId,
+      'EU country-specific business rules'
+    );
+  }
+
+  /**
+   * Set seasonal recommendation configuration
+   */
+  async setSeasonalRecommendationConfig(
+    organizationId: string,
+    config: SeasonalRecommendationConfig,
+    userId: string
+  ): Promise<void> {
+    await this.updateSetting(
+      organizationId,
+      'seasonal_recommendation_config',
+      config,
+      userId,
+      'Seasonal product recommendation configuration'
+    );
+  }
+
+  /**
+   * Get default EU language configuration
+   */
+  private getDefaultEULanguageConfig(): EULanguageConfig {
+    return {
+      enabled: true,
+      languages: {
+        'en': {
+          code: 'en',
+          name: 'English',
+          nativeName: 'English',
+          enabled: true,
+          defaultCurrency: 'EUR',
+          businessHours: '09:00-17:00',
+          timeZone: 'Europe/London',
+          vatRate: 0.20,
+          shippingDays: 3,
+          returnDays: 14,
+          formalityLevel: 'mixed',
+          culturalNotes: 'Direct communication style, punctuality valued'
+        },
+        'de': {
+          code: 'de',
+          name: 'German',
+          nativeName: 'Deutsch',
+          enabled: true,
+          defaultCurrency: 'EUR',
+          businessHours: '09:00-17:00',
+          timeZone: 'Europe/Berlin',
+          vatRate: 0.19,
+          shippingDays: 2,
+          returnDays: 14,
+          formalityLevel: 'formal',
+          culturalNotes: 'Prefer formal communication, precision and punctuality highly valued'
+        },
+        'fr': {
+          code: 'fr',
+          name: 'French',
+          nativeName: 'Français',
+          enabled: true,
+          defaultCurrency: 'EUR',
+          businessHours: '09:00-17:00',
+          timeZone: 'Europe/Paris',
+          vatRate: 0.20,
+          shippingDays: 3,
+          returnDays: 14,
+          formalityLevel: 'formal',
+          culturalNotes: 'Formal communication preferred, especially in business contexts'
+        },
+        'it': {
+          code: 'it',
+          name: 'Italian',
+          nativeName: 'Italiano',
+          enabled: true,
+          defaultCurrency: 'EUR',
+          businessHours: '09:00-17:00',
+          timeZone: 'Europe/Rome',
+          vatRate: 0.22,
+          shippingDays: 3,
+          returnDays: 14,
+          formalityLevel: 'formal',
+          culturalNotes: 'Relationship-focused, formal business communication'
+        },
+        'es': {
+          code: 'es',
+          name: 'Spanish',
+          nativeName: 'Español',
+          enabled: true,
+          defaultCurrency: 'EUR',
+          businessHours: '09:00-17:00',
+          timeZone: 'Europe/Madrid',
+          vatRate: 0.21,
+          shippingDays: 3,
+          returnDays: 14,
+          formalityLevel: 'formal',
+          culturalNotes: 'Formal business communication, relationship-building important'
+        },
+        'nl': {
+          code: 'nl',
+          name: 'Dutch',
+          nativeName: 'Nederlands',
+          enabled: true,
+          defaultCurrency: 'EUR',
+          businessHours: '09:00-17:00',
+          timeZone: 'Europe/Amsterdam',
+          vatRate: 0.21,
+          shippingDays: 2,
+          returnDays: 14,
+          formalityLevel: 'mixed',
+          culturalNotes: 'Direct communication style, informal but respectful'
+        },
+        'pt': {
+          code: 'pt',
+          name: 'Portuguese',
+          nativeName: 'Português',
+          enabled: true,
+          defaultCurrency: 'EUR',
+          businessHours: '09:00-17:00',
+          timeZone: 'Europe/Lisbon',
+          vatRate: 0.23,
+          shippingDays: 3,
+          returnDays: 14,
+          formalityLevel: 'formal',
+          culturalNotes: 'Formal business communication, relationship-oriented'
+        },
+        'pl': {
+          code: 'pl',
+          name: 'Polish',
+          nativeName: 'Polski',
+          enabled: true,
+          defaultCurrency: 'PLN',
+          businessHours: '09:00-17:00',
+          timeZone: 'Europe/Warsaw',
+          vatRate: 0.23,
+          shippingDays: 3,
+          returnDays: 14,
+          formalityLevel: 'formal',
+          culturalNotes: 'Formal communication preferred, hierarchy respected'
+        },
+        'cs': {
+          code: 'cs',
+          name: 'Czech',
+          nativeName: 'Čeština',
+          enabled: true,
+          defaultCurrency: 'CZK',
+          businessHours: '09:00-17:00',
+          timeZone: 'Europe/Prague',
+          vatRate: 0.21,
+          shippingDays: 3,
+          returnDays: 14,
+          formalityLevel: 'formal',
+          culturalNotes: 'Formal business communication, punctuality valued'
+        },
+        'sk': {
+          code: 'sk',
+          name: 'Slovak',
+          nativeName: 'Slovenčina',
+          enabled: true,
+          defaultCurrency: 'EUR',
+          businessHours: '09:00-17:00',
+          timeZone: 'Europe/Bratislava',
+          vatRate: 0.20,
+          shippingDays: 3,
+          returnDays: 14,
+          formalityLevel: 'formal',
+          culturalNotes: 'Formal communication preferred, personal relationships important'
+        },
+        'hu': {
+          code: 'hu',
+          name: 'Hungarian',
+          nativeName: 'Magyar',
+          enabled: true,
+          defaultCurrency: 'HUF',
+          businessHours: '09:00-17:00',
+          timeZone: 'Europe/Budapest',
+          vatRate: 0.27,
+          shippingDays: 3,
+          returnDays: 14,
+          formalityLevel: 'formal',
+          culturalNotes: 'Very formal communication, hierarchy important'
+        },
+        'sl': {
+          code: 'sl',
+          name: 'Slovenian',
+          nativeName: 'Slovenščina',
+          enabled: true,
+          defaultCurrency: 'EUR',
+          businessHours: '09:00-17:00',
+          timeZone: 'Europe/Ljubljana',
+          vatRate: 0.22,
+          shippingDays: 2,
+          returnDays: 14,
+          formalityLevel: 'formal',
+          culturalNotes: 'Formal business communication, punctuality and precision valued'
+        },
+        'ro': {
+          code: 'ro',
+          name: 'Romanian',
+          nativeName: 'Română',
+          enabled: true,
+          defaultCurrency: 'RON',
+          businessHours: '09:00-17:00',
+          timeZone: 'Europe/Bucharest',
+          vatRate: 0.19,
+          shippingDays: 4,
+          returnDays: 14,
+          formalityLevel: 'formal',
+          culturalNotes: 'Formal communication, relationship-building important'
+        },
+        'bg': {
+          code: 'bg',
+          name: 'Bulgarian',
+          nativeName: 'Български',
+          enabled: true,
+          defaultCurrency: 'BGN',
+          businessHours: '09:00-17:00',
+          timeZone: 'Europe/Sofia',
+          vatRate: 0.20,
+          shippingDays: 4,
+          returnDays: 14,
+          formalityLevel: 'formal',
+          culturalNotes: 'Formal communication preferred, hierarchy respected'
+        },
+        'hr': {
+          code: 'hr',
+          name: 'Croatian',
+          nativeName: 'Hrvatski',
+          enabled: true,
+          defaultCurrency: 'EUR',
+          businessHours: '09:00-17:00',
+          timeZone: 'Europe/Zagreb',
+          vatRate: 0.25,
+          shippingDays: 3,
+          returnDays: 14,
+          formalityLevel: 'formal',
+          culturalNotes: 'Formal business communication, personal relationships valued'
+        },
+        'lv': {
+          code: 'lv',
+          name: 'Latvian',
+          nativeName: 'Latviešu',
+          enabled: true,
+          defaultCurrency: 'EUR',
+          businessHours: '09:00-17:00',
+          timeZone: 'Europe/Riga',
+          vatRate: 0.21,
+          shippingDays: 4,
+          returnDays: 14,
+          formalityLevel: 'formal',
+          culturalNotes: 'Formal communication, punctuality highly valued'
+        },
+        'lt': {
+          code: 'lt',
+          name: 'Lithuanian',
+          nativeName: 'Lietuvių',
+          enabled: true,
+          defaultCurrency: 'EUR',
+          businessHours: '09:00-17:00',
+          timeZone: 'Europe/Vilnius',
+          vatRate: 0.21,
+          shippingDays: 4,
+          returnDays: 14,
+          formalityLevel: 'formal',
+          culturalNotes: 'Formal communication, conservative business approach'
+        },
+        'et': {
+          code: 'et',
+          name: 'Estonian',
+          nativeName: 'Eesti',
+          enabled: true,
+          defaultCurrency: 'EUR',
+          businessHours: '09:00-17:00',
+          timeZone: 'Europe/Tallinn',
+          vatRate: 0.20,
+          shippingDays: 4,
+          returnDays: 14,
+          formalityLevel: 'mixed',
+          culturalNotes: 'Direct communication, digital-first approach'
+        },
+        'fi': {
+          code: 'fi',
+          name: 'Finnish',
+          nativeName: 'Suomi',
+          enabled: true,
+          defaultCurrency: 'EUR',
+          businessHours: '09:00-17:00',
+          timeZone: 'Europe/Helsinki',
+          vatRate: 0.24,
+          shippingDays: 3,
+          returnDays: 14,
+          formalityLevel: 'mixed',
+          culturalNotes: 'Direct communication, silence is acceptable'
+        },
+        'sv': {
+          code: 'sv',
+          name: 'Swedish',
+          nativeName: 'Svenska',
+          enabled: true,
+          defaultCurrency: 'SEK',
+          businessHours: '09:00-17:00',
+          timeZone: 'Europe/Stockholm',
+          vatRate: 0.25,
+          shippingDays: 3,
+          returnDays: 14,
+          formalityLevel: 'informal',
+          culturalNotes: 'Informal communication, consensus-building important'
+        },
+        'da': {
+          code: 'da',
+          name: 'Danish',
+          nativeName: 'Dansk',
+          enabled: true,
+          defaultCurrency: 'DKK',
+          businessHours: '09:00-17:00',
+          timeZone: 'Europe/Copenhagen',
+          vatRate: 0.25,
+          shippingDays: 3,
+          returnDays: 14,
+          formalityLevel: 'informal',
+          culturalNotes: 'Informal communication, direct and honest approach'
+        },
+        'el': {
+          code: 'el',
+          name: 'Greek',
+          nativeName: 'Ελληνικά',
+          enabled: true,
+          defaultCurrency: 'EUR',
+          businessHours: '09:00-17:00',
+          timeZone: 'Europe/Athens',
+          vatRate: 0.24,
+          shippingDays: 4,
+          returnDays: 14,
+          formalityLevel: 'formal',
+          culturalNotes: 'Formal communication, relationship-building crucial'
+        },
+        'mt': {
+          code: 'mt',
+          name: 'Maltese',
+          nativeName: 'Malti',
+          enabled: true,
+          defaultCurrency: 'EUR',
+          businessHours: '09:00-17:00',
+          timeZone: 'Europe/Malta',
+          vatRate: 0.18,
+          shippingDays: 4,
+          returnDays: 14,
+          formalityLevel: 'mixed',
+          culturalNotes: 'Mix of formal and informal, relationship-focused'
+        },
+        'ga': {
+          code: 'ga',
+          name: 'Irish',
+          nativeName: 'Gaeilge',
+          enabled: false, // Usually handled in English
+          defaultCurrency: 'EUR',
+          businessHours: '09:00-17:00',
+          timeZone: 'Europe/Dublin',
+          vatRate: 0.23,
+          shippingDays: 3,
+          returnDays: 14,
+          formalityLevel: 'mixed',
+          culturalNotes: 'Generally use English for business communication'
+        }
+      }
+    };
+  }
+
+  /**
+   * Get default EU currency configuration
+   */
+  private getDefaultEUCurrencyConfig(): EUCurrencyConfig {
+    return {
+      enabled: true,
+      baseCurrency: 'EUR',
+      supportedCurrencies: {
+        'EUR': {
+          code: 'EUR',
+          name: 'Euro',
+          symbol: '€',
+          enabled: true,
+          exchangeRateSource: 'ECB',
+          decimalPlaces: 2
+        },
+        'USD': {
+          code: 'USD',
+          name: 'US Dollar',
+          symbol: '$',
+          enabled: true,
+          exchangeRateSource: 'ECB',
+          decimalPlaces: 2
+        },
+        'GBP': {
+          code: 'GBP',
+          name: 'British Pound',
+          symbol: '£',
+          enabled: true,
+          exchangeRateSource: 'ECB',
+          decimalPlaces: 2
+        },
+        'CHF': {
+          code: 'CHF',
+          name: 'Swiss Franc',
+          symbol: 'CHF',
+          enabled: true,
+          exchangeRateSource: 'ECB',
+          decimalPlaces: 2
+        },
+        'SEK': {
+          code: 'SEK',
+          name: 'Swedish Krona',
+          symbol: 'kr',
+          enabled: true,
+          exchangeRateSource: 'ECB',
+          decimalPlaces: 2
+        },
+        'DKK': {
+          code: 'DKK',
+          name: 'Danish Krone',
+          symbol: 'kr',
+          enabled: true,
+          exchangeRateSource: 'ECB',
+          decimalPlaces: 2
+        },
+        'NOK': {
+          code: 'NOK',
+          name: 'Norwegian Krone',
+          symbol: 'kr',
+          enabled: true,
+          exchangeRateSource: 'ECB',
+          decimalPlaces: 2
+        },
+        'PLN': {
+          code: 'PLN',
+          name: 'Polish Zloty',
+          symbol: 'zł',
+          enabled: true,
+          exchangeRateSource: 'ECB',
+          decimalPlaces: 2
+        },
+        'CZK': {
+          code: 'CZK',
+          name: 'Czech Koruna',
+          symbol: 'Kč',
+          enabled: true,
+          exchangeRateSource: 'ECB',
+          decimalPlaces: 2
+        },
+        'HUF': {
+          code: 'HUF',
+          name: 'Hungarian Forint',
+          symbol: 'Ft',
+          enabled: true,
+          exchangeRateSource: 'ECB',
+          decimalPlaces: 0
+        },
+        'RON': {
+          code: 'RON',
+          name: 'Romanian Leu',
+          symbol: 'lei',
+          enabled: true,
+          exchangeRateSource: 'ECB',
+          decimalPlaces: 2
+        },
+        'BGN': {
+          code: 'BGN',
+          name: 'Bulgarian Lev',
+          symbol: 'лв',
+          enabled: true,
+          exchangeRateSource: 'ECB',
+          decimalPlaces: 2
+        }
+      }
+    };
+  }
+
+  /**
+   * Get default EU country configuration
+   */
+  private getDefaultEUCountryConfig(): EUCountryConfig {
+    return {
+      enabled: true,
+      countries: {
+        'DE': {
+          code: 'DE',
+          name: 'Germany',
+          language: 'de',
+          currency: 'EUR',
+          timeZone: 'Europe/Berlin',
+          businessHours: '09:00-17:00',
+          vatRate: 0.19,
+          shippingDays: 2,
+          returnDays: 14,
+          postalCodeFormat: '\\d{5}',
+          phoneFormat: '+49 \\d{2,4} \\d{6,8}',
+          addressFormat: 'street, postalCode city',
+          holidayCalendar: ['2024-01-01', '2024-12-25', '2024-12-26'],
+          shippingRestrictions: [],
+          paymentMethods: ['credit_card', 'paypal', 'bank_transfer', 'sofort']
+        },
+        'FR': {
+          code: 'FR',
+          name: 'France',
+          language: 'fr',
+          currency: 'EUR',
+          timeZone: 'Europe/Paris',
+          businessHours: '09:00-17:00',
+          vatRate: 0.20,
+          shippingDays: 3,
+          returnDays: 14,
+          postalCodeFormat: '\\d{5}',
+          phoneFormat: '+33 \\d{1} \\d{8}',
+          addressFormat: 'street, postalCode city',
+          holidayCalendar: ['2024-01-01', '2024-12-25'],
+          shippingRestrictions: [],
+          paymentMethods: ['credit_card', 'paypal', 'bank_transfer']
+        },
+        'IT': {
+          code: 'IT',
+          name: 'Italy',
+          language: 'it',
+          currency: 'EUR',
+          timeZone: 'Europe/Rome',
+          businessHours: '09:00-17:00',
+          vatRate: 0.22,
+          shippingDays: 3,
+          returnDays: 14,
+          postalCodeFormat: '\\d{5}',
+          phoneFormat: '+39 \\d{2,4} \\d{6,8}',
+          addressFormat: 'street, postalCode city',
+          holidayCalendar: ['2024-01-01', '2024-12-25', '2024-12-26'],
+          shippingRestrictions: [],
+          paymentMethods: ['credit_card', 'paypal', 'bank_transfer']
+        },
+        'ES': {
+          code: 'ES',
+          name: 'Spain',
+          language: 'es',
+          currency: 'EUR',
+          timeZone: 'Europe/Madrid',
+          businessHours: '09:00-17:00',
+          vatRate: 0.21,
+          shippingDays: 3,
+          returnDays: 14,
+          postalCodeFormat: '\\d{5}',
+          phoneFormat: '+34 \\d{9}',
+          addressFormat: 'street, postalCode city',
+          holidayCalendar: ['2024-01-01', '2024-12-25'],
+          shippingRestrictions: [],
+          paymentMethods: ['credit_card', 'paypal', 'bank_transfer']
+        },
+        'NL': {
+          code: 'NL',
+          name: 'Netherlands',
+          language: 'nl',
+          currency: 'EUR',
+          timeZone: 'Europe/Amsterdam',
+          businessHours: '09:00-17:00',
+          vatRate: 0.21,
+          shippingDays: 2,
+          returnDays: 14,
+          postalCodeFormat: '\\d{4}[A-Z]{2}',
+          phoneFormat: '+31 \\d{2} \\d{7}',
+          addressFormat: 'street, postalCode city',
+          holidayCalendar: ['2024-01-01', '2024-12-25', '2024-12-26'],
+          shippingRestrictions: [],
+          paymentMethods: ['credit_card', 'paypal', 'bank_transfer', 'ideal']
+        },
+        'SI': {
+          code: 'SI',
+          name: 'Slovenia',
+          language: 'sl',
+          currency: 'EUR',
+          timeZone: 'Europe/Ljubljana',
+          businessHours: '09:00-17:00',
+          vatRate: 0.22,
+          shippingDays: 2,
+          returnDays: 14,
+          postalCodeFormat: '\\d{4}',
+          phoneFormat: '+386 \\d{2} \\d{6}',
+          addressFormat: 'street, postalCode city',
+          holidayCalendar: ['2024-01-01', '2024-12-25', '2024-12-26'],
+          shippingRestrictions: [],
+          paymentMethods: ['credit_card', 'paypal', 'bank_transfer']
+        }
+        // Add more countries as needed
+      }
+    };
+  }
+
+  /**
+   * Get default seasonal recommendation configuration
+   */
+  private getDefaultSeasonalRecommendationConfig(): SeasonalRecommendationConfig {
+    return {
+      enabled: true,
+      seasons: {
+        'winter': {
+          name: 'Winter',
+          startMonth: 12,
+          endMonth: 2,
+          productCategories: ['winter_tires', 'antifreeze', 'car_heaters', 'ice_scrapers', 'winter_accessories'],
+          upsellStrategies: ['cold_weather_protection', 'winter_maintenance', 'safety_equipment'],
+          marketingMessages: {
+            'en': 'Prepare your car for winter with our cold weather essentials',
+            'de': 'Bereiten Sie Ihr Auto mit unseren Winterartikeln auf die kalte Jahreszeit vor',
+            'fr': 'Préparez votre voiture pour l\'hiver avec nos articles de saison froide',
+            'it': 'Prepara la tua auto per l\'inverno con i nostri articoli per il freddo',
+            'es': 'Prepara tu coche para el invierno con nuestros artículos de clima frío',
+            'sl': 'Pripravite svoj avtomobil na zimo z našimi zimskimi artikli'
+          }
+        },
+        'spring': {
+          name: 'Spring',
+          startMonth: 3,
+          endMonth: 5,
+          productCategories: ['spring_maintenance', 'car_wash', 'filters', 'fluids', 'spring_tires'],
+          upsellStrategies: ['maintenance_refresh', 'spring_cleaning', 'performance_optimization'],
+          marketingMessages: {
+            'en': 'Spring into action with our maintenance essentials',
+            'de': 'Starten Sie mit unseren Wartungsartikeln in den Frühling',
+            'fr': 'Démarrez le printemps avec nos produits d\'entretien',
+            'it': 'Inizia la primavera con i nostri articoli per la manutenzione',
+            'es': 'Comienza la primavera con nuestros artículos de mantenimiento',
+            'sl': 'Začnite pomlad z našimi vzdrževalnimi artikli'
+          }
+        },
+        'summer': {
+          name: 'Summer',
+          startMonth: 6,
+          endMonth: 8,
+          productCategories: ['summer_tires', 'cooling_system', 'air_conditioning', 'sun_protection', 'travel_accessories'],
+          upsellStrategies: ['cooling_solutions', 'travel_preparation', 'performance_enhancement'],
+          marketingMessages: {
+            'en': 'Beat the heat with our summer driving essentials',
+            'de': 'Trotzen Sie der Hitze mit unseren Sommer-Fahrartikeln',
+            'fr': 'Battez la chaleur avec nos articles de conduite d\'été',
+            'it': 'Affronta il caldo con i nostri articoli per la guida estiva',
+            'es': 'Vence el calor con nuestros artículos de conducción de verano',
+            'sl': 'Premagajte vročino z našimi poletnimi voznimi artikli'
+          }
+        },
+        'autumn': {
+          name: 'Autumn',
+          startMonth: 9,
+          endMonth: 11,
+          productCategories: ['autumn_maintenance', 'tire_change', 'lighting', 'wipers', 'preparation'],
+          upsellStrategies: ['winter_preparation', 'maintenance_check', 'safety_upgrade'],
+          marketingMessages: {
+            'en': 'Prepare for winter with our autumn maintenance essentials',
+            'de': 'Bereiten Sie sich mit unseren Herbst-Wartungsartikeln auf den Winter vor',
+            'fr': 'Préparez-vous pour l\'hiver avec nos articles d\'entretien d\'automne',
+            'it': 'Preparati per l\'inverno con i nostri articoli per la manutenzione autunnale',
+            'es': 'Prepárate para el invierno con nuestros artículos de mantenimiento de otoño',
+            'sl': 'Pripravite se na zimo z našimi jesenskimi vzdrževalnimi artikli'
+          }
+        }
+      },
+      weatherBasedRecommendations: true,
+      maintenanceScheduleIntegration: true
+    };
+  }
+
+  /**
+   * Get language settings for a specific language code
+   */
+  async getLanguageSettings(organizationId: string, languageCode: string): Promise<any> {
+    const config = await this.getEULanguageConfig(organizationId);
+    return config.languages[languageCode] || config.languages['en'];
+  }
+
+  /**
+   * Get country settings for a specific country code
+   */
+  async getCountrySettings(organizationId: string, countryCode: string): Promise<any> {
+    const config = await this.getEUCountryConfig(organizationId);
+    return config.countries[countryCode];
+  }
+
+  /**
+   * Get currency settings for a specific currency code
+   */
+  async getCurrencySettings(organizationId: string, currencyCode: string): Promise<any> {
+    const config = await this.getEUCurrencyConfig(organizationId);
+    return config.supportedCurrencies[currencyCode];
+  }
+
+  /**
+   * Get seasonal recommendations for current date
+   */
+  async getCurrentSeasonalRecommendations(organizationId: string): Promise<any> {
+    const config = await this.getSeasonalRecommendationConfig(organizationId);
+    const currentMonth = new Date().getMonth() + 1;
+    
+    for (const [seasonKey, season] of Object.entries(config.seasons)) {
+      if (currentMonth >= season.startMonth && currentMonth <= season.endMonth) {
+        return season;
+      }
+    }
+    
+    return null;
   }
 
   /**

@@ -6,7 +6,7 @@
  */
 
 import OpenAI from 'openai';
-import { OrganizationSettingsService } from '@/lib/services/organization-settings-service';
+import { OrganizationSettingsService, EULanguageConfig } from '@/lib/services/organization-settings-service';
 import { getMetakockaDataForAIContext } from '@/lib/integrations/metakocka/metakocka-ai-integration';
 import { createLazyServerClient } from '@/lib/supabase/lazy-client';
 import { AutomotiveProductMatcher, CarSpecification } from './automotive-product-matcher';
@@ -46,6 +46,9 @@ export interface EmailClassificationResult {
   reasoning: string;
   urgency: 'low' | 'medium' | 'high';
   sentiment: 'positive' | 'neutral' | 'negative';
+  language: string;
+  countryCode?: string;
+  culturalContext?: string;
   extractedEntities: {
     products?: string[];
     orders?: string[];
@@ -100,7 +103,83 @@ export class AIHubService {
   }
 
   /**
-   * Classify an email to determine its type and urgency
+   * Detect language and cultural context of an email
+   */
+  async detectLanguageAndCulture(
+    emailContent: string,
+    emailSubject: string,
+    organizationId: string
+  ): Promise<{ language: string; countryCode?: string; culturalContext?: string }> {
+    console.log(`[AI Hub] Detecting language and cultural context`);
+
+    try {
+      const detectionPrompt = `
+        Analyze the following email and detect:
+        
+        Subject: ${emailSubject}
+        Content: ${emailContent}
+        
+        Please identify:
+        1. The language of the email (using ISO 639-1 codes)
+        2. The likely country of origin (using ISO 3166-1 alpha-2 codes)
+        3. Cultural context indicators (formal/informal, business style, etc.)
+        
+        Consider language patterns, cultural expressions, and business communication styles.
+      `;
+
+      const response = await this.openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "system",
+            content: "You are a language and cultural context detector. Analyze text and provide language and cultural insights."
+          },
+          {
+            role: "user",
+            content: detectionPrompt
+          }
+        ],
+        functions: [{
+          name: "detect_language_culture",
+          description: "Detect language and cultural context of text",
+          parameters: {
+            type: "object",
+            properties: {
+              language: {
+                type: "string",
+                description: "ISO 639-1 language code"
+              },
+              countryCode: {
+                type: "string",
+                description: "ISO 3166-1 alpha-2 country code"
+              },
+              culturalContext: {
+                type: "string",
+                description: "Cultural context and communication style indicators"
+              }
+            },
+            required: ["language"]
+          }
+        }],
+        function_call: { name: "detect_language_culture" }
+      });
+
+      const functionCall = response.choices[0].message.function_call;
+      if (functionCall && functionCall.arguments) {
+        const result = JSON.parse(functionCall.arguments);
+        return result;
+      }
+
+      return { language: 'en' };
+
+    } catch (error) {
+      console.error(`[AI Hub] Error detecting language and culture:`, error);
+      return { language: 'en' };
+    }
+  }
+
+  /**
+   * Classify an email to determine its type and urgency with language detection
    */
   async classifyEmail(
     emailContent: string,
@@ -110,9 +189,13 @@ export class AIHubService {
     console.log(`[AI Hub] Classifying email for organization ${organizationId}`);
 
     try {
+      // First detect language and cultural context
+      const languageInfo = await this.detectLanguageAndCulture(emailContent, emailSubject, organizationId);
+      
       // Get organization-specific classification rules
       const organizationSettings = await this.settingsService.getAllSettings(organizationId);
       const automotiveConfig = await this.settingsService.getAutomotiveMatchingConfig(organizationId);
+      const languageSettings = await this.settingsService.getLanguageSettings(organizationId, languageInfo.language);
 
       // Build classification prompt
       const classificationPrompt = this.buildClassificationPrompt(
@@ -198,19 +281,27 @@ export class AIHubService {
        if (functionCall && functionCall.arguments) {
          const result = JSON.parse(functionCall.arguments);
          
-         console.log(`[AI Hub] Email classified as: ${result.type} (confidence: ${result.confidence})`);
+         // Add language and cultural context to the result
+         result.language = languageInfo.language;
+         result.countryCode = languageInfo.countryCode;
+         result.culturalContext = languageInfo.culturalContext;
+         
+         console.log(`[AI Hub] Email classified as: ${result.type} (confidence: ${result.confidence}) in language: ${result.language}`);
          return result;
        }
 
-      // Fallback classification
-      return {
-        type: 'general',
-        confidence: 0.5,
-        reasoning: 'Failed to classify email using AI',
-        urgency: 'medium',
-        sentiment: 'neutral',
-        extractedEntities: {}
-      };
+              // Fallback classification
+        return {
+          type: 'general',
+          confidence: 0.5,
+          reasoning: 'Failed to classify email using AI',
+          urgency: 'medium',
+          sentiment: 'neutral',
+          language: languageInfo.language,
+          countryCode: languageInfo.countryCode,
+          culturalContext: languageInfo.culturalContext,
+          extractedEntities: {}
+        };
 
     } catch (error) {
       console.error(`[AI Hub] Error classifying email:`, error);
@@ -262,21 +353,29 @@ export class AIHubService {
     return aiContext;
   }
 
-     /**
-    * Process with OpenAI Chat Completions API (TODO: Migrate to Responses API when types are available)
-    */
-   private async processWithResponsesAPI(
-     aiContext: any,
-     aiConfig: any
-   ): Promise<AIProcessingResult> {
-     const systemPrompt = this.buildSystemPrompt(aiContext);
-     const userPrompt = this.buildUserPrompt(aiContext);
+       /**
+   * Process with OpenAI Chat Completions API (TODO: Migrate to Responses API when types are available)
+   */
+  private async processWithResponsesAPI(
+    aiContext: any,
+    aiConfig: any
+  ): Promise<AIProcessingResult> {
+    const systemPrompt = this.buildSystemPrompt(aiContext);
+    const userPrompt = this.buildUserPrompt(aiContext);
+    
+    // Get language and cultural context from the email
+    const emailLanguage = aiContext.email?.language || 'en';
+    const culturalContext = aiContext.email?.culturalContext || '';
+    const countryCode = aiContext.email?.countryCode || '';
+    
+    // Build multilanguage system prompt
+    const multilanguageSystemPrompt = this.buildMultilanguageSystemPrompt(systemPrompt, emailLanguage, culturalContext, countryCode);
 
      // Use OpenAI Chat Completions API for now
      const response = await this.openai.chat.completions.create({
        model: aiConfig?.openai_model || "gpt-4o",
        messages: [
-         { role: "system", content: systemPrompt },
+         { role: "system", content: multilanguageSystemPrompt },
          { role: "user", content: userPrompt }
        ],
        temperature: aiConfig?.temperature || 0.7,
@@ -784,5 +883,97 @@ Classification Categories:
      }
 
      return additionalData;
+   }
+
+   /**
+    * Build multilanguage system prompt with cultural context
+    */
+   private buildMultilanguageSystemPrompt(
+     basePrompt: string,
+     language: string,
+     culturalContext: string,
+     countryCode?: string
+   ): string {
+     const languageInstructions = this.getLanguageInstructions(language);
+     const culturalInstructions = this.getCulturalInstructions(culturalContext, countryCode);
+     
+     return `${basePrompt}
+
+LANGUAGE AND CULTURAL CONTEXT:
+- Respond in ${languageInstructions.name} (${language})
+- Use ${languageInstructions.formality} tone
+- Follow ${culturalInstructions.communicationStyle} communication style
+- Consider ${culturalInstructions.businessContext} business context
+- Time zone: ${culturalInstructions.timeZone}
+- Currency: ${culturalInstructions.currency}
+
+RESPONSE REQUIREMENTS:
+- Write your response entirely in ${languageInstructions.name}
+- Use appropriate cultural greetings and closings
+- Apply correct formality level for the culture
+- Include relevant business information (VAT, shipping, etc.) for the region
+- Respect cultural communication preferences`;
+   }
+
+   /**
+    * Get language-specific instructions
+    */
+   private getLanguageInstructions(language: string): any {
+     const languageMap: any = {
+       'en': { name: 'English', formality: 'professional but friendly' },
+       'de': { name: 'German', formality: 'formal and precise' },
+       'fr': { name: 'French', formality: 'formal and polite' },
+       'it': { name: 'Italian', formality: 'formal and relationship-oriented' },
+       'es': { name: 'Spanish', formality: 'formal and courteous' },
+       'nl': { name: 'Dutch', formality: 'direct but polite' },
+       'pt': { name: 'Portuguese', formality: 'formal and respectful' },
+       'pl': { name: 'Polish', formality: 'formal and hierarchical' },
+       'cs': { name: 'Czech', formality: 'formal and professional' },
+       'sk': { name: 'Slovak', formality: 'formal and respectful' },
+       'hu': { name: 'Hungarian', formality: 'very formal and hierarchical' },
+       'sl': { name: 'Slovenian', formality: 'formal and precise' },
+       'ro': { name: 'Romanian', formality: 'formal and relationship-focused' },
+       'bg': { name: 'Bulgarian', formality: 'formal and respectful' },
+       'hr': { name: 'Croatian', formality: 'formal and personal' },
+       'sv': { name: 'Swedish', formality: 'informal but respectful' },
+       'da': { name: 'Danish', formality: 'informal and direct' },
+       'fi': { name: 'Finnish', formality: 'direct and concise' },
+       'et': { name: 'Estonian', formality: 'direct and digital-first' },
+       'lv': { name: 'Latvian', formality: 'formal and punctual' },
+       'lt': { name: 'Lithuanian', formality: 'formal and conservative' },
+       'el': { name: 'Greek', formality: 'formal and relationship-building' },
+       'mt': { name: 'Maltese', formality: 'mixed formal and informal' }
+     };
+
+     return languageMap[language] || languageMap['en'];
+   }
+
+   /**
+    * Get cultural instructions based on context
+    */
+   private getCulturalInstructions(culturalContext: string, countryCode?: string): any {
+     const countryDefaults: any = {
+       'DE': { communicationStyle: 'direct and efficient', businessContext: 'precision-focused', timeZone: 'Europe/Berlin', currency: 'EUR' },
+       'FR': { communicationStyle: 'diplomatic and formal', businessContext: 'relationship-oriented', timeZone: 'Europe/Paris', currency: 'EUR' },
+       'IT': { communicationStyle: 'expressive and relationship-focused', businessContext: 'personal connection important', timeZone: 'Europe/Rome', currency: 'EUR' },
+       'ES': { communicationStyle: 'warm and formal', businessContext: 'relationship-building', timeZone: 'Europe/Madrid', currency: 'EUR' },
+       'NL': { communicationStyle: 'direct and practical', businessContext: 'efficiency-focused', timeZone: 'Europe/Amsterdam', currency: 'EUR' },
+       'SI': { communicationStyle: 'formal and methodical', businessContext: 'precision and reliability', timeZone: 'Europe/Ljubljana', currency: 'EUR' },
+       'PL': { communicationStyle: 'formal and hierarchical', businessContext: 'respect for authority', timeZone: 'Europe/Warsaw', currency: 'PLN' },
+       'CZ': { communicationStyle: 'formal and reserved', businessContext: 'traditional business approach', timeZone: 'Europe/Prague', currency: 'CZK' },
+       'HU': { communicationStyle: 'very formal and structured', businessContext: 'hierarchy respect', timeZone: 'Europe/Budapest', currency: 'HUF' },
+       'SE': { communicationStyle: 'informal and consensus-building', businessContext: 'collaborative approach', timeZone: 'Europe/Stockholm', currency: 'SEK' },
+       'DK': { communicationStyle: 'informal and honest', businessContext: 'direct and transparent', timeZone: 'Europe/Copenhagen', currency: 'DKK' },
+       'FI': { communicationStyle: 'direct and concise', businessContext: 'efficiency and silence acceptance', timeZone: 'Europe/Helsinki', currency: 'EUR' }
+     };
+
+     const defaultInstructions = {
+       communicationStyle: 'professional and courteous',
+       businessContext: 'standard business practices',
+       timeZone: 'Europe/London',
+       currency: 'EUR'
+     };
+
+     return countryDefaults[countryCode || ''] || defaultInstructions;
    }
  } 
