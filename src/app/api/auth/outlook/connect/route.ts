@@ -3,7 +3,15 @@ import { getServerSession } from '@/lib/auth';
 
 // Microsoft OAuth configuration
 const MICROSOFT_CLIENT_ID = process.env.MICROSOFT_CLIENT_ID;
-const REDIRECT_URI = `${process.env.NEXTAUTH_URL}/api/auth/outlook/callback`;
+
+// Function to get the correct redirect URI
+function getRedirectUri(request: Request) {
+  const host = request.headers.get('host');
+  const protocol = request.headers.get('x-forwarded-proto') || 'http';
+  
+  // Always use the request host for dynamic URL detection
+  return `${protocol}://${host}/api/auth/outlook/callback`;
+}
 const SCOPES = [
   'offline_access',
   'User.Read',
@@ -14,7 +22,7 @@ const SCOPES = [
   'Contacts.Read'
 ].join(' ');
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const session = await getServerSession();
     
@@ -38,11 +46,14 @@ export async function GET() {
       );
     }
 
+    // Get the redirect URI dynamically
+    const redirectUri = getRedirectUri(request);
+
     // Construct the Microsoft OAuth authorization URL
     const authUrl = new URL('https://login.microsoftonline.com/common/oauth2/v2.0/authorize');
     authUrl.searchParams.append('client_id', MICROSOFT_CLIENT_ID || '');
     authUrl.searchParams.append('response_type', 'code');
-    authUrl.searchParams.append('redirect_uri', REDIRECT_URI);
+    authUrl.searchParams.append('redirect_uri', redirectUri);
     authUrl.searchParams.append('scope', SCOPES);
     authUrl.searchParams.append('response_mode', 'query');
     

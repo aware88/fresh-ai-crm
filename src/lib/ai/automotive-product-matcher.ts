@@ -10,6 +10,50 @@ import { getMetakockaDataForAIContext } from '@/lib/integrations/metakocka/metak
 import { createLazyServerClient } from '@/lib/supabase/lazy-client';
 import OpenAI from 'openai';
 
+// Withcar-specific product categories
+const WITHCAR_PRODUCT_CATEGORIES = {
+  'gumijasti_tepihi': 'Rubber Floor Mats',
+  'gumi_korito': 'Rubber Trunk Liners',
+  'tekstilne_preproge': 'Textile Floor Mats',
+  'korita_prtljaznik': 'Trunk Liners',
+  'snezne_verige': 'Snow Chains',
+  'sencniki': 'Car Sunshades',
+  'pokrivalo_toca': 'Hail Protection Covers',
+  'stresni_nosilci': 'Roof Racks',
+  'stresni_kovcki': 'Roof Boxes',
+  'zracni_odbojniki': 'Wind Deflectors',
+  'zascitne_nalepke': 'Bumper Protection',
+  'nosilci_kolesa': 'Bike Carriers',
+  'zascitne_podloge': 'Cargo Area Protection',
+  'delilne_mreze': 'Cargo Barriers',
+  'pokrivalo_prestige': 'Car Covers',
+  'brisalci': 'Windshield Wipers',
+  'avto_kozmetika': 'Car Care Products'
+};
+
+// Withcar-specific brand mapping
+const WITHCAR_BRAND_MAPPING = {
+  'alfaromeo': 'Alfa Romeo',
+  'audi': 'Audi',
+  'bmw': 'BMW',
+  'mercedes': 'Mercedes-Benz',
+  'volkswagen': 'Volkswagen',
+  'skoda': 'Skoda',
+  'seat': 'Seat',
+  'citroen': 'Citroën',
+  'peugeot': 'Peugeot',
+  'renault': 'Renault',
+  'ford': 'Ford',
+  'opel': 'Opel',
+  'toyota': 'Toyota',
+  'honda': 'Honda',
+  'nissan': 'Nissan',
+  'hyundai': 'Hyundai',
+  'kia': 'Kia',
+  'mazda': 'Mazda',
+  'volvo': 'Volvo'
+};
+
 export interface CarSpecification {
   brand: string;
   model: string;
@@ -1514,5 +1558,244 @@ Provide confidence scores based on technical compatibility.`;
         console.error(`[Automotive Matcher] Error in enhanced product matching:`, error);
         return await this.matchProducts(carSpec, query, organizationId, requiredCategory || '');
       }
+   }
+
+   /**
+    * Enhanced product matching for Withcar-specific products
+    */
+   async enhancedWithcarProductMatch(
+     query: string,
+     carSpec: CarSpecification,
+     organizationId: string,
+     requiredCategory?: string
+   ): Promise<AutomotiveMatchingResult> {
+     try {
+       // Check if this is a Withcar organization
+       const orgSettings = await this.settingsService.getAllSettings(organizationId);
+       const isWithcarOrg = orgSettings?.organization_name?.toLowerCase().includes('withcar');
+       
+       if (!isWithcarOrg) {
+         return await this.enhancedProductMatch(query, carSpec, organizationId, requiredCategory);
+       }
+
+       // Withcar-specific product matching
+       const withcarPrompt = `Enhanced product matching for Withcar automotive accessories:
+
+Customer Query: ${query}
+Vehicle: ${carSpec.brand} ${carSpec.model} ${carSpec.year}
+${carSpec.variant ? `Variant: ${carSpec.variant}` : ''}
+
+WITHCAR PRODUCT CATEGORIES:
+${Object.entries(WITHCAR_PRODUCT_CATEGORIES).map(([key, value]) => `- ${value}`).join('\n')}
+
+WITHCAR SPECIALIZES IN:
+1. Gumijasti tepihi (Rubber floor mats) - Made by Gledring, their main product
+2. Gumi korito (Rubber trunk liners) - Custom-fit trunk protection
+3. Tekstilne preproge (Textile floor mats) - Premium textile mats
+4. Strešni nosilci (Roof racks) - Nordrive brand
+5. Pokrivalo proti toči (Hail protection) - Wagner brand
+6. Snežne verige (Snow chains) - Hilfer brand
+7. Senčniki (Car sunshades) - Custom-fit window shades
+8. Avto kozmetika (Car care products) - Cleaning and maintenance
+
+MATCHING CRITERIA:
+- Exact vehicle compatibility (brand/model/year/variant)
+- Withcar manufactures Gledring brand (floor mats, trunk liners)
+- Focus on "made to measure" precision fit
+- Premium quality accessories
+- Vehicle-specific, not universal products
+
+Provide highly accurate matches for Withcar's product catalog.`;
+
+       const response = await this.openai.chat.completions.create({
+         model: "gpt-4o",
+         messages: [
+           {
+             role: "system",
+             content: "You are a Withcar automotive accessories specialist. Withcar is a Slovenian company that manufactures precision-fit automotive accessories, especially Gledring rubber floor mats and trunk liners. Focus on exact vehicle compatibility and premium quality products."
+           },
+           {
+             role: "user",
+             content: withcarPrompt
+           }
+         ],
+         functions: [{
+           name: "withcar_product_matching",
+           description: "Match Withcar automotive accessories to specific vehicles",
+           parameters: {
+             type: "object",
+             properties: {
+               matches: {
+                 type: "array",
+                 items: {
+                   type: "object",
+                   properties: {
+                     productName: { type: "string" },
+                     category: { type: "string" },
+                     brand: { type: "string" },
+                     matchScore: { type: "number", minimum: 0, maximum: 1 },
+                     matchReason: { type: "string" },
+                     withcarCategory: { type: "string" },
+                     isGledringProduct: { type: "boolean" },
+                     precisionFit: { type: "boolean" },
+                     qualityLevel: { type: "string", enum: ["Premium", "Standard", "Economy"] },
+                     compatibilityNotes: { type: "string" }
+                   },
+                   required: ["productName", "category", "matchScore", "matchReason", "withcarCategory"]
+                 }
+               },
+               withcarAnalysis: { type: "string" },
+               recommendedProducts: { type: "array", items: { type: "string" } }
+             },
+             required: ["matches", "withcarAnalysis"]
+           }
+         }],
+         function_call: { name: "withcar_product_matching" }
+       });
+
+       const functionCall = response.choices[0].message.function_call;
+       if (functionCall && functionCall.arguments) {
+         const result = JSON.parse(functionCall.arguments);
+         
+         // Convert to ProductMatch format
+         const matches = result.matches.map((match: any) => ({
+           productId: `withcar_${Date.now()}_${Math.random()}`,
+           productName: match.productName,
+           matchScore: match.matchScore,
+           matchReason: match.matchReason,
+           category: match.category,
+           compatibility: {
+             brand: carSpec.brand,
+             models: [carSpec.model],
+             years: [carSpec.year]
+           },
+           metadata: {
+             withcarCategory: match.withcarCategory,
+             isGledringProduct: match.isGledringProduct,
+             precisionFit: match.precisionFit,
+             qualityLevel: match.qualityLevel,
+             compatibilityNotes: match.compatibilityNotes,
+             isWithcarSpecific: true
+           }
+         }));
+
+         return {
+           matches,
+           suggestions: this.categorizeMatches(matches, carSpec),
+           confidence: this.calculateOverallConfidence(matches),
+           reasoning: `Withcar-specific analysis: ${result.withcarAnalysis}`,
+           upsellOpportunities: await this.generateWithcarUpsellOpportunities(matches, carSpec, organizationId),
+           carSpecification: carSpec
+         };
+       }
+
+       // Fallback to regular matching
+       return await this.enhancedProductMatch(query, carSpec, organizationId, requiredCategory);
+
+     } catch (error) {
+       console.error(`[Automotive Matcher] Error in Withcar product matching:`, error);
+       return await this.enhancedProductMatch(query, carSpec, organizationId, requiredCategory);
+     }
+   }
+
+   /**
+    * Generate Withcar-specific upselling opportunities
+    */
+   private async generateWithcarUpsellOpportunities(
+     matches: ProductMatch[],
+     carSpec: CarSpecification,
+     organizationId: string
+   ): Promise<ProductMatch[]> {
+     try {
+       const upsellPrompt = `Generate Withcar-specific upselling opportunities:
+
+Customer's Vehicle: ${carSpec.brand} ${carSpec.model} ${carSpec.year}
+Current Interest: ${matches.map(m => m.productName).join(', ')}
+
+WITHCAR UPSELLING STRATEGY:
+1. Floor mats → Trunk liners (natural combo)
+2. Trunk liners → Cargo barriers/protection
+3. Roof racks → Roof boxes, bike carriers, ski carriers
+4. Car covers → Car care products
+5. Seasonal bundles (winter: snow chains + mats, summer: sunshades + roof racks)
+
+WITHCAR PRODUCT BUNDLES:
+- Complete Interior Protection: Floor mats + Trunk liner + Cargo barrier
+- Roof System: Roof racks + Roof box + Bike carrier
+- Winter Package: Snow chains + Winter mats + Car cover
+- Summer Package: Sunshades + Roof racks + Bike carrier
+- Care Package: Car care products + Cleaning accessories
+
+Generate 3-5 relevant upsell opportunities that complement the customer's interest.`;
+
+       const response = await this.openai.chat.completions.create({
+         model: "gpt-4o",
+         messages: [
+           {
+             role: "system",
+             content: "You are a Withcar upselling specialist. Focus on logical product combinations and seasonal bundles that provide real value to customers."
+           },
+           {
+             role: "user",
+             content: upsellPrompt
+           }
+         ],
+         functions: [{
+           name: "withcar_upselling",
+           description: "Generate Withcar-specific upselling opportunities",
+           parameters: {
+             type: "object",
+             properties: {
+               opportunities: {
+                 type: "array",
+                 items: {
+                   type: "object",
+                   properties: {
+                     productName: { type: "string" },
+                     category: { type: "string" },
+                     reason: { type: "string" },
+                     bundleType: { type: "string" },
+                     seasonalRelevance: { type: "string" },
+                     priority: { type: "string", enum: ["high", "medium", "low"] }
+                   },
+                   required: ["productName", "category", "reason", "priority"]
+                 }
+               }
+             },
+             required: ["opportunities"]
+           }
+         }],
+         function_call: { name: "withcar_upselling" }
+       });
+
+       const functionCall = response.choices[0].message.function_call;
+       if (functionCall && functionCall.arguments) {
+         const result = JSON.parse(functionCall.arguments);
+         
+         return result.opportunities.map((opportunity: any) => ({
+           productId: `withcar_upsell_${Date.now()}_${Math.random()}`,
+           productName: opportunity.productName,
+           matchScore: opportunity.priority === 'high' ? 0.9 : opportunity.priority === 'medium' ? 0.7 : 0.5,
+           matchReason: `Withcar upsell: ${opportunity.reason}`,
+           category: opportunity.category,
+           compatibility: {
+             brand: carSpec.brand,
+             models: [carSpec.model],
+             years: [carSpec.year]
+           },
+           metadata: {
+             bundleType: opportunity.bundleType,
+             seasonalRelevance: opportunity.seasonalRelevance,
+             isWithcarUpsell: true
+           }
+         }));
+       }
+
+       return [];
+
+     } catch (error) {
+       console.warn('[Automotive Matcher] Error generating Withcar upsell opportunities:', error);
+       return [];
+     }
    }
  }  

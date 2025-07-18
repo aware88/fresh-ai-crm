@@ -1,11 +1,12 @@
 # ARIS (Agentic Relationship Intelligence System)
 
-A powerful agentic relationship intelligence system with integrated inventory management and alerting capabilities for modern businesses.
+A powerful agentic relationship intelligence system with integrated inventory management, AI-powered email assistance, and comprehensive CRM capabilities for modern businesses.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Next.js](https://img.shields.io/badge/Next.js-14+-black?style=flat&logo=next.js&logoColor=white)](https://nextjs.org/)
+[![Next.js](https://img.shields.io/badge/Next.js-15+-black?style=flat&logo=next.js&logoColor=white)](https://nextjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-3178C6?style=flat&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![OpenAI](https://img.shields.io/badge/OpenAI-412991?style=flat&logo=openai&logoColor=white)](https://openai.com/)
+[![Supabase](https://img.shields.io/badge/Supabase-3ECF8E?style=flat&logo=supabase&logoColor=white)](https://supabase.com/)
 [![Test Status](https://github.com/yourusername/aris/actions/workflows/tests.yml/badge.svg)](https://github.com/yourusername/aris/actions)
 [![Coverage Status](https://coveralls.io/repos/github/yourusername/aris/badge.svg?branch=main)](https://coveralls.io/github/yourusername/aris?branch=main)
 
@@ -44,10 +45,20 @@ node scripts/setup.js
 - npm 8 or higher
 - PostgreSQL 13 or higher (or Supabase)
 - A Supabase project (for authentication and database)
+- OpenAI API key (for AI features)
 
 For detailed setup instructions, see the [Setup Guide](./SETUP.md).
 
 ## ✨ Features
+
+### 🤖 AI Email Assistant (NEW!)
+- **Smart Draft Generation**: AI automatically generates contextual email replies
+- **Interactive Editing**: Edit AI drafts in a dedicated sidebar/modal/inline panel
+- **Machine Learning**: System learns from every edit to improve future suggestions
+- **User Feedback**: Optional notes to explain changes for better AI understanding
+- **Privacy Controls**: Granular settings for data retention and sharing preferences
+- **Style Adaptation**: AI learns user's communication style (professional, friendly, formal, casual)
+- **Performance Tracking**: Detailed metrics on AI accuracy and user satisfaction
 
 ### CRM Mind
 - 🚀 **Modern Stack**: Built with Next.js 15, TypeScript, and Tailwind CSS
@@ -96,10 +107,34 @@ For detailed setup instructions, see the [Setup Guide](./SETUP.md).
 - 📚 **API Documentation**: Auto-generated API documentation
 - 🔒 **Secure & Protected**: Built-in rate limiting and API usage controls
 
+## 🤖 AI Email Assistant Deep Dive
+
+### How It Works
+1. **📧 Email Arrives** → System processes and analyzes content
+2. **🤖 AI Generates Draft** → Creates contextual reply based on email content and user history
+3. **📝 User Reviews & Edits** → Draft appears in sidebar/modal for review and modification
+4. **📊 Changes Tracked** → Every edit is logged for machine learning improvement
+5. **💡 AI Learns** → Future drafts become more accurate and personalized
+
+### Key Components
+- **Settings Page** (`/settings/email-ai`) - Configure AI preferences and privacy settings
+- **Draft Window** - Interactive editing interface with change tracking
+- **Learning Pipeline** - ML system that analyzes user patterns and preferences
+- **Analytics Dashboard** - Insights into AI performance and user satisfaction
+
+### Database Schema
+- `user_ai_email_settings` - User preferences and configuration
+- `ai_email_drafts` - Generated drafts with metadata and confidence scores
+- `ai_learning_data` - Learning sessions tracking user modifications
+- `ai_learning_changes` - Individual edits and improvements
+- `ai_learning_insights` - AI-generated insights from user behavior
+- `user_ai_scores` - Performance metrics and improvement tracking
+
 ## 📚 Documentation
 
 For detailed documentation on specific features, see:
 
+- [AI Email Assistant](/docs/ai-email-assistant.md) - Complete guide to the AI email system
 - [Metakocka Integration](/docs/integrations/metakocka/README.md)
 - [Order Management](/docs/integrations/metakocka/OrderDashboard.md)
 - [Email Queue System](/docs/email-queue-system.md)

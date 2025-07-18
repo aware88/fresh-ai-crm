@@ -49,6 +49,11 @@ const sidebarNavItems = [
     group: 'Communication'
   },
   {
+    title: 'AI Email Settings',
+    href: '/settings/email-ai',
+    group: 'Communication'
+  },
+  {
     title: 'Notifications',
     href: '/settings/notifications',
     group: 'Preferences'

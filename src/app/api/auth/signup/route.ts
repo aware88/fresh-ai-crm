@@ -5,6 +5,11 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { email, password, firstName, lastName, subscriptionPlan, isOrganization, orgName, orgSlug } = body;
+    
+    // Get the base URL dynamically
+    const host = request.headers.get('host');
+    const protocol = request.headers.get('x-forwarded-proto') || 'http';
+    const baseUrl = `${protocol}://${host}`;
 
     // Validate required fields
     if (!email || !password || !firstName || !lastName) {
@@ -63,7 +68,7 @@ export async function POST(request: NextRequest) {
     // If this is an organization signup, create the organization
     if (isOrganization && orgName && orgSlug && userData.user) {
       try {
-        const orgResponse = await fetch(`${process.env.NEXTAUTH_URL}/api/admin/organizations`, {
+        const orgResponse = await fetch(`${baseUrl}/api/admin/organizations`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

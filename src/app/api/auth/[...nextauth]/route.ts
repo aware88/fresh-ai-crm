@@ -49,11 +49,22 @@ const authOptions: NextAuthOptions = {
           
           if (error) {
             console.error('Supabase auth error:', error.message);
+            
+            // Provide better error message for invalid credentials
+            if (error.message.includes('Invalid login credentials')) {
+              throw new Error('Invalid email or password. If you recently signed up, please check your email for a confirmation link first.');
+            }
+            
             throw new Error(error.message);
           }
           
           if (!data?.user) {
             throw new Error('No user found');
+          }
+          
+          // Check if user is confirmed
+          if (!data.user.email_confirmed_at) {
+            throw new Error('Email not confirmed. Please check your email for a confirmation link or contact support.');
           }
           
           // Return user data in the format NextAuth expects
@@ -65,7 +76,7 @@ const authOptions: NextAuthOptions = {
           };
         } catch (error) {
           console.error('Auth error:', error);
-          throw new Error('Authentication failed');
+          throw error; // Re-throw to preserve the specific error message
         }
       }
     }),
@@ -159,7 +170,7 @@ const authOptions: NextAuthOptions = {
       }
       
       return token;
-    }
+    },
   },
   pages: {
     signIn: '/signin',

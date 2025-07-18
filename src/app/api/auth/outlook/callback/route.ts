@@ -4,7 +4,15 @@ import { createServiceRoleClient } from '@/lib/supabase/service-role';
 // Microsoft OAuth configuration
 const MICROSOFT_CLIENT_ID = process.env.MICROSOFT_CLIENT_ID;
 const MICROSOFT_CLIENT_SECRET = process.env.MICROSOFT_CLIENT_SECRET;
-const REDIRECT_URI = `${process.env.NEXTAUTH_URL}/api/auth/outlook/callback`;
+
+// Function to get the correct redirect URI
+function getRedirectUri(request: Request) {
+  const host = request.headers.get('host');
+  const protocol = request.headers.get('x-forwarded-proto') || 'http';
+  
+  // Always use the request host for dynamic URL detection
+  return `${protocol}://${host}/api/auth/outlook/callback`;
+}
 
 export async function GET(request: Request) {
   try {
@@ -50,6 +58,10 @@ export async function GET(request: Request) {
     
     // Exchange authorization code for tokens
     console.log('Microsoft callback: Exchanging code for tokens');
+    
+    // Get the redirect URI dynamically
+    const redirectUri = getRedirectUri(request);
+    
     const tokenResponse = await fetch('https://login.microsoftonline.com/common/oauth2/v2.0/token', {
       method: 'POST',
       headers: {
@@ -59,7 +71,7 @@ export async function GET(request: Request) {
         client_id: MICROSOFT_CLIENT_ID || '',
         client_secret: MICROSOFT_CLIENT_SECRET || '',
         code,
-        redirect_uri: REDIRECT_URI,
+        redirect_uri: redirectUri,
         grant_type: 'authorization_code',
       }),
     });

@@ -12,13 +12,8 @@ function getBaseUrl(request: Request) {
   const host = request.headers.get('host');
   const protocol = request.headers.get('x-forwarded-proto') || 'http';
   
-  // If we're in development and accessing via 127.0.0.1, use that
-  if (host && host.includes('127.0.0.1')) {
-    return `${protocol}://${host}`;
-  }
-  
-  // Otherwise use the configured NEXTAUTH_URL
-  return process.env.NEXTAUTH_URL || `${protocol}://${host}`;
+  // Always use the request host for dynamic URL detection
+  return `${protocol}://${host}`;
 }
 
 // Function to ensure OAuth columns exist

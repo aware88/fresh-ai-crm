@@ -10,6 +10,7 @@ import { OrganizationSettingsService, EULanguageConfig } from '@/lib/services/or
 import { getMetakockaDataForAIContext } from '@/lib/integrations/metakocka/metakocka-ai-integration';
 import { createLazyServerClient } from '@/lib/supabase/lazy-client';
 import { AutomotiveProductMatcher, CarSpecification } from './automotive-product-matcher';
+import { WithcarIntegrationService } from '@/lib/integrations/metakocka/withcar-integration';
 
 export interface EmailProcessingContext {
   emailId: string;
@@ -63,6 +64,7 @@ export class AIHubService {
   private settingsService: OrganizationSettingsService;
   private supabase: ReturnType<typeof createLazyServerClient>;
   private automotiveMatcher: AutomotiveProductMatcher;
+  private withcarIntegration: WithcarIntegrationService;
 
   constructor() {
     this.openai = new OpenAI({
@@ -71,6 +73,7 @@ export class AIHubService {
     this.settingsService = new OrganizationSettingsService();
     this.supabase = createLazyServerClient();
     this.automotiveMatcher = new AutomotiveProductMatcher();
+    this.withcarIntegration = new WithcarIntegrationService();
   }
 
   /**

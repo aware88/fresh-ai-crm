@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, CheckCircle } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 export default function SignInForm() {
@@ -17,11 +17,16 @@ export default function SignInForm() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showResendConfirmation, setShowResendConfirmation] = useState(false);
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendSuccess, setResendSuccess] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
+    setShowResendConfirmation(false);
+    setResendSuccess(false);
 
     try {
       const result = await signIn('credentials', {
@@ -31,7 +36,13 @@ export default function SignInForm() {
       });
 
       if (result?.error) {
-        setError('Invalid credentials');
+        setError(result.error);
+        
+        // Check if error is related to email confirmation
+        if (result.error.includes('confirmation link') || 
+            result.error.includes('Email not confirmed')) {
+          setShowResendConfirmation(true);
+        }
       } else {
         // Redirect to dashboard or intended page
         router.push('/dashboard');
@@ -40,6 +51,34 @@ export default function SignInForm() {
       setError('An error occurred during sign in');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleResendConfirmation = async () => {
+    setResendLoading(true);
+    setResendSuccess(false);
+
+    try {
+      const response = await fetch('/api/auth/resend-confirmation', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setResendSuccess(true);
+        setShowResendConfirmation(false);
+      } else {
+        setError(data.error || 'Failed to resend confirmation email');
+      }
+    } catch (error) {
+      setError('An error occurred while resending confirmation email');
+    } finally {
+      setResendLoading(false);
     }
   };
 
@@ -56,9 +95,33 @@ export default function SignInForm() {
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
-        
 
-        
+        {showResendConfirmation && (
+          <Alert className="mb-6 rounded-xl">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              Need to confirm your email? 
+              <Button 
+                variant="link" 
+                className="p-0 ml-1 h-auto font-normal underline"
+                onClick={handleResendConfirmation}
+                disabled={resendLoading}
+              >
+                {resendLoading ? 'Sending...' : 'Resend confirmation email'}
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {resendSuccess && (
+          <Alert className="mb-6 rounded-xl">
+            <CheckCircle className="h-4 w-4" />
+            <AlertDescription>
+              Confirmation email sent! Please check your inbox and spam folder.
+            </AlertDescription>
+          </Alert>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-2">
             <Label htmlFor="email" className="text-gray-700 font-medium">Email</Label>
