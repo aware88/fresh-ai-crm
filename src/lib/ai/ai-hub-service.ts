@@ -9,6 +9,7 @@ import OpenAI from 'openai';
 import { OrganizationSettingsService } from '@/lib/services/organization-settings-service';
 import { getMetakockaDataForAIContext } from '@/lib/integrations/metakocka/metakocka-ai-integration';
 import { createLazyServerClient } from '@/lib/supabase/lazy-client';
+import { AutomotiveProductMatcher, CarSpecification } from './automotive-product-matcher';
 
 export interface EmailProcessingContext {
   emailId: string;
@@ -58,6 +59,7 @@ export class AIHubService {
   private openai: OpenAI;
   private settingsService: OrganizationSettingsService;
   private supabase: ReturnType<typeof createLazyServerClient>;
+  private automotiveMatcher: AutomotiveProductMatcher;
 
   constructor() {
     this.openai = new OpenAI({
@@ -65,6 +67,7 @@ export class AIHubService {
     });
     this.settingsService = new OrganizationSettingsService();
     this.supabase = createLazyServerClient();
+    this.automotiveMatcher = new AutomotiveProductMatcher();
   }
 
   /**
@@ -542,18 +545,115 @@ Classification Categories:
     return false;
   }
 
-  /**
-   * Apply automotive-specific product matching
-   */
-  private async applyAutomotiveMatching(
-    result: AIProcessingResult,
-    context: EmailProcessingContext
-  ): Promise<AIProcessingResult> {
-    // TODO: Implement automotive-specific matching logic
-    // This would analyze the email for car brands, models, years
-    // and match them with available products
-    return result;
-  }
+     /**
+    * Apply automotive-specific product matching
+    */
+   private async applyAutomotiveMatching(
+     result: AIProcessingResult,
+     context: EmailProcessingContext
+   ): Promise<AIProcessingResult> {
+     try {
+       // Extract car specifications from email content
+       const carSpecs = await this.automotiveMatcher.extractCarSpecifications(
+         context.emailContent + ' ' + context.emailSubject,
+         context.organizationId
+       );
+
+       if (carSpecs.length === 0) {
+         console.log(`[AI Hub] No car specifications found in email ${context.emailId}`);
+         return result;
+       }
+
+       // Use the first car specification found
+       const carSpec = carSpecs[0];
+       
+       // Validate the car specification
+       const validation = await this.automotiveMatcher.validateCarSpecification(carSpec, context.organizationId);
+       
+       if (!validation.valid) {
+         console.warn(`[AI Hub] Invalid car specification for ${carSpec.brand} ${carSpec.model} ${carSpec.year}:`, validation.issues);
+         return result;
+       }
+
+       // Match products based on car specification
+       const matchingResult = await this.automotiveMatcher.matchProducts(
+         carSpec,
+         context.emailContent,
+         context.organizationId,
+         context.userId,
+         10
+       );
+
+       // Enhance the AI result with automotive matching data
+       result.productRecommendations = [
+         ...(result.productRecommendations || []),
+         ...matchingResult.matches.map(match => ({
+           type: 'automotive_match',
+           productId: match.productId,
+           productName: match.productName,
+           matchScore: match.matchScore,
+           matchReason: match.matchReason,
+           category: match.category,
+           price: match.price,
+           availability: match.availability,
+           carCompatibility: match.compatibility
+         }))
+       ];
+
+       // Add upselling suggestions
+       result.upsellingSuggestions = [
+         ...(result.upsellingSuggestions || []),
+         ...matchingResult.upsellOpportunities.map(upsell => ({
+           type: 'automotive_upsell',
+           productName: upsell.productName,
+           reason: upsell.matchReason,
+           category: upsell.category,
+           priority: 'medium'
+         }))
+       ];
+
+       // Update suggested actions
+       result.suggestedActions = [
+         ...(result.suggestedActions || []),
+         `Found ${matchingResult.matches.length} products for ${carSpec.brand} ${carSpec.model} ${carSpec.year}`,
+         ...matchingResult.suggestions.exactMatches.map(match => 
+           `Recommend exact match: ${match.productName}`
+         ),
+         ...matchingResult.suggestions.compatibleMatches.map(match => 
+           `Suggest compatible product: ${match.productName}`
+         )
+       ];
+
+       // Update reasoning
+       const automotiveReasoning = `\n\nAutomotive Analysis: ${matchingResult.reasoning}`;
+       result.reasoning += automotiveReasoning;
+
+       // Enhance response with automotive information
+       if (matchingResult.matches.length > 0) {
+         const bestMatches = matchingResult.suggestions.exactMatches.slice(0, 3);
+         const productList = bestMatches.map(match => 
+           `• ${match.productName} (${match.category}) - ${match.matchReason}`
+         ).join('\n');
+
+         result.response += `\n\nBased on your ${carSpec.brand} ${carSpec.model} ${carSpec.year}, here are some products that would be perfect for your vehicle:\n\n${productList}`;
+
+         if (matchingResult.upsellOpportunities.length > 0) {
+           const upsellList = matchingResult.upsellOpportunities.slice(0, 2).map(upsell => 
+             `• ${upsell.productName} - ${upsell.matchReason}`
+           ).join('\n');
+           result.response += `\n\nYou might also be interested in:\n${upsellList}`;
+         }
+       }
+
+       console.log(`[AI Hub] Applied automotive matching for ${carSpec.brand} ${carSpec.model} ${carSpec.year}: ${matchingResult.matches.length} matches`);
+       return result;
+
+     } catch (error) {
+       console.error('[AI Hub] Error applying automotive matching:', error);
+       // Return original result if automotive matching fails
+       return result;
+     }
+   }
 
   /**
    * Apply upselling framework
