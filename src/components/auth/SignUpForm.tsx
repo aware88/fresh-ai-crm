@@ -151,7 +151,7 @@ export default function SignUpForm() {
       const data = await response.json();
 
       if (response.ok) {
-        setSuccess('Account created successfully! Please check your email to verify your account.');
+        setSuccess('Registration successful! Please check your email inbox (and spam folder) for a confirmation link. You must click the link before you can sign in.');
         setShowSuccessModal(true);
         
         // Reset form
@@ -404,14 +404,14 @@ export default function SignUpForm() {
       <Dialog open={showSuccessModal} onOpenChange={setShowSuccessModal}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-center">Account Created Successfully!</DialogTitle>
+            <DialogTitle className="text-center">Registration Successful!</DialogTitle>
             <DialogDescription className="text-center">
-              Welcome to ARIS! Your account has been created successfully. You can now sign in and start using the platform.
+              Your account has been created successfully! Please check your email inbox (and spam folder) for a confirmation link. You must click the confirmation link before you can sign in.
             </DialogDescription>
           </DialogHeader>
           <div className="flex justify-center">
             <Button onClick={handleCloseSuccessModal} className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
-              Continue to Sign In
+              Go to Sign In
             </Button>
           </div>
         </DialogContent>

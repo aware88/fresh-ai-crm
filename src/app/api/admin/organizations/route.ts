@@ -119,11 +119,32 @@ export async function POST(request: NextRequest) {
     
     // For signup flow, verify the user exists in auth.users
     if (isSignupFlow) {
-      const { data: userExists, error: userCheckError } = await supabase.auth.admin.getUserById(createdBy);
-      if (userCheckError || !userExists.user) {
-        console.error('User not found in auth.users:', createdBy, userCheckError);
+      let userExists = null;
+      let attempts = 0;
+      const maxAttempts = 3;
+      
+      // Retry user verification with exponential backoff
+      while (!userExists && attempts < maxAttempts) {
+        attempts++;
+        const { data: userData, error: userCheckError } = await supabase.auth.admin.getUserById(createdBy);
+        
+        if (!userCheckError && userData.user) {
+          userExists = userData.user;
+          break;
+        }
+        
+        console.log(`User verification attempt ${attempts}/${maxAttempts} failed:`, userCheckError?.message);
+        
+        if (attempts < maxAttempts) {
+          // Wait before retrying (exponential backoff: 500ms, 1000ms, 2000ms)
+          await new Promise(resolve => setTimeout(resolve, 500 * Math.pow(2, attempts - 1)));
+        }
+      }
+      
+      if (!userExists) {
+        console.error('User not found in auth.users after multiple attempts:', createdBy);
         return NextResponse.json(
-          { error: 'User not found. Please ensure the user account is created first.' },
+          { error: 'User not found. Please try again in a moment or contact support.' },
           { status: 400 }
         );
       }

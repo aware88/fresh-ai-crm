@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { SubscriptionService } from '@/lib/services/subscription-service';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { createClient } from '@supabase/supabase-js';
 
 /**
  * GET /api/subscription/current
@@ -59,43 +60,126 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ plan, subscription });
     } else if (userId) {
       // Get individual user subscription
-      // For now, we'll treat individual users as having a default subscription
-      // In a real implementation, you would have a separate table for individual user subscriptions
+      // For individual users, get their subscription plan from user metadata
       
-      // For individual users, return a default Pro plan subscription (free during beta)
-      const defaultSubscription = {
-        id: `individual-${userId}`,
-        organization_id: null,
-        user_id: userId,
-        subscription_plan_id: 'pro',
-        status: 'active',
-        current_period_start: new Date().toISOString(),
-        current_period_end: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(), // 1 year from now
-        cancel_at_period_end: false,
-        payment_method_id: null,
-        subscription_provider: 'beta',
-        provider_subscription_id: `beta-${userId}`,
-        metadata: { beta: true, user_type: 'individual' },
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      };
-
-      // Get the Pro plan details
-      const { data: plans, error: plansError } = await subscriptionService.getSubscriptionPlans();
-      const proPlan = plans?.find(p => p.id === 'pro');
-      
-      if (plansError || !proPlan) {
-        console.error('Error fetching subscription plans:', plansError);
-        return NextResponse.json(
-          { error: 'Failed to fetch subscription plans' },
-          { status: 500 }
+      try {
+        // Create Supabase admin client
+        const supabase = createClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.SUPABASE_SERVICE_ROLE_KEY!
         );
-      }
+        
+        // Get user data to check their subscription plan from metadata
+        const { data: userData, error: userError } = await supabase.auth.admin.getUserById(userId);
+        
+        if (userError || !userData.user) {
+          console.error('Error fetching user data:', userError);
+          return NextResponse.json({ error: 'User not found' }, { status: 404 });
+        }
+        
+        // Get the subscription plan from user metadata (default to 'starter' if not set)
+        const userSubscriptionPlan = userData.user.user_metadata?.subscription_plan || 'starter';
+        
+        console.log('Individual user subscription plan from metadata:', userSubscriptionPlan);
+        
+        // Get all subscription plans and find the one that matches
+        const planResult = await subscriptionService.getSubscriptionPlans();
+        
+        if (planResult.error || !planResult.data) {
+          console.error('Error fetching subscription plans:', planResult.error);
+          // Fallback to a basic plan structure if we can't fetch from database
+          const fallbackPlan = {
+            id: 'fallback-plan',
+            name: userSubscriptionPlan === 'pro' ? 'Pro' : 'Starter',
+            price: userSubscriptionPlan === 'pro' ? 0 : 0, // Free during beta
+            billing_interval: 'monthly' as const,
+            features: {},
+            is_active: true,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          };
+          
+          return NextResponse.json({
+            subscription: null,
+            plan: fallbackPlan,
+            isActive: true
+          });
+        }
+        
+        // Find the plan by name (case-insensitive)
+        const userPlan = planResult.data.find(p => 
+          p.name.toLowerCase() === userSubscriptionPlan.toLowerCase()
+        );
+        
+        if (!userPlan) {
+          console.error(`Plan not found for: ${userSubscriptionPlan}`);
+          // Fallback to Starter plan if specified plan doesn't exist
+          const starterPlan = planResult.data.find(p => p.name.toLowerCase() === 'starter');
+          if (!starterPlan) {
+            return NextResponse.json({ error: 'No valid subscription plans found' }, { status: 500 });
+          }
+          
+          // Create default subscription for Starter plan
+          const defaultSubscription = {
+            id: `individual-${userId}`,
+            organization_id: null,
+            user_id: userId,
+            subscription_plan_id: starterPlan.id,
+            status: 'active',
+            current_period_start: new Date().toISOString(),
+            current_period_end: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(), // 1 year from now
+            cancel_at_period_end: false,
+            payment_method_id: null,
+            subscription_provider: 'beta',
+            provider_subscription_id: `beta-${userId}`,
+            metadata: { beta: true, user_type: 'individual' },
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          };
+          
+          return NextResponse.json({ 
+            plan: starterPlan, 
+            subscription: defaultSubscription 
+          });
+        }
+        
+        // Create subscription object for the user's plan
+        const userSubscription = {
+          id: `individual-${userId}`,
+          organization_id: null,
+          user_id: userId,
+          subscription_plan_id: userPlan.id,
+          status: 'active',
+          current_period_start: new Date().toISOString(),
+          current_period_end: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(), // 1 year from now
+          cancel_at_period_end: false,
+          payment_method_id: null,
+          subscription_provider: 'beta',
+          provider_subscription_id: `beta-${userId}`,
+          metadata: { 
+            beta: true, 
+            user_type: 'individual',
+            plan_name: userPlan.name.toLowerCase()
+          },
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
 
-      return NextResponse.json({ 
-        plan: proPlan, 
-        subscription: defaultSubscription 
-      });
+        console.log('Returning subscription for individual user:', {
+          planName: userPlan.name,
+          planId: userPlan.id,
+          userId: userId
+        });
+
+        return NextResponse.json({ 
+          plan: userPlan, 
+          subscription: userSubscription 
+        });
+        
+      } catch (error) {
+        console.error('Error processing individual user subscription:', error);
+        return NextResponse.json({ error: 'Failed to process user subscription' }, { status: 500 });
+      }
     }
 
     return NextResponse.json({ error: 'Invalid request' }, { status: 400 });

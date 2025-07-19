@@ -28,7 +28,20 @@ export function useSubscriptionFeatures(organizationId: string) {
   });
 
   useEffect(() => {
-    if (status === 'loading' || !organizationId) return;
+    if (status === 'loading') return;
+    
+    // Don't fetch if there's no organizationId (individual users)
+    if (!organizationId || organizationId.trim() === '') {
+      setFeatureAccess({
+        plan: null,
+        subscription: null,
+        features: null,
+        isActive: false,
+        isLoading: false,
+        error: null,
+      });
+      return;
+    }
 
     const fetchFeatureAccess = async () => {
       try {

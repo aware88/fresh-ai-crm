@@ -10,7 +10,7 @@ export async function POST(request: NextRequest) {
     const host = request.headers.get('host');
     const protocol = request.headers.get('x-forwarded-proto') || 'http';
     const baseUrl = `${protocol}://${host}`;
-
+    
     // Validate required fields
     if (!email || !password || !firstName || !lastName) {
       return NextResponse.json(
@@ -47,6 +47,7 @@ export async function POST(request: NextRequest) {
           subscription_plan: subscriptionPlan,
           is_organization: isOrganization || false,
         },
+        emailRedirectTo: `${baseUrl}/auth/confirm`,
       },
     });
 
@@ -68,6 +69,12 @@ export async function POST(request: NextRequest) {
     // If this is an organization signup, create the organization
     if (isOrganization && orgName && orgSlug && userData.user) {
       try {
+        // Add a longer delay to ensure user is fully created in Supabase
+        console.log('🏢 Waiting for user creation to propagate...');
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        console.log('🏢 Attempting to create organization for user:', userData.user.id);
+        
         const orgResponse = await fetch(`${baseUrl}/api/admin/organizations`, {
           method: 'POST',
           headers: {
@@ -82,12 +89,32 @@ export async function POST(request: NextRequest) {
         });
 
         if (!orgResponse.ok) {
-          console.error('Failed to create organization');
-          // Don't fail the signup, just log the error
+          const errorText = await orgResponse.text();
+          console.error('❌ Failed to create organization:', errorText);
+          
+          // Try to parse the error response
+          let errorObj;
+          try {
+            errorObj = JSON.parse(errorText);
+          } catch {
+            errorObj = { error: errorText };
+          }
+          
+          // If it's a user not found error, we'll skip organization creation
+          // The user signup was successful, so we don't want to fail the entire process
+          if (errorObj.error && errorObj.error.includes('User not found')) {
+            console.log('⚠️ Organization creation skipped due to user propagation delay. User can create organization later.');
+          } else {
+            console.error('❌ Organization creation failed with unexpected error:', errorObj);
+          }
+        } else {
+          const orgData = await orgResponse.json();
+          console.log('✅ Organization created successfully:', orgData);
         }
       } catch (orgError) {
-        console.error('Error creating organization:', orgError);
+        console.error('❌ Exception during organization creation:', orgError);
         // Don't fail the signup, just log the error
+        console.log('⚠️ Organization creation failed, but user signup was successful. User can create organization later.');
       }
     }
 

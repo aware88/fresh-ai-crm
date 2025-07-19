@@ -22,49 +22,160 @@ export default function ConfirmPage() {
         return;
       }
 
-      // Get tokens from URL parameters
+      // Check for different confirmation formats
       const access_token = searchParams.get('access_token');
       const refresh_token = searchParams.get('refresh_token');
-      const expires_at = searchParams.get('expires_at');
-      const token_type = searchParams.get('token_type');
+      const token_hash = searchParams.get('token_hash');
       const type = searchParams.get('type');
+      const confirmation_token = searchParams.get('confirmation_token');
+      const token = searchParams.get('token');
+      const error_code = searchParams.get('error_code');
+      const error_description = searchParams.get('error_description');
 
-      if (!access_token || !refresh_token) {
+      // Check for errors first
+      if (error_code || error_description) {
         setStatus('error');
-        setMessage('Invalid confirmation link. Missing authentication tokens.');
+        setMessage(`Confirmation failed: ${error_description || 'Unknown error'}`);
         return;
       }
 
-      try {
-        // Set the session using the tokens from the URL
-        const { data, error } = await supabase.auth.setSession({
-          access_token,
-          refresh_token,
-        });
+      // Handle token-based confirmation (new format)
+      if (access_token && refresh_token) {
+        try {
+          // Set the session using the tokens from the URL
+          const { data, error } = await supabase.auth.setSession({
+            access_token,
+            refresh_token,
+          });
 
-        if (error) {
-          console.error('Error setting session:', error);
-          setStatus('error');
-          setMessage(`Confirmation failed: ${error.message}`);
-          return;
-        }
+          if (error) {
+            console.error('Error setting session:', error);
+            setStatus('error');
+            setMessage(`Confirmation failed: ${error.message}`);
+            return;
+          }
 
-        if (data.user) {
-          setStatus('success');
-          setMessage('Email confirmed successfully! You can now sign in.');
-          
-          // Redirect to sign in page after a short delay
-          setTimeout(() => {
-            router.push('/signin?message=Email confirmed successfully');
-          }, 2000);
-        } else {
+          if (data.user) {
+            setStatus('success');
+            setMessage('Email confirmed successfully! You can now sign in.');
+            
+            // Redirect to sign in page after a short delay
+            setTimeout(() => {
+              router.push('/signin?message=Email confirmed successfully');
+            }, 2000);
+          } else {
+            setStatus('error');
+            setMessage('Confirmation failed. Please try again.');
+          }
+        } catch (error) {
+          console.error('Unexpected error:', error);
           setStatus('error');
-          setMessage('Confirmation failed. Please try again.');
+          setMessage('An unexpected error occurred. Please try again.');
         }
-      } catch (error) {
-        console.error('Unexpected error:', error);
+      }
+      // Handle hash-based confirmation (traditional format)
+      else if (token_hash && type === 'signup') {
+        try {
+          const { data, error } = await supabase.auth.verifyOtp({
+            token_hash,
+            type: 'signup'
+          });
+
+          if (error) {
+            console.error('Error verifying OTP:', error);
+            setStatus('error');
+            setMessage(`Confirmation failed: ${error.message}`);
+            return;
+          }
+
+          if (data.user) {
+            setStatus('success');
+            setMessage('Email confirmed successfully! You can now sign in.');
+            
+            // Redirect to sign in page after a short delay
+            setTimeout(() => {
+              router.push('/signin?message=Email confirmed successfully');
+            }, 2000);
+          } else {
+            setStatus('error');
+            setMessage('Confirmation failed. Please try again.');
+          }
+        } catch (error) {
+          console.error('Unexpected error:', error);
+          setStatus('error');
+          setMessage('An unexpected error occurred. Please try again.');
+        }
+      }
+      // Handle simple token confirmation
+      else if (token && type === 'signup') {
+        try {
+          const { data, error } = await supabase.auth.verifyOtp({
+            token_hash: token,
+            type: 'signup'
+          });
+
+          if (error) {
+            console.error('Error verifying token:', error);
+            setStatus('error');
+            setMessage(`Confirmation failed: ${error.message}`);
+            return;
+          }
+
+          if (data.user) {
+            setStatus('success');
+            setMessage('Email confirmed successfully! You can now sign in.');
+            
+            // Redirect to sign in page after a short delay
+            setTimeout(() => {
+              router.push('/signin?message=Email confirmed successfully');
+            }, 2000);
+          } else {
+            setStatus('error');
+            setMessage('Confirmation failed. Please try again.');
+          }
+        } catch (error) {
+          console.error('Unexpected error:', error);
+          setStatus('error');
+          setMessage('An unexpected error occurred. Please try again.');
+        }
+      }
+      // Handle confirmation token format (alternative format)
+      else if (confirmation_token) {
+        try {
+          const { data, error } = await supabase.auth.verifyOtp({
+            token_hash: confirmation_token,
+            type: 'signup'
+          });
+
+          if (error) {
+            console.error('Error verifying confirmation token:', error);
+            setStatus('error');
+            setMessage(`Confirmation failed: ${error.message}`);
+            return;
+          }
+
+          if (data.user) {
+            setStatus('success');
+            setMessage('Email confirmed successfully! You can now sign in.');
+            
+            // Redirect to sign in page after a short delay
+            setTimeout(() => {
+              router.push('/signin?message=Email confirmed successfully');
+            }, 2000);
+          } else {
+            setStatus('error');
+            setMessage('Confirmation failed. Please try again.');
+          }
+        } catch (error) {
+          console.error('Unexpected error:', error);
+          setStatus('error');
+          setMessage('An unexpected error occurred. Please try again.');
+        }
+      }
+      // No valid confirmation parameters found
+      else {
         setStatus('error');
-        setMessage('An unexpected error occurred. Please try again.');
+        setMessage('Invalid confirmation link. Missing required parameters. Please try signing up again or contact support.');
       }
     };
 

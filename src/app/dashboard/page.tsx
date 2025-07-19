@@ -122,9 +122,25 @@ export default function DashboardPage() {
   // Animation refs for staggered animations
   const [refs, setRefs] = useState<Array<HTMLElement | null>>([]);
   const { data: session } = useSession();
-  // Use organization ID from session with proper type checking
+  
+  // For individual users, we'll fetch subscription data differently
+  const isIndividualUser = !((session?.user as any)?.organizationId);
   const organizationId = (session?.user as any)?.organizationId || "";
-  const { plan, isActive, hasFeature } = useSubscriptionFeatures(organizationId);
+  
+  // State for subscription data (for individual users)
+  const [individualPlan, setIndividualPlan] = useState<any>(null);
+  const [isLoadingPlan, setIsLoadingPlan] = useState(true);
+  
+  // Use organization subscription features only for organization users
+  const orgSubscription = useSubscriptionFeatures(organizationId);
+  
+  // Determine which plan data to use
+  const plan = isIndividualUser ? individualPlan : orgSubscription.plan;
+  const isActive = isIndividualUser ? !!individualPlan : orgSubscription.isActive;
+  const hasFeature = isIndividualUser ? 
+    () => true : // Individual users have all features during beta
+    orgSubscription.hasFeature;
+  
   const { toast } = useToast();
   const router = useRouter();
   
@@ -200,8 +216,33 @@ export default function DashboardPage() {
     if (session) {
       fetchDashboardStats();
       fetchRecentActivities();
+      
+      // Fetch individual user subscription data if needed
+      if (isIndividualUser) {
+        fetchIndividualSubscription();
+      }
     }
   }, [session]);
+  
+  // Fetch subscription data for individual users
+  const fetchIndividualSubscription = async () => {
+    if (!session?.user?.id) return;
+    
+    setIsLoadingPlan(true);
+    try {
+      const response = await fetch(`/api/subscription/current?userId=${session.user.id}`);
+      if (response.ok) {
+        const data = await response.json();
+        setIndividualPlan(data.plan);
+      }
+    } catch (error) {
+      console.error('Error fetching individual subscription:', error);
+      // Fallback to a default plan
+      setIndividualPlan({ name: 'Pro', price: 0 });
+    } finally {
+      setIsLoadingPlan(false);
+    }
+  };
 
   const quickActions = [
     { 
