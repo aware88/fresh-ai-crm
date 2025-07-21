@@ -4,7 +4,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/session';
 import { ProductSyncService } from '@/lib/integrations/metakocka/product-sync';
-import { MetakockaError } from '@/lib/integrations/metakocka';
+import { MetakockaError } from '@/lib/integrations/metakocka/types';
 import { ProductSyncResult } from '@/types/product';
 
 /**

@@ -4,7 +4,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { ProductSyncService } from '@/lib/integrations/metakocka/product-sync';
-import { MetakockaError } from '@/lib/integrations/metakocka';
+import { MetakockaError } from '@/lib/integrations/metakocka/types';
 import { withAuth } from '../../middleware';
 import { Database } from '@/types/supabase';
 

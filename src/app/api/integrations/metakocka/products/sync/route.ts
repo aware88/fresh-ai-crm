@@ -7,7 +7,8 @@ import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 import { getSession } from '../../../../../../lib/auth/session';
 import { ProductSyncService } from '@/lib/integrations/metakocka/product-sync';
-import { MetakockaService, MetakockaProduct, MetakockaError } from '@/lib/integrations/metakocka';
+import { MetakockaService } from '@/lib/integrations/metakocka/service';
+import { MetakockaProduct, MetakockaError } from '@/lib/integrations/metakocka/types';
 
 // Type definitions
 type ProductMapping = {

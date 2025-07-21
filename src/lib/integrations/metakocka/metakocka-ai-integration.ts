@@ -684,9 +684,10 @@ export async function getMetakockaDataForAIContext(userId: string): Promise<Meta
 export async function getOrderDetailsForAI(orderId: string, userId: string): Promise<OrderForAI | null> {
   try {
     const service = new MetakockaAIIntegrationService();
+    
+    // Get user's organization first
     const supabase = await service['supabase'];
     
-    // Get user's organization
     const { data: user, error: userError } = await supabase
       .from('users')
       .select('organization_id')
@@ -711,7 +712,36 @@ export async function getOrderDetailsForAI(orderId: string, userId: string): Pro
       return null;
     }
 
-    return service['formatOrderForAI'](order);
+    // Format order for AI using the service's private method
+    const formatOrderForAI = (order: any): OrderForAI => {
+      return {
+        id: order.id,
+        orderNumber: order.order_number,
+        customerId: order.customer_id,
+        status: order.status,
+        items: order.items || [],
+        totals: {
+          subtotal: order.subtotal || 0,
+          tax: order.tax || 0,
+          shipping: order.shipping || 0,
+          total: order.total || 0,
+          currency: order.currency || 'EUR'
+        },
+        dates: {
+          ordered: order.created_at,
+          confirmed: order.confirmed_at,
+          shipped: order.shipped_at,
+          delivered: order.delivered_at
+        },
+        tracking: order.tracking_number ? {
+          trackingNumber: order.tracking_number,
+          carrier: order.carrier,
+          status: order.tracking_status
+        } : undefined
+      };
+    };
+
+    return formatOrderForAI(order);
   } catch (error) {
     console.error('[Metakocka AI] Error getting order details:', error);
     return null;
