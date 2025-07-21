@@ -113,6 +113,20 @@ export default function AnalyticsDashboardClient({ initialData, organizationId }
     }
   };
 
+  // Helper function to format trend values
+  const formatTrend = (percentChange: number) => {
+    if (percentChange === 0) return "No change from last month";
+    const direction = percentChange > 0 ? "+" : "";
+    return `${direction}${percentChange.toFixed(1)}% from last month`;
+  };
+
+  // Helper function to determine trend direction
+  const getTrend = (percentChange: number): 'up' | 'down' | 'neutral' => {
+    if (percentChange > 0) return 'up';
+    if (percentChange < 0) return 'down';
+    return 'neutral';
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -126,52 +140,92 @@ export default function AnalyticsDashboardClient({ initialData, organizationId }
           Refresh Data
         </Button>
       </div>
-      {/* Remove error message, show empty state if any data is empty or error */}
-      {(isLoading || !analyticsData || !analyticsData.counts || !supplierData || !productData || !priceData || error) ? (
-        <div className="flex flex-col items-center justify-center py-12 text-center">
-          <BarChart3 className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-          <p className="text-gray-500 mb-2">No analytics data yet</p>
-          <p className="text-sm text-gray-400">Your analytics will appear here as you use the system</p>
-        </div>
-      ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <StatCard
-            title="Total Suppliers"
-            value={analyticsData.counts.suppliers}
-            description="Active suppliers in your system"
-            icon={<Building2 className="h-4 w-4" />}
-            trend="up"
-            trendValue="+12% from last month"
-          />
-          <StatCard
-            title="Total Products"
-            value={analyticsData.counts.products}
-            description="Products in your inventory"
-            icon={<ShoppingBag className="h-4 w-4" />}
-            trend="up"
-            trendValue="+8% from last month"
-          />
-          <StatCard
-            title="Documents"
-            value={analyticsData.counts.documents}
-            description="Sales documents created"
-            icon={<Users className="h-4 w-4" />}
-            trend="neutral"
-            trendValue="No change from last month"
-          />
-          <StatCard
-            title="Average Price"
-            value={`$${analyticsData.pricing.average.toFixed(2)}`}
-            description={`Range: $${analyticsData.pricing.minimum.toFixed(2)} - $${analyticsData.pricing.maximum.toFixed(2)}`}
-            icon={<DollarSign className="h-4 w-4" />}
-            trend="down"
-            trendValue="-3% from last month"
-          />
+
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <div className="text-red-700">
+            <p className="font-semibold">Error loading analytics data</p>
+            <p className="text-sm">{error}</p>
+          </div>
         </div>
       )}
-      
-      <Tabs defaultValue={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList>
+
+      {(isLoading || !analyticsData || !analyticsData.counts) ? (
+        <div className="flex flex-col items-center justify-center py-12 text-center">
+          <BarChart3 className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+          <p className="text-gray-500 mb-2">Loading analytics data...</p>
+          <p className="text-sm text-gray-400">Please wait while we fetch your latest metrics</p>
+        </div>
+      ) : (
+        <>
+          {/* Analytics Stats Cards */}
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <StatCard
+              title="Total Revenue"
+              value={`$${analyticsData.counts.revenue?.toLocaleString() || '0'}`}
+              description="Revenue generated this month"
+              icon={<DollarSign className="h-4 w-4" />}
+              trend={getTrend(analyticsData.revenue?.percentChange || 0)}
+              trendValue={formatTrend(analyticsData.revenue?.percentChange || 0)}
+            />
+            <StatCard
+              title="Total Orders"
+              value={analyticsData.counts.orders || 0}
+              description="Orders processed this month"
+              icon={<ShoppingBag className="h-4 w-4" />}
+              trend={getTrend(analyticsData.orders?.percentChange || 0)}
+              trendValue={formatTrend(analyticsData.orders?.percentChange || 0)}
+            />
+            <StatCard
+              title="Customers"
+              value={analyticsData.counts.customers || 0}
+              description="Active customers this month"
+              icon={<Users className="h-4 w-4" />}
+              trend={getTrend(analyticsData.customers?.percentChange || 0)}
+              trendValue={formatTrend(analyticsData.customers?.percentChange || 0)}
+            />
+            <StatCard
+              title="Suppliers"
+              value={analyticsData.counts.suppliers || 0}
+              description="Total active suppliers"
+              icon={<Building2 className="h-4 w-4" />}
+              trend={getTrend(analyticsData.suppliers?.percentChange || 0)}
+              trendValue={formatTrend(analyticsData.suppliers?.percentChange || 0)}
+            />
+          </div>
+
+          {/* Secondary Stats */}
+          <div className="grid gap-4 md:grid-cols-3">
+            <StatCard
+              title="Products"
+              value={analyticsData.counts.products || 0}
+              description="Products in your catalog"
+              icon={<ShoppingBag className="h-4 w-4" />}
+              trend="neutral"
+              trendValue="No change"
+            />
+            <StatCard
+              title="Documents"
+              value={analyticsData.counts.documents || 0}
+              description="Sales documents created"
+              icon={<CreditCard className="h-4 w-4" />}
+              trend="neutral"
+              trendValue="No change"
+            />
+            <StatCard
+              title="Avg Price"
+              value={`$${analyticsData.pricing?.average?.toFixed(2) || '0.00'}`}
+              description={`Range: $${analyticsData.pricing?.minimum?.toFixed(2) || '0.00'} - $${analyticsData.pricing?.maximum?.toFixed(2) || '0.00'}`}
+              icon={<DollarSign className="h-4 w-4" />}
+              trend="neutral"
+              trendValue="No change"
+            />
+          </div>
+        </>
+      )}
+
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="subscriptions">Subscriptions</TabsTrigger>
           <TabsTrigger value="suppliers">Suppliers</TabsTrigger>
@@ -180,36 +234,18 @@ export default function AnalyticsDashboardClient({ initialData, organizationId }
         </TabsList>
         
         <TabsContent value="overview" className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Product Categories</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="h-80">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={productData}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={false}
-                        label={({ name, percent }: { name: string, percent: number }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                        outerRadius={80}
-                        fill="#8884d8"
-                        dataKey="value"
-                      >
-                        {productData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <RechartsTooltip />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+          <Card>
+            <CardHeader>
+              <CardTitle>Business Overview</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center py-8">
+                <p className="text-muted-foreground">
+                  Your analytics overview shows key business metrics. Use the tabs above to explore specific areas.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
         
         <TabsContent value="subscriptions" className="space-y-4">
@@ -230,21 +266,29 @@ export default function AnalyticsDashboardClient({ initialData, organizationId }
               <CardTitle>Supplier Distribution</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="h-96">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={supplierData}
-                    margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <RechartsTooltip />
-                    <Legend />
-                    <Bar dataKey="count" fill="#3b82f6" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
+              {supplierData && supplierData.length > 0 ? (
+                <div className="h-96">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={supplierData}
+                      margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="name" />
+                      <YAxis />
+                      <RechartsTooltip />
+                      <Legend />
+                      <Bar dataKey="count" fill="#3b82f6" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <Building2 className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+                  <p className="text-gray-500 mb-2">No supplier data available</p>
+                  <p className="text-sm text-gray-400">Add suppliers to see distribution analytics</p>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -252,31 +296,38 @@ export default function AnalyticsDashboardClient({ initialData, organizationId }
         <TabsContent value="products" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Product Category Distribution</CardTitle>
+              <CardTitle>Product Categories</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="h-96">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={productData}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      label={({ name, percent }: { name: string, percent: number }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                      outerRadius={120}
-                      fill="#8884d8"
-                      dataKey="value"
-                    >
-                      {productData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <RechartsTooltip />
-                    <Legend />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
+              {productData && productData.length > 0 ? (
+                <div className="h-96">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={productData}
+                        dataKey="value"
+                        nameKey="name"
+                        cx="50%"
+                        cy="50%"
+                        outerRadius={150}
+                        fill="#8884d8"
+                      >
+                        {productData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <RechartsTooltip />
+                      <Legend />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <ShoppingBag className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+                  <p className="text-gray-500 mb-2">No product data available</p>
+                  <p className="text-sm text-gray-400">Add products to see category distribution</p>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -287,23 +338,31 @@ export default function AnalyticsDashboardClient({ initialData, organizationId }
               <CardTitle>Price Trends</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="h-96">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={priceData}
-                    margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <RechartsTooltip />
-                    <Legend />
-                    <Bar dataKey="min" fill="#22c55e" name="Min Price" />
-                    <Bar dataKey="avg" fill="#3b82f6" name="Avg Price" />
-                    <Bar dataKey="max" fill="#ef4444" name="Max Price" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
+              {priceData && priceData.length > 0 ? (
+                <div className="h-96">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={priceData}
+                      margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="name" />
+                      <YAxis />
+                      <RechartsTooltip />
+                      <Legend />
+                      <Bar dataKey="min" fill="#ff7300" name="Min Price" />
+                      <Bar dataKey="avg" fill="#387908" name="Avg Price" />
+                      <Bar dataKey="max" fill="#8884d8" name="Max Price" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <DollarSign className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+                  <p className="text-gray-500 mb-2">No pricing data available</p>
+                  <p className="text-sm text-gray-400">Add product pricing to see trends</p>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

@@ -105,9 +105,10 @@ export default function ImapAccountForm({ userId }: ImapAccountFormProps) {
       }
 
       if (data.success) {
+        const messageCount = data.messageCount || 0;
         toast({
-          title: 'Success',
-          description: 'Successfully connected to the email server!',
+          title: 'Connection Successful! ✅',
+          description: `Connected to ${formData.imapHost} successfully! Found ${messageCount} emails in inbox.`,
         });
       } else {
         throw new Error(data.error || 'Connection test failed');
@@ -193,8 +194,8 @@ export default function ImapAccountForm({ userId }: ImapAccountFormProps) {
       
       if (result.success) {
         toast({
-          title: "Success",
-          description: "Email account added successfully!"
+          title: "Account Saved Successfully! 🎉",
+          description: `${formData.email} has been added and is ready to use in the Email Dashboard.`
         });
         
         // Add a small delay before redirecting to ensure toast is seen

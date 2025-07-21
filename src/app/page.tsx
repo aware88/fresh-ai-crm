@@ -994,44 +994,49 @@ export default function Home() {
               </div>
             </motion.div>
 
-            {/* Enterprise Plan */}
+            {/* Premium Plan */}
             <motion.div
-              className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm relative opacity-60"
+              className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm relative"
               initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 0.6, y: 0 }}
+              whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.5, delay: 0.2 }}
             >
+              {/* Premium Badge */}
+              <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-gradient-to-r from-purple-600 to-blue-600 text-white text-sm font-semibold px-6 py-1.5 rounded-full">
+                ENTERPRISE
+              </div>
+              
               <div className="text-center">
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">Enterprise</h3>
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">Premium</h3>
                 <div className="flex items-baseline justify-center mb-4">
-                  <span className="text-3xl font-bold text-gray-400">$297</span>
-                  <span className="ml-2 text-gray-400">/month</span>
+                  <span className="text-2xl font-bold text-gray-900">Custom Pricing</span>
                 </div>
-                <p className="text-gray-500 mb-6">For large organizations</p>
+                <p className="text-gray-600 mb-6">Tailored for your business</p>
                 
                 <ul className="space-y-3 mb-8 text-left text-sm">
                   {[
                     'Everything in Pro',
-                    'Custom integrations',
+                    'Custom Metakocka integration',
+                    'Bespoke ERP integrations', 
                     'Dedicated account manager',
-                    'Advanced reporting',
-                    'SSO & security features',
-                    'Custom training',
-                    'SLA guarantee'
+                    'Custom AI training',
+                    'White-label solutions',
+                    'Priority support & SLA',
+                    '24/7 technical assistance'
                   ].map((feature, i) => (
-                    <li key={i} className="text-gray-500 flex items-center">
-                      <span className="mr-2">✓</span>
+                    <li key={i} className="text-gray-700 flex items-center">
+                      <span className="mr-2 text-purple-500">✓</span>
                       {feature}
                     </li>
                   ))}
                 </ul>
                 
                 <Button 
-                  disabled
-                  className="w-full bg-gray-100 text-gray-400 cursor-not-allowed"
+                  className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white"
+                  onClick={() => window.location.href = 'mailto:tim@neuroai.agency?subject=Premium Enterprise Inquiry&body=Hi, I am interested in the Premium plan with custom integrations for my organization. Please contact me to discuss pricing and implementation.'}
                 >
-                  Coming Soon
+                  Contact Sales
                 </Button>
               </div>
             </motion.div>

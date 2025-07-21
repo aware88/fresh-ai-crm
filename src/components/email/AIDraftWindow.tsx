@@ -82,6 +82,10 @@ export default function AIDraftWindow({
   const [showNotes, setShowNotes] = useState(false);
   const [saveNotes, setSaveNotes] = useState(true);
   const [aiSettings, setAiSettings] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [refinementCommand, setRefinementCommand] = useState('');
+  const [isRefining, setIsRefining] = useState(false);
+  const [refinementHistory, setRefinementHistory] = useState<string[]>([]);
   const { toast } = useToast();
 
   const originalSubjectRef = useRef<string>('');
@@ -103,10 +107,10 @@ export default function AIDraftWindow({
 
   // Generate initial draft
   useEffect(() => {
-    if (emailId && originalEmail && (!draftData || aiSettings?.aiDraftAutoGenerate)) {
+    if (emailId && originalEmail && !draftData) {
       generateDraft();
     }
-  }, [emailId, originalEmail, aiSettings]);
+  }, [emailId, originalEmail, draftData]);
 
   // Track changes when draft is edited
   useEffect(() => {
@@ -148,6 +152,21 @@ export default function AIDraftWindow({
         includeContext: true
       };
       
+      // Check for sales context in localStorage
+      const salesContextTemp = localStorage.getItem('sales-context-temp');
+      let finalSettings = { ...settings };
+      
+      if (salesContextTemp) {
+        try {
+          const salesContext = JSON.parse(salesContextTemp);
+          finalSettings.salesContext = salesContext;
+          // Clear the temporary storage
+          localStorage.removeItem('sales-context-temp');
+        } catch (error) {
+          console.warn('Failed to parse sales context:', error);
+        }
+      }
+
       const response = await fetch('/api/emails/ai-draft', {
         method: 'POST',
         headers: {
@@ -156,12 +175,14 @@ export default function AIDraftWindow({
         body: JSON.stringify({
           emailId,
           originalEmail,
-          settings
+          settings: finalSettings
         })
       });
       
       if (!response.ok) {
-        throw new Error('Failed to generate draft');
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = errorData.message || `HTTP ${response.status}: ${response.statusText}`;
+        throw new Error(`Failed to generate draft: ${errorMessage}`);
       }
       
       const data = await response.json();
@@ -196,9 +217,11 @@ export default function AIDraftWindow({
       
     } catch (error) {
       console.error('Error generating draft:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to generate AI draft. Please try again.';
+      setError(errorMessage);
       toast({
         title: "Error generating draft",
-        description: "Failed to generate AI draft. Please try again.",
+        description: errorMessage,
         variant: "destructive"
       });
     } finally {
@@ -274,6 +297,81 @@ export default function AIDraftWindow({
     await generateDraft();
   };
 
+  const handleRefineDraft = async () => {
+    if (!refinementCommand.trim() || !draftData) return;
+    
+    try {
+      setIsRefining(true);
+      
+      const response = await fetch('/api/emails/ai-refine', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          emailId,
+          originalEmail,
+          currentSubject: editedSubject,
+          currentBody: editedBody,
+          refinementCommand: refinementCommand.trim(),
+          draftContext: {
+            tone: draftData.tone,
+            confidence: draftData.confidence,
+            changes: changes
+          }
+        })
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Failed to refine draft');
+      }
+      
+      const data = await response.json();
+      
+      // Update the draft with refined content
+      setEditedSubject(data.subject);
+      setEditedBody(data.body);
+      
+      // Add to refinement history
+      setRefinementHistory(prev => [...prev, refinementCommand.trim()]);
+      
+      // Clear the command input
+      setRefinementCommand('');
+      
+      // Track the refinement as a change
+      const refinementChange: Change = {
+        type: 'modified',
+        section: data.primaryChange || 'body',
+        original: editedBody,
+        modified: data.body,
+        timestamp: new Date()
+      };
+      
+      setChanges(prev => [...prev, refinementChange]);
+      
+      toast({
+        title: "Draft refined",
+        description: data.message || "AI has updated your draft based on your request.",
+        variant: "default"
+      });
+      
+    } catch (error) {
+      console.error('Error refining draft:', error);
+      toast({
+        title: "Refinement failed",
+        description: error instanceof Error ? error.message : "Failed to refine draft. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsRefining(false);
+    }
+  };
+
+  const handleQuickCommand = (command: string) => {
+    setRefinementCommand(command);
+  };
+
   if (!draftData && !isGenerating) {
     return (
       <Card className={`${className} border-dashed border-2 border-gray-200`}>
@@ -306,8 +404,8 @@ export default function AIDraftWindow({
   }
 
   return (
-    <Card className={`${className} border-l-4 border-l-blue-500`}>
-      <CardHeader className="pb-3">
+    <Card className={`${className} border-l-4 border-l-blue-500 flex flex-col h-full`}>
+      <CardHeader className="pb-3 flex-shrink-0">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <Bot className="h-4 w-4 text-blue-600" />
@@ -337,7 +435,8 @@ export default function AIDraftWindow({
         </CardDescription>
       </CardHeader>
       
-      <CardContent className="space-y-4">
+      <CardContent className="flex-1 overflow-hidden flex flex-col">
+        <div className="space-y-4 flex-1 overflow-y-auto pr-2">
         {/* Subject Field */}
         <div className="space-y-2">
           <Label htmlFor="draft-subject">Subject</Label>
@@ -357,20 +456,124 @@ export default function AIDraftWindow({
         </div>
 
         {/* Body Field */}
-        <div className="space-y-2">
+        <div className="space-y-2 flex-1 min-h-0">
           <Label htmlFor="draft-body">Email Body</Label>
           <Textarea
             id="draft-body"
             value={editedBody}
             onChange={(e) => setEditedBody(e.target.value)}
             placeholder="Email body"
-            className="min-h-[200px] resize-none"
-            rows={8}
+            className="min-h-[300px] h-[400px] resize-none"
+            rows={15}
           />
           {changes.some(c => c.section === 'body') && (
             <div className="text-xs text-orange-600 flex items-center space-x-1">
               <Edit className="h-3 w-3" />
               <span>Modified from original</span>
+            </div>
+          )}
+        </div>
+
+        {/* Natural Language Refinement Section */}
+        <Separator />
+        <div className="space-y-3">
+          <div className="flex items-center space-x-2">
+            <MessageSquare className="h-4 w-4 text-blue-600" />
+            <Label htmlFor="refinement-command">Refine with Natural Language</Label>
+          </div>
+          
+          {/* Quick Command Buttons */}
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleQuickCommand("Make this more friendly and warm")}
+              disabled={isRefining}
+            >
+              More Friendly
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleQuickCommand("Make this more formal and professional")}
+              disabled={isRefining}
+            >
+              More Formal
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleQuickCommand("Add more urgency to this response")}
+              disabled={isRefining}
+            >
+              Add Urgency
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleQuickCommand("Make this shorter and more concise")}
+              disabled={isRefining}
+            >
+              Make Shorter
+            </Button>
+          </div>
+          
+          {/* Command Input */}
+          <div className="space-y-2">
+            <div className="flex space-x-2">
+              <Textarea
+                id="refinement-command"
+                value={refinementCommand}
+                onChange={(e) => setRefinementCommand(e.target.value)}
+                placeholder="e.g., 'Change the Magento link to https://withcar.eu/shop' or 'Rewrite in a more apologetic tone'"
+                className="flex-1 min-h-[80px] resize-none"
+                rows={3}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && e.ctrlKey && refinementCommand.trim()) {
+                    e.preventDefault();
+                    handleRefineDraft();
+                  }
+                }}
+                disabled={isRefining}
+              />
+              <Button
+                onClick={handleRefineDraft}
+                disabled={isRefining || !refinementCommand.trim()}
+                size="sm"
+                className="px-4"
+              >
+                {isRefining ? (
+                  <>
+                    <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white mr-2"></div>
+                    Refining...
+                  </>
+                ) : (
+                  <>
+                    <Bot className="h-3 w-3 mr-2" />
+                    Refine
+                  </>
+                )}
+              </Button>
+            </div>
+            
+            <div className="flex items-center space-x-2 text-xs text-muted-foreground">
+              <Lightbulb className="h-3 w-3" />
+              <span>Describe changes in plain English - AI will understand and apply them (Ctrl+Enter to refine)</span>
+            </div>
+          </div>
+          
+          {/* Refinement History */}
+          {refinementHistory.length > 0 && (
+            <div className="space-y-2">
+              <div className="text-sm font-medium text-muted-foreground">Recent refinements:</div>
+              <div className="space-y-1">
+                {refinementHistory.slice(-3).map((command, index) => (
+                  <div key={index} className="text-xs bg-gray-100 px-2 py-1 rounded flex items-center space-x-2">
+                    <Check className="h-3 w-3 text-green-600" />
+                    <span>"{command}"</span>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </div>
@@ -398,8 +601,8 @@ export default function AIDraftWindow({
                     value={userNotes}
                     onChange={(e) => setUserNotes(e.target.value)}
                     placeholder="Why did you make these changes? Help AI learn..."
-                    className="min-h-[80px]"
-                    rows={3}
+                    className="min-h-[120px] resize-none"
+                    rows={5}
                   />
                   <div className="flex items-center space-x-2 text-xs text-muted-foreground">
                     <Lightbulb className="h-3 w-3" />
@@ -464,6 +667,7 @@ export default function AIDraftWindow({
               </>
             )}
           </Button>
+        </div>
         </div>
       </CardContent>
     </Card>

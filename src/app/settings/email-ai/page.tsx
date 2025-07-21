@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useToast } from '@/components/ui/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -19,9 +19,11 @@ import {
   Shield, 
   Zap,
   HelpCircle,
-  Settings
+  Settings,
+  MessageSquare
 } from 'lucide-react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import AIEmailPreferencesChat from '@/components/email/AIEmailPreferencesChat';
 
 interface AIEmailSettings {
   // AI Draft Assistant
@@ -49,7 +51,22 @@ export default function AIEmailSettingsPage() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [hasChanges, setHasChanges] = useState(false);
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [settings, setSettings] = useState<AIEmailSettings>({
+    aiDraftEnabled: false,
+    aiDraftAutoGenerate: true,
+    aiDraftPosition: 'sidebar',
+    responseStyle: 'professional',
+    responseLength: 'detailed',
+    includeContext: true,
+    learningEnabled: true,
+    trackChanges: true,
+    saveUserNotes: true,
+    dataRetention: '1year',
+    shareForImprovement: false
+  });
+  const [initialSettings, setInitialSettings] = useState<AIEmailSettings>({
     aiDraftEnabled: false,
     aiDraftAutoGenerate: true,
     aiDraftPosition: 'sidebar',
@@ -75,6 +92,7 @@ export default function AIEmailSettingsPage() {
           try {
             const parsed = JSON.parse(savedSettings);
             setSettings(parsed);
+            setInitialSettings(parsed);
           } catch (error) {
             console.warn('Failed to parse saved AI email settings');
           }
@@ -90,7 +108,7 @@ export default function AIEmailSettingsPage() {
             .single();
           
           if (!error && userSettings) {
-            setSettings({
+            const loadedSettings = {
               aiDraftEnabled: userSettings.ai_draft_enabled || false,
               aiDraftAutoGenerate: userSettings.ai_draft_auto_generate || true,
               aiDraftPosition: userSettings.ai_draft_position || 'sidebar',
@@ -102,7 +120,9 @@ export default function AIEmailSettingsPage() {
               saveUserNotes: userSettings.save_user_notes || true,
               dataRetention: userSettings.data_retention || '1year',
               shareForImprovement: userSettings.share_for_improvement || false
-            });
+            };
+            setSettings(loadedSettings);
+            setInitialSettings(loadedSettings);
           }
         }
       } catch (error) {
@@ -113,7 +133,7 @@ export default function AIEmailSettingsPage() {
     };
 
     loadSettings();
-  }, [session]);
+  }, [session?.user?.id]);
 
   const handleSaveSettings = async () => {
     try {
@@ -150,6 +170,16 @@ export default function AIEmailSettingsPage() {
         }
       }
       
+      // Update initial settings and reset change tracking
+      setInitialSettings(settings);
+      setHasChanges(false);
+      setShowSuccessMessage(true);
+      
+      // Hide success message after 3 seconds
+      setTimeout(() => {
+        setShowSuccessMessage(false);
+      }, 3000);
+
       toast({
         title: "Settings saved",
         description: "Your AI email settings have been saved successfully.",
@@ -167,9 +197,16 @@ export default function AIEmailSettingsPage() {
     }
   };
 
-  const updateSetting = (key: keyof AIEmailSettings, value: any) => {
-    setSettings(prev => ({ ...prev, [key]: value }));
-  };
+  const updateSetting = useCallback((key: keyof AIEmailSettings, value: any) => {
+    setSettings(prev => {
+      const newSettings = { ...prev, [key]: value };
+      // Check if settings have changed from initial values
+      setHasChanges(JSON.stringify(newSettings) !== JSON.stringify(initialSettings));
+      // Hide success message when user makes changes
+      setShowSuccessMessage(false);
+      return newSettings;
+    });
+  }, [initialSettings]);
 
   if (loading) {
     return (
@@ -209,6 +246,22 @@ export default function AIEmailSettingsPage() {
         Configure how AI assists with your email responses. AI will prepare draft replies that you can review and edit before sending.
       </p>
 
+      {/* Conversational Setup */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center space-x-2">
+            <MessageSquare className="h-4 w-4" />
+            <CardTitle>Conversational Setup</CardTitle>
+          </div>
+          <CardDescription>
+            Configure your email preferences by talking to AI - tell it how you want emails handled, which ones to skip, and what tone to use
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <AIEmailPreferencesChat />
+        </CardContent>
+      </Card>
+
       {/* AI Draft Assistant */}
       <Card>
         <CardHeader>
@@ -217,16 +270,16 @@ export default function AIEmailSettingsPage() {
             <CardTitle>AI Draft Assistant</CardTitle>
           </div>
           <CardDescription>
-            Let AI prepare email drafts for you to review and edit before sending
+            Let AI prepare email drafts for you to review and edit before sending. The conversational setup above controls how these drafts are generated.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-6">
           <div className="flex items-center justify-between">
-            <div className="space-y-1">
+            <div className="space-y-0.5">
               <Label htmlFor="ai-draft-enabled">Enable AI Draft Assistant</Label>
-              <p className="text-sm text-muted-foreground">
-                AI will prepare draft replies in a side panel for you to review
-              </p>
+              <div className="text-sm text-muted-foreground">
+                Automatically generate draft responses for incoming emails
+              </div>
             </div>
             <Switch
               id="ai-draft-enabled"
@@ -234,38 +287,38 @@ export default function AIEmailSettingsPage() {
               onCheckedChange={(checked) => updateSetting('aiDraftEnabled', checked)}
             />
           </div>
-          
+
           {settings.aiDraftEnabled && (
             <>
               <Separator />
               
               <div className="flex items-center justify-between">
-                <div className="space-y-1">
-                  <Label htmlFor="ai-draft-auto">Auto-generate drafts</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Automatically generate drafts when viewing emails
-                  </p>
+                <div className="space-y-0.5">
+                  <Label htmlFor="auto-generate">Auto-generate drafts</Label>
+                  <div className="text-sm text-muted-foreground">
+                    Automatically create drafts when new emails arrive
+                  </div>
                 </div>
                 <Switch
-                  id="ai-draft-auto"
+                  id="auto-generate"
                   checked={settings.aiDraftAutoGenerate}
                   onCheckedChange={(checked) => updateSetting('aiDraftAutoGenerate', checked)}
                 />
               </div>
-              
+
               <div className="space-y-2">
-                <Label htmlFor="draft-position">Draft panel position</Label>
+                <Label htmlFor="draft-position">Draft display position</Label>
                 <Select 
                   value={settings.aiDraftPosition} 
-                  onValueChange={(value) => updateSetting('aiDraftPosition', value)}
+                  onValueChange={(value) => updateSetting('aiDraftPosition', value as any)}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select position" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="sidebar">Sidebar (Recommended)</SelectItem>
+                    <SelectItem value="sidebar">Side panel</SelectItem>
                     <SelectItem value="modal">Modal dialog</SelectItem>
-                    <SelectItem value="inline">Inline below email</SelectItem>
+                    <SelectItem value="inline">Inline with email</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -277,58 +330,59 @@ export default function AIEmailSettingsPage() {
       {/* Response Settings */}
       <Card>
         <CardHeader>
-          <div className="flex items-center space-x-2">
-            <Mail className="h-4 w-4" />
-            <CardTitle>Response Settings</CardTitle>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <Mail className="h-4 w-4" />
+              <CardTitle>Response Settings</CardTitle>
+            </div>
+            <Badge variant="outline">Alternative to AI Chat</Badge>
           </div>
           <CardDescription>
-            Customize how AI generates email responses
+            Control how AI generates email responses. Note: You can also configure these settings by talking to the AI chat above (e.g., "Use a professional tone" or "Keep responses brief").
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="response-style">Response style</Label>
-              <Select 
-                value={settings.responseStyle} 
-                onValueChange={(value) => updateSetting('responseStyle', value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select style" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="professional">Professional</SelectItem>
-                  <SelectItem value="friendly">Friendly</SelectItem>
-                  <SelectItem value="formal">Formal</SelectItem>
-                  <SelectItem value="casual">Casual</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="response-length">Response length</Label>
-              <Select 
-                value={settings.responseLength} 
-                onValueChange={(value) => updateSetting('responseLength', value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select length" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="concise">Concise</SelectItem>
-                  <SelectItem value="detailed">Detailed</SelectItem>
-                  <SelectItem value="custom">Custom</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+        <CardContent className="space-y-6">
+          <div className="space-y-2">
+            <Label htmlFor="response-style">Response style</Label>
+            <Select 
+              value={settings.responseStyle} 
+              onValueChange={(value) => updateSetting('responseStyle', value as any)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select style" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="professional">Professional</SelectItem>
+                <SelectItem value="friendly">Friendly</SelectItem>
+                <SelectItem value="formal">Formal</SelectItem>
+                <SelectItem value="casual">Casual</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
-          
+
+          <div className="space-y-2">
+            <Label htmlFor="response-length">Response length</Label>
+            <Select 
+              value={settings.responseLength} 
+              onValueChange={(value) => updateSetting('responseLength', value as any)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select length" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="concise">Concise</SelectItem>
+                <SelectItem value="detailed">Detailed</SelectItem>
+                <SelectItem value="custom">Custom</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
           <div className="flex items-center justify-between">
-            <div className="space-y-1">
+            <div className="space-y-0.5">
               <Label htmlFor="include-context">Include conversation context</Label>
-              <p className="text-sm text-muted-foreground">
-                AI will consider previous emails in the conversation
-              </p>
+              <div className="text-sm text-muted-foreground">
+                Use previous messages to inform responses
+              </div>
             </div>
             <Switch
               id="include-context"
@@ -347,16 +401,16 @@ export default function AIEmailSettingsPage() {
             <CardTitle>Learning & Improvement</CardTitle>
           </div>
           <CardDescription>
-            Help AI learn from your editing patterns to improve future suggestions
+            Help AI learn from your preferences and improve over time
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-6">
           <div className="flex items-center justify-between">
-            <div className="space-y-1">
+            <div className="space-y-0.5">
               <Label htmlFor="learning-enabled">Enable learning</Label>
-              <p className="text-sm text-muted-foreground">
-                AI will learn from your edits to improve future drafts
-              </p>
+              <div className="text-sm text-muted-foreground">
+                Allow AI to learn from your email patterns and preferences
+              </div>
             </div>
             <Switch
               id="learning-enabled"
@@ -364,40 +418,34 @@ export default function AIEmailSettingsPage() {
               onCheckedChange={(checked) => updateSetting('learningEnabled', checked)}
             />
           </div>
-          
-          {settings.learningEnabled && (
-            <>
-              <Separator />
-              
-              <div className="flex items-center justify-between">
-                <div className="space-y-1">
-                  <Label htmlFor="track-changes">Track changes</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Save what you edit to improve AI suggestions
-                  </p>
-                </div>
-                <Switch
-                  id="track-changes"
-                  checked={settings.trackChanges}
-                  onCheckedChange={(checked) => updateSetting('trackChanges', checked)}
-                />
+
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label htmlFor="track-changes">Track changes</Label>
+              <div className="text-sm text-muted-foreground">
+                Save what you edit to improve AI suggestions
               </div>
-              
-              <div className="flex items-center justify-between">
-                <div className="space-y-1">
-                  <Label htmlFor="save-notes">Save improvement notes</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Allow adding notes about why you made changes
-                  </p>
-                </div>
-                <Switch
-                  id="save-notes"
-                  checked={settings.saveUserNotes}
-                  onCheckedChange={(checked) => updateSetting('saveUserNotes', checked)}
-                />
+            </div>
+            <Switch
+              id="track-changes"
+              checked={settings.trackChanges}
+              onCheckedChange={(checked) => updateSetting('trackChanges', checked)}
+            />
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label htmlFor="save-notes">Save improvement notes</Label>
+              <div className="text-sm text-muted-foreground">
+                Allow adding notes about why you made changes
               </div>
-            </>
-          )}
+            </div>
+            <Switch
+              id="save-notes"
+              checked={settings.saveUserNotes}
+              onCheckedChange={(checked) => updateSetting('saveUserNotes', checked)}
+            />
+          </div>
         </CardContent>
       </Card>
 
@@ -412,12 +460,15 @@ export default function AIEmailSettingsPage() {
             Control how your data is used for AI improvements
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-6">
           <div className="space-y-2">
             <Label htmlFor="data-retention">Data retention</Label>
+            <div className="text-sm text-muted-foreground mb-2">
+              How long to keep learning data for AI improvements
+            </div>
             <Select 
               value={settings.dataRetention} 
-              onValueChange={(value) => updateSetting('dataRetention', value)}
+              onValueChange={(value) => updateSetting('dataRetention', value as any)}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select retention period" />
@@ -429,17 +480,14 @@ export default function AIEmailSettingsPage() {
                 <SelectItem value="forever">Forever</SelectItem>
               </SelectContent>
             </Select>
-            <p className="text-sm text-muted-foreground">
-              How long to keep learning data for AI improvements
-            </p>
           </div>
-          
+
           <div className="flex items-center justify-between">
-            <div className="space-y-1">
+            <div className="space-y-0.5">
               <Label htmlFor="share-improvement">Share for improvement</Label>
-              <p className="text-sm text-muted-foreground">
+              <div className="text-sm text-muted-foreground">
                 Help improve AI for all users (anonymized data only)
-              </p>
+              </div>
             </div>
             <Switch
               id="share-improvement"
@@ -450,7 +498,7 @@ export default function AIEmailSettingsPage() {
         </CardContent>
       </Card>
 
-      {/* Help Section */}
+      {/* How It Works */}
       <Card>
         <CardHeader>
           <div className="flex items-center space-x-2">
@@ -459,7 +507,7 @@ export default function AIEmailSettingsPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="space-y-3 text-sm">
+          <div className="space-y-4">
             <div className="flex items-start space-x-3">
               <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-semibold text-xs">1</div>
               <div>
@@ -488,11 +536,29 @@ export default function AIEmailSettingsPage() {
         </CardContent>
       </Card>
 
+      {/* Success Message */}
+      {showSuccessMessage && (
+        <div className="bg-green-50 border border-green-200 rounded-md p-4 mb-4">
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm font-medium text-green-800">
+                Settings saved successfully!
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Save Button */}
       <div className="flex justify-end">
         <Button 
           onClick={handleSaveSettings}
-          disabled={saving}
+          disabled={saving || !hasChanges}
           className="min-w-[120px]"
         >
           {saving ? (

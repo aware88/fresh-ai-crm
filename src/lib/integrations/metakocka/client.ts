@@ -423,28 +423,31 @@ export class MetakockaClient {
    * @throws MetakockaError on failure
    */
   /**
-   * Add a new partner (contact) to Metakocka
-   * @param partner Partner data
-   * @returns API response with partner ID
+   * Get a specific partner from Metakocka by ID
+   * @param partnerId - The partner ID to retrieve
+   * @returns API response with partner data
    */
-  async addPartner(partner: MetakockaPartner): Promise<MetakockaPartnerResponse> {
-    return this.request<MetakockaPartnerResponse>('partner_add', partner);
+  async getPartner(partnerId: string): Promise<any> {
+    return this.request<any>('get_partner', { mk_id: partnerId });
   }
-  
+
   /**
-   * Update an existing partner in Metakocka
-   * @param partner Partner data with mk_id
+   * Add a new partner to Metakocka
+   * @param partnerData - Partner data to create
    * @returns API response
    */
-  async updatePartner(partner: MetakockaPartner): Promise<MetakockaBaseResponse> {
-    if (!partner.mk_id) {
-      throw new MetakockaError(
-        'Partner ID (mk_id) is required for updates',
-        MetakockaErrorType.VALIDATION
-      );
-    }
-    
-    return this.request<MetakockaBaseResponse>('partner_update', partner);
+  async addPartner(partnerData: any): Promise<any> {
+    return this.request<any>('add_partner', partnerData);
+  }
+
+  /**
+   * Update an existing partner in Metakocka
+   * @param partnerId - The partner ID to update
+   * @param partnerData - Updated partner data
+   * @returns API response
+   */
+  async updatePartner(partnerId: string, partnerData: any): Promise<any> {
+    return this.request<any>('update_partner', { mk_id: partnerId, ...partnerData });
   }
   
   /**
@@ -454,25 +457,6 @@ export class MetakockaClient {
    */
   async deletePartner(partnerId: string): Promise<MetakockaBaseResponse> {
     return this.request<MetakockaBaseResponse>('partner_delete', { mk_id: partnerId });
-  }
-  
-  /**
-   * Get a list of partners from Metakocka
-   * @returns API response with partners
-   */
-  async listPartners(): Promise<any> {
-    return this.request<any>('partner_list', {});
-  }
-  
-  /**
-   * Get a partner by ID or code
-   * @param idOrCode Partner ID or code
-   * @param isCode Whether the provided value is a code (true) or ID (false)
-   * @returns API response with partner details
-   */
-  async getPartner(idOrCode: string, isCode: boolean = false): Promise<any> {
-    const param = isCode ? { count_code: idOrCode } : { mk_id: idOrCode };
-    return this.request<any>('partner_get', param);
   }
   
   /**

@@ -1,11 +1,13 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Progress } from '@/components/ui/progress';
-import { User, Brain, Target, MessageSquare, TrendingUp, AlertCircle, CheckCircle, Lightbulb, Clock } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { User, Brain, Target, MessageSquare, TrendingUp, AlertCircle, CheckCircle, Lightbulb, Clock, Save, UserPlus, Mail, PenTool } from 'lucide-react';
+import { useToast } from '@/components/ui/use-toast';
 
 // Loading Modal Component
 export function AnalysisLoadingModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
@@ -88,6 +90,7 @@ interface AnalysisResultsModalProps {
   emailInfo: {
     from: string;
     subject: string;
+    body?: string;
   };
 }
 
@@ -97,7 +100,76 @@ export const AnalysisResultsModal: React.FC<AnalysisResultsModalProps> = ({
   result,
   emailInfo
 }) => {
+  const [isSaving, setIsSaving] = useState(false);
+  const [isGeneratingDraft, setIsGeneratingDraft] = useState(false);
+  const { toast } = useToast();
+  
   if (!result) return null;
+
+  const handleSaveToContact = async () => {
+    setIsSaving(true);
+    try {
+      const response = await fetch('/api/contacts/save-analysis', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          emailInfo,
+          analysisResult: result,
+          salesResult: null // Only AI analysis for this modal
+        }),
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        toast({
+          title: "Analysis Saved!",
+          description: data.message,
+        });
+      } else {
+        toast({
+          title: "Save Failed",
+          description: data.error || 'Failed to save analysis to contact',
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Error saving to contact:', error);
+      toast({
+        title: "Error",
+        description: 'An error occurred while saving to contact',
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleGenerateDraft = async () => {
+    setIsGeneratingDraft(true);
+    try {
+      // For now, just show a message about using the existing AI draft system
+      toast({
+        title: "AI Draft Ready!",
+        description: `Use the AI Draft Assistant in your email client to generate a personalized response based on this personality analysis.`,
+      });
+      
+      // In the future, this would integrate with the existing AIDraftWindow
+      // by opening it in a new tab or embedding it in the current view
+      
+    } catch (error) {
+      console.error('Error generating draft:', error);
+      toast({
+        title: "Error",
+        description: 'An error occurred while generating draft response',
+        variant: "destructive",
+      });
+    } finally {
+      setIsGeneratingDraft(false);
+    }
+  };
 
   // Provide safe defaults for all nested properties
   const analysis = result.analysis || {};
@@ -143,14 +215,57 @@ export const AnalysisResultsModal: React.FC<AnalysisResultsModalProps> = ({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Brain className="h-5 w-5 text-purple-600" />
-            AI Email Analysis Complete
-          </DialogTitle>
-          <DialogDescription>
-            <span className="block mb-1"><strong>From:</strong> {emailInfo.from}</span>
-            <span className="block"><strong>Subject:</strong> {emailInfo.subject}</span>
-          </DialogDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <DialogTitle className="flex items-center gap-2">
+                <Brain className="h-5 w-5 text-purple-600" />
+                AI Email Analysis Complete
+              </DialogTitle>
+              <DialogDescription>
+                <span className="block mb-1"><strong>From:</strong> {emailInfo.from}</span>
+                <span className="block"><strong>Subject:</strong> {emailInfo.subject}</span>
+              </DialogDescription>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={handleGenerateDraft}
+                disabled={isGeneratingDraft}
+                className="bg-blue-600 hover:bg-blue-700"
+                size="sm"
+              >
+                {isGeneratingDraft ? (
+                  <>
+                    <PenTool className="h-4 w-4 mr-2 animate-spin" />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <Mail className="h-4 w-4 mr-2" />
+                    Draft Response
+                  </>
+                )}
+              </Button>
+
+              <Button
+                onClick={handleSaveToContact}
+                disabled={isSaving}
+                className="bg-green-600 hover:bg-green-700"
+                size="sm"
+              >
+                {isSaving ? (
+                  <>
+                    <Save className="h-4 w-4 mr-2 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <UserPlus className="h-4 w-4 mr-2" />
+                    Save to Contact
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
         </DialogHeader>
 
         <ScrollArea className="max-h-[70vh] pr-4">

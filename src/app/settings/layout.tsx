@@ -54,6 +54,11 @@ const sidebarNavItems = [
     group: 'Communication'
   },
   {
+    title: 'Email Learning',
+    href: '/settings/learning',
+    group: 'Communication'
+  },
+  {
     title: 'Notifications',
     href: '/settings/notifications',
     group: 'Preferences'

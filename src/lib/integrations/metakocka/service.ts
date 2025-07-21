@@ -197,4 +197,92 @@ export class MetakockaService {
   static async getInstance(userId: string, useEnhanced: boolean = true): Promise<MetakockaClient> {
     return this.getClientForUser(userId, useEnhanced);
   }
+
+  /**
+   * Test Metakocka credentials by making a simple API call
+   * @param credentials Metakocka credentials to test
+   * @returns Promise<boolean> - true if credentials are valid
+   */
+  static async testCredentials(credentials: MetakockaCredentials): Promise<boolean> {
+    try {
+      // Use the correct Metakocka API endpoint and format
+      const apiEndpoint = credentials.apiEndpoint || 'https://main.metakocka.si/rest/eshop/v1/json/';
+      
+      // Make a simple API call using Metakocka's actual format
+      const response = await fetch(`${apiEndpoint}get_product_list`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          secret_key: credentials.secretKey,
+          company_id: credentials.companyId,
+        })
+      });
+
+      if (!response.ok) {
+        throw new MetakockaError(
+          `HTTP Error ${response.status}: ${response.statusText}`,
+          MetakockaErrorType.NETWORK,
+          response.status.toString()
+        );
+      }
+
+      const data = await response.json();
+      
+      // Metakocka API returns opr_code: "0" for success
+      if (data.opr_code === "0") {
+        return true;
+      }
+      
+      // Handle specific Metakocka error codes
+      if (data.opr_code === "1") {
+        throw new MetakockaError(
+          'Invalid credentials - please check your Company ID and Secret Key',
+          MetakockaErrorType.AUTHENTICATION,
+          data.opr_code
+        );
+      }
+      
+      if (data.opr_code === "2") {
+        throw new MetakockaError(
+          'Invalid company ID - please check your Company ID',
+          MetakockaErrorType.VALIDATION,
+          data.opr_code
+        );
+      }
+      
+      // Other error codes
+      const errorMessage = data.opr_desc_app || data.opr_desc || `Metakocka API error (code: ${data.opr_code})`;
+      throw new MetakockaError(
+        errorMessage,
+        MetakockaErrorType.VALIDATION,
+        data.opr_code
+      );
+
+    } catch (error) {
+      if (error instanceof MetakockaError) {
+        throw error;
+      }
+      
+      // Network or other errors
+      ErrorLogger.logError(
+        LogCategory.API, 
+        `Failed to test Metakocka credentials: ${error instanceof Error ? error.message : String(error)}`,
+        { 
+          details: { 
+            companyId: credentials.companyId, 
+            apiEndpoint: credentials.apiEndpoint 
+          } 
+        }
+      );
+      
+      throw new MetakockaError(
+        'Failed to connect to Metakocka - please check your internet connection and API endpoint',
+        MetakockaErrorType.NETWORK,
+        '0',
+        error
+      );
+    }
+  }
 }

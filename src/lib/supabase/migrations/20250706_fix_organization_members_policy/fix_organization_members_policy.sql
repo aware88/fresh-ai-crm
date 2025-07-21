@@ -3,52 +3,36 @@ DROP POLICY IF EXISTS organization_members_select_policy ON public.organization_
 DROP POLICY IF EXISTS organization_members_insert_policy ON public.organization_members;
 DROP POLICY IF EXISTS organization_members_update_policy ON public.organization_members;
 DROP POLICY IF EXISTS organization_members_delete_policy ON public.organization_members;
+DROP POLICY IF EXISTS organization_members_service_role_policy ON public.organization_members;
 
--- Create non-recursive policies
--- Policy for SELECT: Users can view organizations they are members of
+-- Create simple, non-recursive policies
+-- Policy for SELECT: Users can only view their own memberships
 CREATE POLICY organization_members_select_policy ON public.organization_members
   FOR SELECT USING (
-    -- User can see their own memberships
     auth.uid() = user_id
-    -- Or user is an admin of the organization
-    OR EXISTS (
-      SELECT 1 FROM public.organizations o
-      WHERE o.id = organization_id AND o.created_by = auth.uid()
-    )
   );
 
--- Policy for INSERT: Users can only add themselves or be added by organization admins
+-- Policy for INSERT: Only authenticated users can insert their own memberships
 CREATE POLICY organization_members_insert_policy ON public.organization_members
   FOR INSERT WITH CHECK (
-    -- User can add themselves (if invited)
     auth.uid() = user_id
-    -- Or user is an admin of the organization
-    OR EXISTS (
-      SELECT 1 FROM public.organizations o
-      WHERE o.id = organization_id AND o.created_by = auth.uid()
-    )
   );
 
--- Policy for UPDATE: Users can update their own membership or be updated by organization admins
+-- Policy for UPDATE: Users can only update their own memberships
 CREATE POLICY organization_members_update_policy ON public.organization_members
   FOR UPDATE USING (
-    -- User can update their own membership
     auth.uid() = user_id
-    -- Or user is an admin of the organization
-    OR EXISTS (
-      SELECT 1 FROM public.organizations o
-      WHERE o.id = organization_id AND o.created_by = auth.uid()
-    )
   );
 
--- Policy for DELETE: Users can remove themselves or be removed by organization admins
+-- Policy for DELETE: Users can only delete their own memberships
 CREATE POLICY organization_members_delete_policy ON public.organization_members
   FOR DELETE USING (
-    -- User can remove themselves
     auth.uid() = user_id
-    -- Or user is an admin of the organization
-    OR EXISTS (
-      SELECT 1 FROM public.organizations o
-      WHERE o.id = organization_id AND o.created_by = auth.uid()
-    )
+  );
+
+-- Create a separate policy for service role to bypass these restrictions
+-- This allows admin operations without recursion
+CREATE POLICY organization_members_service_role_policy ON public.organization_members
+  FOR ALL USING (
+    current_setting('role') = 'service_role'
   );

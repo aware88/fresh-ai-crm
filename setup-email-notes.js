@@ -1,0 +1,57 @@
+#!/usr/bin/env node
+
+console.log('🗒️  EmailNotes Database Setup');
+console.log('=' .repeat(50));
+console.log();
+
+console.log('📋 TO COMPLETE SETUP:');
+console.log();
+console.log('1. Go to your Supabase Dashboard');
+console.log('2. Navigate to SQL Editor');
+console.log('3. Run the following SQL:');
+console.log();
+console.log('-- Email Notes Table');
+console.log('CREATE TABLE IF NOT EXISTS public.email_notes (');
+console.log('  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),');
+console.log('  user_id UUID NOT NULL,');
+console.log('  organization_id UUID,');
+console.log('  email_id TEXT NOT NULL,');
+console.log('  email_subject TEXT,');
+console.log('  email_from TEXT,');
+console.log('  note_content TEXT NOT NULL,');
+console.log('  note_type TEXT DEFAULT \'note\',');
+console.log('  is_private BOOLEAN DEFAULT false,');
+console.log('  created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),');
+console.log('  updated_at TIMESTAMP WITH TIME ZONE DEFAULT now(),');
+console.log('  created_by_name TEXT');
+console.log(');');
+console.log();
+console.log('-- Indexes');
+console.log('CREATE INDEX email_notes_email_id_idx ON public.email_notes (email_id);');
+console.log('CREATE INDEX email_notes_organization_id_idx ON public.email_notes (organization_id);');
+console.log();
+console.log('-- RLS Policies');
+console.log('ALTER TABLE public.email_notes ENABLE ROW LEVEL SECURITY;');
+console.log();
+console.log('CREATE POLICY "Users can view own notes" ON public.email_notes');
+console.log('  FOR SELECT USING (auth.uid() = user_id);');
+console.log();
+console.log('CREATE POLICY "Users can view org notes" ON public.email_notes');
+console.log('  FOR SELECT USING (organization_id IS NOT NULL AND is_private = false);');
+console.log();
+console.log('CREATE POLICY "Users can insert notes" ON public.email_notes');
+console.log('  FOR INSERT WITH CHECK (auth.uid() = user_id);');
+console.log();
+console.log('CREATE POLICY "Users can update own notes" ON public.email_notes');
+console.log('  FOR UPDATE USING (auth.uid() = user_id);');
+console.log();
+console.log('CREATE POLICY "Users can delete own notes" ON public.email_notes');
+console.log('  FOR DELETE USING (auth.uid() = user_id);');
+console.log();
+console.log('✅ After running this SQL, your EmailNotes system will be ready!');
+console.log();
+console.log('📧 The system is now integrated into your email interface.');
+console.log('🔒 Notes can be private (only you see) or team notes (organization sees).');
+console.log('🏷️  Three types: Note, Action Item, Important.');
+console.log();
+

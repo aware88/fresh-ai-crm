@@ -4,7 +4,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../../../auth/[...nextauth]/route';
-import { AutoSyncManager, AutoSyncConfig, initializeAutoSync, stopAutoSync } from '@/lib/integrations/metakocka/auto-sync';
+import { AutoSyncManager, AutoSyncConfig, initializeAutoSync, stopAutoSync, triggerManualSync } from '@/lib/integrations/metakocka/auto-sync';
 
 /**
  * GET /api/integrations/metakocka/auto-sync
@@ -56,6 +56,10 @@ export async function POST(request: NextRequest) {
       const syncManager = AutoSyncManager.getInstance();
       syncManager.updateConfig(config);
       return NextResponse.json({ success: true, message: 'Auto-sync configured' });
+    } else if (action === 'manual-sync') {
+      // Trigger immediate sync
+      await triggerManualSync(session.user.id);
+      return NextResponse.json({ success: true, message: 'Manual sync completed successfully' });
     } else {
       return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
     }

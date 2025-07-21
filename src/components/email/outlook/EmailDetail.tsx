@@ -5,7 +5,7 @@ import { useSession } from 'next-auth/react';
 import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
-import EmailComments from './EmailComments';
+import EmailNotes from '../EmailNotes';
 import EmailAttachments from './EmailAttachments';
 import EmailLanguageDetection from './EmailLanguageDetection';
 import AIDraftWindow from '../AIDraftWindow';
@@ -224,10 +224,17 @@ export default function EmailDetail({ messageId, onReply, onReplyAll, onForward 
           </div>
         </div>
         
-        <div 
-          className="email-body prose max-w-none mb-6" 
-          dangerouslySetInnerHTML={{ __html: email.body.content }} 
-        />
+        <div className="email-content max-w-none mb-6">
+          <div 
+            className="text-sm text-gray-800 leading-relaxed break-words overflow-hidden"
+            style={{
+              fontFamily: 'system-ui, -apple-system, sans-serif',
+              lineHeight: '1.6',
+              wordWrap: 'break-word'
+            }}
+            dangerouslySetInnerHTML={{ __html: email.body.content }} 
+          />
+        </div>
         
         {email.hasAttachments && email.attachments && email.attachments.length > 0 && (
           <div className="email-attachments border-t pt-4 mb-4">
@@ -269,7 +276,7 @@ export default function EmailDetail({ messageId, onReply, onReplyAll, onForward 
         </div>
         
         {/* Comments section */}
-        <EmailComments messageId={email.id} />
+        <EmailNotes emailId={email.id} emailSubject={email.subject} emailFrom={email.from.emailAddress.address} />
       </div>
 
       {/* AI Draft Window */}

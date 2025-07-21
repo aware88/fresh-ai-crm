@@ -14,6 +14,84 @@ const debugLog = (message: string, data?: any) => {
 };
 
 /**
+ * Sample analytics data for development mode
+ */
+const developmentAnalyticsData = {
+  counts: {
+    revenue: 15420,
+    orders: 23,
+    customers: 8,
+    suppliers: 5,
+    products: 12,
+    documents: 18
+  },
+  pricing: {
+    average: 145.50,
+    minimum: 25.00,
+    maximum: 450.00
+  },
+  revenue: {
+    total: 15420,
+    previousPeriod: 12350,
+    percentChange: 24.86
+  },
+  orders: {
+    total: 23,
+    previousPeriod: 18,
+    percentChange: 27.78
+  },
+  customers: {
+    total: 8,
+    previousPeriod: 6,
+    percentChange: 33.33
+  },
+  suppliers: {
+    total: 5,
+    previousPeriod: 4,
+    percentChange: 25.00
+  }
+};
+
+/**
+ * Empty analytics data for when no real data exists
+ */
+const emptyAnalyticsData = {
+  counts: {
+    revenue: 0,
+    orders: 0,
+    customers: 0,
+    suppliers: 0,
+    products: 0,
+    documents: 0
+  },
+  pricing: {
+    average: 0,
+    minimum: 0,
+    maximum: 0
+  },
+  revenue: {
+    total: 0,
+    previousPeriod: 0,
+    percentChange: 0
+  },
+  orders: {
+    total: 0,
+    previousPeriod: 0,
+    percentChange: 0
+  },
+  customers: {
+    total: 0,
+    previousPeriod: 0,
+    percentChange: 0
+  },
+  suppliers: {
+    total: 0,
+    previousPeriod: 0,
+    percentChange: 0
+  }
+};
+
+/**
  * Server-side function to fetch analytics data
  */
 export async function fetchAnalyticsServer(): Promise<AnalyticsData & { organizationId: string }> {
@@ -27,11 +105,11 @@ export async function fetchAnalyticsServer(): Promise<AnalyticsData & { organiza
   const organizationId = session?.user?.id || (isDev() ? "dev-user-id" : "");
   debugLog('Organization ID:', organizationId);
   
-  // In development mode, return mock data
+  // In development mode, return sample data instead of empty data
   if (isDev()) {
-    debugLog('Using mock analytics data in development mode');
+    debugLog('Using sample analytics data in development mode');
     return {
-      ...mockAnalyticsData,
+      ...developmentAnalyticsData,
       organizationId
     };
   }
@@ -46,11 +124,15 @@ export async function fetchAnalyticsServer(): Promise<AnalyticsData & { organiza
   }
   
   try {
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/analytics`, {
+    // Use full URL for production, relative URL for development/server-side
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_SITE_URL || '';
+    const apiUrl = baseUrl ? `${baseUrl}/api/analytics` : '/api/analytics';
+    
+    const response = await fetch(apiUrl, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-        'Cookie': cookies().toString(),
+        'Cookie': (await cookies()).toString(),
       },
       next: { tags: ['analytics'] },
     });
@@ -69,7 +151,11 @@ export async function fetchAnalyticsServer(): Promise<AnalyticsData & { organiza
     };
   } catch (error) {
     console.error('Error in fetchAnalyticsServer:', error);
-    throw error;
+    // Fallback to empty data on error
+    return {
+      ...emptyAnalyticsData,
+      organizationId
+    };
   }
 }
 
@@ -79,10 +165,15 @@ export async function fetchAnalyticsServer(): Promise<AnalyticsData & { organiza
 export async function fetchSupplierDistributionServer() {
   const session = await getServerSession();
   
-  // In development mode, return mock data
+  // In development mode, return sample data
   if (isDev()) {
-    debugLog('Using mock supplier data in development mode');
-    return mockSupplierData;
+    debugLog('Using sample supplier data in development mode');
+    return [
+      { name: "Tech Corp", count: 5, reliabilityScore: 85 },
+      { name: "Global Supplies", count: 3, reliabilityScore: 92 },
+      { name: "Local Materials", count: 4, reliabilityScore: 78 },
+      { name: "Premium Parts", count: 2, reliabilityScore: 95 }
+    ];
   }
   
   // In production, require authentication
@@ -90,21 +181,29 @@ export async function fetchSupplierDistributionServer() {
     throw new Error('Unauthorized: No session found');
   }
   
-  const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/analytics/suppliers`, {
-    method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-      'Cookie': cookies().toString(),
-    },
-    next: { tags: ['analytics-suppliers'] },
-  });
+  try {
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_SITE_URL || '';
+    const apiUrl = baseUrl ? `${baseUrl}/api/analytics/suppliers` : '/api/analytics/suppliers';
+    
+    const response = await fetch(apiUrl, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Cookie': (await cookies()).toString(),
+      },
+      next: { tags: ['analytics-suppliers'] },
+    });
 
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || 'Failed to fetch supplier distribution data');
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to fetch supplier distribution data');
+    }
+
+    return response.json();
+  } catch (error) {
+    console.error('Error in fetchSupplierDistributionServer:', error);
+    return [];
   }
-
-  return response.json();
 }
 
 /**
@@ -113,10 +212,16 @@ export async function fetchSupplierDistributionServer() {
 export async function fetchProductDistributionServer() {
   const session = await getServerSession();
   
-  // In development mode, return mock data
+  // In development mode, return sample data
   if (isDev()) {
-    debugLog('Using mock product data in development mode');
-    return mockProductData;
+    debugLog('Using sample product data in development mode');
+    return [
+      { name: "Electronics", value: 8 },
+      { name: "Tools", value: 5 },
+      { name: "Materials", value: 3 },
+      { name: "Components", value: 12 },
+      { name: "Software", value: 2 }
+    ];
   }
   
   // In production, require authentication
@@ -124,21 +229,29 @@ export async function fetchProductDistributionServer() {
     throw new Error('Unauthorized: No session found');
   }
   
-  const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/analytics/products`, {
-    method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-      'Cookie': cookies().toString(),
-    },
-    next: { tags: ['analytics-products'] },
-  });
+  try {
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_SITE_URL || '';
+    const apiUrl = baseUrl ? `${baseUrl}/api/analytics/products` : '/api/analytics/products';
+    
+    const response = await fetch(apiUrl, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Cookie': (await cookies()).toString(),
+      },
+      next: { tags: ['analytics-products'] },
+    });
 
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || 'Failed to fetch product distribution data');
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to fetch product distribution data');
+    }
+
+    return response.json();
+  } catch (error) {
+    console.error('Error in fetchProductDistributionServer:', error);
+    return [];
   }
-
-  return response.json();
 }
 
 /**
@@ -147,10 +260,15 @@ export async function fetchProductDistributionServer() {
 export async function fetchPriceTrendsServer() {
   const session = await getServerSession();
   
-  // In development mode, return mock data
+  // In development mode, return sample data
   if (isDev()) {
-    debugLog('Using mock price data in development mode');
-    return mockPriceData;
+    debugLog('Using sample price data in development mode');
+    return [
+      { name: "2024-01", min: 25, avg: 145, max: 450 },
+      { name: "2024-02", min: 30, avg: 152, max: 425 },
+      { name: "2024-03", min: 28, avg: 148, max: 480 },
+      { name: "2024-04", min: 35, avg: 165, max: 520 }
+    ];
   }
   
   // In production, require authentication
@@ -158,19 +276,27 @@ export async function fetchPriceTrendsServer() {
     throw new Error('Unauthorized: No session found');
   }
   
-  const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/analytics/pricing`, {
-    method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-      'Cookie': cookies().toString(),
-    },
-    next: { tags: ['analytics-pricing'] },
-  });
+  try {
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_SITE_URL || '';
+    const apiUrl = baseUrl ? `${baseUrl}/api/analytics/pricing` : '/api/analytics/pricing';
+    
+    const response = await fetch(apiUrl, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Cookie': (await cookies()).toString(),
+      },
+      next: { tags: ['analytics-pricing'] },
+    });
 
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || 'Failed to fetch price trends data');
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to fetch price trends data');
+    }
+
+    return response.json();
+  } catch (error) {
+    console.error('Error in fetchPriceTrendsServer:', error);
+    return [];
   }
-
-  return response.json();
 }

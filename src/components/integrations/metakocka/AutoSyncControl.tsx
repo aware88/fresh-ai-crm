@@ -121,6 +121,32 @@ export default function AutoSyncControl() {
     }
   };
 
+  const triggerManualSync = async () => {
+    try {
+      setUpdating(true);
+      setError(null);
+      setSuccess(null);
+
+      const response = await fetch('/api/integrations/metakocka/auto-sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'manual-sync' }),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        setSuccess(result.message || 'Manual sync triggered successfully');
+      } else {
+        const error = await response.json();
+        setError(error.error || 'Failed to trigger manual sync');
+      }
+    } catch (err) {
+      setError('Failed to trigger manual sync');
+    } finally {
+      setUpdating(false);
+    }
+  };
+
   const handleIntervalChange = (type: string, value: string) => {
     if (!status) return;
     
@@ -223,13 +249,23 @@ export default function AutoSyncControl() {
               Automatically sync data between CRM and Metakocka in the background
             </p>
           </div>
-          <Button
-            onClick={toggleAutoSync}
-            disabled={updating}
-            variant={status.isRunning ? 'destructive' : 'default'}
-          >
-            {updating ? 'Updating...' : status.isRunning ? 'Stop Sync' : 'Start Sync'}
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              onClick={triggerManualSync}
+              disabled={updating}
+              variant="outline"
+              size="sm"
+            >
+              {updating ? 'Syncing...' : 'Sync Now'}
+            </Button>
+            <Button
+              onClick={toggleAutoSync}
+              disabled={updating}
+              variant={status.isRunning ? 'destructive' : 'default'}
+            >
+              {updating ? 'Updating...' : status.isRunning ? 'Stop Sync' : 'Start Sync'}
+            </Button>
+          </div>
         </div>
 
         <Separator />

@@ -1,19 +1,19 @@
 'use client';
 
 import React from 'react';
-import { useSession } from 'next-auth/react';
+import { useOptimizedAuth } from '@/hooks/useOptimizedAuth';
 import { redirect } from 'next/navigation';
 import { UnifiedDataUploader } from '@/components/settings/UnifiedDataUploader';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 export default function DataManagementPage() {
-  const { data: session, status } = useSession();
+  const { data: session, status } = useOptimizedAuth();
 
   if (status === 'loading') {
     return <div>Loading...</div>;
   }
 
-  if (status === 'unauthenticated') {
+  if (status === 'unauthenticated' && !session) {
     redirect('/signin');
   }
 

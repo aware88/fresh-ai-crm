@@ -40,13 +40,57 @@ export async function readInboxAndProfile(authToken?: string) {
         const analysis = await analyzeEmailWithAI(email.body);
         console.log(`Analyzed email from ${senderEmail}`);
 
-        // Step 2: Upsert the contact
-        const contactId = await upsertContact({
-          email: senderEmail,
-          name: senderName,
-          authToken
-        });
-        console.log(`Upserted contact with ID: ${contactId}`);
+        // Step 2: Get user data for enrichment
+        let contactId: string;
+        
+        // Get the current user's ID
+        const { data: userData, error: userError } = authToken
+          ? await supabase.auth.getUser(authToken)
+          : await supabase.auth.getUser();
+        
+        if (userError || !userData.user?.id) {
+          console.warn('Could not get user ID, falling back to basic upsert');
+          contactId = await upsertContact({
+            email: senderEmail,
+            name: senderName,
+            authToken
+          });
+        } else {
+          // Step 2.1: Try to enrich contact with Metakocka data (NEW FLOW)
+          try {
+            const { enrichContactFromEmail } = await import('@/lib/integrations/metakocka/contact-enricher');
+            const enrichmentResult = await enrichContactFromEmail(
+              email.id || email.subject || 'temp-id',
+              senderEmail,
+              senderName,
+              userData.user.id,
+              undefined // organizationId - could be extracted from user context
+            );
+            
+            console.log(`Contact enrichment completed:`, enrichmentResult.actions);
+            if (enrichmentResult.error) {
+              console.warn(`Contact enrichment warning: ${enrichmentResult.error}`);
+            }
+            
+            // Use enriched contact ID if available, otherwise fallback to basic upsert
+            contactId = enrichmentResult.crmContact?.id || await upsertContact({
+              email: senderEmail,
+              name: senderName,
+              authToken
+            });
+            console.log(`Contact ID: ${contactId}`);
+          } catch (enrichmentError) {
+            console.warn(`Contact enrichment failed, falling back to basic upsert:`, enrichmentError);
+            
+            // Fallback to original upsert method
+            contactId = await upsertContact({
+              email: senderEmail,
+              name: senderName,
+              authToken
+            });
+            console.log(`Upserted contact with ID: ${contactId}`);
+          }
+        }
 
         // Step 3: Store the email and analysis
         const emailId = await storeEmail({

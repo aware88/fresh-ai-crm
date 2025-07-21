@@ -123,21 +123,23 @@ export async function POST(request: NextRequest) {
       let attempts = 0;
       const maxAttempts = 3;
       
-      // Retry user verification with exponential backoff
+      // Retry user verification with exponential backoff using service role client
+      const serviceSupabaseForVerification = createServiceRoleClient();
+      
       while (!userExists && attempts < maxAttempts) {
         attempts++;
-        const { data: userData, error: userCheckError } = await supabase.auth.admin.getUserById(createdBy);
+        const { data: userData, error: userCheckError } = await serviceSupabaseForVerification.auth.admin.getUserById(createdBy);
         
         if (!userCheckError && userData.user) {
           userExists = userData.user;
           break;
         }
         
-        console.log(`User verification attempt ${attempts}/${maxAttempts} failed:`, userCheckError?.message);
+        console.log(`User verification attempt ${attempts}/${maxAttempts} failed:`, userCheckError?.message || 'Unknown error');
         
         if (attempts < maxAttempts) {
-          // Wait before retrying (exponential backoff: 500ms, 1000ms, 2000ms)
-          await new Promise(resolve => setTimeout(resolve, 500 * Math.pow(2, attempts - 1)));
+          // Wait before retrying (exponential backoff: 1s, 2s, 4s)
+          await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, attempts - 1)));
         }
       }
       
@@ -156,11 +158,8 @@ export async function POST(request: NextRequest) {
       created_by: createdBy
     };
     
-    // Add subscription plan if provided
-    if (subscription_plan) {
-      orgData.subscription_tier = subscription_plan;
-      orgData.subscription_status = 'active';
-    }
+    // Note: subscription fields are not available in current schema
+    // This will be handled separately when subscription system is fully implemented
 
     // Create the organization
     console.log('Creating organization with data:', orgData);
@@ -195,14 +194,13 @@ export async function POST(request: NextRequest) {
           is_owner: true 
         });
         
-        // Add user to organization with admin role and owner status
+        // Add user to organization with admin role
         const { error: userOrgError } = await serviceSupabase
           .from('organization_members')
           .insert({
             user_id: admin_user_id,
             organization_id: organization.id,
-            role: 'admin',
-            is_owner: true
+            role: 'admin'
           });
         
         if (userOrgError) {

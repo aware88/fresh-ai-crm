@@ -11,6 +11,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import { 
   CreditCard, 
   Calendar, 
@@ -73,10 +74,12 @@ export default function SubscriptionPage() {
   const { toast } = useToast();
   
   const [currentSubscription, setCurrentSubscription] = useState<OrganizationSubscription | null>(null);
+  const [currentPlan, setCurrentPlan] = useState<SubscriptionPlan | null>(null);
   const [availablePlans, setAvailablePlans] = useState<SubscriptionPlan[]>([]);
   const [recentInvoices, setRecentInvoices] = useState<SubscriptionInvoice[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isAnnual, setIsAnnual] = useState(false);
   
   // Dialog states
   const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
@@ -110,6 +113,7 @@ export default function SubscriptionPage() {
         if (subscriptionResponse.ok) {
           const subscriptionData = await subscriptionResponse.json();
           setCurrentSubscription(subscriptionData.subscription);
+          setCurrentPlan(subscriptionData.plan);
         }
         
         // Fetch recent invoices for organization
@@ -128,6 +132,7 @@ export default function SubscriptionPage() {
         if (subscriptionResponse.ok) {
           const subscriptionData = await subscriptionResponse.json();
           setCurrentSubscription(subscriptionData.subscription);
+          setCurrentPlan(subscriptionData.plan);
         }
         
         // Fetch recent invoices for individual user
@@ -148,160 +153,96 @@ export default function SubscriptionPage() {
         const plansData = await plansResponse.json();
         setAvailablePlans(plansData.plans || []);
       }
-    } catch (err) {
-      console.error('Error fetching subscription data:', err);
-      setError('Failed to load subscription data. Please try again later.');
+      
+    } catch (error) {
+      console.error('Error fetching subscription data:', error);
+      setError('Failed to load subscription information');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleUpgradePlan = (plan: SubscriptionPlan) => {
-    setSelectedPlan(plan);
-    setSelectedBillingCycle(plan.billing_interval);
-    setShowUpgradeDialog(true);
+  // Get current plan name (case-insensitive comparison)
+  const getCurrentPlanName = () => {
+    return currentPlan?.name || currentSubscription?.subscription_plan?.name || '';
   };
 
-  const handleChangeBillingCycle = async () => {
-    if (!currentSubscription || !selectedPlan) return;
-    
-    setIsProcessing(true);
-    
-    try {
-      const response = await fetch('/api/subscription/change-plan', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          organizationId: organizationId || undefined,
-          userId: isIndividualUser ? userId : undefined,
-          planId: selectedPlan.id,
-          billingCycle: selectedBillingCycle,
-          subscriptionId: currentSubscription.id,
-        }),
-      });
-      
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to change subscription');
+  // Check if a plan is currently active
+  const isPlanActive = (planName: string) => {
+    const currentPlanName = getCurrentPlanName().toLowerCase();
+    return currentPlanName === planName.toLowerCase();
+  };
+
+  // Pricing data based on screenshots
+  const getPlanPricing = (planName: string, isAnnual: boolean) => {
+    const pricing = {
+      starter: {
+        monthly: { original: 19, current: 0, savings: 0 },
+        annual: { original: 15, current: 0, savings: 48 }
+      },
+      pro: {
+        monthly: { original: 59, current: 0, savings: 0 },
+        annual: { original: 45, current: 0, savings: 168 }
+      },
+      premium: {
+        monthly: { original: 197, current: 197, savings: 0 },
+        annual: { original: 157, current: 157, savings: 480 }
       }
-      
-      toast({
-        title: 'Subscription Updated',
-        description: `Successfully ${selectedPlan.id === currentSubscription.subscription_plan_id ? 'changed billing cycle' : 'upgraded plan'}.`,
-      });
-      
-      setShowUpgradeDialog(false);
-      fetchSubscriptionData();
-    } catch (err: any) {
-      toast({
-        title: 'Error',
-        description: err.message || 'Failed to update subscription.',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  const handleCancelSubscription = async () => {
-    if (!currentSubscription) return;
-    
-    setIsProcessing(true);
-    
-    try {
-      const response = await fetch('/api/subscription/cancel', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          organizationId,
-          subscriptionId: currentSubscription.id,
-        }),
-      });
-      
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to cancel subscription');
-      }
-      
-      toast({
-        title: 'Subscription Cancelled',
-        description: 'Your subscription will remain active until the end of the current billing period.',
-      });
-      
-      setShowCancelDialog(false);
-      fetchSubscriptionData();
-    } catch (err: any) {
-      toast({
-        title: 'Error',
-        description: err.message || 'Failed to cancel subscription.',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  const getNextBillingDate = () => {
-    if (!currentSubscription) return null;
-    
-    const currentPeriodEnd = new Date(currentSubscription.current_period_end);
-    return currentPeriodEnd;
-  };
-
-  const getNextBillingAmount = () => {
-    if (!currentSubscription?.subscription_plan) return 0;
-    
-    return currentSubscription.subscription_plan.price;
-  };
-
-  const getStatusBadge = (status: string) => {
-    const statusConfig = {
-      active: { color: 'bg-green-100 text-green-800', icon: CheckCircle },
-      trial: { color: 'bg-blue-100 text-blue-800', icon: Clock },
-      canceled: { color: 'bg-red-100 text-red-800', icon: AlertCircle },
-      past_due: { color: 'bg-yellow-100 text-yellow-800', icon: AlertCircle },
-      expired: { color: 'bg-gray-100 text-gray-800', icon: AlertCircle },
     };
-    
-    const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.expired;
-    const Icon = config.icon;
-    
-    return (
-      <Badge className={`${config.color} flex items-center gap-1`}>
-        <Icon className="w-3 h-3" />
-        {status.charAt(0).toUpperCase() + status.slice(1)}
-      </Badge>
-    );
+
+    const plan = pricing[planName.toLowerCase() as keyof typeof pricing];
+    return plan ? plan[isAnnual ? 'annual' : 'monthly'] : { original: 0, current: 0, savings: 0 };
   };
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
+      minimumFractionDigits: 2,
     }).format(amount);
+  };
+
+  const getStatusBadge = (status: string) => {
+    const statusMap = {
+      active: { variant: 'default', label: 'Active' },
+      trial: { variant: 'secondary', label: 'Trial' },
+      canceled: { variant: 'destructive', label: 'Canceled' },
+      past_due: { variant: 'destructive', label: 'Past Due' },
+      expired: { variant: 'destructive', label: 'Expired' },
+    };
+    
+    const statusInfo = statusMap[status as keyof typeof statusMap] || { variant: 'outline', label: status };
+    
+    return (
+      <Badge variant={statusInfo.variant as any}>
+        {statusInfo.label}
+      </Badge>
+    );
+  };
+
+  const handleUpgradePlan = async (plan: SubscriptionPlan) => {
+    setSelectedPlan(plan);
+    setSelectedBillingCycle(plan.billing_interval);
+    setShowUpgradeDialog(true);
+  };
+
+  const handleChangeBillingCycle = async () => {
+    // Handle billing cycle change
+    console.log('Change billing cycle');
+  };
+
+  const handleCancelSubscription = async () => {
+    // Handle subscription cancellation
+    console.log('Cancel subscription');
   };
 
   if (isLoading) {
     return (
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">Subscription</h1>
-            <p className="text-muted-foreground">Manage your subscription and billing</p>
-          </div>
-        </div>
-        <div className="grid gap-6">
-          <div className="h-48 bg-gray-100 rounded-lg animate-pulse"></div>
-          <div className="h-32 bg-gray-100 rounded-lg animate-pulse"></div>
-          <div className="h-64 bg-gray-100 rounded-lg animate-pulse"></div>
+        <div className="animate-pulse space-y-4">
+          <div className="h-8 bg-gray-200 rounded w-1/4"></div>
+          <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+          <div className="h-64 bg-gray-200 rounded"></div>
         </div>
       </div>
     );
@@ -309,18 +250,10 @@ export default function SubscriptionPage() {
 
   if (error) {
     return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">Subscription</h1>
-            <p className="text-muted-foreground">Manage your subscription and billing</p>
-          </div>
-        </div>
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      </div>
+      <Alert>
+        <AlertCircle className="h-4 w-4" />
+        <AlertDescription>{error}</AlertDescription>
+      </Alert>
     );
   }
 
@@ -337,8 +270,8 @@ export default function SubscriptionPage() {
         </Button>
       </div>
 
-      {/* Current Subscription Card */}
-      {currentSubscription && (
+      {/* Current Subscription Status */}
+      {currentSubscription && currentPlan && (
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
@@ -348,55 +281,49 @@ export default function SubscriptionPage() {
                   {getStatusBadge(currentSubscription.status)}
                 </CardTitle>
                 <CardDescription>
-                  {currentSubscription.subscription_plan?.description || 'Your current subscription plan'}
+                  {currentPlan.description || 'Your current subscription plan'}
                 </CardDescription>
               </div>
               <div className="text-right">
                 <div className="text-2xl font-bold">
-                  {currentSubscription.subscription_plan?.name || 'Unknown Plan'}
+                  {currentPlan.name}
                 </div>
                 <div className="text-sm text-muted-foreground">
-                  {formatCurrency(currentSubscription.subscription_plan?.price || 0)}/
-                  {currentSubscription.subscription_plan?.billing_interval || 'month'}
+                  {formatCurrency(currentPlan.price)}/
+                  {currentPlan.billing_interval}
                 </div>
               </div>
             </div>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="flex items-center gap-3">
-                <Calendar className="w-5 h-5 text-muted-foreground" />
-                <div>
-                  <div className="text-sm font-medium">Next Billing</div>
-                  <div className="text-sm text-muted-foreground">
-                    {getNextBillingDate() ? format(getNextBillingDate()!, 'MMM dd, yyyy') : 'N/A'}
-                  </div>
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              <div>
+                <div className="text-sm text-muted-foreground">Current Period</div>
+                <div className="font-medium">
+                  {format(new Date(currentSubscription.current_period_start), 'MMM dd, yyyy')} - {' '}
+                  {format(new Date(currentSubscription.current_period_end), 'MMM dd, yyyy')}
                 </div>
               </div>
-              <div className="flex items-center gap-3">
-                <DollarSign className="w-5 h-5 text-muted-foreground" />
-                <div>
-                  <div className="text-sm font-medium">Next Amount</div>
-                  <div className="text-sm text-muted-foreground">
-                    {formatCurrency(getNextBillingAmount())}
-                  </div>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <CreditCard className="w-5 h-5 text-muted-foreground" />
-                <div>
-                  <div className="text-sm font-medium">Payment Method</div>
-                  <div className="text-sm text-muted-foreground">
-                    {currentSubscription.payment_method_id ? 'Card ending in ****' : 'No payment method'}
-                  </div>
+              <div>
+                <div className="text-sm text-muted-foreground">Next Billing Date</div>
+                <div className="font-medium">
+                  {format(new Date(currentSubscription.current_period_end), 'MMM dd, yyyy')}
                 </div>
               </div>
             </div>
             
-            <Separator className="my-4" />
+            {currentSubscription.cancel_at_period_end && (
+              <Alert className="mb-4">
+                <AlertCircle className="w-4 h-4" />
+                <AlertDescription>
+                  Your subscription will be canceled at the end of the current billing period on{' '}
+                  {format(new Date(currentSubscription.current_period_end), 'MMM dd, yyyy')}.
+                </AlertDescription>
+              </Alert>
+            )}
             
-            <div className="flex flex-wrap gap-2">
-              {currentSubscription.status === 'active' && !currentSubscription.cancel_at_period_end && (
+            <div className="flex gap-2">
+              {!currentSubscription.cancel_at_period_end && (
                 <>
                   <Button 
                     variant="outline" 
@@ -438,35 +365,149 @@ export default function SubscriptionPage() {
         </Card>
       )}
 
-      {/* Available Plans */}
-      {!currentSubscription && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Choose Your Plan</CardTitle>
-            <CardDescription>Select a subscription plan to get started</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {availablePlans.map((plan) => (
-                <div key={plan.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
-                  <div className="text-lg font-semibold">{plan.name}</div>
-                  <div className="text-2xl font-bold mt-2">
-                    {formatCurrency(plan.price)}
-                    <span className="text-sm text-muted-foreground">/{plan.billing_interval}</span>
-                  </div>
-                  <div className="text-sm text-muted-foreground mt-1">{plan.description}</div>
-                  <Button 
-                    className="w-full mt-4" 
-                    onClick={() => handleUpgradePlan(plan)}
-                  >
-                    Select Plan
-                  </Button>
-                </div>
-              ))}
+      {/* Available Plans - Always show for plan comparison */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Choose Your Plan</CardTitle>
+              <CardDescription>Select a subscription plan to get started</CardDescription>
             </div>
-          </CardContent>
-        </Card>
-      )}
+            <div className="flex flex-col items-end space-y-2">
+              <div className="flex items-center space-x-2">
+                <span className="text-sm">Monthly</span>
+                <Switch
+                  checked={isAnnual}
+                  onCheckedChange={setIsAnnual}
+                />
+                <span className="text-sm">Annual</span>
+              </div>
+              {isAnnual && (
+                <Badge variant="secondary" className="text-xs">Save up to 25%</Badge>
+              )}
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Starter Plan */}
+            <div className={`border rounded-lg p-4 hover:shadow-md transition-shadow ${isPlanActive('Starter') ? 'border-blue-500 bg-blue-50' : ''}`}>
+              <div className="text-lg font-semibold">Starter</div>
+              <div className="text-2xl font-bold mt-2">
+                <span className="line-through text-gray-400">
+                  ${getPlanPricing('starter', isAnnual).original}.00
+                </span>
+                <span className="ml-2 text-green-600">
+                  ${getPlanPricing('starter', isAnnual).current}.00
+                </span>
+                <span className="text-sm text-muted-foreground">/{isAnnual ? 'mo' : 'monthly'}</span>
+              </div>
+              {isAnnual && getPlanPricing('starter', isAnnual).savings > 0 && (
+                <div className="text-xs text-green-600 font-medium">Save ${getPlanPricing('starter', isAnnual).savings}/year</div>
+              )}
+              <div className="text-xs text-green-600 font-medium">Free for Limited Time</div>
+              <div className="text-sm text-muted-foreground mt-1">Perfect for Solo Entrepreneurs</div>
+              {isPlanActive('Starter') && (
+                <div className="flex items-center gap-2 mt-2">
+                  <CheckCircle className="w-4 h-4 text-green-600" />
+                  <span className="text-sm text-green-600 font-medium">Active Plan</span>
+                </div>
+              )}
+              <Button 
+                className="w-full mt-4" 
+                variant={isPlanActive('Starter') ? 'secondary' : 'default'}
+                disabled={isPlanActive('Starter')}
+                onClick={() => {
+                  if (!isPlanActive('Starter')) {
+                    handleUpgradePlan({
+                      id: 'starter',
+                      name: 'Starter',
+                      description: 'Perfect for Solo Entrepreneurs',
+                      price: 0,
+                      billing_interval: 'monthly',
+                      features: {},
+                      is_active: true,
+                      created_at: '',
+                      updated_at: ''
+                    });
+                  }
+                }}
+              >
+                {isPlanActive('Starter') ? 'Current Plan' : (isAnnual ? 'Join Beta - Free Limited Time' : 'Select Plan')}
+              </Button>
+            </div>
+
+            {/* Pro Plan */}
+            <div className={`border rounded-lg p-4 hover:shadow-md transition-shadow ${isPlanActive('Pro') ? 'border-blue-500 bg-blue-50' : ''}`}>
+              <div className="text-lg font-semibold">Pro</div>
+              <div className="text-2xl font-bold mt-2">
+                <span className="line-through text-gray-400">
+                  ${getPlanPricing('pro', isAnnual).original}.00
+                </span>
+                <span className="ml-2 text-green-600">
+                  ${getPlanPricing('pro', isAnnual).current}.00
+                </span>
+                <span className="text-sm text-muted-foreground">/{isAnnual ? 'mo' : 'monthly'}</span>
+              </div>
+              {isAnnual && getPlanPricing('pro', isAnnual).savings > 0 && (
+                <div className="text-xs text-green-600 font-medium">Save ${getPlanPricing('pro', isAnnual).savings}/year</div>
+              )}
+              <div className="text-xs text-green-600 font-medium">Free for Limited Time</div>
+              <div className="text-sm text-muted-foreground mt-1">Perfect for growing teams</div>
+              <div className="text-xs text-blue-600 font-medium mt-1">Most Popular Choice</div>
+              {isPlanActive('Pro') && (
+                <div className="flex items-center gap-2 mt-2">
+                  <CheckCircle className="w-4 h-4 text-green-600" />
+                  <span className="text-sm text-green-600 font-medium">Active Plan</span>
+                </div>
+              )}
+              <Button 
+                className="w-full mt-4" 
+                variant={isPlanActive('Pro') ? 'secondary' : 'default'}
+                disabled={isPlanActive('Pro')}
+                onClick={() => {
+                  if (!isPlanActive('Pro')) {
+                    handleUpgradePlan({
+                      id: 'pro',
+                      name: 'Pro',
+                      description: 'Perfect for growing teams',
+                      price: 0,
+                      billing_interval: 'monthly',
+                      features: {},
+                      is_active: true,
+                      created_at: '',
+                      updated_at: ''
+                    });
+                  }
+                }}
+              >
+                {isPlanActive('Pro') ? 'Current Plan' : (isAnnual ? 'Join Beta - Free Limited Time' : 'Select Plan')}
+              </Button>
+            </div>
+
+            {/* Premium Plan */}
+            <div className="border rounded-lg p-4 hover:shadow-md transition-shadow">
+              <div className="text-lg font-semibold">Premium</div>
+              <div className="text-2xl font-bold mt-2">
+                ${getPlanPricing('premium', isAnnual).current}.00
+                <span className="text-sm text-muted-foreground">/{isAnnual ? 'mo' : 'monthly'}</span>
+              </div>
+              {isAnnual && getPlanPricing('premium', isAnnual).savings > 0 && (
+                <div className="text-xs text-green-600 font-medium">Save ${getPlanPricing('premium', isAnnual).savings}/year</div>
+              )}
+              <div className="text-sm text-muted-foreground mt-1">Built for sales-led organizations</div>
+              <div className="text-xs text-orange-600 font-medium mt-2">Enterprise Features</div>
+              <Button 
+                className="w-full mt-4" 
+                variant="outline"
+                onClick={() => window.location.href = 'mailto:tim@neuroai.agency?subject=Premium Subscription Inquiry&body=Hi, I am interested in the Premium subscription plan for my organization. Please contact me to discuss pricing and features.'}
+              >
+                Contact Sales
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Recent Invoices */}
       {recentInvoices.length > 0 && (
@@ -602,7 +643,7 @@ export default function SubscriptionPage() {
             <div className="p-4 bg-muted rounded-lg">
               <div className="flex justify-between items-center">
                 <span>Current Plan:</span>
-                <span className="font-semibold">{currentSubscription.subscription_plan?.name}</span>
+                <span className="font-semibold">{currentPlan?.name}</span>
               </div>
               <div className="flex justify-between items-center">
                 <span>Access until:</span>

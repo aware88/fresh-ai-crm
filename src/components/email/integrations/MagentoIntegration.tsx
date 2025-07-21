@@ -71,59 +71,8 @@ export default function MagentoIntegration({ emailAddress, onOrderSelect }: Mage
       // In a real implementation, this would fetch from the Magento API
       await new Promise(resolve => setTimeout(resolve, 800));
       
-      // Mock data
-      const mockOrders: MagentoOrder[] = [
-        {
-          id: '1',
-          increment_id: '000000101',
-          customer_email: email,
-          customer_firstname: 'John',
-          customer_lastname: 'Doe',
-          status: 'processing',
-          created_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-          grand_total: 129.99,
-          currency_code: 'USD',
-          items: [
-            {
-              name: 'Fusion Backpack',
-              sku: 'MB02',
-              qty_ordered: 1,
-              price: 59.99
-            },
-            {
-              name: 'Yoga Mat',
-              sku: 'YMMAT',
-              qty_ordered: 2,
-              price: 35.00
-            }
-          ]
-        },
-        {
-          id: '2',
-          increment_id: '000000095',
-          customer_email: email,
-          customer_firstname: 'John',
-          customer_lastname: 'Doe',
-          status: 'complete',
-          created_at: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(),
-          grand_total: 77.50,
-          currency_code: 'USD',
-          items: [
-            {
-              name: 'Hero Hoodie',
-              sku: 'MH01',
-              qty_ordered: 1,
-              price: 54.00
-            },
-            {
-              name: 'Water Bottle',
-              sku: 'WB01',
-              qty_ordered: 1,
-              price: 23.50
-            }
-          ]
-        }
-      ];
+      // Mock data - cleaned for testing
+      const mockOrders: MagentoOrder[] = [];
       
       setOrders(mockOrders);
       setSuccess(`Found ${mockOrders.length} orders for ${email}`);

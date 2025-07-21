@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, ReactNode, Suspense, lazy } from 'react';
+import { useState, useEffect, useMemo, useCallback, ReactNode, Suspense, lazy } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useToast } from "@/components/ui/use-toast";
-import { useSubscriptionFeatures } from "@/hooks/useSubscriptionFeatures";
+// Subscription features removed from dashboard to prevent unnecessary API calls
 import { cn } from "@/lib/utils";
 import { 
   Mail, 
@@ -123,23 +123,12 @@ export default function DashboardPage() {
   const [refs, setRefs] = useState<Array<HTMLElement | null>>([]);
   const { data: session } = useSession();
   
-  // For individual users, we'll fetch subscription data differently
-  const isIndividualUser = !((session?.user as any)?.organizationId);
-  const organizationId = (session?.user as any)?.organizationId || "";
+  // Memoize user-derived values to prevent unnecessary re-renders
+  const userId = session?.user?.id;
+  const organizationId = useMemo(() => (session?.user as any)?.organizationId || "", [session?.user]);
   
-  // State for subscription data (for individual users)
-  const [individualPlan, setIndividualPlan] = useState<any>(null);
-  const [isLoadingPlan, setIsLoadingPlan] = useState(true);
-  
-  // Use organization subscription features only for organization users
-  const orgSubscription = useSubscriptionFeatures(organizationId);
-  
-  // Determine which plan data to use
-  const plan = isIndividualUser ? individualPlan : orgSubscription.plan;
-  const isActive = isIndividualUser ? !!individualPlan : orgSubscription.isActive;
-  const hasFeature = isIndividualUser ? 
-    () => true : // Individual users have all features during beta
-    orgSubscription.hasFeature;
+  // All features always available - no subscription checks on dashboard
+  const hasFeature = (featureKey?: string, defaultValue?: boolean) => true;
   
   const { toast } = useToast();
   const router = useRouter();
@@ -167,8 +156,8 @@ export default function DashboardPage() {
     return !featureKey || hasFeature(featureKey, true);
   };
 
-  // Fetch dashboard stats
-  const fetchDashboardStats = async () => {
+  // Fetch dashboard stats - memoized to prevent unnecessary recreations
+  const fetchDashboardStats = useCallback(async () => {
     setIsLoadingStats(true);
     setStatsError(null);
     
@@ -187,10 +176,10 @@ export default function DashboardPage() {
     } finally {
       setIsLoadingStats(false);
     }
-  };
+  }, []);
 
-  // Fetch recent activities
-  const fetchRecentActivities = async () => {
+  // Fetch recent activities - memoized to prevent unnecessary recreations
+  const fetchRecentActivities = useCallback(async () => {
     setIsLoadingActivities(true);
     setActivitiesError(null);
     
@@ -209,50 +198,19 @@ export default function DashboardPage() {
     } finally {
       setIsLoadingActivities(false);
     }
-  };
+  }, []);
 
-  // Load data on component mount
+  // No subscription setup needed - all features available
+
+  // Load data on component mount - only depend on userId to prevent excessive re-renders
   useEffect(() => {
-    if (session) {
+    if (userId) {
       fetchDashboardStats();
       fetchRecentActivities();
-      
-      // Fetch individual user subscription data if needed
-      if (isIndividualUser) {
-        fetchIndividualSubscription();
-      }
     }
-  }, [session]);
-  
-  // Fetch subscription data for individual users
-  const fetchIndividualSubscription = async () => {
-    if (!session?.user?.id) return;
-    
-    setIsLoadingPlan(true);
-    try {
-      const response = await fetch(`/api/subscription/current?userId=${session.user.id}`);
-      if (response.ok) {
-        const data = await response.json();
-        setIndividualPlan(data.plan);
-      }
-    } catch (error) {
-      console.error('Error fetching individual subscription:', error);
-      // Fallback to a default plan
-      setIndividualPlan({ name: 'Pro', price: 0 });
-    } finally {
-      setIsLoadingPlan(false);
-    }
-  };
+  }, [userId, fetchDashboardStats, fetchRecentActivities]);
 
   const quickActions = [
-    { 
-      name: 'Email Analysis', 
-      href: '/dashboard/email-analyser', 
-      icon: Mail, 
-      description: 'Analyze and respond to emails',
-      gradient: 'from-blue-500 to-purple-600',
-      featureKey: 'email_analysis'
-    },
     { 
       name: 'Contact Management', 
       href: '/dashboard/contacts', 
@@ -260,6 +218,14 @@ export default function DashboardPage() {
       description: 'Manage customer relationships',
       gradient: 'from-green-500 to-blue-600',
       featureKey: 'contact_management'
+    },
+    { 
+      name: 'Suppliers', 
+      href: '/dashboard/suppliers', 
+      icon: Building2, 
+      description: 'Manage supplier relationships',
+      gradient: 'from-yellow-500 to-orange-600',
+      featureKey: 'supplier_management'
     },
     { 
       name: 'Analytics', 
@@ -317,9 +283,6 @@ export default function DashboardPage() {
               </p>
             </div>
             <div className="flex items-center gap-4">
-              <Badge variant="outline" className="bg-gradient-to-r from-green-500 to-blue-500 text-white border-0">
-                {plan?.name ? `${plan.name} Plan` : 'Free Plan'}
-              </Badge>
               {(statsError || activitiesError) && (
                 <Button 
                   onClick={() => {

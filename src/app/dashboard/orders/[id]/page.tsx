@@ -92,8 +92,8 @@ export default async function OrderDetailPage({ params }: PageProps) {
   // In a real app, you would fetch the order by ID from your database
   // const order = await fetchOrderById(resolvedParams.id);
   
-  // For now, we'll use the mock data with the ID from params
-  const order = { ...mockOrder, id: resolvedParams.id };
+  // For now, return null since we're cleaning all mock data
+  const order = null;
   
   // If order is not found, return 404
   if (!order) {

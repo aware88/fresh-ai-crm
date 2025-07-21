@@ -8,19 +8,18 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Upload, CheckCircle, Loader2, Image as ImageIcon, AlertCircle } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
-import { useSession } from 'next-auth/react';
+import { useOptimizedAuth } from '@/hooks/useOptimizedAuth';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import Image from 'next/image';
 
 export function LogoUploader() {
-  const { data: session } = useSession();
+  const { data: session } = useOptimizedAuth();
   const supabase = createClientComponentClient();
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [currentLogo, setCurrentLogo] = useState<string | null>(null);
   const [companyName, setCompanyName] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
-  const [isOrganizationUser, setIsOrganizationUser] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
@@ -65,37 +64,10 @@ export function LogoUploader() {
     }
   }, []);
 
-  // Check if user is part of an organization
+  // Set loading to false after initial setup
   useEffect(() => {
-    const checkOrganizationMembership = async () => {
-      if (!session?.user?.id) {
-        setIsLoading(false);
-        return;
-      }
-
-      try {
-        const { data: membership, error } = await supabase
-          .from('organization_members')
-          .select('id')
-          .eq('user_id', session.user.id)
-          .limit(1);
-
-        if (error) {
-          console.error('Error checking organization membership:', error);
-          setIsOrganizationUser(false);
-        } else {
-          setIsOrganizationUser(membership && membership.length > 0);
-        }
-      } catch (error) {
-        console.error('Error checking organization membership:', error);
-        setIsOrganizationUser(false);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    checkOrganizationMembership();
-  }, [session, supabase]);
+    setIsLoading(false);
+  }, []);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -260,30 +232,6 @@ export function LogoUploader() {
     );
   }
 
-  if (!isOrganizationUser) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <ImageIcon className="h-5 w-5" />
-            Logo & Branding
-          </CardTitle>
-          <CardDescription>
-            Customize your logo and company branding
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Alert>
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>
-              Logo customization is only available for organization accounts. Individual users cannot upload custom logos.
-            </AlertDescription>
-          </Alert>
-        </CardContent>
-      </Card>
-    );
-  }
-
   return (
     <Card>
       <CardHeader>
@@ -292,7 +240,7 @@ export function LogoUploader() {
           Logo & Branding
         </CardTitle>
         <CardDescription>
-          Customize your organization's logo and branding
+          Customize your logo and company branding
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">

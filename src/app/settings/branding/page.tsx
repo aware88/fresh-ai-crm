@@ -1,14 +1,14 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useSession } from 'next-auth/react';
+import { useOptimizedAuth } from '@/hooks/useOptimizedAuth';
 import { redirect } from 'next/navigation';
 import { LogoUploader } from '@/components/settings/LogoUploader';
 import { SettingsForm } from '@/components/settings/settings-form';
 import { useToast } from '@/components/ui/use-toast';
 
 export default function BrandingPage() {
-  const { data: session, status } = useSession();
+  const { data: session, status } = useOptimizedAuth();
   const { toast } = useToast();
   const [brandingSettings, setBrandingSettings] = useState({
     companyName: '',
@@ -50,7 +50,7 @@ export default function BrandingPage() {
     return <div>Loading...</div>;
   }
 
-  if (status === 'unauthenticated') {
+  if (status === 'unauthenticated' && !session) {
     redirect('/signin');
   }
 

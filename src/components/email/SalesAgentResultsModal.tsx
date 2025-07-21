@@ -1,11 +1,14 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Progress } from '@/components/ui/progress';
-import { TrendingUp, Target, DollarSign, Clock, User, AlertTriangle, CheckCircle, Star, Lightbulb, MessageSquare } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { TrendingUp, Target, DollarSign, Clock, User, AlertTriangle, CheckCircle, Star, Lightbulb, MessageSquare, Save, UserPlus, Mail, PenTool, ExternalLink, ChevronUp } from 'lucide-react';
+import { useToast } from '@/components/ui/use-toast';
+import AIDraftWindow from './AIDraftWindow';
 
 // Loading Modal Component
 export function SalesAgentLoadingModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
@@ -90,6 +93,7 @@ interface SalesAgentResultsModalProps {
   emailInfo: {
     from: string;
     subject: string;
+    body?: string;
   };
 }
 
@@ -99,7 +103,115 @@ export const SalesAgentResultsModal: React.FC<SalesAgentResultsModalProps> = ({
   result,
   emailInfo
 }) => {
+  const [isSaving, setIsSaving] = useState(false);
+  const [isGeneratingDraft, setIsGeneratingDraft] = useState(false);
+  const [showDraftWindow, setShowDraftWindow] = useState(true); // Show draft immediately
+  const [showAnalysisDetails, setShowAnalysisDetails] = useState(false); // Collapse analysis by default
+  const { toast } = useToast();
+  
   if (!result) return null;
+
+  const handleSaveToContact = async () => {
+    setIsSaving(true);
+    try {
+      const response = await fetch('/api/contacts/save-analysis', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          emailInfo,
+          analysisResult: null, // No AI analysis for this modal
+          salesResult: result
+        }),
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        toast({
+          title: "Sales Analysis Saved!",
+          description: data.message,
+        });
+      } else {
+        toast({
+          title: "Save Failed",
+          description: data.error || 'Failed to save sales analysis to contact',
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Error saving to contact:', error);
+      toast({
+        title: "Error",
+        description: 'An error occurred while saving to contact',
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleGenerateDraft = async () => {
+    setIsGeneratingDraft(true);
+    try {
+      // Store sales context in localStorage temporarily for the AI draft to use
+      localStorage.setItem('sales-context-temp', JSON.stringify(result));
+      
+      // Show the AI Draft Window with sales context
+      setShowDraftWindow(true);
+      
+      toast({
+        title: "Sales Draft Loading!",
+        description: `AI is preparing a personalized response based on this ${result.analysis?.lead_qualification?.level || 'sales'} lead analysis.`,
+      });
+      
+    } catch (error) {
+      console.error('Error generating draft:', error);
+      toast({
+        title: "Error",
+        description: 'An error occurred while preparing draft response',
+        variant: "destructive",
+      });
+    } finally {
+      setIsGeneratingDraft(false);
+    }
+  };
+
+  const handleSendDraft = async (draftData: {
+    subject: string;
+    body: string;
+    changes: any[];
+    userNotes?: string;
+  }) => {
+    try {
+      // Here you would typically integrate with your email sending service
+      console.log('Sending sales draft with context:', draftData);
+      
+      // For now, just show success
+      toast({
+        title: "Sales Email Sent!",
+        description: `Your personalized response has been sent to ${emailInfo.from}`,
+      });
+      
+      // Close the modal after sending
+      onClose();
+      
+    } catch (error) {
+      console.error('Error sending draft:', error);
+      throw error; // Let AIDraftWindow handle the error
+    }
+  };
+
+  const handleRegenerateDraft = async () => {
+    try {
+      console.log('Regenerating draft with sales context');
+      // The AIDraftWindow will handle regeneration automatically
+    } catch (error) {
+      console.error('Error regenerating draft:', error);
+      throw error;
+    }
+  };
 
   // Provide safe defaults for all nested properties
   const analysis = result.analysis || {};
@@ -161,20 +273,89 @@ export const SalesAgentResultsModal: React.FC<SalesAgentResultsModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <TrendingUp className="h-5 w-5 text-green-600" />
-            Sales Agent Analysis Complete
-          </DialogTitle>
-          <DialogDescription>
-            <span className="block mb-1"><strong>From:</strong> {emailInfo.from}</span>
-            <span className="block"><strong>Subject:</strong> {emailInfo.subject}</span>
-          </DialogDescription>
+      <DialogContent className={`${showDraftWindow ? 'max-w-[95vw] h-[95vh]' : 'max-w-4xl h-[90vh]'} flex flex-col overflow-hidden`}>
+        <DialogHeader className="flex-shrink-0">
+          <div className="flex items-center justify-between">
+            <div>
+              <DialogTitle className="flex items-center gap-2">
+                <TrendingUp className="h-5 w-5 text-green-600" />
+                Sales Agent Analysis Complete
+              </DialogTitle>
+              <DialogDescription>
+                <span className="block mb-1"><strong>From:</strong> {emailInfo.from}</span>
+                <span className="block"><strong>Subject:</strong> {emailInfo.subject}</span>
+              </DialogDescription>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={() => setShowAnalysisDetails(!showAnalysisDetails)}
+                variant="outline"
+                size="sm"
+              >
+                {showAnalysisDetails ? (
+                  <>
+                    <ChevronUp className="h-4 w-4 mr-2" />
+                    Hide Analysis
+                  </>
+                ) : (
+                  <>
+                    <TrendingUp className="h-4 w-4 mr-2" />
+                    View Analysis Details
+                  </>
+                )}
+              </Button>
+
+              <Button
+                onClick={handleSaveToContact}
+                disabled={isSaving}
+                className="bg-green-600 hover:bg-green-700"
+                size="sm"
+              >
+                {isSaving ? (
+                  <>
+                    <Save className="h-4 w-4 mr-2 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <UserPlus className="h-4 w-4 mr-2" />
+                    Save to Contact
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
         </DialogHeader>
 
-        <ScrollArea className="max-h-[70vh] pr-4">
-          <div className="space-y-6">
+        <div className="flex gap-6 min-h-0 flex-1 flex-col">
+          {/* AI Draft Window - Primary Focus */}
+          <div className="flex-1 min-h-0">
+            <AIDraftWindow
+              emailId={`sales-${Date.now()}`}
+              originalEmail={{
+                subject: emailInfo.subject || 'Sales Follow-up',
+                body: emailInfo.body || 'Original email content',
+                from: emailInfo.from || 'unknown@example.com',
+                to: 'user@company.com'
+              }}
+              onSendDraft={handleSendDraft}
+              onRegenerateDraft={handleRegenerateDraft}
+              className="h-full"
+              position="inline"
+            />
+          </div>
+          
+          {/* Analysis Section - Collapsible */}
+          {showAnalysisDetails && (
+            <div className="max-h-96 min-h-0 flex flex-col border-t">
+              <div className="px-4 py-2 bg-gray-50 border-b">
+                <h3 className="font-medium text-gray-800 flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4" />
+                  Sales Analysis Details
+                </h3>
+              </div>
+              <ScrollArea className="flex-1 pr-4">
+                <div className="space-y-4 p-4">
             {/* Error or Note Display */}
             {result.error && (
               <Card className="border-red-200 bg-red-50">
@@ -370,8 +551,11 @@ export const SalesAgentResultsModal: React.FC<SalesAgentResultsModalProps> = ({
                 </div>
               </CardContent>
             </Card>
-          </div>
-        </ScrollArea>
+                </div>
+              </ScrollArea>
+            </div>
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   );

@@ -14,50 +14,7 @@ import {
 let contactsCache: Contact[] | null = null;
 
 // Mock data for fallback when Supabase is not configured
-const mockContacts: Contact[] = [
-  {
-    id: '1',
-    firstName: 'John',
-    lastName: 'Doe',
-    email: 'john.doe@example.com',
-    phone: '555-1234',
-    company: 'Acme Inc',
-    position: 'CEO',
-    personalityType: 'Analytical',
-    notes: 'Key decision maker',
-    lastContact: new Date().toISOString(),
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  },
-  {
-    id: '2',
-    firstName: 'Jane',
-    lastName: 'Smith',
-    email: 'jane.smith@example.com',
-    phone: '555-5678',
-    company: 'Tech Solutions',
-    position: 'CTO',
-    personalityType: 'Driver',
-    notes: 'Technical background',
-    lastContact: new Date().toISOString(),
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  },
-  {
-    id: '3',
-    firstName: 'Michael',
-    lastName: 'Johnson',
-    email: 'michael.j@example.com',
-    phone: '555-9012',
-    company: 'Global Corp',
-    position: 'Sales Director',
-    personalityType: 'Expressive',
-    notes: 'Prefers phone calls over emails',
-    lastContact: new Date().toISOString(),
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  }
-];
+const mockContacts: Contact[] = [];
 
 // Initialize the contacts table when the module is loaded
 if (typeof window !== 'undefined' && isSupabaseConfigured()) {

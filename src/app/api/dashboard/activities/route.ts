@@ -224,6 +224,76 @@ export async function GET(request: Request) {
       // Continue with empty activities array
     }
 
+    // If we don't have many activities from database, add some from Gmail
+    if (activities.length < 3) {
+      try {
+        const { data: googleAccounts, error: accountError } = await supabase
+          .from('email_accounts')
+          .select('*')
+          .eq('user_id', userId)
+          .eq('provider_type', 'google')
+          .eq('is_active', true);
+
+        if (!accountError && googleAccounts && googleAccounts.length > 0) {
+          const account = googleAccounts[0];
+          
+          // Get recent Gmail activity
+          if (account.access_token) {
+            try {
+              const gmailResponse = await fetch(
+                'https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=3&q=in:inbox',
+                {
+                  headers: {
+                    'Authorization': `Bearer ${account.access_token}`,
+                    'Accept': 'application/json'
+                  }
+                }
+              );
+
+              if (gmailResponse.ok) {
+                const gmailData = await gmailResponse.json();
+                
+                if (gmailData.messages) {
+                  for (const message of gmailData.messages.slice(0, 3)) {
+                    const messageResponse = await fetch(
+                      `https://gmail.googleapis.com/gmail/v1/users/me/messages/${message.id}?format=metadata`,
+                      {
+                        headers: {
+                          'Authorization': `Bearer ${account.access_token}`,
+                          'Accept': 'application/json'
+                        }
+                      }
+                    );
+
+                    if (messageResponse.ok) {
+                      const messageData = await messageResponse.json();
+                      const headers = messageData.payload?.headers || [];
+                      const subject = headers.find((h: any) => h.name === 'Subject')?.value || 'New Email';
+                      const from = headers.find((h: any) => h.name === 'From')?.value || 'Unknown';
+                      
+                      activities.push({
+                        id: `gmail-${message.id}`,
+                        type: 'email',
+                        title: 'Email received',
+                        description: `${subject} from ${from.split('<')[0].trim()}`,
+                        timestamp: new Date(messageData.internalDate ? parseInt(messageData.internalDate) : Date.now()).toISOString(),
+                        icon: 'Mail',
+                        color: 'blue'
+                      });
+                    }
+                  }
+                }
+              }
+            } catch (gmailError) {
+              console.warn('Error fetching Gmail activities:', gmailError);
+            }
+          }
+        }
+      } catch (error) {
+        console.warn('Error adding Gmail activities:', error);
+      }
+    }
+
     // Sort all activities by timestamp (most recent first)
     activities.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 

@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
-import { createTransport } from 'nodemailer';
+import { ImapFlow } from 'imapflow';
 
 export async function POST(request: Request) {
   try {
-    const { host, port, secure, username, password } = await request.json();
+    const { host, port, secure, username, password, type } = await request.json();
 
     // Validate required fields
     if (!host || !port || !username || !password) {
@@ -13,36 +13,67 @@ export async function POST(request: Request) {
       );
     }
 
-    // Create a test transporter
-    const transporter = createTransport({
+    // Test IMAP connection (default for email account testing)
+    const isSecure = secure === 'true' || secure === true;
+    
+    const clientOptions: any = {
       host,
       port: Number(port),
-      secure: secure === 'true' || secure === true,
+      secure: isSecure,
       auth: {
         user: username,
         pass: password,
       },
-      // Don't fail on invalid certs
+      logger: false,
+      connectTimeout: 30000,
+      // Handle certificate issues (common for hosted email services)
       tls: {
         rejectUnauthorized: false,
+        minVersion: 'TLSv1.2'
       },
-    });
+    };
+    
+    // Handle different security configurations
+    if (!isSecure && (port === '143' || port === 143)) {
+      clientOptions.requireTLS = true;
+    } else if (!isSecure && (port === '587' || port === 587)) {
+      clientOptions.requireTLS = true;
+      clientOptions.secure = false;
+    }
 
-    // Test the connection
-    await new Promise((resolve, reject) => {
-      transporter.verify((error) => {
-        if (error) {
-          console.error('Connection test failed:', error);
-          reject(error);
-        } else {
-          resolve(true);
-        }
+    // Ensure secure flag is correct for SSL/TLS ports
+    if (port === '993' || port === 993 || port === '465' || port === 465) {
+      clientOptions.secure = true;
+    }
+
+    const client = new ImapFlow(clientOptions);
+
+    try {
+      console.log(`Testing IMAP connection to ${host}:${port} (secure: ${isSecure})`);
+      await client.connect();
+      
+      // Try to open the inbox to verify permissions
+      const mailbox = await client.mailboxOpen('INBOX');
+      console.log(`Successfully connected to INBOX with ${mailbox.exists} messages`);
+      
+      await client.logout();
+      
+      return NextResponse.json({ 
+        success: true, 
+        message: 'IMAP connection successful',
+        messageCount: mailbox.exists
       });
-    });
+      
+    } finally {
+      try {
+        await client.logout();
+      } catch (error) {
+        // Ignore logout errors
+      }
+    }
 
-    return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Error testing email connection:', error);
+    console.error('Error testing IMAP connection:', error);
     return NextResponse.json(
       { 
         success: false, 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { useSession } from 'next-auth/react';
+import { useOptimizedAuth } from '@/hooks/useOptimizedAuth';
 import { TwoFactorAuthSetup } from '@/components/settings/TwoFactorAuthSetup';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -21,7 +21,7 @@ interface AuthAttempt {
 }
 
 export default function SecuritySettingsPage() {
-  const { data: session, status } = useSession();
+  const { data: session, status } = useOptimizedAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [recentAttempts, setRecentAttempts] = useState<AuthAttempt[]>([]);

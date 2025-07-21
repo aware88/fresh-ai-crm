@@ -12,7 +12,7 @@ import OutlookClient from '@/components/email/outlook/OutlookClient';
 import ImapClient from '@/components/email/imap/ImapClient';
 import EmailAnalyserClient from "@/app/dashboard/email-analyser/EmailAnalyserClient";
 import { FaEnvelope, FaRobot, FaSearch, FaSync, FaCog } from 'react-icons/fa';
-import { Mail, TrendingUp, Inbox, Send, AlertCircle, Database, MessageSquare } from 'lucide-react';
+import { Mail, TrendingUp, Inbox, Send, AlertCircle, Database, MessageSquare, TestTube, Brain } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { AnalysisResultsModal } from '@/components/email/AnalysisResultsModal';
@@ -38,89 +38,38 @@ export default function EmailPage() {
   const [salesModalOpen, setSalesModalOpen] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<any>(null);
   const [salesResult, setSalesResult] = useState<any>(null);
-  const [currentEmailInfo, setCurrentEmailInfo] = useState<{from: string; subject: string} | null>(null);
+  const [currentEmailInfo, setCurrentEmailInfo] = useState<{from: string; subject: string; body?: string} | null>(null);
   
   // Loading states
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isSalesProcessing, setIsSalesProcessing] = useState(false);
   
-  // Handle email analysis
-  const handleAnalyzeEmail = async (emailId: string) => {
-    setIsAnalyzing(true);
-    try {
-      console.log('Analyzing email:', emailId);
-      
-      // Call the email analysis API
-      const response = await fetch('/api/analyze-email', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ emailId }),
-      });
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        // Show success message or redirect to analysis results
-        console.log('Email analysis result:', data.analysis);
-        
-        // Set up modal data
-        const emailInfo = {
-          from: data.email?.from || 'Unknown',
-          subject: data.email?.subject || 'No Subject'
-        };
-        setCurrentEmailInfo(emailInfo);
-        
-        // Parse the analysis result
-        let analysisData;
-        try {
-          console.log('Raw analysis data:', data.analysis);
-          console.log('Type of analysis data:', typeof data.analysis);
-          
-          // The API now returns the parsed analysis object directly
-          analysisData = data.analysis;
-        } catch (e) {
-          console.error('Failed to handle analysis result:', e);
-          console.error('Raw data that failed to handle:', data.analysis);
-          analysisData = {
-            analysis: {
-              personality: { traits: ['Unable to process'], communication_style: 'Unknown', tone: 'Unknown' },
-              context: { relationship_type: 'Unknown', urgency_level: 'Medium', topic_category: 'General' },
-              insights: { key_points: ['Analysis processing failed'], sentiment: 'Unknown', intent: 'Unknown' },
-              recommendations: { response_suggestions: ['Please try again'], next_steps: ['Check system configuration'] }
-            },
-            error: 'Failed to process analysis results'
-          };
-        }
-        
-        setAnalysisResult(analysisData);
-        setAnalysisModalOpen(true);
-      } else {
-        console.error('Analysis failed:', data.error);
-        alert('Failed to analyze email: ' + data.error);
-      }
-    } catch (error) {
-      console.error('Error analyzing email:', error);
-      alert('Error analyzing email. Please try again.');
-    } finally {
-      setIsAnalyzing(false);
-    }
-  };
+
   
   // Handle sales agent action
-  const handleSalesAgent = async (emailId: string) => {
+  const handleSalesAgent = async (emailId: string, emailData?: any) => {
     setIsSalesProcessing(true);
     try {
-      console.log('Processing with sales agent:', emailId);
+      console.log('Processing with sales agent:', emailId, emailData);
       
       // Call the sales agent API
+      const requestBody: any = { emailId };
+      
+      // If email data is provided (for IMAP emails), include it
+      if (emailData) {
+        requestBody.emailContent = {
+          from: emailData.from,
+          subject: emailData.subject,
+          date: emailData.date,
+          body: emailData.body
+        };
+      }
+      
       const response = await fetch('/api/sales-agent', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ emailId }),
+        body: JSON.stringify(requestBody),
       });
       
       const data = await response.json();
@@ -131,8 +80,9 @@ export default function EmailPage() {
         
         // Set up modal data
         const emailInfo = {
-          from: data.email?.from || 'Unknown',
-          subject: data.email?.subject || 'No Subject'
+          from: data.email?.from || emailData?.from || 'Unknown',
+          subject: data.email?.subject || emailData?.subject || 'No Subject',
+          body: data.email?.body || emailData?.body || 'No content available'
         };
         setCurrentEmailInfo(emailInfo);
         
@@ -186,13 +136,13 @@ export default function EmailPage() {
           // Process email accounts from the API response
           const allAccounts = data.emailAccounts || [];
           const microsoftAccounts = allAccounts.filter((acc: any) => acc.provider_type === 'microsoft' || acc.provider_type === 'outlook');
-          const googleAccounts = allAccounts.filter((acc: any) => acc.provider_type === 'google');
+          const nonMicrosoftAccounts = allAccounts.filter((acc: any) => acc.provider_type !== 'microsoft' && acc.provider_type !== 'outlook');
           
           // Update Outlook connection status
           setOutlookConnected(microsoftAccounts.length > 0);
           
-          // Set IMAP accounts (Google accounts)
-          setImapAccounts(googleAccounts);
+          // Set IMAP accounts (includes Google, IMAP, and other non-Microsoft accounts)
+          setImapAccounts(nonMicrosoftAccounts);
           
           // Auto-select primary account if only one exists
           if (allAccounts.length === 1 && !selectedAccount) {
@@ -213,10 +163,12 @@ export default function EmailPage() {
     }
   };
 
-  // Initial connection check
+  // Initial connection check - run only once on mount
   useEffect(() => {
-    checkConnection();
-  }, [status, session]);
+    if (status === 'authenticated' && session?.user) {
+      checkConnection();
+    }
+  }, []); // Remove dependencies to prevent constant re-runs
 
   // Removed auto-refresh to prevent constant page refreshes
   // useEffect(() => {
@@ -337,22 +289,29 @@ export default function EmailPage() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-2 space-y-4 h-full">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
+        className="h-full flex flex-col"
       >
         {/* Header */}
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-              Email Management
-            </h1>
-            <p className="text-gray-600 mt-1">
-              Manage, analyze, and respond to your emails with AI assistance
-            </p>
-          </div>
+        <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-4 mb-4">
+          <div className="flex justify-between items-center">
+            <div className="flex items-center space-x-4">
+              <div className="bg-gradient-to-r from-purple-600 to-blue-600 p-3 rounded-lg">
+                <Mail className="h-6 w-6 text-white" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">
+                  Email Management
+                </h1>
+                <p className="text-gray-600 mt-1">
+                  Manage, analyze, and respond to your emails with AI assistance
+                </p>
+              </div>
+            </div>
           
           <div className="flex items-center space-x-4">
             {/* Account Selector - only show if more than one account or no account selected */}
@@ -374,11 +333,12 @@ export default function EmailPage() {
               </Select>
             ) : (
               // Show current account info instead of dropdown when only one account
-              <div className="flex items-center space-x-2 px-3 py-2 bg-gray-100 rounded-md">
+              <div className="flex items-center space-x-3 px-4 py-2 bg-green-50 border border-green-200 rounded-lg">
                 <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                <span className="text-sm font-medium">
-                  {outlookConnected ? 'Outlook' : imapAccounts[0]?.email || 'Email Account'}
+                <span className="text-sm font-medium text-green-800">
+                  {outlookConnected ? 'Microsoft Outlook' : imapAccounts[0]?.email || 'Email Account'}
                 </span>
+                <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">Active</span>
               </div>
             )}
             
@@ -388,19 +348,20 @@ export default function EmailPage() {
                 Settings
               </Link>
             </Button>
+            </div>
           </div>
         </div>
 
         {/* Email Dashboard */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="inbox" className="flex items-center gap-2">
               <Inbox className="h-4 w-4" />
-              Gmail Inbox
+              Inbox
             </TabsTrigger>
             <TabsTrigger value="ai-analysis" className="flex items-center gap-2">
               <MessageSquare className="h-4 w-4" />
-              AI Analysis
+              Analysis History
             </TabsTrigger>
             <TabsTrigger value="compose" className="flex items-center gap-2">
               <Send className="h-4 w-4" />
@@ -408,23 +369,15 @@ export default function EmailPage() {
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="inbox" className="space-y-6">
-            <Card className="border-0 bg-white/80 backdrop-blur-sm">
-              <CardHeader>
-                <h3 className="text-lg font-semibold flex items-center gap-2">
-                  <Inbox className="h-5 w-5 text-blue-600" />
-                  Email Inbox
-                </h3>
-              </CardHeader>
-              <CardContent>
+          <TabsContent value="inbox" className="flex-1 min-h-0">
+            <div className="bg-white rounded-lg border border-gray-200 shadow-sm h-full">
+              <div className="h-full">
                 {outlookConnected && (selectedAccount === 'outlook' || !selectedAccount) ? (
                   <OutlookClient />
                 ) : selectedAccount && imapAccounts.find(acc => acc.id === selectedAccount) ? (
                   <ImapClient 
                     account={imapAccounts.find(acc => acc.id === selectedAccount)} 
-                    onAnalyzeEmail={handleAnalyzeEmail}
                     onSalesAgent={handleSalesAgent}
-                    isAnalyzing={isAnalyzing}
                     isSalesProcessing={isSalesProcessing}
                   />
                 ) : (
@@ -433,40 +386,40 @@ export default function EmailPage() {
                     <p>Select an email account to view messages</p>
                   </div>
                 )}
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           </TabsContent>
 
-          <TabsContent value="ai-analysis" className="space-y-6">
-            <Card className="border-0 bg-white/80 backdrop-blur-sm">
-              <CardHeader>
-                <h3 className="text-lg font-semibold flex items-center gap-2">
-                  <MessageSquare className="h-5 w-5 text-purple-600" />
-                  AI Email Analysis
+          <TabsContent value="ai-analysis" className="mt-4">
+            <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
+              <div className="flex items-center justify-between px-4 py-2 border-b bg-gray-50">
+                <h3 className="font-medium flex items-center gap-2 text-gray-800">
+                  <MessageSquare className="h-4 w-4 text-purple-600" />
+                  Analysis History
                 </h3>
-              </CardHeader>
-              <CardContent>
+              </div>
+              <div className="p-4">
                 <EmailAnalyserClient />
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           </TabsContent>
 
-          <TabsContent value="compose" className="space-y-6">
-            <Card className="border-0 bg-white/80 backdrop-blur-sm">
-              <CardHeader>
-                <h3 className="text-lg font-semibold flex items-center gap-2">
-                  <Send className="h-5 w-5 text-green-600" />
+          <TabsContent value="compose" className="mt-4">
+            <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
+              <div className="flex items-center justify-between px-4 py-2 border-b bg-gray-50">
+                <h3 className="font-medium flex items-center gap-2 text-gray-800">
+                  <Send className="h-4 w-4 text-green-600" />
                   Compose Email
                 </h3>
-              </CardHeader>
-              <CardContent>
+              </div>
+              <div className="p-4">
                 <div className="text-center py-8 text-gray-500">
                   <Send className="h-12 w-12 mx-auto mb-4 text-gray-400" />
                   <p>Email composition feature coming soon</p>
                   <p className="text-sm mt-2">You can compose emails directly from your connected email client for now</p>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           </TabsContent>
         </Tabs>
       </motion.div>
@@ -487,10 +440,6 @@ export default function EmailPage() {
       />
 
       {/* Loading Modals */}
-      <AnalysisLoadingModal
-        isOpen={isAnalyzing}
-        onClose={() => {}} // Don't allow closing while processing
-      />
       
       <SalesAgentLoadingModal
         isOpen={isSalesProcessing}

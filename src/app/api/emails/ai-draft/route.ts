@@ -36,11 +36,30 @@ export async function POST(req: NextRequest) {
       .eq('created_by', userId)
       .single();
 
+    // Handle virtual emails (like sales context emails that don't exist in database)
+    let contextEmailData = emailData;
     if (emailError || !emailData) {
-      return NextResponse.json(
-        { success: false, message: 'Email not found' },
-        { status: 404 }
-      );
+      // Check if this is a virtual email ID (starts with 'sales-', 'analysis-', etc.)
+      if (emailId.startsWith('sales-') || emailId.startsWith('analysis-') || emailId.startsWith('virtual-')) {
+        // Create virtual email data from the originalEmail
+        contextEmailData = {
+          id: emailId,
+          subject: originalEmail.subject,
+          raw_content: originalEmail.body,
+          from_email: originalEmail.from,
+          to_email: originalEmail.to,
+          analysis: null,
+          metadata: { virtual: true, context: 'sales_agent' },
+          created_at: new Date().toISOString(),
+          created_by: userId
+        };
+      } else {
+        // Real email ID but not found in database
+        return NextResponse.json(
+          { success: false, message: 'Email not found' },
+          { status: 404 }
+        );
+      }
     }
 
     // Get previous email drafts for learning context
@@ -65,7 +84,7 @@ export async function POST(req: NextRequest) {
     const draftId = uuidv4();
     
     const systemPrompt = buildSystemPrompt(settings, userEmails, previousDrafts);
-    const userPrompt = buildUserPrompt(originalEmail, emailData);
+    const userPrompt = buildUserPrompt(originalEmail, contextEmailData, settings);
 
     const response = await openai.chat.completions.create({
       model: settings?.model || 'gpt-4o',
@@ -86,30 +105,35 @@ export async function POST(req: NextRequest) {
     // Parse the AI response
     const parsedResponse = JSON.parse(aiResponse);
     
-    // Save the draft to database
-    const { error: saveError } = await supabase
-      .from('ai_email_drafts')
-      .insert({
-        id: draftId,
-        user_id: userId,
-        email_id: emailId,
-        original_email: originalEmail,
-        draft_subject: parsedResponse.subject,
-        draft_body: parsedResponse.body,
-        ai_settings: settings,
-        confidence_score: parsedResponse.confidence || 0.8,
-        tone: parsedResponse.tone || settings?.responseStyle || 'professional',
-        context_used: {
-          userEmails: userEmails?.length || 0,
-          previousDrafts: previousDrafts?.length || 0,
-          emailContext: emailData.analysis || {}
-        },
-        created_at: new Date().toISOString()
-      });
+    // Save the draft to database only for real emails (not virtual ones)
+    const isVirtualEmail = emailId.startsWith('sales-') || emailId.startsWith('analysis-') || emailId.startsWith('virtual-');
+    
+    if (!isVirtualEmail) {
+      // Only save to database if it's a real email ID that exists in emails table
+      const { error: saveError } = await supabase
+        .from('ai_email_drafts')
+        .insert({
+          id: draftId,
+          user_id: userId,
+          email_id: emailId,
+          original_email: originalEmail,
+          draft_subject: parsedResponse.subject,
+          draft_body: parsedResponse.body,
+          ai_settings: settings,
+          confidence_score: parsedResponse.confidence || 0.8,
+          tone: parsedResponse.tone || settings?.responseStyle || 'professional',
+          context_used: {
+            userEmails: userEmails?.length || 0,
+            previousDrafts: previousDrafts?.length || 0,
+            emailContext: contextEmailData.analysis || {}
+          },
+          created_at: new Date().toISOString()
+        });
 
-    if (saveError) {
-      console.error('Error saving AI draft:', saveError);
-      // Continue anyway, don't fail the request
+      if (saveError) {
+        console.error('Error saving AI draft:', saveError);
+        // Continue anyway, don't fail the request
+      }
     }
 
     return NextResponse.json({
@@ -137,8 +161,9 @@ export async function POST(req: NextRequest) {
 function buildSystemPrompt(settings: any, userEmails: any[], previousDrafts: any[]): string {
   const userStyle = analyzeUserWritingStyle(userEmails);
   const learningContext = analyzePreviousDrafts(previousDrafts);
+  const hasSalesContext = settings?.salesContext;
   
-  return `You are an AI email assistant that helps users write professional email replies. 
+  let systemPrompt = `You are an AI email assistant that helps users write professional email replies. 
 
 IMPORTANT: Your response must be a valid JSON object with the following structure:
 {
@@ -158,7 +183,33 @@ USER WRITING STYLE ANALYSIS:
 ${userStyle}
 
 LEARNING FROM PREVIOUS DRAFTS:
-${learningContext}
+${learningContext}`;
+
+  // Add sales-specific instructions if this is a sales context
+  if (hasSalesContext) {
+    systemPrompt += `
+
+SALES CONTEXT ACTIVE:
+You are now operating in SALES MODE. This means:
+
+1. RELATIONSHIP BUILDING: Focus on building trust and rapport first
+2. VALUE PROPOSITION: Clearly articulate how you can solve their problems
+3. CONSULTATIVE APPROACH: Ask questions to understand their needs better
+4. SOFT SELLING: Be helpful and informative, not pushy or aggressive
+5. PERSONALIZATION: Reference specific details from the sales analysis
+6. NEXT STEPS: Always include a clear, low-pressure call to action
+7. TIMING: Respect their timeline and decision-making process
+8. SOCIAL PROOF: Subtly mention relevant success stories if appropriate
+
+SALES TACTICS TO USE:
+- Mirror their communication style (formal/informal)
+- Address pain points directly but tactfully
+- Use scarcity or urgency only if genuinely applicable
+- Offer multiple options to give them control
+- Build credibility through expertise demonstration`;
+  }
+
+  systemPrompt += `
 
 GUIDELINES:
 1. Match the user's typical writing style and tone
@@ -171,10 +222,14 @@ GUIDELINES:
 8. Consider cultural context if apparent from the email
 
 Generate a response that the user would likely write themselves, incorporating their style preferences and past patterns.`;
+
+  return systemPrompt;
 }
 
-function buildUserPrompt(originalEmail: any, emailData: any): string {
-  return `Please generate a reply to this email:
+function buildUserPrompt(originalEmail: any, emailData: any, settings?: any): string {
+  const hasSalesContext = settings?.salesContext;
+  
+  let prompt = `Please generate a reply to this email:
 
 FROM: ${originalEmail.from}
 TO: ${originalEmail.to}
@@ -185,9 +240,34 @@ ${originalEmail.body}
 
 ADDITIONAL CONTEXT:
 - Email analysis: ${emailData.analysis || 'No analysis available'}
-- Email metadata: ${JSON.stringify(emailData.metadata || {})}
+- Email metadata: ${JSON.stringify(emailData.metadata || {})}`;
+
+  // Add sales context if available
+  if (hasSalesContext) {
+    const salesData = settings.salesContext;
+    prompt += `
+
+SALES ANALYSIS CONTEXT:
+- Lead Score: ${salesData.analysis?.lead_qualification?.score || 'Unknown'}/100
+- Lead Level: ${salesData.analysis?.lead_qualification?.level || 'Unknown'}
+- Opportunity Value: ${salesData.analysis?.opportunity_assessment?.potential_value || 'Unknown'}
+- Timeline: ${salesData.analysis?.opportunity_assessment?.timeline || 'Unknown'}
+- Pain Points: ${salesData.analysis?.sales_insights?.pain_points?.join(', ') || 'None identified'}
+- Buying Signals: ${salesData.analysis?.sales_insights?.buying_signals?.join(', ') || 'None identified'}
+
+SALES INSTRUCTIONS:
+- Craft a response that addresses their specific pain points
+- Use the appropriate level of formality for a ${salesData.analysis?.lead_qualification?.level || 'standard'} lead
+- Include subtle sales tactics based on their buying signals
+- Match the urgency to their timeline: ${salesData.analysis?.opportunity_assessment?.timeline || 'standard'}
+- Be consultative rather than pushy - build trust and provide value`;
+  }
+
+  prompt += `
 
 Generate an appropriate reply that addresses the sender's needs while maintaining a professional and helpful tone.`;
+
+  return prompt;
 }
 
 function analyzeUserWritingStyle(userEmails: any[]): string {

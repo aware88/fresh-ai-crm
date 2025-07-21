@@ -11,6 +11,7 @@ import { getMetakockaDataForAIContext } from '@/lib/integrations/metakocka/metak
 import { createLazyServerClient } from '@/lib/supabase/lazy-client';
 import { AutomotiveProductMatcher, CarSpecification } from './automotive-product-matcher';
 import { WithcarIntegrationService } from '@/lib/integrations/metakocka/withcar-integration';
+import { aiPreferencesService, EmailContext } from './ai-preferences-service';
 
 export interface EmailProcessingContext {
   emailId: string;
@@ -83,12 +84,78 @@ export class AIHubService {
     console.log(`[AI Hub] Processing email ${context.emailId} for organization ${context.organizationId}`);
 
     try {
+      // CRITICAL: Check user preferences FIRST - this must be done before any AI processing
+      const emailContext: EmailContext = {
+        subject: context.emailSubject,
+        sender: context.senderEmail,
+        sender_domain: context.senderEmail ? context.senderEmail.split('@')[1] : undefined,
+        body: context.emailContent,
+        email_type: context.emailType,
+        urgency: this.determineEmailUrgency(context.emailContent + ' ' + context.emailSubject)
+      };
+
+      const processingDecision = await aiPreferencesService.shouldProcessEmail(context.userId, emailContext);
+      
+      console.log(`[AI Hub] User preferences decision:`, processingDecision);
+
+              // If user preferences say not to process, return early
+        if (!processingDecision.should_process) {
+          return {
+            responseId: `skip-${context.emailId}`,
+            response: '',
+            confidence: 1.0,
+            reasoning: processingDecision.reasoning,
+            requiresHumanReview: processingDecision.should_escalate,
+            suggestedActions: ['manual_review'],
+            productRecommendations: [],
+            upsellingSuggestions: [],
+            estimatedSentiment: 'neutral',
+            metadata: {
+              skipped_by_user_preferences: true,
+              applied_rules: processingDecision.applied_rules,
+              escalation_reason: processingDecision.reasoning
+            }
+          };
+        }
+
+        // If escalation is required, mark for human review
+        if (processingDecision.should_escalate) {
+          return {
+            responseId: `review-${context.emailId}`,
+            response: '',
+            confidence: 0.5,
+            reasoning: `Escalated for human review: ${processingDecision.reasoning}`,
+            requiresHumanReview: true,
+            suggestedActions: ['manual_review'],
+            productRecommendations: [],
+            upsellingSuggestions: [],
+            estimatedSentiment: 'neutral',
+            metadata: {
+              escalated_by_user_preferences: true,
+              applied_rules: processingDecision.applied_rules,
+              custom_instructions: processingDecision.custom_instructions
+            }
+          };
+        }
+
+      // Get AI instructions from user preferences
+      const aiInstructions = await aiPreferencesService.getAIInstructions(context.userId, emailContext);
+      
       // Get organization-specific AI settings
       const aiConfig = await this.settingsService.getAIProcessingConfig(context.organizationId);
       const organizationSettings = await this.settingsService.getAllSettings(context.organizationId);
 
-      // Build comprehensive context for AI processing
-      const aiContext = await this.buildAIContext(context, organizationSettings);
+              // Build comprehensive context for AI processing
+        const aiContext = await this.buildAIContext(context, organizationSettings);
+        
+        // Add user preference instructions to the AI context
+        if (aiInstructions.global_instructions.length > 0 || aiInstructions.content_instructions.length > 0) {
+          aiContext.userPreferences = {
+            styleInstructions: aiInstructions.style_instructions,
+            contentInstructions: aiInstructions.content_instructions,
+            globalInstructions: aiInstructions.global_instructions
+          };
+        }
 
       // Process with OpenAI Responses API
       const result = await this.processWithResponsesAPI(aiContext, aiConfig);
@@ -96,7 +163,16 @@ export class AIHubService {
       // Apply organization-specific post-processing
       const finalResult = await this.applyOrganizationPostProcessing(result, context, organizationSettings);
 
-      console.log(`[AI Hub] Successfully processed email ${context.emailId}`);
+      // Add preference information to result metadata
+      finalResult.metadata = {
+        ...finalResult.metadata,
+        user_preferences_applied: true,
+        applied_rules: processingDecision.applied_rules,
+        custom_instructions: processingDecision.custom_instructions,
+        priority_level: processingDecision.priority_level
+      };
+
+      console.log(`[AI Hub] Successfully processed email ${context.emailId} with user preferences`);
       return finalResult;
 
     } catch (error) {
@@ -978,5 +1054,30 @@ RESPONSE REQUIREMENTS:
      };
 
      return countryDefaults[countryCode || ''] || defaultInstructions;
+   }
+
+   /**
+    * Determine email urgency based on content and subject
+    */
+   private determineEmailUrgency(emailText: string): 'low' | 'medium' | 'high' | 'urgent' {
+     const urgentKeywords = ['urgent', 'asap', 'emergency', 'critical', 'immediately', 'deadline'];
+     const highKeywords = ['important', 'priority', 'soon', 'today'];
+     
+     const lowerText = emailText.toLowerCase();
+     
+     if (urgentKeywords.some(keyword => lowerText.includes(keyword))) {
+       return 'urgent';
+     }
+     
+     if (highKeywords.some(keyword => lowerText.includes(keyword))) {
+       return 'high';
+     }
+     
+     // Check for time-sensitive patterns
+     if (lowerText.includes('end of day') || lowerText.includes('eod') || lowerText.includes('by tomorrow')) {
+       return 'high';
+     }
+     
+     return 'medium';
    }
  } 

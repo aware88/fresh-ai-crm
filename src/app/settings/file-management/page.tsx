@@ -1,20 +1,20 @@
 'use client';
 
 import React from 'react';
-import { useSession } from 'next-auth/react';
+import { useOptimizedAuth } from '@/hooks/useOptimizedAuth';
 import { redirect } from 'next/navigation';
 import { FilesSection } from '@/components/settings/FilesSection';
 import { FilesList } from '@/components/files/FilesList';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 export default function FileManagementPage() {
-  const { data: session, status } = useSession();
+  const { data: session, status } = useOptimizedAuth();
 
   if (status === 'loading') {
     return <div>Loading...</div>;
   }
 
-  if (status === 'unauthenticated') {
+  if (status === 'unauthenticated' && !session) {
     redirect('/signin');
   }
 

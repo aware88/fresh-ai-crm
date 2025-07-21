@@ -202,29 +202,85 @@ export class EnhancedEmailQueueService {
       // Process with AI Hub
       const aiResult = await this.aiHub.processEmail(context);
 
-      // Update queue item with results
-      const finalStatus = aiResult.requiresHumanReview ? 
-        EmailQueueStatus.REQUIRES_REVIEW : 
-        EmailQueueStatus.COMPLETED;
+      // 🚀 NEW: TRIGGER AUTONOMOUS ORCHESTRATION
+      try {
+        const { autoTriggerOrchestration } = await import('../agents/enhanced-autonomous-orchestrator');
+        const orchestrationResult = await autoTriggerOrchestration(
+          emailId,
+          organizationId,
+          userId
+        );
 
-      await supabase
-        .from('email_queue')
-        .update({
-          status: finalStatus,
-          metadata: {
-            ...queueItem.metadata,
-            ai_response_id: aiResult.responseId,
-            ai_confidence: aiResult.confidence,
-            ai_reasoning: aiResult.reasoning,
-            requires_human_review: aiResult.requiresHumanReview,
-            suggested_actions: aiResult.suggestedActions,
-            product_recommendations: aiResult.productRecommendations,
-            upselling_suggestions: aiResult.upsellingSuggestions,
-            estimated_sentiment: aiResult.estimatedSentiment,
-            processing_completed_at: new Date().toISOString()
-          }
-        })
-        .eq('id', queueItem.id);
+        console.log(`[Enhanced Email Queue] Orchestration completed for email ${emailId}:`, {
+          workflow_id: orchestrationResult.workflow_id,
+          agents_activated: orchestrationResult.agents_activated,
+          autonomous_actions: orchestrationResult.autonomous_actions_taken,
+          evolution_events: orchestrationResult.contact_evolution_detected,
+          human_intervention: orchestrationResult.human_intervention_required
+        });
+
+        // Update queue item with results + orchestration data
+        const finalStatus = aiResult.requiresHumanReview || orchestrationResult.human_intervention_required ? 
+          EmailQueueStatus.REQUIRES_REVIEW : 
+          EmailQueueStatus.COMPLETED;
+
+        await supabase
+          .from('email_queue')
+          .update({
+            status: finalStatus,
+            metadata: {
+              ...queueItem.metadata,
+              ai_response_id: aiResult.responseId,
+              ai_confidence: aiResult.confidence,
+              ai_reasoning: aiResult.reasoning,
+              requires_human_review: aiResult.requiresHumanReview,
+              suggested_actions: aiResult.suggestedActions,
+              product_recommendations: aiResult.productRecommendations,
+              upselling_suggestions: aiResult.upsellingSuggestions,
+              estimated_sentiment: aiResult.estimatedSentiment,
+              processing_completed_at: new Date().toISOString(),
+              // 🚀 NEW: ORCHESTRATION RESULTS
+              orchestration: {
+                workflow_id: orchestrationResult.workflow_id,
+                agents_activated: orchestrationResult.agents_activated,
+                decisions_made: orchestrationResult.decisions_made,
+                autonomous_actions_taken: orchestrationResult.autonomous_actions_taken,
+                contact_evolution_detected: orchestrationResult.contact_evolution_detected,
+                human_intervention_required: orchestrationResult.human_intervention_required,
+                execution_time_ms: orchestrationResult.execution_time_ms
+              }
+            }
+          })
+          .eq('id', queueItem.id);
+
+      } catch (orchestrationError) {
+        console.error('[Enhanced Email Queue] Orchestration failed:', orchestrationError);
+        
+        // Still update with basic AI results even if orchestration fails
+        const finalStatus = aiResult.requiresHumanReview ? 
+          EmailQueueStatus.REQUIRES_REVIEW : 
+          EmailQueueStatus.COMPLETED;
+
+        await supabase
+          .from('email_queue')
+          .update({
+            status: finalStatus,
+            metadata: {
+              ...queueItem.metadata,
+              ai_response_id: aiResult.responseId,
+              ai_confidence: aiResult.confidence,
+              ai_reasoning: aiResult.reasoning,
+              requires_human_review: aiResult.requiresHumanReview,
+              suggested_actions: aiResult.suggestedActions,
+              product_recommendations: aiResult.productRecommendations,
+              upselling_suggestions: aiResult.upsellingSuggestions,
+              estimated_sentiment: aiResult.estimatedSentiment,
+              processing_completed_at: new Date().toISOString(),
+              orchestration_error: orchestrationError instanceof Error ? orchestrationError.message : 'Orchestration failed'
+            }
+          })
+          .eq('id', queueItem.id);
+      }
 
       // Store AI response if not requiring human review
       if (!aiResult.requiresHumanReview) {

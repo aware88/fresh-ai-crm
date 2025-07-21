@@ -12,8 +12,8 @@ const authOptions: NextAuthOptions = {
   }),
   session: {
     strategy: 'jwt',
-    maxAge: 60 * 24 * 60 * 60, // 60 days for longer persistence
-    updateAge: 12 * 60 * 60, // 12 hours for more frequent refreshes
+    maxAge: 30 * 24 * 60 * 60, // 30 days - reasonable persistence
+    updateAge: 24 * 60 * 60, // 24 hours - reduce frequency of session updates
   },
   cookies: {
     sessionToken: {
@@ -111,9 +111,6 @@ const authOptions: NextAuthOptions = {
   ],
   callbacks: {
     async session({ session, token }) {
-      console.log('NextAuth session callback - token:', token ? 'present' : 'missing');
-      console.log('NextAuth session callback - session:', session ? 'present' : 'missing');
-      
       if (token && session.user) {
         // Use token.id (set in jwt callback) if available, otherwise fall back to token.sub
         session.user.id = token.id || token.sub!;
@@ -131,9 +128,6 @@ const authOptions: NextAuthOptions = {
         if (token.provider) {
           session.provider = token.provider as string;
         }
-        
-        // Add additional debug logging
-        console.log('Session user ID set to:', session.user.id);
       } else if (token && !session.user) {
         // Create user object if it doesn't exist but token does
         session.user = {
@@ -142,15 +136,10 @@ const authOptions: NextAuthOptions = {
           email: token.email as string,
           image: token.picture as string | null
         };
-        console.log('Created missing session user with ID:', session.user.id);
       }
       return session;
     },
     async jwt({ token, user, account }) {
-      console.log('NextAuth JWT callback - token:', token ? 'present' : 'missing');
-      console.log('NextAuth JWT callback - user:', user ? 'present' : 'missing');
-      console.log('NextAuth JWT callback - account:', account ? 'present' : 'missing');
-      
       // If we have a user, set the ID in the token
       if (user) {
         token.id = user.id;
@@ -176,7 +165,13 @@ const authOptions: NextAuthOptions = {
     signIn: '/signin',
     error: '/signin',
   },
-  debug: process.env.NODE_ENV === 'development',
+  debug: false, // Explicitly disable debug mode to reduce session call overhead
+  // Additional debug settings to ensure it's truly disabled
+  logger: {
+    error: () => {}, // Disable error logging
+    warn: () => {},  // Disable warn logging 
+    debug: () => {}, // Disable debug logging
+  },
 };
 
 const handler = NextAuth(authOptions);

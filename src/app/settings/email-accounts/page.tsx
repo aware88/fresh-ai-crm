@@ -1,13 +1,13 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useSession } from 'next-auth/react';
+import { useOptimizedAuth } from '@/hooks/useOptimizedAuth';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import Link from 'next/link';
 
 export default function EmailAccountsPage() {
-  const { data: session, status } = useSession();
+  const { data: session, status } = useOptimizedAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(true);
@@ -15,8 +15,8 @@ export default function EmailAccountsPage() {
   const [error, setError] = useState<any>(null);
   const [tableExists, setTableExists] = useState(false);
   const [oauthMessage, setOauthMessage] = useState<{ type: 'success' | 'error', message: string } | null>(null);
+  // Handle OAuth callback messages
   useEffect(() => {
-    // Check for OAuth callback messages
     if (searchParams) {
       const success = searchParams.get('success');
       const errorParam = searchParams.get('error');
@@ -26,41 +26,32 @@ export default function EmailAccountsPage() {
         const providerName = provider === 'google' ? 'Google Gmail' : 
                            provider === 'microsoft' ? 'Microsoft Outlook' : 'Email';
         setOauthMessage({ type: 'success', message: `${providerName} account connected successfully!` });
-        // Clear the URL parameters after current render cycle
-        setTimeout(() => {
-          router.replace('/settings/email-accounts');
-        }, 0);
+        // Clear the URL parameters
+        router.replace('/settings/email-accounts');
       } else if (errorParam) {
         setOauthMessage({ type: 'error', message: `OAuth error: ${errorParam}` });
-        // Clear the URL parameters after current render cycle
-        setTimeout(() => {
-          router.replace('/settings/email-accounts');
-        }, 0);
+        // Clear the URL parameters
+        router.replace('/settings/email-accounts');
       }
     }
-    
-    // If not authenticated, redirect to sign in
+  }, [searchParams, router]);
+
+  // Handle authentication redirect - only for truly unauthenticated users
+  useEffect(() => {
     if (status === 'unauthenticated') {
-      setTimeout(() => {
-        router.push('/signin');
-      }, 0);
-      return;
+      router.push('/signin');
     }
-    
-    // If still loading session, wait
-    if (status === 'loading') {
-      console.log('Email Settings - Session still loading, waiting...');
-      return;
-    }
-    
-    // If authenticated, fetch email accounts
-    if (session?.user && 'id' in session.user && session.user.id) {
+  }, [status, router]);
+
+  // Fetch email accounts when authenticated
+  useEffect(() => {
+    if (status === 'authenticated' && session?.user && 'id' in session.user && session.user.id) {
       console.log('Email Settings - Authenticated with user ID:', session.user.id);
       fetchEmailAccounts();
-    } else {
+    } else if (status === 'authenticated') {
       console.log('Email Settings - Session exists but no user ID found');
     }
-  }, [status, session, router, searchParams]);
+  }, [status, session]);
   
   const fetchEmailAccounts = async () => {
     if (!session?.user || !('id' in session.user) || !session.user.id) return;
@@ -112,21 +103,21 @@ export default function EmailAccountsPage() {
     return <div>Loading...</div>;
   }
 
-  if (status === 'unauthenticated') {
+  if (status === 'unauthenticated' && !session) {
     return null; // The useEffect will handle the redirect
   }
 
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-lg font-medium">Email Accounts</h3>
-        <p className="text-sm text-muted-foreground">
-          Manage your email accounts and settings.
+        <h3 className="text-2xl font-bold text-gray-900">Connect Your Email Accounts</h3>
+        <p className="text-gray-600 mt-2">
+          Connect your email accounts to start managing and analyzing your emails with AI. Choose from Gmail, Outlook, or any IMAP-compatible email provider.
         </p>
       </div>
       
       <div className="flex justify-between items-center">
-        <h2 className="text-xl font-semibold">Email Accounts</h2>
+        <h2 className="text-xl font-semibold">Available Email Providers</h2>
         <div className="flex space-x-2">
           <button 
             onClick={() => {
@@ -340,9 +331,11 @@ CREATE INDEX email_accounts_email_idx ON public.email_accounts (email);`}
         </Link>
       </div>
       
-      {/* Email Accounts List */}
+      {/* Connected Email Accounts */}
       {tableExists && (
-        <div className="bg-card rounded-lg border overflow-hidden">
+        <div className="space-y-4">
+          <h2 className="text-xl font-semibold">Connected Email Accounts</h2>
+          <div className="bg-card rounded-lg border overflow-hidden">
           <table className="min-w-full divide-y divide-border">
             <thead className="bg-muted/50">
               <tr>
@@ -428,6 +421,7 @@ CREATE INDEX email_accounts_email_idx ON public.email_accounts (email);`}
               )}
             </tbody>
           </table>
+        </div>
         </div>
       )}
     </div>

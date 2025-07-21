@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useSession } from 'next-auth/react';
+import { useOptimizedAuth } from '@/hooks/useOptimizedAuth';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -14,7 +14,7 @@ import { useToast } from '@/components/ui/use-toast';
 import Link from 'next/link';
 
 export default function ProfileSettings() {
-  const { data: session, update: updateSession, status } = useSession();
+  const { data: session, update: updateSession, status, isLoading } = useOptimizedAuth();
   const { toast } = useToast();
   const router = useRouter();
   const user = session?.user;
@@ -217,6 +217,7 @@ export default function ProfileSettings() {
     router.push('/signin');
   };
 
+  // Show loading state while session is being fetched
   if (status === 'loading') {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -228,6 +229,7 @@ export default function ProfileSettings() {
     );
   }
 
+  // Only show auth required if definitively unauthenticated (not loading)
   if (status === 'unauthenticated') {
     return (
       <Card>
@@ -253,6 +255,18 @@ export default function ProfileSettings() {
           </div>
         </CardContent>
       </Card>
+    );
+  }
+
+  // If session is loading or missing, show loading state
+  if (isLoading || !session || !session.user) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="animate-spin h-8 w-8 border-4 border-blue-500 rounded-full border-t-transparent mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading profile...</p>
+        </div>
+      </div>
     );
   }
 

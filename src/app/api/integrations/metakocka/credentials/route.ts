@@ -6,7 +6,8 @@ import { createServerClient } from '../../../../../lib/supabase/server';
 import { cookies } from 'next/headers';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../../../auth/[...nextauth]/route';
-import { MetakockaService, MetakockaCredentials, MetakockaError } from '../../../../../lib/integrations/metakocka';
+import { MetakockaService } from '../../../../../lib/integrations/metakocka/service';
+import { MetakockaCredentials, MetakockaError } from '../../../../../lib/integrations/metakocka/types';
 
 /**
  * GET /api/integrations/metakocka/credentials

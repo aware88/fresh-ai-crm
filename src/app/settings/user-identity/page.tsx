@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useSession } from 'next-auth/react';
+import { useOptimizedAuth } from '@/hooks/useOptimizedAuth';
 import { useRouter } from 'next/navigation';
 import { UserIdentitySettings } from '@/components/settings/UserIdentitySettings';
 import { SettingsForm } from '@/components/settings/settings-form';
@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 
 export default function UserIdentityPage() {
-  const { data: session, status } = useSession();
+  const { data: session, status } = useOptimizedAuth();
   const { toast } = useToast();
   const router = useRouter();
   const [identity, setIdentity] = useState({
@@ -50,7 +50,7 @@ export default function UserIdentityPage() {
 
   // Handle authentication state changes
   useEffect(() => {
-    if (status === 'unauthenticated') {
+    if (status === 'unauthenticated' && !session) {
       // Set a flag to show auth error instead of immediately redirecting
       setAuthError(true);
       setIsLoading(false);

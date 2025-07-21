@@ -1,12 +1,12 @@
 'use client';
 
 import React, { useEffect } from 'react';
-import { useSession } from 'next-auth/react';
+import { useOptimizedAuth } from '@/hooks/useOptimizedAuth';
 import { useRouter } from 'next/navigation';
 import ImapAccountForm from './ImapAccountForm';
 
 export default function AddImapAccountPage() {
-  const { data: session, status } = useSession();
+  const { data: session, status } = useOptimizedAuth();
   const router = useRouter();
   
   useEffect(() => {

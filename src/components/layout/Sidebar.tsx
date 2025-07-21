@@ -164,6 +164,11 @@ export function Sidebar({ className }: SidebarProps) {
       icon: <Mail className="h-5 w-5" />,
     },
     {
+      title: 'Email Analysis',
+      href: '/dashboard/email-analyser',
+      icon: <Brain className="h-5 w-5" />,
+    },
+    {
       title: 'Suppliers',
       href: '/dashboard/suppliers',
       icon: <Package className="h-5 w-5" />,
