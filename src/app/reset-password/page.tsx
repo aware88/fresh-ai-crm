@@ -39,22 +39,11 @@ export default function ResetPasswordPage() {
           return;
         }
 
-        // Verify the token with Supabase
-        const { data, error } = await supabase.auth.verifyOtp({
-          token_hash,
-          type: 'recovery'
-        });
-
-        if (error) {
-          console.error('Token verification error:', error);
-          setValidToken(false);
-          setError('Invalid or expired password reset token. Please request a new password reset.');
-        } else if (data.user) {
-          setValidToken(true);
-        } else {
-          setValidToken(false);
-          setError('Invalid password reset token. Please request a new password reset.');
-        }
+        // For password reset, we don't verify the token here
+        // Instead, we let Supabase handle it when the user submits the form
+        // The token verification happens during the password update
+        console.log('Password reset token received:', { token_hash, type });
+        setValidToken(true);
       } catch (error) {
         console.error('Token check error:', error);
         setValidToken(false);
@@ -96,7 +85,30 @@ export default function ResetPasswordPage() {
         return;
       }
 
-      // Update the user's password
+      // Get token from URL parameters
+      const token_hash = searchParams?.get('token_hash');
+      const type = searchParams?.get('type');
+
+      if (!token_hash || type !== 'recovery') {
+        setError('Invalid password reset session. Please request a new password reset.');
+        setLoading(false);
+        return;
+      }
+
+      // First verify the OTP token and get the session
+      const { data: verifyData, error: verifyError } = await supabase.auth.verifyOtp({
+        token_hash,
+        type: 'recovery'
+      });
+
+      if (verifyError) {
+        console.error('Token verification error:', verifyError);
+        setError('Invalid or expired password reset token. Please request a new password reset.');
+        setLoading(false);
+        return;
+      }
+
+      // Now update the password with the verified session
       const { data, error } = await supabase.auth.updateUser({
         password: password
       });
