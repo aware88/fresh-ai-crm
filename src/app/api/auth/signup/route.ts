@@ -6,10 +6,9 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { email, password, firstName, lastName, subscriptionPlan, isOrganization, orgName, orgSlug } = body;
     
-    // Get the base URL dynamically
-    const host = request.headers.get('host');
-    const protocol = request.headers.get('x-forwarded-proto') || 'http';
-    const baseUrl = `${protocol}://${host}`;
+    // Use NEXTAUTH_URL for reliable email redirects in production
+    const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
+    console.log('🔗 Using baseUrl for email confirmation:', baseUrl);
     
     // Validate required fields
     if (!email || !password || !firstName || !lastName) {

@@ -9,11 +9,8 @@ const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
 
 // Function to get the correct base URL for redirects
 function getBaseUrl(request: Request) {
-  const host = request.headers.get('host');
-  const protocol = request.headers.get('x-forwarded-proto') || 'http';
-  
-  // Always use the request host for dynamic URL detection
-  return `${protocol}://${host}`;
+  // Use NEXTAUTH_URL for reliable redirects in production
+  return process.env.NEXTAUTH_URL || 'http://localhost:3000';
 }
 
 // Function to ensure OAuth columns exist
