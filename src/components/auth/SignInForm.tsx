@@ -38,9 +38,12 @@ export default function SignInForm() {
       if (result?.error) {
         setError(result.error);
         
-        // Check if error is related to email confirmation
+        // Check if error is related to email confirmation - be more comprehensive
         if (result.error.includes('confirmation link') || 
-            result.error.includes('Email not confirmed')) {
+            result.error.includes('Email not confirmed') ||
+            result.error.includes('not yet confirmed') ||
+            result.error.includes('confirm your email') ||
+            result.error.includes('email confirmation')) {
           setShowResendConfirmation(true);
         }
       } else {
@@ -155,13 +158,23 @@ export default function SignInForm() {
           </Button>
         </form>
         
-        <div className="text-center mt-4">
-          <Link 
-            href="/forgot-password" 
-            className="text-sm text-gray-600 hover:text-purple-600 font-medium hover:underline transition-colors"
-          >
-            Forgot your password?
-          </Link>
+        <div className="text-center mt-4 space-y-2">
+          <div>
+            <Link 
+              href="/forgot-password" 
+              className="text-sm text-gray-600 hover:text-purple-600 font-medium hover:underline transition-colors"
+            >
+              Forgot your password?
+            </Link>
+          </div>
+          <div>
+            <Link 
+              href="/auth/resend-confirmation" 
+              className="text-sm text-gray-600 hover:text-purple-600 font-medium hover:underline transition-colors"
+            >
+              Need to resend confirmation email?
+            </Link>
+          </div>
         </div>
       </div>
       <div className="p-8 pt-2">
