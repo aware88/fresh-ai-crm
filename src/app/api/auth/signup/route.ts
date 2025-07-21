@@ -32,6 +32,36 @@ export async function POST(request: NextRequest) {
     
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+    // Check if user already exists with this email
+    try {
+      const { data: existingUser, error: checkError } = await supabase.auth.admin.listUsers();
+      
+      if (!checkError && existingUser.users) {
+        const userExists = existingUser.users.find(user => user.email === email);
+        if (userExists) {
+          // Check if user is confirmed
+          if (userExists.email_confirmed_at) {
+            return NextResponse.json(
+              { error: 'An account with this email already exists. Please sign in instead.' },
+              { status: 400 }
+            );
+          } else {
+            // User exists but not confirmed - offer to resend confirmation
+            return NextResponse.json(
+              { 
+                error: 'An account with this email already exists but is not yet confirmed. Please check your email for the confirmation link, or contact support if you need help.',
+                resendAvailable: true 
+              },
+              { status: 400 }
+            );
+          }
+        }
+      }
+    } catch (userCheckError) {
+      // If user check fails, continue with signup attempt
+      console.warn('Could not check existing users, proceeding with signup:', userCheckError);
+    }
+
     // Create the full name
     const fullName = `${firstName} ${lastName}`.trim();
 
@@ -53,6 +83,15 @@ export async function POST(request: NextRequest) {
 
     if (signUpError) {
       console.error('Signup error:', signUpError);
+      
+      // Handle specific Supabase errors
+      if (signUpError.message.includes('User already registered')) {
+        return NextResponse.json(
+          { error: 'An account with this email already exists. Please sign in instead.' },
+          { status: 400 }
+        );
+      }
+      
       return NextResponse.json(
         { error: signUpError.message },
         { status: 400 }

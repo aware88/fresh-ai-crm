@@ -49,6 +49,10 @@ export default function SignUpForm() {
   // Real-time password validation
   const [passwordsMatch, setPasswordsMatch] = useState(false);
   
+  // Resend confirmation state
+  const [showResendConfirmation, setShowResendConfirmation] = useState(false);
+  const [resendLoading, setResendLoading] = useState(false);
+  
   const { toast } = useToast();
   const router = useRouter();
 
@@ -115,10 +119,42 @@ export default function SignUpForm() {
     return true;
   };
 
+  const handleResendConfirmation = async () => {
+    setResendLoading(true);
+    setError(null);
+    
+    try {
+      const response = await fetch('/api/auth/resend-confirmation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setSuccess('Confirmation email has been resent! Please check your email inbox (and spam folder).');
+        setShowResendConfirmation(false);
+        toast({
+          title: "Confirmation Email Sent",
+          description: "Please check your email inbox and spam folder for the confirmation link.",
+        });
+      } else {
+        setError(data.error || 'Failed to resend confirmation email');
+      }
+    } catch (error) {
+      console.error('Resend confirmation error:', error);
+      setError('An unexpected error occurred. Please try again.');
+    } finally {
+      setResendLoading(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setSuccess(null);
+    setShowResendConfirmation(false);
 
     if (!validateForm()) {
       return;
@@ -166,6 +202,11 @@ export default function SignUpForm() {
         setIsOrganization(false);
       } else {
         setError(data.error || 'Failed to create account');
+        
+        // Show resend confirmation option if available
+        if (data.resendAvailable) {
+          setShowResendConfirmation(true);
+        }
       }
     } catch (error) {
       console.error('Signup error:', error);
@@ -201,6 +242,21 @@ export default function SignUpForm() {
           {error && (
             <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-800">
               {error}
+              {showResendConfirmation && (
+                <div className="mt-3 pt-3 border-t border-red-200">
+                  <p className="text-xs text-red-600 mb-2">
+                    Didn't receive the confirmation email?
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleResendConfirmation}
+                    disabled={resendLoading}
+                    className="text-xs bg-red-100 hover:bg-red-200 text-red-700 px-3 py-1 rounded-lg transition-colors disabled:opacity-50"
+                  >
+                    {resendLoading ? 'Sending...' : 'Resend Confirmation Email'}
+                  </button>
+                </div>
+              )}
             </div>
           )}
           
