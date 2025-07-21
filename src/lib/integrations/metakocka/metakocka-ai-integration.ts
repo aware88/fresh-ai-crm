@@ -677,3 +677,43 @@ export async function getMetakockaDataForAIContext(userId: string): Promise<Meta
   const service = new MetakockaAIIntegrationService();
   return service.getAIContext(userId);
 }
+
+/**
+ * Get order details for AI context (backward compatibility)
+ */
+export async function getOrderDetailsForAI(orderId: string, userId: string): Promise<OrderForAI | null> {
+  try {
+    const service = new MetakockaAIIntegrationService();
+    const supabase = await service['supabase'];
+    
+    // Get user's organization
+    const { data: user, error: userError } = await supabase
+      .from('users')
+      .select('organization_id')
+      .eq('id', userId)
+      .single();
+
+    if (userError || !user) {
+      console.warn(`[Metakocka AI] User not found: ${userError?.message}`);
+      return null;
+    }
+
+    // Get order details
+    const { data: order, error: orderError } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('id', orderId)
+      .eq('organization_id', user.organization_id)
+      .single();
+
+    if (orderError || !order) {
+      console.warn(`[Metakocka AI] Order not found: ${orderError?.message}`);
+      return null;
+    }
+
+    return service['formatOrderForAI'](order);
+  } catch (error) {
+    console.error('[Metakocka AI] Error getting order details:', error);
+    return null;
+  }
+}

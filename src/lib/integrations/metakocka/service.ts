@@ -120,28 +120,7 @@ export class MetakockaService {
     }
   }
   
-  /**
-   * Test Metakocka credentials
-   * @param credentials Metakocka credentials to test
-   * @returns True if connection is successful
-   * @throws MetakockaError on failure
-   */
-  static async testCredentials(credentials: MetakockaCredentials): Promise<boolean> {
-    try {
-      const client = new MetakockaClient(credentials);
-      return await client.testConnection();
-    } catch (error) {
-      if (error instanceof MetakockaError) {
-        throw error;
-      }
-      throw new MetakockaError(
-        'Failed to test Metakocka credentials',
-        MetakockaErrorType.UNKNOWN,
-        'TEST_FAILED',
-        error
-      );
-    }
-  }
+
   
   /**
    * Get a Metakocka client for the current user
