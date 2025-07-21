@@ -29,13 +29,18 @@ export default function SignInForm() {
     setResendSuccess(false);
 
     try {
+      console.log('🔐 Attempting sign in for:', email);
+      
       const result = await signIn('credentials', {
         email,
         password,
         redirect: false,
       });
 
+      console.log('🔐 Sign in result:', result);
+
       if (result?.error) {
+        console.error('🔐 Sign in error:', result.error);
         setError(result.error);
         
         // Check if error is related to email confirmation - be more comprehensive
@@ -46,11 +51,16 @@ export default function SignInForm() {
             result.error.includes('email confirmation')) {
           setShowResendConfirmation(true);
         }
-      } else {
+      } else if (result?.ok) {
+        console.log('✅ Sign in successful, redirecting to dashboard');
         // Redirect to dashboard or intended page
         router.push('/dashboard');
+      } else {
+        console.warn('🔐 Unexpected sign in result:', result);
+        setError('Sign in failed - please try again');
       }
     } catch (error) {
+      console.error('🔐 Sign in exception:', error);
       setError('An error occurred during sign in');
     } finally {
       setLoading(false);

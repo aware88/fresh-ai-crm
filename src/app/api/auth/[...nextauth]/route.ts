@@ -23,8 +23,8 @@ const authOptions: NextAuthOptions = {
         sameSite: 'lax',
         path: '/',
         secure: process.env.NODE_ENV === 'production',
-        // In development, don't set domain to allow cookies to work with both localhost and 127.0.0.1
-        domain: process.env.NODE_ENV === 'production' ? process.env.NEXTAUTH_URL?.replace(/https?:\/\//, '') : undefined,
+        // Don't set domain - let it default to the current domain
+        domain: undefined,
       },
     },
   },
@@ -165,13 +165,12 @@ const authOptions: NextAuthOptions = {
     signIn: '/signin',
     error: '/signin',
   },
-  debug: false, // Explicitly disable debug mode to reduce session call overhead
-  // Additional debug settings to ensure it's truly disabled
-  logger: {
-    error: () => {}, // Disable error logging
-    warn: () => {},  // Disable warn logging 
-    debug: () => {}, // Disable debug logging
-  },
+  debug: process.env.NODE_ENV === 'development', // Enable debug in development
+  logger: process.env.NODE_ENV === 'production' ? {
+    error: console.error,
+    warn: console.warn,
+    debug: () => {}, // Only disable debug in production
+  } : undefined,
 };
 
 const handler = NextAuth(authOptions);
