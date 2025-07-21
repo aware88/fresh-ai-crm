@@ -179,3 +179,29 @@ export function formatPrice(price: number): string {
 export function getPopularPlan(): SubscriptionPlanDefinition | null {
   return subscriptionPlans.find(plan => plan.popular) || null;
 }
+
+/**
+ * Calculate total price for a subscription plan
+ */
+export function calculateTotalPrice(
+  plan: SubscriptionPlanDefinition,
+  userCount: number = 1,
+  billingInterval: 'monthly' | 'annual' = 'monthly'
+): number {
+  const basePrice = billingInterval === 'annual' ? plan.annualPrice : plan.monthlyPrice;
+  
+  // If plan has unlimited users, just return base price
+  if (plan.userLimit === -1) {
+    return basePrice;
+  }
+  
+  // Calculate additional user costs if applicable
+  let totalPrice = basePrice;
+  
+  if (userCount > plan.userLimit && plan.additionalUserPrice) {
+    const additionalUsers = userCount - plan.userLimit;
+    totalPrice += additionalUsers * plan.additionalUserPrice;
+  }
+  
+  return totalPrice;
+}
