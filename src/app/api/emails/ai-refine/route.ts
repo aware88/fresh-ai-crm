@@ -2,9 +2,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+// Lazy initialization to avoid build-time errors
+const getOpenAIClient = () => {
+  if (!process.env.OPENAI_API_KEY) {
+    console.warn('OPENAI_API_KEY environment variable is missing. Using mock client.');
+    return null;
+  }
+  return new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY,
+  });
+};
 
 export async function POST(request: NextRequest) {
   try {
@@ -60,6 +67,14 @@ Return the refined version in this exact JSON format:
   "primaryChange": "subject" or "body" (which was primarily modified),
   "message": "Brief description of what was changed"
 }`;
+
+    const openai = getOpenAIClient();
+    if (!openai) {
+      return NextResponse.json({
+        success: false,
+        error: 'OpenAI service is not available'
+      }, { status: 503 });
+    }
 
     const completion = await openai.chat.completions.create({
       model: 'gpt-4',

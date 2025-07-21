@@ -1,9 +1,16 @@
 import OpenAI from 'openai';
 import { createServiceRoleClient } from '@/lib/supabase/service-role';
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+// Lazy initialization to avoid build-time errors
+const getOpenAIClient = () => {
+  if (!process.env.OPENAI_API_KEY) {
+    console.warn('OPENAI_API_KEY environment variable is missing. Using mock client.');
+    return null;
+  }
+  return new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY,
+  });
+};
 
 export interface EmailPattern {
   patternType: 'greeting' | 'closing' | 'tone' | 'structure' | 'phrase' | 'transition';
@@ -102,6 +109,33 @@ ${emailContent}
 Extract patterns, analyze tone, and identify the structure. Focus on elements that represent Withcar's communication style that could be reused in similar situations.`;
 
   try {
+    const openai = getOpenAIClient();
+    if (!openai) {
+      console.warn('[EmailPatternAnalyzer] OpenAI client not available, returning empty analysis');
+      return {
+        patterns: [],
+        toneAnalysis: {
+          primaryTone: 'neutral',
+          formalityLevel: 5,
+          enthusiasmLevel: 1,
+          empathyLevel: 1,
+          confidenceLevel: 1,
+          characteristics: []
+        },
+        structureAnalysis: {
+          emailStructure: 'simple',
+          paragraphCount: 0,
+          avgSentenceLength: 0,
+          usesLists: false,
+          includesCTA: false,
+          greetingStyle: 'none',
+          closingStyle: 'none'
+        },
+        keyPhrases: [],
+        language: 'unknown'
+      };
+    }
+
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o',
       messages: [

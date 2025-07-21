@@ -8,9 +8,16 @@ import { createMetakockaClientForUser } from '@/lib/integrations/metakocka';
 import { getLearnedPatterns } from '@/lib/learning/email-pattern-analyzer';
 import OpenAI from 'openai';
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+// Lazy initialization to avoid build-time errors
+const getOpenAIClient = () => {
+  if (!process.env.OPENAI_API_KEY) {
+    console.warn('OPENAI_API_KEY environment variable is missing. Using mock client.');
+    return null;
+  }
+  return new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY,
+  });
+};
 
 export async function POST(request: NextRequest) {
   try {
@@ -288,6 +295,14 @@ EMAIL CONTENT:
 ${body}`;
 
     try {
+      const openai = getOpenAIClient();
+      if (!openai) {
+        return NextResponse.json({
+          success: false,
+          error: 'OpenAI service is not available'
+        }, { status: 503 });
+      }
+
       const completion = await openai.chat.completions.create({
         model: 'gpt-4',
         messages: [
