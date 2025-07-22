@@ -105,10 +105,19 @@ export async function POST(req: NextRequest) {
     // Parse the AI response
     const parsedResponse = JSON.parse(aiResponse);
     
-    // Save the draft to database only for real emails (not virtual ones)
+    // Save the draft to database with version control
     const isVirtualEmail = emailId.startsWith('sales-') || emailId.startsWith('analysis-') || emailId.startsWith('virtual-');
     
     if (!isVirtualEmail) {
+      // Get the current version number for this email
+      const { data: existingDrafts, error: countError } = await supabase
+        .from('ai_email_drafts')
+        .select('id')
+        .eq('email_id', emailId)
+        .eq('user_id', userId);
+      
+      const versionNumber = (existingDrafts?.length || 0) + 1;
+      
       // Only save to database if it's a real email ID that exists in emails table
       const { error: saveError } = await supabase
         .from('ai_email_drafts')
@@ -122,10 +131,12 @@ export async function POST(req: NextRequest) {
           ai_settings: settings,
           confidence_score: parsedResponse.confidence || 0.8,
           tone: parsedResponse.tone || settings?.responseStyle || 'professional',
+          version_number: versionNumber,
           context_used: {
             userEmails: userEmails?.length || 0,
             previousDrafts: previousDrafts?.length || 0,
-            emailContext: contextEmailData.analysis || {}
+            emailContext: contextEmailData.analysis || {},
+            versionInfo: `Draft v${versionNumber} - Generated ${new Date().toISOString()}`
           },
           created_at: new Date().toISOString()
         });
@@ -133,6 +144,8 @@ export async function POST(req: NextRequest) {
       if (saveError) {
         console.error('Error saving AI draft:', saveError);
         // Continue anyway, don't fail the request
+      } else {
+        console.log(`💾 Saved draft v${versionNumber} for email ${emailId}`);
       }
     }
 

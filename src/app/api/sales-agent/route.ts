@@ -199,6 +199,24 @@ export async function POST(request: NextRequest) {
     const classification = await classifyEmail(emailContext);
     const responseStrategy = getResponseStrategy(classification);
 
+    // Detect email language
+    let detectedLanguage = 'en';
+    try {
+      const languageDetectionResponse = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/ai/detect-language`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: `${subject}\n\n${body}` })
+      });
+      
+      if (languageDetectionResponse.ok) {
+        const langResult = await languageDetectionResponse.json();
+        detectedLanguage = langResult.language || 'en';
+        console.log('🌍 Detected email language:', detectedLanguage);
+      }
+    } catch (error) {
+      console.error('Language detection failed:', error);
+    }
+
     // Get learned patterns for this category
     const learnedPatterns = await getLearnedPatterns(session.user.id, classification.category);
     
@@ -245,8 +263,10 @@ INSTRUCTIONS:
 3. For general inquiries: Be helpful and professional
 4. Always maintain Withcar's friendly but professional tone
 5. Include relevant product links to https://withcar.eu/shop when appropriate
+6. CRITICAL: Respond in the same language as the email (detected language: ${detectedLanguage})
+7. Use culturally appropriate greetings, phrases, and business communication style for ${detectedLanguage}
 
-Return response in this exact JSON format:
+IMPORTANT: Return ONLY valid JSON in this exact format (no additional text before or after):
 {
   "analysis": {
     "lead_qualification": {
@@ -320,9 +340,26 @@ ${body}`;
 
       let parsedResult;
       try {
-        parsedResult = JSON.parse(result);
+        // Clean the result to ensure it's valid JSON
+        let cleanedResult = result.trim();
+        
+        // Remove any text before the first {
+        const jsonStart = cleanedResult.indexOf('{');
+        if (jsonStart > 0) {
+          cleanedResult = cleanedResult.substring(jsonStart);
+        }
+        
+        // Remove any text after the last }
+        const jsonEnd = cleanedResult.lastIndexOf('}');
+        if (jsonEnd !== -1 && jsonEnd < cleanedResult.length - 1) {
+          cleanedResult = cleanedResult.substring(0, jsonEnd + 1);
+        }
+        
+        console.log('🔧 Cleaned AI response for parsing:', cleanedResult.substring(0, 200) + '...');
+        parsedResult = JSON.parse(cleanedResult);
       } catch (parseError) {
         console.error('Failed to parse AI response:', parseError);
+        console.error('Raw response:', result);
         throw new Error('Invalid AI response format');
       }
 
