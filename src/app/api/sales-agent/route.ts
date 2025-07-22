@@ -221,7 +221,13 @@ export async function POST(request: NextRequest) {
     const learnedPatterns = await getLearnedPatterns(session.user.id, classification.category);
     
     // Step 2: Generate comprehensive analysis and draft in one call
-    const systemPrompt = `You are an intelligent email assistant for Withcar, a car accessories company. Based on the email classification and context, provide both analysis and a ready-to-send draft response.
+    const systemPrompt = `🌍 CRITICAL: EMAIL LANGUAGE DETECTED AS "${detectedLanguage.toUpperCase()}"
+${detectedLanguage === 'sl' ? '🇸🇮 YOU MUST RESPOND ENTIRELY IN SLOVENIAN. Use "Pozdravljeni", "Hvala za vaš mail", "Lep pozdrav".' : 
+  detectedLanguage === 'de' ? '🇩🇪 YOU MUST RESPOND ENTIRELY IN GERMAN.' :
+  detectedLanguage === 'it' ? '🇮🇹 YOU MUST RESPOND ENTIRELY IN ITALIAN.' :
+  '🇬🇧 Respond in the detected language.'}
+
+You are an intelligent email assistant for Withcar, a car accessories company. Based on the email classification and context, provide both analysis and a ready-to-send draft response.
 
 EMAIL CLASSIFICATION:
 - Category: ${classification.category}
@@ -264,23 +270,9 @@ INSTRUCTIONS:
 4. Always maintain Withcar's friendly but professional tone
 5. Include relevant product links to https://withcar.eu/shop when appropriate
 
-CRITICAL LANGUAGE REQUIREMENT:
-- The email language was detected as: ${detectedLanguage}
-- You MUST write the entire response in ${detectedLanguage === 'sl' ? 'SLOVENIAN' : detectedLanguage === 'de' ? 'GERMAN' : detectedLanguage === 'it' ? 'ITALIAN' : detectedLanguage === 'hr' ? 'CROATIAN' : detectedLanguage === 'sr' ? 'SERBIAN' : 'the detected language'}
-- Use appropriate greetings like ${detectedLanguage === 'sl' ? '"Pozdravljeni" or "Spoštovani"' : detectedLanguage === 'de' ? '"Sehr geehrte Damen und Herren"' : detectedLanguage === 'it' ? '"Gentile" or "Egregio"' : '"Hello"'}
-- Use appropriate closings like ${detectedLanguage === 'sl' ? '"Lep pozdrav" or "S spoštovanjem"' : detectedLanguage === 'de' ? '"Mit freundlichen Grüßen"' : detectedLanguage === 'it' ? '"Cordiali saluti"' : '"Best regards"'}
-- All text in the draft response must be in ${detectedLanguage === 'sl' ? 'SLOVENIAN' : detectedLanguage} - NO English words except product names
+${detectedLanguage === 'sl' ? '🇸🇮 REMEMBER: Write the draft.body in SLOVENIAN language!' : 
+  detectedLanguage !== 'en' ? `🌍 REMEMBER: Write the draft.body in ${detectedLanguage.toUpperCase()} language!` : ''}
 
-${detectedLanguage === 'sl' ? `
-SLOVENIAN RESPONSE EXAMPLE:
-If responding in Slovenian, use phrases like:
-- "Pozdravljeni" (Hello/Greetings)
-- "Hvala za vaš mail" (Thank you for your email)
-- "Z veseljem vam pomagam" (I'm happy to help you)
-- "Če potrebujete dodatne informacije" (If you need additional information)
-- "Lep pozdrav" (Best regards)
-- "S spoštovanjem" (Respectfully)
-` : ''}
 IMPORTANT: Return ONLY valid JSON in this exact format (no additional text before or after):
 {
   "analysis": {
@@ -339,10 +331,12 @@ ${body}`;
       }
 
       // Debug logging to see the actual prompt being sent
-      console.log('🔍 SYSTEM PROMPT PREVIEW:');
-      console.log(systemPrompt.substring(0, 500) + '...');
+      console.log('🔍 SYSTEM PROMPT START:');
+      console.log(systemPrompt.substring(0, 300));
+      console.log('🔍 SYSTEM PROMPT END:');
+      console.log(systemPrompt.substring(systemPrompt.length - 300));
       console.log('🌍 DETECTED LANGUAGE:', detectedLanguage);
-      console.log('🎯 LANGUAGE INSTRUCTIONS INCLUDED:', systemPrompt.includes('CRITICAL LANGUAGE REQUIREMENT'));
+      console.log('🎯 SLOVENIAN INSTRUCTIONS:', systemPrompt.includes('SLOVENIAN'));
 
       const completion = await openai.chat.completions.create({
         model: 'gpt-4',
