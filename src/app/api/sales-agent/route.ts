@@ -338,6 +338,12 @@ ${body}`;
         }, { status: 503 });
       }
 
+      // Debug logging to see the actual prompt being sent
+      console.log('🔍 SYSTEM PROMPT PREVIEW:');
+      console.log(systemPrompt.substring(0, 500) + '...');
+      console.log('🌍 DETECTED LANGUAGE:', detectedLanguage);
+      console.log('🎯 LANGUAGE INSTRUCTIONS INCLUDED:', systemPrompt.includes('CRITICAL LANGUAGE REQUIREMENT'));
+
       const completion = await openai.chat.completions.create({
         model: 'gpt-4',
         messages: [
