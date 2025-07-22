@@ -263,9 +263,24 @@ INSTRUCTIONS:
 3. For general inquiries: Be helpful and professional
 4. Always maintain Withcar's friendly but professional tone
 5. Include relevant product links to https://withcar.eu/shop when appropriate
-6. CRITICAL: Respond in the same language as the email (detected language: ${detectedLanguage})
-7. Use culturally appropriate greetings, phrases, and business communication style for ${detectedLanguage}
 
+CRITICAL LANGUAGE REQUIREMENT:
+- The email language was detected as: ${detectedLanguage}
+- You MUST write the entire response in ${detectedLanguage === 'sl' ? 'SLOVENIAN' : detectedLanguage === 'de' ? 'GERMAN' : detectedLanguage === 'it' ? 'ITALIAN' : detectedLanguage === 'hr' ? 'CROATIAN' : detectedLanguage === 'sr' ? 'SERBIAN' : 'the detected language'}
+- Use appropriate greetings like ${detectedLanguage === 'sl' ? '"Pozdravljeni" or "Spoštovani"' : detectedLanguage === 'de' ? '"Sehr geehrte Damen und Herren"' : detectedLanguage === 'it' ? '"Gentile" or "Egregio"' : '"Hello"'}
+- Use appropriate closings like ${detectedLanguage === 'sl' ? '"Lep pozdrav" or "S spoštovanjem"' : detectedLanguage === 'de' ? '"Mit freundlichen Grüßen"' : detectedLanguage === 'it' ? '"Cordiali saluti"' : '"Best regards"'}
+- All text in the draft response must be in ${detectedLanguage === 'sl' ? 'SLOVENIAN' : detectedLanguage} - NO English words except product names
+
+${detectedLanguage === 'sl' ? `
+SLOVENIAN RESPONSE EXAMPLE:
+If responding in Slovenian, use phrases like:
+- "Pozdravljeni" (Hello/Greetings)
+- "Hvala za vaš mail" (Thank you for your email)
+- "Z veseljem vam pomagam" (I'm happy to help you)
+- "Če potrebujete dodatne informacije" (If you need additional information)
+- "Lep pozdrav" (Best regards)
+- "S spoštovanjem" (Respectfully)
+` : ''}
 IMPORTANT: Return ONLY valid JSON in this exact format (no additional text before or after):
 {
   "analysis": {
