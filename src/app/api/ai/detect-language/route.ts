@@ -19,11 +19,11 @@ export async function POST(request: NextRequest) {
       messages: [
         { 
           role: 'system', 
-          content: 'You are a language detection assistant. Respond with only the ISO language code (e.g., "en", "es", "fr", "de", "it", "sl", etc.) for the provided text.' 
+          content: 'You are a language detection assistant. Analyze the text carefully and respond with only the ISO language code. Common codes: "en" (English), "sl" (Slovenian), "de" (German), "it" (Italian), "es" (Spanish), "fr" (French), "hr" (Croatian), "sr" (Serbian). Pay special attention to Slavic languages which may contain characters like č, š, ž, ć, đ.' 
         },
         { 
           role: 'user', 
-          content: `Detect the language of this text: ${text.substring(0, 500)}` 
+          content: `Detect the language of this text. Look for Slavic language indicators like č, š, ž, ć, đ, and typical Slovenian words like "je", "in", "na", "za", "se", "da", "bo", "so", "ali", "tudi", "lahko", "samo", "še", "že", "kot", "ker", "če", "bi", "pri", "od", "do", "po", "iz", "s", "z", "v", "o":\n\n${text.substring(0, 800)}` 
         }
       ],
       temperature: 0.1,

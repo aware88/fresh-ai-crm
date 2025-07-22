@@ -363,8 +363,17 @@ ${body}`;
         throw new Error('Invalid AI response format');
       }
 
-      // Store the analysis and draft for learning
+      // Store the analysis and draft for learning with versioning
       try {
+        // Get existing drafts count for this email to determine version
+        const { data: existingAnalyses } = await supabase
+          .from('email_analysis')
+          .select('id')
+          .eq('email_id', emailId)
+          .eq('user_id', session.user.id);
+        
+        const versionNumber = (existingAnalyses?.length || 0) + 1;
+        
         await supabase.from('email_analysis').insert({
           email_id: emailId,
           user_id: session.user.id,
@@ -372,8 +381,17 @@ ${body}`;
           analysis_result: parsedResult.analysis,
           generated_draft: parsedResult.draft,
           customer_context: customerContext,
+          version_number: versionNumber,
+          detected_language: detectedLanguage,
+          metadata: {
+            versionInfo: `Sales analysis v${versionNumber} - Generated ${new Date().toISOString()}`,
+            languageDetected: detectedLanguage,
+            responseLanguage: detectedLanguage
+          },
           created_at: new Date().toISOString()
         });
+        
+        console.log(`💾 Saved sales analysis v${versionNumber} for email ${emailId} in language ${detectedLanguage}`);
       } catch (dbError) {
         console.error('Failed to store analysis for learning:', dbError);
       }
@@ -386,6 +404,7 @@ ${body}`;
         classification: parsedResult.classification,
         customer_context: customerContext,
         order_context: orderContext?.slice(0, 3), // Limit to 3 most recent orders
+        detected_language: detectedLanguage,
         email: {
           from: from,
           subject: subject,
