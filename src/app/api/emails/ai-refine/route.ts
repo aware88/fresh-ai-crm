@@ -91,17 +91,28 @@ Return the refined version in this exact JSON format:
       throw new Error('No response from AI');
     }
 
-    // Parse the JSON response
+    // Parse the JSON response with cleaning
     let refinedDraft;
     try {
       refinedDraft = JSON.parse(result);
     } catch (parseError) {
-      // Fallback parsing if JSON is malformed
+      // Fallback parsing if JSON is malformed - clean the response
       console.error('JSON parsing failed, using fallback:', parseError);
-      return NextResponse.json({
-        success: false,
-        error: 'AI response format error'
-      }, { status: 500 });
+      try {
+        // Clean the result by extracting JSON content between first { and last }
+        const cleanedResult = result.substring(
+          result.indexOf('{'),
+          result.lastIndexOf('}') + 1
+        );
+        console.log('🔧 Cleaned AI response for parsing:', cleanedResult.substring(0, 100) + '...');
+        refinedDraft = JSON.parse(cleanedResult);
+      } catch (cleanError) {
+        console.error('Even cleaned JSON parsing failed:', cleanError);
+        return NextResponse.json({
+          success: false,
+          error: 'AI response format error - unable to parse JSON'
+        }, { status: 500 });
+      }
     }
 
     // Validate the response structure
