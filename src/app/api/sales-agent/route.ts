@@ -199,35 +199,13 @@ export async function POST(request: NextRequest) {
     const classification = await classifyEmail(emailContext);
     const responseStrategy = getResponseStrategy(classification);
 
-    // Detect email language
-    let detectedLanguage = 'en';
-    try {
-      const languageDetectionResponse = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/ai/detect-language`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: `${subject}\n\n${body}` })
-      });
-      
-      if (languageDetectionResponse.ok) {
-        const langResult = await languageDetectionResponse.json();
-        detectedLanguage = langResult.language || 'en';
-        console.log('🌍 Detected email language:', detectedLanguage);
-      }
-    } catch (error) {
-      console.error('Language detection failed:', error);
-    }
-
     // Get learned patterns for this category
     const learnedPatterns = await getLearnedPatterns(session.user.id, classification.category);
     
-    // Step 2: Generate comprehensive analysis and draft in one call
-    const systemPrompt = `🌍 CRITICAL: EMAIL LANGUAGE DETECTED AS "${detectedLanguage.toUpperCase()}"
-${detectedLanguage === 'sl' ? '🇸🇮 YOU MUST RESPOND ENTIRELY IN SLOVENIAN. Use "Pozdravljeni", "Hvala za vaš mail", "Lep pozdrav".' : 
-  detectedLanguage === 'de' ? '🇩🇪 YOU MUST RESPOND ENTIRELY IN GERMAN.' :
-  detectedLanguage === 'it' ? '🇮🇹 YOU MUST RESPOND ENTIRELY IN ITALIAN.' :
-  '🇬🇧 Respond in the detected language.'}
+    // Generate comprehensive analysis and draft in one call
+    const systemPrompt = `You are an intelligent email assistant for Withcar, a car accessories company. Based on the email classification and context, provide both analysis and a ready-to-send draft response.
 
-You are an intelligent email assistant for Withcar, a car accessories company. Based on the email classification and context, provide both analysis and a ready-to-send draft response.
+IMPORTANT: Always respond in the same language as the original email, maintaining natural and professional communication style.
 
 EMAIL CLASSIFICATION:
 - Category: ${classification.category}
@@ -270,8 +248,7 @@ INSTRUCTIONS:
 4. Always maintain Withcar's friendly but professional tone
 5. Include relevant product links to https://withcar.eu/shop when appropriate
 
-${detectedLanguage === 'sl' ? '🇸🇮 REMEMBER: Write the draft.body in SLOVENIAN language!' : 
-  detectedLanguage !== 'en' ? `🌍 REMEMBER: Write the draft.body in ${detectedLanguage.toUpperCase()} language!` : ''}
+REMEMBER: Write the draft.body in the same language as the original email!
 
 IMPORTANT: Return ONLY valid JSON in this exact format (no additional text before or after):
 {
@@ -335,7 +312,7 @@ ${body}`;
       console.log(systemPrompt.substring(0, 300));
       console.log('🔍 SYSTEM PROMPT END:');
       console.log(systemPrompt.substring(systemPrompt.length - 300));
-      console.log('🌍 DETECTED LANGUAGE:', detectedLanguage);
+      console.log('🌍 Using natural language detection by AI');
       console.log('🎯 SLOVENIAN INSTRUCTIONS:', systemPrompt.includes('SLOVENIAN'));
 
       const completion = await openai.chat.completions.create({
@@ -397,16 +374,16 @@ ${body}`;
           generated_draft: parsedResult.draft,
           customer_context: customerContext,
           version_number: versionNumber,
-          detected_language: detectedLanguage,
+          detected_language: 'auto', // AI will detect naturally
           metadata: {
             versionInfo: `Sales analysis v${versionNumber} - Generated ${new Date().toISOString()}`,
-            languageDetected: detectedLanguage,
-            responseLanguage: detectedLanguage
+            languageDetected: 'auto',
+            responseLanguage: 'auto'
           },
           created_at: new Date().toISOString()
         });
         
-        console.log(`💾 Saved sales analysis v${versionNumber} for email ${emailId} in language ${detectedLanguage}`);
+        console.log(`💾 Saved sales analysis v${versionNumber} for email ${emailId} with auto language detection`);
       } catch (dbError) {
         console.error('Failed to store analysis for learning:', dbError);
       }
@@ -419,7 +396,7 @@ ${body}`;
         classification: parsedResult.classification,
         customer_context: customerContext,
         order_context: orderContext?.slice(0, 3), // Limit to 3 most recent orders
-        detected_language: detectedLanguage,
+        detected_language: 'auto',
         email: {
           from: from,
           subject: subject,

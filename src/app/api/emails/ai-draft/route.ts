@@ -80,31 +80,11 @@ export async function POST(req: NextRequest) {
       .order('created_at', { ascending: false })
       .limit(10);
 
-    // Detect email language for proper response language
-    let detectedLanguage = 'en'; // default to English
-    try {
-      const languageResponse = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/ai/detect-language`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          emailContent: originalEmail.body || originalEmail.content || ''
-        })
-      });
-      
-      if (languageResponse.ok) {
-        const languageData = await languageResponse.json();
-        detectedLanguage = languageData.language || 'en';
-        console.log('🌍 Detected email language for draft:', detectedLanguage);
-      }
-    } catch (error) {
-      console.warn('Failed to detect language, defaulting to English:', error);
-    }
-
     // Generate AI draft
     const openai = getOpenAIClient();
     const draftId = uuidv4();
     
-    const systemPrompt = buildSystemPrompt(settings, userEmails, previousDrafts, detectedLanguage);
+    const systemPrompt = buildSystemPrompt(settings, userEmails, previousDrafts);
     const userPrompt = buildUserPrompt(originalEmail, contextEmailData, settings);
 
     const response = await openai.chat.completions.create({
@@ -192,35 +172,12 @@ export async function POST(req: NextRequest) {
   }
 }
 
-function buildSystemPrompt(settings: any, userEmails: any[], previousDrafts: any[], detectedLanguage: string = 'en'): string {
+function buildSystemPrompt(settings: any, userEmails: any[], previousDrafts: any[]): string {
   const userStyle = analyzeUserWritingStyle(userEmails);
   const learningContext = analyzePreviousDrafts(previousDrafts);
   const hasSalesContext = settings?.salesContext;
   
-  // Add language-specific instructions at the beginning
-  const languageInstructions = detectedLanguage === 'sl' 
-    ? `🌍 CRITICAL: EMAIL LANGUAGE DETECTED AS "SLOVENIAN"
-🇸🇮 YOU MUST RESPOND ENTIRELY IN SLOVENIAN. Use "Pozdravljeni", "Hvala za vaš mail", "Lep pozdrav".
-
-` 
-    : detectedLanguage === 'de'
-    ? `🌍 CRITICAL: EMAIL LANGUAGE DETECTED AS "GERMAN"
-🇩🇪 YOU MUST RESPOND ENTIRELY IN GERMAN.
-
-`
-    : detectedLanguage === 'it'
-    ? `🌍 CRITICAL: EMAIL LANGUAGE DETECTED AS "ITALIAN"  
-🇮🇹 YOU MUST RESPOND ENTIRELY IN ITALIAN.
-
-`
-    : detectedLanguage !== 'en'
-    ? `🌍 CRITICAL: EMAIL LANGUAGE DETECTED AS "${detectedLanguage.toUpperCase()}"
-Please respond in the same language as the original email.
-
-`
-    : '';
-  
-  let systemPrompt = `${languageInstructions}You are an AI email assistant that helps users write professional email replies. 
+  let systemPrompt = `You are an AI email assistant that helps users write professional email replies. Always respond in the same language as the original email. 
 
 IMPORTANT: Your response must be a valid JSON object with the following structure:
 {
