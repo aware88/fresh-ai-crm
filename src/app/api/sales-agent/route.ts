@@ -339,7 +339,7 @@ ${body}`;
       console.log('🎯 SLOVENIAN INSTRUCTIONS:', systemPrompt.includes('SLOVENIAN'));
 
       const completion = await openai.chat.completions.create({
-        model: 'gpt-4',
+        model: 'gpt-3.5-turbo',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
