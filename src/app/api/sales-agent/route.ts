@@ -205,7 +205,7 @@ export async function POST(request: NextRequest) {
     // Generate comprehensive analysis and draft in one call
     const systemPrompt = `You are an intelligent email assistant for Withcar, a car accessories company. Based on the email classification and context, provide both analysis and a ready-to-send draft response.
 
-IMPORTANT: Always respond in the same language as the original email, maintaining natural and professional communication style.
+CRITICAL: Always respond in the exact same language as the original email. If the email is in Slovenian, respond in Slovenian. If German, respond in German. If Italian, respond in Italian. Match the language perfectly while maintaining natural and professional communication style.
 
 EMAIL CLASSIFICATION:
 - Category: ${classification.category}
@@ -349,6 +349,12 @@ ${body}`;
         
         console.log('🔧 Cleaned AI response for parsing:', cleanedResult.substring(0, 200) + '...');
         parsedResult = JSON.parse(cleanedResult);
+        console.log('✅ Parsed result structure:', {
+          hasAnalysis: !!parsedResult.analysis,
+          hasLeadQualification: !!parsedResult.analysis?.lead_qualification,
+          hasDraft: !!parsedResult.draft,
+          analysisKeys: parsedResult.analysis ? Object.keys(parsedResult.analysis) : 'none'
+        });
       } catch (parseError) {
         console.error('Failed to parse AI response:', parseError);
         console.error('Raw response:', result);
@@ -390,10 +396,15 @@ ${body}`;
 
       return NextResponse.json({
         success: true,
-        analysis: parsedResult.analysis,
-        generated_response: parsedResult.draft.body,
-        draft_subject: parsedResult.draft.subject,
-        classification: parsedResult.classification,
+        analysis: parsedResult.analysis || {
+          lead_qualification: { score: 0, level: 'unknown', reasoning: 'Analysis parsing failed' },
+          opportunity_assessment: { potential_value: 'unknown', timeline: 'unknown', decision_maker: 'unknown', budget_indicators: [] },
+          sales_insights: { pain_points: [], buying_signals: [], objection_likelihood: 'unknown' },
+          recommendations: { next_actions: ['Review email manually'], approach: 'Standard follow-up', urgency: 'medium' }
+        },
+        generated_response: parsedResult.draft?.body || 'Thank you for your email. We will review and respond shortly.',
+        draft_subject: parsedResult.draft?.subject || 'Re: ' + subject,
+        classification: parsedResult.classification || classification,
         customer_context: customerContext,
         order_context: orderContext?.slice(0, 3), // Limit to 3 most recent orders
         detected_language: 'auto',

@@ -168,18 +168,58 @@ body {
 }
 
 .email-content td,
-.email-content th {
+/* Enhanced Email Content Styling - Gmail-like appearance */
+.email-content,
+.email-container {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  line-height: 1.6;
+  color: #202124;
+  background: #ffffff;
+  max-width: 100%;
+  overflow: hidden;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+/* Email renderer specific styles */
+.email-renderer {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  line-height: 1.6;
+  color: #202124;
+  max-width: 100%;
+  overflow: hidden;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+/* Table styling - preserve email table layouts */
+.email-content table,
+.email-container table {
+  border-collapse: collapse;
+  width: 100%;
+  max-width: 100%;
+}
+
+.email-content td,
+.email-content th,
+.email-container td,
+.email-container th {
   padding: 8px 12px;
   border: 1px solid #ddd;
   text-align: left;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
-.email-content th {
+.email-content th,
+.email-container th {
   background-color: #f5f5f5;
   font-weight: 600;
 }
 
-.email-content p {
+/* Typography */
+.email-content p,
+.email-container p {
   margin-bottom: 0.75rem;
   word-wrap: break-word;
   overflow-wrap: break-word;
@@ -190,23 +230,44 @@ body {
 .email-content h3,
 .email-content h4,
 .email-content h5,
-.email-content h6 {
+.email-content h6,
+.email-container h1,
+.email-container h2,
+.email-container h3,
+.email-container h4,
+.email-container h5,
+.email-container h6 {
   margin: 1rem 0 0.5rem 0;
   font-weight: 600;
+  color: inherit;
 }
 
-.email-content a {
+/* Links */
+.email-content a,
+.email-container a {
   color: #2563eb;
   text-decoration: underline;
+  word-break: break-all;
+  overflow-wrap: anywhere;
 }
 
-.email-content img {
-  max-width: 100%;
-  height: auto;
+.email-content a:hover,
+.email-container a:hover {
+  color: #1d4ed8;
+}
+
+/* Images */
+.email-content img,
+.email-container img {
+  max-width: 100% !important;
+  height: auto !important;
   border-radius: 4px;
+  display: block;
 }
 
-.email-content blockquote {
+/* Blockquotes */
+.email-content blockquote,
+.email-container blockquote {
   border-left: 4px solid #e5e7eb;
   padding-left: 1rem;
   margin: 1rem 0;
@@ -214,95 +275,216 @@ body {
   color: #6b7280;
 }
 
+/* Lists */
 .email-content ul,
-.email-content ol {
+.email-content ol,
+.email-container ul,
+.email-container ol {
   margin: 0.5rem 0;
   padding-left: 1.5rem;
 }
 
-.email-content li {
+.email-content li,
+.email-container li {
   margin-bottom: 0.25rem;
 }
 
-/* Force responsive layout for email content */
-.email-content * {
-  max-width: 100% !important;
-  word-wrap: break-word !important;
-  overflow-wrap: anywhere !important;
-  box-sizing: border-box !important;
+/* Preserve email styling while ensuring responsiveness */
+.email-content *,
+.email-container * {
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
+/* Special handling for email divs and spans to preserve layout */
 .email-content div,
 .email-content span,
-.email-content p {
-  max-width: 100% !important;
-  word-wrap: break-word !important;
-  overflow-wrap: anywhere !important;
-  white-space: pre-wrap !important;
-}
-
-.email-content a {
-  word-break: break-all !important;
-  overflow-wrap: anywhere !important;
-}
-
-.email-content table {
-  width: 100% !important;
-  max-width: 100% !important;
-  table-layout: fixed !important;
-}
-
-.email-content td,
-.email-content th {
-  word-wrap: break-word !important;
-  overflow-wrap: anywhere !important;
-  max-width: 0 !important;
-}
-
-/* Email list item styling for better layout */
-.email-list-item {
-  min-width: 0;
+.email-container div,
+.email-container span {
   word-wrap: break-word;
   overflow-wrap: break-word;
 }
 
+/* Don't force white-space changes that break email layouts */
+.email-content div[style*="background"],
+.email-content td[style*="background"],
+.email-container div[style*="background"],
+.email-container td[style*="background"] {
+  white-space: normal;
+}
+
+/* Responsive table behavior */
+@media only screen and (max-width: 600px) {
+  .email-content table,
+  .email-container table {
+    width: 100% !important;
+  }
+  
+  .email-content td,
+  .email-container td {
+    display: block !important;
+    width: 100% !important;
+    padding: 5px !important;
+  }
+  
+  .email-content,
+  .email-container {
+    padding: 10px !important;
+  }
+}
+
+/* Professional Email List Styling - Gmail-like with robust height control */
+.email-list-item {
+  /* Use CSS containment for performance and stability */
+  contain: layout style paint;
+  
+  /* Robust height control - prevents any dynamic changes */
+  height: 88px;
+  min-height: 88px;
+  max-height: 88px;
+  
+  /* Layout properties */
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  position: relative;
+  overflow: hidden;
+  
+  /* Flexbox for precise control */
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  
+  /* Styling */
+  padding: 12px 16px;
+  border-radius: 8px;
+  background-color: #ffffff;
+  border: 1px solid transparent;
+  
+  /* Performance optimizations */
+  will-change: auto;
+  transform: translateZ(0); /* Force hardware acceleration */
+  
+  /* Disable transitions that could cause height changes */
+  transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+/* Prevent child elements from affecting parent height */
+.email-list-item * {
+  flex-shrink: 0;
+  min-height: 0;
+}
+
+/* Subject line with precise dimensions */
 .email-list-item .email-subject {
-  line-height: 1.4;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  height: 20px;
+  max-height: 20px;
+  
+  /* Text handling */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   word-break: break-word;
-  overflow-wrap: break-word;
+  
+  /* Reset margins/padding */
+  margin: 0;
+  padding: 0;
+  
+  /* Color */
+  color: #202124;
 }
 
+/* Preview text with precise dimensions */
 .email-list-item .email-preview {
+  font-size: 13px;
+  line-height: 18px;
+  height: 18px;
+  max-height: 18px;
+  
+  /* Text handling */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   word-break: break-word;
-  overflow-wrap: break-word;
+  
+  /* Spacing */
+  margin: 4px 0 0 0;
+  padding: 0;
+  
+  /* Color */
+  color: #5f6368;
 }
 
-/* Ensure email list doesn't have horizontal scroll */
+/* Meta information (sender, date) */
+.email-list-item .email-meta {
+  font-size: 12px;
+  line-height: 16px;
+  height: 16px;
+  max-height: 16px;
+  
+  /* Text handling */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  
+  /* Spacing */
+  margin: 2px 0 0 0;
+  padding: 0;
+  
+  /* Color */
+  color: #5f6368;
+}
+
+/* Interactive states */
+.email-list-item:hover {
+  background-color: #f8f9fa;
+  border-color: #e8eaed;
+  box-shadow: 0 1px 3px rgba(60,64,67,0.12);
+  cursor: pointer;
+}
+
+.email-list-item.selected,
+.email-list-item[data-selected="true"] {
+  background-color: #e8f0fe;
+  border-color: #1a73e8;
+  border-left: 4px solid #1a73e8;
+}
+
+.email-list-item.unread,
+.email-list-item[data-unread="true"] {
+  background-color: #ffffff;
+  border-left: 4px solid #1a73e8;
+}
+
+.email-list-item.unread .email-subject,
+.email-list-item[data-unread="true"] .email-subject {
+  font-weight: 600;
+  color: #1a73e8;
+}
+
+/* Fix flexbox overflow issue - allow proper shrinking */
 .email-list-container {
   overflow-x: hidden !important;
-  max-width: 260px;
-  min-width: 240px;
+  min-width: 0; /* Critical: allows flexbox to shrink properly */
+  flex: 0 0 300px; /* Fixed width for email list */
+  max-width: 300px;
 }
 
-.email-list-item {
-  max-width: 100%;
-  overflow: hidden;
-  word-wrap: break-word;
-  overflow-wrap: break-word;
+@media (min-width: 768px) {
+  .email-list-container {
+    flex: 0 0 350px;
+    max-width: 350px;
+  }
 }
 
-.email-list-item * {
-  max-width: 100% !important;
-  word-wrap: break-word !important;
-  overflow-wrap: break-word !important;
+@media (min-width: 1024px) {
+  .email-list-container {
+    flex: 0 0 380px;
+    max-width: 380px;
+  }
 }
 
-.email-list-item .email-subject {
-  line-height: 1.3 !important;
-  word-break: break-word !important;
-}
-
-.email-list-item .email-preview {
-  word-break: break-word !important;
-  overflow-wrap: break-word !important;
-}
+/* Remove duplicate - handled above */

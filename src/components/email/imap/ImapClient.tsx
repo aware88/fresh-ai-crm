@@ -1,13 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { FaInbox, FaEnvelope, FaUser, FaCalendarAlt, FaSpinner } from 'react-icons/fa';
-import { ChevronDown, ChevronUp, RefreshCw } from 'lucide-react';
-import { parseEmailContent, generateEmailPreview } from '@/lib/email/email-content-parser';
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { FaInbox, FaSpinner } from "react-icons/fa";
+import { FiAlertTriangle } from "react-icons/fi";
+import { Send, FileText, RefreshCw } from "lucide-react";
+import { useLocalStorage } from '@/hooks/useLocalStorage';
+import { generateEmailPreview } from '@/lib/email/utils';
+import EmailRenderer from '../EmailRenderer';
 import CustomerInfoWidget from '../CustomerInfoWidget';
 
 interface Email {
@@ -34,14 +36,41 @@ export default function ImapClient({ account, onSalesAgent, isSalesProcessing }:
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedEmail, setSelectedEmail] = useState<Email | null>(null);
-  const [readEmails, setReadEmails] = useState<Set<string>>(new Set());
+  const [readEmails, setReadEmails] = useLocalStorage<Set<string>>(`readEmails_${account?.id}`, new Set());
   const [displayCount, setDisplayCount] = useState(10);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [hasMoreEmails, setHasMoreEmails] = useState(true);
+  const [currentFolder, setCurrentFolder] = useState<string>('Inbox');
+  const [folders, setFolders] = useState<any[]>([]);
+  const [nextPageToken, setNextPageToken] = useState<string | null>(null);
+
+
+  // Load folders function
+  const loadFolders = async () => {
+    if (!session?.user || !account?.id || account.provider_type !== 'imap') return;
+    
+    try {
+      console.log('Loading folders for account:', account.id);
+      const response = await fetch(`/api/email/imap-folders?accountId=${account.id}`);
+      const data = await response.json();
+      
+      console.log('Folders response:', data);
+      if (data.success && data.folders) {
+        setFolders(data.folders);
+        console.log('Set folders:', data.folders);
+      } else {
+        console.warn('No folders returned:', data);
+      }
+    } catch (error) {
+      console.error('Error loading folders:', error);
+    }
+  };
 
   // Load emails function
-  const loadEmails = async () => {
+  const loadEmails = async (folder: string = currentFolder) => {
+
     if (!session?.user) {
+      console.log('User not authenticated, stopping email load');
       setError('User not authenticated');
       setLoading(false);
       return;
@@ -51,14 +80,25 @@ export default function ImapClient({ account, onSalesAgent, isSalesProcessing }:
       setLoading(true);
       setError(null);
       
+      // Reset infinite scroll state when loading new folder
+      setEmails([]); // Clear existing emails
+      setDisplayCount(10);
+      setHasMoreEmails(true);
+      
+      // Reset page counter for initial load
+      const pageKey = `emailPage_${account?.id}_${folder}`;
+      localStorage.setItem(pageKey, '1'); // Set to page 1 for initial load
+      
       console.log('Loading emails from API...', { accountType: account?.provider_type, accountId: account?.id });
       
       // Use the correct API based on account type
       if (account?.provider_type === 'google') {
         // Use Gmail API for Google accounts
         try {
-          const response = await fetch('/api/email/gmail-simple');
+          const response = await fetch(`/api/email/gmail-simple?folder=${folder}`);
           const data = await response.json();
+          
+
 
           if (response.ok && data.success && data.emails) {
             console.log(`Successfully loaded ${data.count || 0} emails from Gmail API`);
@@ -75,7 +115,18 @@ export default function ImapClient({ account, onSalesAgent, isSalesProcessing }:
               attachments: email.attachments || []
             }));
 
+            console.log('Setting Gmail emails in state:', transformedEmails.length, 'emails');
             setEmails(transformedEmails);
+            
+            // Store the nextPageToken for pagination
+            if (data.pagination?.nextPageToken) {
+              setNextPageToken(data.pagination.nextPageToken);
+              console.log('Stored nextPageToken:', data.pagination.nextPageToken);
+            } else {
+              setNextPageToken(null);
+              setHasMoreEmails(false);
+            }
+            
             setLoading(false);
             return;
           }
@@ -85,7 +136,7 @@ export default function ImapClient({ account, onSalesAgent, isSalesProcessing }:
       } else if (account?.provider_type === 'imap' && account?.id) {
         // Use IMAP API for IMAP accounts
         try {
-          const url = `/api/email/imap-fetch?accountId=${account.id}&maxEmails=20`;
+          const url = `/api/email/imap-fetch?accountId=${account.id}&maxEmails=20&folder=${folder}`;
           const response = await fetch(url);
           const data = await response.json();
 
@@ -115,36 +166,44 @@ export default function ImapClient({ account, onSalesAgent, isSalesProcessing }:
       
       console.log('All API methods failed, trying database fallback...');
 
-      // Fallback to database emails
-      const { data: dbEmails, error: dbError } = await supabase
-        .from('emails')
-        .select('*')
-        .eq('user_id', session.user.id)
-        .order('created_at', { ascending: false })
-        .limit(20);
+      // Fallback to database emails (optional - may not exist in all setups)
+      try {
+        const { data: dbEmails, error: dbError } = await supabase
+          .from('emails')
+          .select('*')
+          .eq('user_id', session.user.id)
+          .order('created_at', { ascending: false })
+          .limit(20);
 
-      if (dbError) {
-        console.error('Database error:', dbError);
-        throw new Error('Failed to load emails from database');
-      }
+        if (dbError) {
+          console.log('Database fallback not available:', dbError);
+          // Don't throw error, just continue to show empty state
+          setEmails([]);
+          setLoading(false);
+          return;
+        }
 
-      if (dbEmails && dbEmails.length > 0) {
-        console.log(`Loaded ${dbEmails.length} emails from database`);
-        
-        const transformedEmails: Email[] = dbEmails.map((email: any) => ({
-          id: email.id,
-          from: email.sender || 'Unknown Sender',
-          subject: email.subject || '(No Subject)',
-          body: email.raw_content || email.content || '',
-          date: email.created_at || new Date().toISOString(),
-          read: readEmails.has(email.id) || true,
-          folder: 'inbox',
-          attachments: []
-        }));
+        if (dbEmails && dbEmails.length > 0) {
+          console.log(`Loaded ${dbEmails.length} emails from database`);
+          
+          const transformedEmails: Email[] = dbEmails.map((email: any) => ({
+            id: email.id,
+            from: email.sender || 'Unknown Sender',
+            subject: email.subject || '(No Subject)',
+            body: email.raw_content || email.content || '',
+            date: email.created_at || new Date().toISOString(),
+            read: readEmails.has(email.id) || true,
+            folder: 'inbox',
+            attachments: []
+          }));
 
-        setEmails(transformedEmails);
-        setLoading(false);
-        return;
+          setEmails(transformedEmails);
+          setLoading(false);
+          return;
+        }
+      } catch (dbFallbackError) {
+        console.log('Database fallback failed:', dbFallbackError);
+        // Continue to show empty state or sample data
       }
 
       // If no emails found, show sample data
@@ -186,13 +245,68 @@ export default function ImapClient({ account, onSalesAgent, isSalesProcessing }:
   const refreshEmails = async () => {
     console.log('Refreshing emails...');
     setEmails([]);
-    await loadEmails();
+    await loadEmails(currentFolder);
+  };
+
+  // Handle folder change
+  const handleFolderChange = (folder: string) => {
+    console.log('Changing to folder:', folder);
+    let actualFolderName = folder;
+    
+    // For Google accounts, use Gmail folder names
+    if (account?.provider_type === 'google') {
+      // Gmail uses lowercase folder names, map display names to Gmail queries
+      if (folder === 'Inbox') {
+        actualFolderName = 'inbox';
+      } else if (folder === 'Sent') {
+        actualFolderName = 'sent';
+      } else if (folder === 'Drafts') {
+        actualFolderName = 'drafts';
+      }
+    } else {
+      // For IMAP accounts, map display folder names to actual IMAP folder names
+      if (folder === 'Inbox') {
+        actualFolderName = 'INBOX';
+      } else if (folder === 'Sent') {
+        // Try common sent folder names
+        const sentFolder = folders.find(f => 
+          f.name.toLowerCase().includes('sent') || 
+          f.displayName?.toLowerCase() === 'sent'
+        );
+        actualFolderName = sentFolder?.name || 'Sent';
+      } else if (folder === 'Drafts') {
+        // Try common draft folder names  
+        const draftFolder = folders.find(f => 
+          f.name.toLowerCase().includes('draft') || 
+          f.displayName?.toLowerCase() === 'drafts'
+        );
+        actualFolderName = draftFolder?.name || 'Drafts';
+      }
+    }
+    
+    console.log('Using folder name:', actualFolderName);
+    setCurrentFolder(folder);
+    setSelectedEmail(null);
+    setEmails([]); // Clear existing emails to prevent duplicates
+    setDisplayCount(10); // Reset display count
+    setHasMoreEmails(true); // Reset pagination state
+    setNextPageToken(null); // Reset Gmail page token
+    
+    // Reset page counter for IMAP accounts
+    if (account?.provider_type === 'imap') {
+      const pageKey = `emailPage_${account?.id}_${folder}`;
+      localStorage.removeItem(pageKey);
+    }
+    
+    loadEmails(actualFolderName);
   };
 
   // Initialize component
   useEffect(() => {
+
     if (session?.user) {
-      loadEmails();
+      loadFolders();
+      loadEmails(currentFolder);
     }
   }, [session?.user?.id, account?.id]); // Load emails when user or account changes
 
@@ -217,24 +331,117 @@ export default function ImapClient({ account, onSalesAgent, isSalesProcessing }:
     }
   };
 
-  const loadMoreEmails = () => {
+  const loadMoreEmails = useCallback(async (isInfiniteScroll = false) => {
     if (isLoadingMore || !hasMoreEmails) return;
-    
     setIsLoadingMore(true);
     
-    // Simulate loading more emails (in production, this would be an API call)
-    setTimeout(() => {
-      const newDisplayCount = displayCount + 10;
-      setDisplayCount(newDisplayCount);
+    try {
+                      let response;
+        if (account?.provider_type === 'google') {
+          // Use Gmail API with pageToken for Google accounts
+          const tokenParam = nextPageToken ? `&pageToken=${nextPageToken}` : '';
+          response = await fetch(`/api/email/gmail-simple?folder=${currentFolder}${tokenParam}`);
+          console.log(`Loading more Gmail emails with pageToken: ${nextPageToken || 'none'}`);
+        } else if (account?.provider_type === 'imap') {
+          // Use IMAP API with page numbers for IMAP accounts
+          const currentPageKey = `emailPage_${account?.id}_${currentFolder}`;
+          const storedPage = localStorage.getItem(currentPageKey);
+          const nextPage = storedPage ? parseInt(storedPage) + 1 : 2;
+          response = await fetch(`/api/email/imap-fetch?accountId=${account.id}&maxEmails=20&folder=${currentFolder}&page=${nextPage}`);
+          console.log(`Loading more IMAP emails - page: ${nextPage}`);
+        }
       
-      // Check if we've shown all emails
-      if (newDisplayCount >= emails.length) {
+      if (response && response.ok) {
+        const data = await response.json();
+        
+        if (data.success && data.emails && data.emails.length > 0) {
+          // Transform and append new emails to existing ones
+          const newEmails: Email[] = data.emails.map((email: any, index: number) => ({
+            id: email.id || `${currentFolder}-${Date.now()}-${index}`, // Ensure unique ID
+            from: email.from || 'Unknown Sender',
+            subject: email.subject || '(No Subject)',
+            body: email.body || '',
+            date: email.date || new Date().toISOString(),
+            read: readEmails.has(email.id) || email.read,
+            folder: email.folder || currentFolder.toLowerCase(),
+            attachments: email.attachments || []
+          }));
+          
+          // Filter out duplicate emails and update state
+          setEmails(prevEmails => {
+            const existingIds = new Set(prevEmails.map(email => email.id));
+            const uniqueNewEmails = newEmails.filter(email => !existingIds.has(email.id));
+            console.log(`Adding ${uniqueNewEmails.length} unique emails out of ${newEmails.length} fetched`);
+            console.log(`Previous emails: ${prevEmails.length}, New unique: ${uniqueNewEmails.length}`);
+            console.log('New email IDs:', newEmails.map(e => e.id).slice(0, 3));
+            console.log('Existing IDs sample:', Array.from(existingIds).slice(0, 3));
+            
+            const updatedEmails = [...prevEmails, ...uniqueNewEmails];
+            console.log(`Total emails after update: ${updatedEmails.length}`);
+            // Update display count to match total emails
+            setDisplayCount(updatedEmails.length);
+            return updatedEmails;
+          });
+          
+          // Handle pagination differently for Gmail vs IMAP
+          if (account?.provider_type === 'google') {
+            // For Gmail, store the nextPageToken for the next request
+            if (data.pagination?.nextPageToken) {
+              setNextPageToken(data.pagination.nextPageToken);
+            } else {
+              setHasMoreEmails(false);
+            }
+          } else if (account?.provider_type === 'imap') {
+            // For IMAP, update the page counter in localStorage
+            const currentPageKey = `emailPage_${account?.id}_${currentFolder}`;
+            const storedPage = localStorage.getItem(currentPageKey);
+            const currentPage = storedPage ? parseInt(storedPage) + 1 : 2;
+            localStorage.setItem(currentPageKey, currentPage.toString());
+          }
+          
+          // If we got fewer emails than requested, we've reached the end
+          if (data.emails.length < 20) {
+            setHasMoreEmails(false);
+          }
+        } else {
+          // No more emails available
+          setHasMoreEmails(false);
+        }
+      } else {
         setHasMoreEmails(false);
       }
-      
+    } catch (error) {
+      console.error('Error loading more emails:', error);
+      setHasMoreEmails(false);
+    } finally {
       setIsLoadingMore(false);
-    }, 500);
-  };
+    }
+  }, [isLoadingMore, hasMoreEmails, emails.length, account, currentFolder, readEmails]);
+
+  // Infinite scroll effect - only within email container
+  useEffect(() => {
+    if (isLoadingMore || !hasMoreEmails) return;
+
+    const scrollContainer = document.getElementById('email-scroll-container');
+    if (!scrollContainer) return;
+
+    const handleScroll = () => {
+      if (isLoadingMore) return; // Prevent multiple simultaneous loads
+      
+      const { scrollTop, scrollHeight, clientHeight } = scrollContainer;
+      // Trigger load when user scrolls to within 200px of bottom
+      if (scrollHeight - (scrollTop + clientHeight) < 200) {
+        loadMoreEmails(true);
+      }
+    };
+
+    scrollContainer.addEventListener('scroll', handleScroll, { passive: true });
+
+    return () => {
+      scrollContainer.removeEventListener('scroll', handleScroll);
+    };
+  }, [isLoadingMore, hasMoreEmails, emails.length, loadMoreEmails]);
+
 
   const displayedEmails = emails.slice(0, displayCount);
 
@@ -261,211 +468,198 @@ export default function ImapClient({ account, onSalesAgent, isSalesProcessing }:
 
   return (
     <div className="h-full flex flex-col">
-      <div className="flex items-center justify-between px-3 py-2 border-b bg-gray-50">
-        <div className="flex items-center gap-2">
-          <FaInbox className="h-4 w-4 text-blue-600" />
-          <span className="font-medium text-gray-800">Inbox ({emails.length})</span>
+      <Tabs value={currentFolder} onValueChange={handleFolderChange} className="h-full flex flex-col">
+        <div className="flex items-center justify-between px-3 py-2 border-b bg-gray-50">
+          <TabsList className="grid w-full grid-cols-3 max-w-md">
+            <TabsTrigger value="Inbox" className="flex items-center gap-2">
+              <FaInbox className="h-4 w-4" />
+              Inbox
+            </TabsTrigger>
+            <TabsTrigger 
+              value="Sent" 
+              className="flex items-center gap-2"
+            >
+              <Send className="h-4 w-4" />
+              Sent
+            </TabsTrigger>
+            <TabsTrigger 
+              value="Drafts" 
+              className="flex items-center gap-2"
+            >
+              <FileText className="h-4 w-4" />
+              Drafts
+            </TabsTrigger>
+          </TabsList>
+          <div className="flex items-center gap-2">
+            <span className="font-medium text-gray-800">
+              {currentFolder} ({emails.length})
+            </span>
+            <Button onClick={refreshEmails} variant="outline" size="sm">
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Refresh
+            </Button>
+          </div>
         </div>
-        <Button onClick={refreshEmails} variant="outline" size="sm">
-          <RefreshCw className="h-4 w-4 mr-2" />
-          Refresh
-        </Button>
-      </div>
-      <div className="flex-1 flex gap-3 p-3 min-h-0">
-        <div className="email-list-container w-64 flex-shrink-0 bg-gray-50 rounded-lg border overflow-hidden">
-          <ScrollArea className="h-full">
-            <div className="py-2 px-2 pb-3">
-              {emails.length === 0 ? (
-                <div className="text-center py-8">
-                  <FaInbox className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-                  <p className="text-gray-500">No emails found</p>
-                  <p className="text-sm text-gray-400">Your emails will appear here</p>
-                </div>
-              ) : (
-                <div className="space-y-1">
-                  {displayedEmails.map((email) => (
-                    <div
-                      key={email.id}
-                      className={`email-list-item p-1.5 mb-2 rounded-md cursor-pointer transition-all duration-200 border shadow-sm ${
-                        selectedEmail?.id === email.id
-                          ? 'bg-blue-50 border-blue-200 shadow-md'
-                          : email.read
-                          ? 'bg-white border-gray-100 hover:bg-gray-50 hover:shadow-md'
-                          : 'bg-white border-blue-200 hover:bg-blue-50 hover:shadow-md border-l-4 border-l-blue-500'
-                      }`}
-                      onClick={() => handleEmailClick(email)}
-                    >
-                                              <div className="w-full">
-                          <div className="flex items-start justify-between mb-1">
-                            <p className={`text-xs font-medium truncate flex-1 pr-1 ${
-                              email.read ? 'text-gray-600' : 'text-gray-800'
+        
+        <TabsContent value={currentFolder} className="flex-1 min-h-0 mt-0">
+          <div className="flex-1 flex gap-3 p-3 min-h-0" style={{ height: 'calc(100vh - 200px)' }}>
+            <div className="email-list-container bg-gray-50 rounded-lg border" style={{ width: '320px', height: '100%', flexShrink: 0 }}>
+              <div className="h-full overflow-y-auto" id="email-scroll-container">
+                <div className="p-2">
+
+                  <div className="space-y-2">
+                    {emails.length === 0 ? (
+                      <div className="text-center py-8">
+                        <FaInbox className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+                        <p className="text-gray-500">No emails found</p>
+                        <p className="text-sm text-gray-400">Your emails will appear here</p>
+
+                      </div>
+                    ) : (
+                      <>
+                        {displayedEmails.map((email) => (
+                          <div
+                            key={email.id}
+                            className={`email-list-item cursor-pointer ${
+                              selectedEmail?.id === email.id
+                                ? 'selected'
+                                : email.read
+                                ? ''
+                                : 'unread'
                             }`}
-                             title={email.from}
-                             style={{ maxWidth: 'calc(100% - 70px)' }}>
-                              {email.from}
-                            </p>
-                            <div className="flex items-center space-x-1 flex-shrink-0 min-w-[70px] justify-end">
-                              {!email.read && (
-                                <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
-                              )}
-                              <span className="text-xs text-gray-400 whitespace-nowrap">
-                                {new Date(email.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}{' '}
-                                {new Date(email.date).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
-                              </span>
-                            </div>
+                            onClick={() => handleEmailClick(email)}
+                          >
+                            <div className="w-full">
+                                <div className="flex items-start justify-between mb-1">
+                                  <p className={`text-xs font-medium truncate flex-1 pr-1 ${
+                                    email.read ? 'text-gray-600' : 'text-gray-800'
+                                  }`}
+                                   title={email.from}
+                                   style={{ maxWidth: 'calc(100% - 70px)' }}>
+                                    {email.from}
+                                  </p>
+                                  <div className="flex items-center space-x-1 flex-shrink-0 min-w-[70px] justify-end">
+                                    {!email.read && (
+                                      <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
+                                    )}
+                                    <span className="text-xs text-gray-400 whitespace-nowrap">
+                                      {new Date(email.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}{' '}
+                                      {new Date(email.date).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
+                                    </span>
+                                  </div>
+                                </div>
+                                <p className={`email-subject text-sm mb-1 leading-tight ${
+                                  email.read ? 'font-normal text-gray-700' : 'font-semibold text-gray-900'
+                                }`}
+                                   style={{
+                                     display: '-webkit-box',
+                                     WebkitLineClamp: 2,
+                                     WebkitBoxOrient: 'vertical',
+                                     overflow: 'hidden',
+                                     textOverflow: 'ellipsis'
+                                   }}
+                                   title={email.subject}>
+                                  {email.subject}
+                                </p>
+                                <p className="email-preview text-xs text-gray-500 leading-tight" 
+                                   style={{
+                                     display: '-webkit-box',
+                                     WebkitLineClamp: 1,
+                                     WebkitBoxOrient: 'vertical',
+                                     overflow: 'hidden',
+                                     textOverflow: 'ellipsis'
+                                   }}>
+                                  {generateEmailPreview(email.body, 70)}
+                                </p>
+                              </div>
                           </div>
-                          <p className={`email-subject text-sm mb-1 leading-tight ${
-                            email.read ? 'font-normal text-gray-700' : 'font-semibold text-gray-900'
-                          }`}
-                             style={{
-                               display: '-webkit-box',
-                               WebkitLineClamp: 2,
-                               WebkitBoxOrient: 'vertical',
-                               overflow: 'hidden',
-                               textOverflow: 'ellipsis'
-                             }}
-                             title={email.subject}>
-                            {email.subject}
-                          </p>
-                          <p className="email-preview text-xs text-gray-500 leading-tight" 
-                             style={{
-                               display: '-webkit-box',
-                               WebkitLineClamp: 1,
-                               WebkitBoxOrient: 'vertical',
-                               overflow: 'hidden',
-                               textOverflow: 'ellipsis'
-                             }}>
-                            {generateEmailPreview(parseEmailContent(email.body), 70)}
-                          </p>
-                        </div>
-                    </div>
-                  ))}
-                  
-                  {/* Load more button */}
-                  {hasMoreEmails && displayCount < emails.length && (
-                    <div className="text-center py-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={loadMoreEmails}
-                        disabled={isLoadingMore}
-                        className="text-blue-600 hover:text-blue-800"
-                      >
-                        {isLoadingMore ? (
-                          <>
-                            <FaSpinner className="h-3 w-3 animate-spin mr-2" />
-                            Loading...
-                          </>
-                        ) : (
-                          <>
-                            <ChevronDown className="h-4 w-4 mr-1" />
-                            Load More ({emails.length - displayCount} remaining)
-                          </>
+                        ))}
+                        
+                        {/* Loading indicator */}
+                        {isLoadingMore && (
+                          <div className="text-center py-4">
+                            <FaSpinner className="h-6 w-6 animate-spin mx-auto text-gray-400" />
+                            <p className="text-sm text-gray-500 mt-2">Loading more emails...</p>
+                          </div>
                         )}
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          </ScrollArea>
-        </div>
-        <div className="flex-1 bg-white min-w-0">
-          <Card className="h-full border border-gray-200 shadow-sm bg-white rounded-lg overflow-hidden">
-            {selectedEmail ? (
-              <div className="h-full flex flex-col">
-                {/* Email Header */}
-                <CardHeader className="border-b bg-gradient-to-r from-gray-50 to-gray-100">
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex-1">
-                      <CardTitle className="text-lg font-semibold text-gray-900 mb-2">
-                        {selectedEmail.subject}
-                      </CardTitle>
-                      <div className="flex items-center space-x-4 text-sm text-gray-600">
-                        <div className="flex items-center space-x-1">
-                          <FaUser className="h-4 w-4" />
-                          <span>{selectedEmail.from}</span>
-                        </div>
-                        <div className="flex items-center space-x-1">
-                          <FaCalendarAlt className="h-4 w-4" />
-                          <span>{new Date(selectedEmail.date).toLocaleString()}</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      {!selectedEmail.read && (
-                        <Badge variant="secondary" className="bg-blue-100 text-blue-800">Unread</Badge>
-                      )}
-                    </div>
+                        
+                        {/* End of emails indicator */}
+                        {!hasMoreEmails && emails.length > 0 && displayedEmails.length >= emails.length && (
+                          <div className="text-center py-4 text-sm text-gray-400">
+                            No more emails to load
+                          </div>
+                        )}
+                      </>
+                    )}
                   </div>
-                  
-                  {/* Action Buttons */}
-                  <div className="flex space-x-2 pt-2">
-                    <Button
-                      onClick={handleSalesAgent}
-                      disabled={isSalesProcessing}
-                      className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 shadow-sm flex-1"
-                      size="sm"
-                    >
-                      {isSalesProcessing ? (
-                        <>
-                          <FaSpinner className="h-4 w-4 mr-2 animate-spin" />
-                          Analyzing & Drafting...
-                        </>
-                      ) : (
-                        <>
-                          <FaEnvelope className="h-4 w-4 mr-2" />
-                          AI Analysis & Draft
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </CardHeader>
-
-                {/* Customer Info Widget */}
-                <div className="px-4 pt-3">
-                  <CustomerInfoWidget customerEmail={selectedEmail.from} />
                 </div>
-
-                {/* Email Body */}
-                <CardContent className="flex-1 p-0 min-w-0">
-                  <ScrollArea className="h-full">
-                    <div className="p-4 min-w-0">
-                      <div className="email-content max-w-none min-w-0">
-                        <div 
-                          className="text-sm text-gray-800 leading-relaxed break-words overflow-hidden min-w-0"
-                          style={{
-                            fontFamily: 'system-ui, -apple-system, sans-serif',
-                            lineHeight: '1.6',
-                            wordWrap: 'break-word',
-                            overflowWrap: 'break-word',
-                            maxWidth: '100%'
-                          }}
-                          dangerouslySetInnerHTML={{
-                            __html: parseEmailContent(selectedEmail.body).displayContent
-                          }}
-                        />
-                      </div>
-                    </div>
-                  </ScrollArea>
-                </CardContent>
               </div>
-            ) : (
-              <CardContent className="h-full flex items-center justify-center">
-                <div className="text-center py-16">
-                  <div className="w-20 h-20 mx-auto mb-6 bg-gray-100 rounded-full flex items-center justify-center">
-                    <FaEnvelope className="h-10 w-10 text-gray-400" />
-                  </div>
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No Email Selected</h3>
-                  <p className="text-gray-500 text-sm max-w-sm">
-                    Choose an email from the list to view its content and use AI-powered analysis tools.
-                  </p>
-                </div>
-              </CardContent>
-            )}
-          </Card>
-        </div>
-      </div>
+            </div>
+
+            {/* Email Detail View */}
+            <div className="flex-1 min-w-0 flex flex-col" style={{ height: '100%' }}>
+              {selectedEmail ? (
+                <>
+                  {/* Email Header - Fixed */}
+                  <Card className="bg-white rounded-lg rounded-b-none border-b-0 shadow-sm flex-shrink-0">
+                    <CardHeader className="border-b bg-gradient-to-r from-gray-50 to-gray-100 py-3">
+                      <CardTitle className="text-lg font-semibold text-gray-800 leading-tight">{selectedEmail.subject}</CardTitle>
+                      <CardDescription className="text-sm text-gray-600">
+                        From: {selectedEmail.from} | On: {new Date(selectedEmail.date).toLocaleString()}
+                      </CardDescription>
+                    </CardHeader>
+                  </Card>
+                  
+                  {/* Email Body - Scrollable */}
+                  <Card className="flex-1 bg-white rounded-none border-t-0 border-b-0 shadow-sm min-h-0 overflow-hidden">
+                    <CardContent className="p-4 h-full overflow-y-auto">
+                      <EmailRenderer content={selectedEmail.body} />
+                    </CardContent>
+                  </Card>
+                  
+                  {/* Email Actions - Fixed at bottom */}
+                  <Card className="bg-white rounded-lg rounded-t-none border-t-0 shadow-sm flex-shrink-0">
+                    <div className="p-3 border-t bg-gray-50">
+                      <div className="space-y-2">
+                        <CustomerInfoWidget 
+                          customerEmail={selectedEmail.from} 
+                        />
+                        <Button
+                          onClick={handleSalesAgent}
+                          disabled={isSalesProcessing}
+                          className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+                          size="sm"
+                        >
+                          {isSalesProcessing ? (
+                            <>
+                              <FaSpinner className="h-4 w-4 mr-2 animate-spin" />
+                              Analyzing & Drafting...
+                            </>
+                          ) : (
+                            'AI Analysis & Draft'
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  </Card>
+                </>
+              )                 : (
+                  <Card className="bg-white h-full rounded-lg border shadow-sm flex items-center justify-center">
+                    <CardContent className="h-full flex items-center justify-center">
+                      <div className="text-center py-16">
+                        <div className="w-20 h-20 mx-auto mb-6 bg-gray-100 rounded-full flex items-center justify-center">
+                          <FaInbox className="h-10 w-10 text-gray-400" />
+                        </div>
+                        <p className="text-lg font-medium text-gray-500">Select an email to view</p>
+                        <p className="text-sm text-gray-400">Your selection will be displayed here.</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+            </div>
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 } 

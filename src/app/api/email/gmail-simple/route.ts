@@ -63,11 +63,12 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Get pagination parameters
+    // Get pagination and folder parameters
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '20');
     const pageToken = searchParams.get('pageToken') || '';
+    const folder = searchParams.get('folder') || 'INBOX';
 
     // Get Supabase client
     const supabase = createServiceRoleClient();
@@ -140,8 +141,18 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Build Gmail API URL with pagination
-    let gmailUrl = `https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=${limit}&q=in:inbox`;
+    // Map folder names to Gmail labels/queries
+    let query = 'in:inbox'; // default
+    if (folder.toLowerCase() === 'sent') {
+      query = 'in:sent';
+    } else if (folder.toLowerCase() === 'drafts') {
+      query = 'in:drafts';
+    } else if (folder.toLowerCase() === 'inbox') {
+      query = 'in:inbox';
+    }
+    
+    // Build Gmail API URL with pagination and folder support
+    let gmailUrl = `https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=${limit}&q=${query}`;
     if (pageToken) {
       gmailUrl += `&pageToken=${pageToken}`;
     }
@@ -216,17 +227,23 @@ export async function GET(request: NextRequest) {
         const from = headers.find((h: any) => h.name === 'From')?.value || 'Unknown Sender';
         const date = headers.find((h: any) => h.name === 'Date')?.value;
         
-        // Get email body
+        // Get email body - prioritize HTML content for rich display
         let body = '';
         if (messageData.payload.body && messageData.payload.body.data) {
           body = Buffer.from(messageData.payload.body.data, 'base64').toString('utf-8');
         } else if (messageData.payload.parts) {
-          // Handle multipart messages
-          const textPart = messageData.payload.parts.find((part: any) => 
-            part.mimeType === 'text/plain' || part.mimeType === 'text/html'
+          // Handle multipart messages - prioritize HTML over plain text
+          const htmlPart = messageData.payload.parts.find((part: any) => 
+            part.mimeType === 'text/html'
           );
-          if (textPart && textPart.body && textPart.body.data) {
-            body = Buffer.from(textPart.body.data, 'base64').toString('utf-8');
+          const textPart = messageData.payload.parts.find((part: any) => 
+            part.mimeType === 'text/plain'
+          );
+          
+          // Use HTML if available, otherwise fallback to plain text
+          const preferredPart = htmlPart || textPart;
+          if (preferredPart && preferredPart.body && preferredPart.body.data) {
+            body = Buffer.from(preferredPart.body.data, 'base64').toString('utf-8');
           }
         }
 
@@ -237,7 +254,7 @@ export async function GET(request: NextRequest) {
           body: body,
           date: date ? new Date(date).toISOString() : new Date().toISOString(),
           read: !messageData.labelIds?.includes('UNREAD'),
-          folder: 'inbox',
+          folder: folder.toLowerCase(),
           attachments: []
         });
 

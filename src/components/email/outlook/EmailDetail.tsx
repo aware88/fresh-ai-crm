@@ -9,6 +9,7 @@ import EmailNotes from '../EmailNotes';
 import EmailAttachments from './EmailAttachments';
 import EmailLanguageDetection from './EmailLanguageDetection';
 import AIDraftWindow from '../AIDraftWindow';
+import EmailRenderer from '../EmailRenderer';
 
 interface EmailDetailProps {
   messageId: string;
@@ -225,14 +226,9 @@ export default function EmailDetail({ messageId, onReply, onReplyAll, onForward 
         </div>
         
         <div className="email-content max-w-none mb-6">
-          <div 
-            className="text-sm text-gray-800 leading-relaxed break-words overflow-hidden"
-            style={{
-              fontFamily: 'system-ui, -apple-system, sans-serif',
-              lineHeight: '1.6',
-              wordWrap: 'break-word'
-            }}
-            dangerouslySetInnerHTML={{ __html: email.body.content }} 
+          <EmailRenderer 
+            content={email.body.content}
+            className="text-sm text-gray-800"
           />
         </div>
         

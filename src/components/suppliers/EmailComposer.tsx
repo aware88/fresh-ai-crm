@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import RichTextEditor from '@/components/email/RichTextEditor';
 import {
   Select,
   SelectContent,
@@ -141,12 +142,11 @@ export default function EmailComposer({ supplier, onSendEmail }: EmailComposerPr
 
           <div className="grid w-full items-center gap-1.5">
             <Label htmlFor="body">Message</Label>
-            <Textarea
-              id="body"
-              placeholder="Type your message here..."
-              className="min-h-[200px]"
+            <RichTextEditor
               value={body}
-              onChange={(e) => setBody(e.target.value)}
+              onChange={setBody}
+              placeholder="Type your message here..."
+              height="200px"
             />
           </div>
 

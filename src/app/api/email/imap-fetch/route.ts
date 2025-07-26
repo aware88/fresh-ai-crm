@@ -48,6 +48,8 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const accountId = searchParams.get('accountId');
     const maxEmails = parseInt(searchParams.get('maxEmails') || '20');
+    const page = parseInt(searchParams.get('page') || '1');
+    const folder = searchParams.get('folder') || 'INBOX';
     
     if (!accountId) {
       return NextResponse.json(
@@ -119,9 +121,9 @@ export async function GET(request: Request) {
       console.log(`Connecting to IMAP server for ${account.email}...`);
       await client.connect();
       
-      // Open the inbox
-      const mailbox = await client.mailboxOpen('INBOX');
-      console.log(`Connected to ${account.email} inbox with ${mailbox.exists} messages`);
+      // Open the specified folder (INBOX, Sent, Drafts, etc.)
+      const mailbox = await client.mailboxOpen(folder);
+      console.log(`Connected to ${account.email} ${folder} folder with ${mailbox.exists} messages`);
       
       if (mailbox.exists === 0) {
         return NextResponse.json({
@@ -132,12 +134,24 @@ export async function GET(request: Request) {
         });
       }
       
-      // Calculate the range of messages to fetch (most recent first)
+      // Calculate the range of messages to fetch with pagination (most recent first)
       const totalMessages = mailbox.exists;
-      const start = Math.max(1, totalMessages - maxEmails + 1);
-      const end = totalMessages;
+      const offset = (page - 1) * maxEmails;
+      const start = Math.max(1, totalMessages - offset - maxEmails + 1);
+      const end = Math.max(1, totalMessages - offset);
       
-      console.log(`Fetching messages ${start} to ${end} from ${account.email}`);
+      console.log(`Fetching messages ${start} to ${end} from ${account.email} (page ${page})`);
+      
+      // Skip if we're beyond available messages
+      if (start > totalMessages) {
+        await client.logout();
+        return NextResponse.json({
+          success: true,
+          emails: [],
+          count: 0,
+          account: account.email
+        });
+      }
       
       // Fetch messages in reverse order (newest first)
       for (let seqno = end; seqno >= start && emails.length < maxEmails; seqno--) {
@@ -159,10 +173,10 @@ export async function GET(request: Request) {
             id: `${account.id}-${seqno}`,
             from: parsed.from?.text || 'Unknown Sender',
             subject: parsed.subject || '(No Subject)',
-            body: parsed.text || parsed.html || '',
+            body: parsed.html || parsed.text || '',
             date: parsed.date ? parsed.date.toISOString() : new Date().toISOString(),
             read: message.flags?.has('\\Seen') || false,
-            folder: 'inbox',
+            folder: folder.toLowerCase(),
             attachments: parsed.attachments || []
           };
           

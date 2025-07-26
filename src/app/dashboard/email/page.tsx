@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import OutlookClient from '@/components/email/outlook/OutlookClient';
 import ImapClient from '@/components/email/imap/ImapClient';
 import EmailAnalyserClient from "@/app/dashboard/email-analyser/EmailAnalyserClient";
+import EmailComposer from '@/components/email/EmailComposer';
 import { FaEnvelope, FaRobot, FaSearch, FaSync, FaCog } from 'react-icons/fa';
 import { Mail, TrendingUp, Inbox, Send, AlertCircle, Database, MessageSquare, TestTube, Brain } from 'lucide-react';
 import Link from 'next/link';
@@ -145,7 +146,7 @@ export default function EmailPage() {
           setImapAccounts(nonMicrosoftAccounts);
           
           // Auto-select primary account if only one exists
-          if (allAccounts.length === 1 && !selectedAccount) {
+          if (allAccounts.length === 1) {
             setSelectedAccount(allAccounts[0].id);
           }
           
@@ -372,6 +373,7 @@ export default function EmailPage() {
           <TabsContent value="inbox" className="flex-1 min-h-0">
             <div className="bg-white rounded-lg border border-gray-200 shadow-sm h-full">
               <div className="h-full">
+
                 {outlookConnected && (selectedAccount === 'outlook' || !selectedAccount) ? (
                   <OutlookClient />
                 ) : selectedAccount && imapAccounts.find(acc => acc.id === selectedAccount) ? (
@@ -384,6 +386,7 @@ export default function EmailPage() {
                   <div className="text-center py-8 text-gray-500">
                     <Mail className="h-12 w-12 mx-auto mb-4 text-gray-400" />
                     <p>Select an email account to view messages</p>
+
                   </div>
                 )}
               </div>
@@ -413,11 +416,7 @@ export default function EmailPage() {
                 </h3>
               </div>
               <div className="p-4">
-                <div className="text-center py-8 text-gray-500">
-                  <Send className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-                  <p>Email composition feature coming soon</p>
-                  <p className="text-sm mt-2">You can compose emails directly from your connected email client for now</p>
-                </div>
+                <EmailComposer />
               </div>
             </div>
           </TabsContent>

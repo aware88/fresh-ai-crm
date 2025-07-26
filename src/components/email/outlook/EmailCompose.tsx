@@ -6,6 +6,7 @@ import { X, Send, Paperclip, ChevronDown } from 'lucide-react';
 import EmailAttachments from './EmailAttachments';
 import EmailSignature from './EmailSignature';
 import EmailLanguageDetection from './EmailLanguageDetection';
+import RichTextEditor from '../RichTextEditor';
 
 interface EmailComposeProps {
   mode: 'new' | 'reply' | 'replyAll' | 'forward';
@@ -219,11 +220,11 @@ export default function EmailCompose({ mode, originalEmail, onClose, onSend }: E
         </div>
         
         <div className="pt-2">
-          <textarea 
-            ref={bodyRef}
-            value={body} 
-            onChange={(e) => setBody(e.target.value)}
-            className="w-full px-3 py-2 border rounded min-h-[300px] font-mono text-sm"
+          <RichTextEditor
+            value={body}
+            onChange={setBody}
+            placeholder="Compose your email..."
+            height="300px"
           />
         </div>
         

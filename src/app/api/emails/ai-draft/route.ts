@@ -177,7 +177,9 @@ function buildSystemPrompt(settings: any, userEmails: any[], previousDrafts: any
   const learningContext = analyzePreviousDrafts(previousDrafts);
   const hasSalesContext = settings?.salesContext;
   
-  let systemPrompt = `You are an AI email assistant that helps users write professional email replies. Always respond in the same language as the original email. 
+  let systemPrompt = `You are an AI email assistant that helps users write professional email replies. 
+
+CRITICAL: Always respond in the exact same language as the original email. If the email is in Slovenian, respond in Slovenian. If German, respond in German. If Italian, respond in Italian. Match the language perfectly. 
 
 IMPORTANT: Your response must be a valid JSON object with the following structure:
 {

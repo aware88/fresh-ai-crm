@@ -369,9 +369,21 @@ export async function GET(request: Request) {
 
       }
 
-      // Get previous period data for calculating changes
-      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-      const sixtyDaysAgo = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000);
+      // Get previous period data for calculating changes with proper timezone handling
+      const now = new Date();
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(now.getDate() - 30);
+      thirtyDaysAgo.setHours(0, 0, 0, 0);
+      
+      const sixtyDaysAgo = new Date();
+      sixtyDaysAgo.setDate(now.getDate() - 60);
+      sixtyDaysAgo.setHours(0, 0, 0, 0);
+      
+      console.log('Dashboard stats date ranges:', {
+        now: now.toISOString(),
+        thirtyDaysAgo: thirtyDaysAgo.toISOString(),
+        sixtyDaysAgo: sixtyDaysAgo.toISOString()
+      });
 
       const [
         prevUnreadEmailsResult,

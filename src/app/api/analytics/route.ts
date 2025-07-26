@@ -22,10 +22,21 @@ export async function GET(request: Request) {
 
     const userId = session.user.id;
 
-    // Get current date ranges
+    // Get current date ranges with proper timezone handling
     const currentDate = new Date();
-    const thirtyDaysAgo = new Date(currentDate.getTime() - (30 * 24 * 60 * 60 * 1000));
-    const sixtyDaysAgo = new Date(currentDate.getTime() - (60 * 24 * 60 * 60 * 1000));
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(currentDate.getDate() - 30);
+    thirtyDaysAgo.setHours(0, 0, 0, 0);
+    
+    const sixtyDaysAgo = new Date();
+    sixtyDaysAgo.setDate(currentDate.getDate() - 60);
+    sixtyDaysAgo.setHours(0, 0, 0, 0);
+    
+    console.log('Analytics date ranges:', {
+      current: currentDate.toISOString(),
+      thirtyDaysAgo: thirtyDaysAgo.toISOString(),
+      sixtyDaysAgo: sixtyDaysAgo.toISOString()
+    });
 
     // Get counts for different entities
     const [
@@ -144,27 +155,47 @@ export async function GET(request: Request) {
       maxPrice = Math.max(...prices);
     }
 
-    // Calculate revenue metrics
+    // Calculate revenue metrics with proper error handling
     const currentRevenueData = getData(revenueCurrentResult);
     const previousRevenueData = getData(revenuePreviousResult);
     
     const currentRevenue = Array.isArray(currentRevenueData) 
-      ? currentRevenueData.reduce((sum: number, doc: any) => sum + (doc.total_amount || 0), 0) 
+      ? currentRevenueData.reduce((sum: number, doc: any) => sum + (parseFloat(doc.total_amount) || 0), 0) 
       : 0;
     const previousRevenue = Array.isArray(previousRevenueData) 
-      ? previousRevenueData.reduce((sum: number, doc: any) => sum + (doc.total_amount || 0), 0) 
+      ? previousRevenueData.reduce((sum: number, doc: any) => sum + (parseFloat(doc.total_amount) || 0), 0) 
       : 0;
-    const revenueChange = previousRevenue > 0 ? ((currentRevenue - previousRevenue) / previousRevenue) * 100 : 0;
+    const revenueChange = previousRevenue > 0 ? ((currentRevenue - previousRevenue) / previousRevenue) * 100 : 
+                        (currentRevenue > 0 ? 100 : 0);
+    
+    console.log('Revenue calculation:', {
+      currentRevenue,
+      previousRevenue,
+      revenueChange,
+      currentCount: currentRevenueData?.length || 0,
+      previousCount: previousRevenueData?.length || 0
+    });
 
-    // Calculate order metrics
+    // Calculate order metrics with proper edge case handling
     const currentOrders = getCount(ordersCurrentResult);
     const previousOrders = getCount(ordersPreviousResult);
-    const orderChange = previousOrders > 0 ? ((currentOrders - previousOrders) / previousOrders) * 100 : 0;
+    const orderChange = previousOrders > 0 ? ((currentOrders - previousOrders) / previousOrders) * 100 : 
+                       (currentOrders > 0 ? 100 : 0);
 
-    // Calculate customer metrics (using suppliers)
+    // Calculate customer metrics (using suppliers) with proper edge case handling
     const currentCustomers = getCount(customersCurrentResult);
     const previousCustomers = getCount(customersPreviousResult);
-    const customerChange = previousCustomers > 0 ? ((currentCustomers - previousCustomers) / previousCustomers) * 100 : 0;
+    const customerChange = previousCustomers > 0 ? ((currentCustomers - previousCustomers) / previousCustomers) * 100 : 
+                          (currentCustomers > 0 ? 100 : 0);
+    
+    console.log('Orders/Customers calculation:', {
+      currentOrders,
+      previousOrders,
+      orderChange,
+      currentCustomers,
+      previousCustomers,
+      customerChange
+    });
 
     // Calculate supplier metrics  
     const totalSuppliers = getCount(suppliersResult);

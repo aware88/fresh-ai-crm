@@ -48,6 +48,13 @@
 *.pfx
 *.cert
 *.cer
+
+# ========================================
+# Data Files
+# ========================================
+/data/
+src/data/uploads/
+src/data/withcar-emails/
 *.p7b
 *.p7c
 *.p7s
