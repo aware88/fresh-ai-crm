@@ -435,99 +435,142 @@ export default function AIDraftWindow({
         </CardDescription>
       </CardHeader>
       
-      <CardContent className="flex-1 overflow-hidden flex flex-col">
-        <div className="space-y-4 flex-1 overflow-y-auto pr-2">
-        {/* Subject Field */}
-        <div className="space-y-2">
-          <Label htmlFor="draft-subject">Subject</Label>
-          <Input
-            id="draft-subject"
-            value={editedSubject}
-            onChange={(e) => setEditedSubject(e.target.value)}
-            placeholder="Email subject"
-            className="font-medium"
-          />
-          {changes.some(c => c.section === 'subject') && (
-            <div className="text-xs text-orange-600 flex items-center space-x-1">
-              <Edit className="h-3 w-3" />
-              <span>Modified from original</span>
+      <CardContent className="flex-1 overflow-hidden flex">
+        {/* Left Panel - Draft Email Content (70%) */}
+        <div className="w-[70%] flex flex-col pr-4 border-r">
+          <div className="space-y-4 flex-1 overflow-y-auto pr-2">
+            {/* Subject Field */}
+            <div className="space-y-2">
+              <Label htmlFor="draft-subject">Subject</Label>
+              <Input
+                id="draft-subject"
+                value={editedSubject}
+                onChange={(e) => setEditedSubject(e.target.value)}
+                placeholder="Email subject"
+                className="font-medium"
+              />
+              {changes.some(c => c.section === 'subject') && (
+                <div className="text-xs text-orange-600 flex items-center space-x-1">
+                  <Edit className="h-3 w-3" />
+                  <span>Modified from original</span>
+                </div>
+              )}
             </div>
-          )}
+
+            {/* Body Field */}
+            <div className="space-y-2 flex-1 min-h-0">
+              <Label htmlFor="draft-body">Email Body</Label>
+              <Textarea
+                id="draft-body"
+                value={editedBody}
+                onChange={(e) => setEditedBody(e.target.value)}
+                placeholder="Email body"
+                className="min-h-[300px] h-[400px] resize-none"
+                rows={15}
+              />
+              {changes.some(c => c.section === 'body') && (
+                <div className="text-xs text-orange-600 flex items-center space-x-1">
+                  <Edit className="h-3 w-3" />
+                  <span>Modified from original</span>
+                </div>
+              )}
+            </div>
+
+            {/* Action Buttons for Draft */}
+            <div className="flex justify-end space-x-2 pt-4 border-t">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setEditedSubject(originalSubjectRef.current);
+                  setEditedBody(originalBodyRef.current);
+                  setChanges([]);
+                  setUserNotes('');
+                }}
+                disabled={isSending}
+              >
+                <X className="h-4 w-4 mr-2" />
+                Reset
+              </Button>
+              <Button
+                onClick={handleSendDraft}
+                disabled={isSending || !editedSubject.trim() || !editedBody.trim()}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                {isSending ? (
+                  <>
+                    <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white mr-2"></div>
+                    Sending...
+                  </>
+                ) : (
+                  <>
+                    <Send className="h-3 w-3 mr-2" />
+                    Send Email
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
         </div>
 
-        {/* Body Field */}
-        <div className="space-y-2 flex-1 min-h-0">
-          <Label htmlFor="draft-body">Email Body</Label>
-          <Textarea
-            id="draft-body"
-            value={editedBody}
-            onChange={(e) => setEditedBody(e.target.value)}
-            placeholder="Email body"
-            className="min-h-[300px] h-[400px] resize-none"
-            rows={15}
-          />
-          {changes.some(c => c.section === 'body') && (
-            <div className="text-xs text-orange-600 flex items-center space-x-1">
-              <Edit className="h-3 w-3" />
-              <span>Modified from original</span>
-            </div>
-          )}
-        </div>
+        {/* Right Panel - AI Controls (30%) */}
+        <div className="w-[30%] flex flex-col pl-4 space-y-4 overflow-y-auto">
 
-        {/* Natural Language Refinement Section */}
-        <Separator />
-        <div className="space-y-3">
-          <div className="flex items-center space-x-2">
-            <MessageSquare className="h-4 w-4 text-blue-600" />
-            <Label htmlFor="refinement-command">Refine with Natural Language</Label>
-          </div>
-          
-          {/* Quick Command Buttons */}
-          <div className="flex flex-wrap gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handleQuickCommand("Make this more friendly and warm")}
-              disabled={isRefining}
-            >
-              More Friendly
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handleQuickCommand("Make this more formal and professional")}
-              disabled={isRefining}
-            >
-              More Formal
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handleQuickCommand("Add more urgency to this response")}
-              disabled={isRefining}
-            >
-              Add Urgency
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handleQuickCommand("Make this shorter and more concise")}
-              disabled={isRefining}
-            >
-              Make Shorter
-            </Button>
-          </div>
-          
-          {/* Command Input */}
-          <div className="space-y-2">
-            <div className="flex space-x-2">
+          {/* Natural Language Refinement Section */}
+          <div className="space-y-3">
+            <div className="flex items-center space-x-2">
+              <MessageSquare className="h-4 w-4 text-blue-600" />
+              <Label htmlFor="refinement-command" className="text-sm font-medium">Refine with Natural Language</Label>
+            </div>
+            
+            {/* Quick Command Buttons */}
+            <div className="grid grid-cols-1 gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleQuickCommand("Make this more friendly and warm")}
+                disabled={isRefining}
+                className="text-xs"
+              >
+                More Friendly
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleQuickCommand("Make this more formal and professional")}
+                disabled={isRefining}
+                className="text-xs"
+              >
+                More Formal
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleQuickCommand("Add more urgency to this response")}
+                disabled={isRefining}
+                className="text-xs"
+              >
+                Add Urgency
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleQuickCommand("Make this shorter and more concise")}
+                disabled={isRefining}
+                className="text-xs"
+              >
+                Make Shorter
+              </Button>
+            </div>
+            
+            {/* Command Input */}
+            <div className="space-y-2">
               <Textarea
                 id="refinement-command"
                 value={refinementCommand}
                 onChange={(e) => setRefinementCommand(e.target.value)}
-                placeholder="e.g., 'Change the Magento link to https://withcar.eu/shop' or 'Rewrite in a more apologetic tone'"
-                className="flex-1 min-h-[80px] resize-none"
-                rows={3}
+                placeholder="e.g., 'Make it more professional' or 'Add pricing details'"
+                className="min-h-[80px] resize-none text-sm"
+                rows={4}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && e.ctrlKey && refinementCommand.trim()) {
                     e.preventDefault();
@@ -540,7 +583,7 @@ export default function AIDraftWindow({
                 onClick={handleRefineDraft}
                 disabled={isRefining || !refinementCommand.trim()}
                 size="sm"
-                className="px-4"
+                className="w-full"
               >
                 {isRefining ? (
                   <>
@@ -550,124 +593,83 @@ export default function AIDraftWindow({
                 ) : (
                   <>
                     <Bot className="h-3 w-3 mr-2" />
-                    Refine
+                    Refine Draft
                   </>
                 )}
               </Button>
+              
+              <div className="flex items-center space-x-2 text-xs text-muted-foreground">
+                <Lightbulb className="h-3 w-3" />
+                <span>Ctrl+Enter to refine</span>
+              </div>
             </div>
             
-            <div className="flex items-center space-x-2 text-xs text-muted-foreground">
-              <Lightbulb className="h-3 w-3" />
-              <span>Describe changes in plain English - AI will understand and apply them (Ctrl+Enter to refine)</span>
-            </div>
-          </div>
-          
-          {/* Refinement History */}
-          {refinementHistory.length > 0 && (
-            <div className="space-y-2">
-              <div className="text-sm font-medium text-muted-foreground">Recent refinements:</div>
-              <div className="space-y-1">
-                {refinementHistory.slice(-3).map((command, index) => (
-                  <div key={index} className="text-xs bg-gray-100 px-2 py-1 rounded flex items-center space-x-2">
-                    <Check className="h-3 w-3 text-green-600" />
-                    <span>"{command}"</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* User Notes Section */}
-        {aiSettings?.saveUserNotes && (
-          <>
-            <Separator />
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <Brain className="h-4 w-4 text-purple-600" />
-                  <Label htmlFor="show-notes">Add improvement notes</Label>
+            {/* Refinement History */}
+            {refinementHistory.length > 0 && (
+              <div className="space-y-2">
+                <div className="text-sm font-medium text-muted-foreground">Recent refinements:</div>
+                <div className="space-y-1">
+                  {refinementHistory.slice(-3).map((command, index) => (
+                    <div key={index} className="text-xs bg-gray-100 px-2 py-1 rounded flex items-center space-x-2">
+                      <Check className="h-3 w-3 text-green-600" />
+                      <span>"{command}"</span>
+                    </div>
+                  ))}
                 </div>
-                <Switch
-                  id="show-notes"
-                  checked={showNotes}
-                  onCheckedChange={setShowNotes}
-                />
               </div>
-              
-              {showNotes && (
-                <div className="space-y-2">
-                  <Textarea
-                    value={userNotes}
-                    onChange={(e) => setUserNotes(e.target.value)}
-                    placeholder="Why did you make these changes? Help AI learn..."
-                    className="min-h-[120px] resize-none"
-                    rows={5}
-                  />
-                  <div className="flex items-center space-x-2 text-xs text-muted-foreground">
-                    <Lightbulb className="h-3 w-3" />
-                    <span>These notes help AI improve future suggestions</span>
-                  </div>
-                </div>
-              )}
-            </div>
-          </>
-        )}
-
-        {/* Change Summary */}
-        {changes.length > 0 && (
-          <>
-            <Separator />
-            <div className="space-y-2">
-              <div className="flex items-center space-x-2">
-                <Edit className="h-4 w-4 text-orange-600" />
-                <span className="text-sm font-medium">Changes Made</span>
-              </div>
-              <div className="text-xs text-muted-foreground space-y-1">
-                {changes.map((change, index) => (
-                  <div key={index} className="flex items-center space-x-2">
-                    <span className="w-2 h-2 bg-orange-400 rounded-full"></span>
-                    <span>Modified {change.section}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </>
-        )}
-
-        {/* Action Buttons */}
-        <div className="flex justify-end space-x-2 pt-4">
-          <Button
-            variant="outline"
-            onClick={() => {
-              setEditedSubject(originalSubjectRef.current);
-              setEditedBody(originalBodyRef.current);
-              setChanges([]);
-              setUserNotes('');
-            }}
-            disabled={isSending}
-          >
-            <X className="h-4 w-4 mr-2" />
-            Reset
-          </Button>
-          <Button
-            onClick={handleSendDraft}
-            disabled={isSending || !editedSubject || !editedBody}
-            className="min-w-[120px]"
-          >
-            {isSending ? (
-              <>
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                Sending...
-              </>
-            ) : (
-              <>
-                <Send className="h-4 w-4 mr-2" />
-                Send Email
-              </>
             )}
-          </Button>
-        </div>
+
+            {/* User Notes Section */}
+            {aiSettings?.saveUserNotes && (
+              <div className="space-y-3 pt-4 border-t">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <Brain className="h-4 w-4 text-purple-600" />
+                    <Label htmlFor="show-notes" className="text-sm">Add notes</Label>
+                  </div>
+                  <Switch
+                    id="show-notes"
+                    checked={showNotes}
+                    onCheckedChange={setShowNotes}
+                  />
+                </div>
+                
+                {showNotes && (
+                  <div className="space-y-2">
+                    <Textarea
+                      value={userNotes}
+                      onChange={(e) => setUserNotes(e.target.value)}
+                      placeholder="Why did you make these changes? Help AI learn..."
+                      className="min-h-[80px] resize-none text-sm"
+                      rows={4}
+                    />
+                    <div className="flex items-center space-x-2 text-xs text-muted-foreground">
+                      <Lightbulb className="h-3 w-3" />
+                      <span>Help AI improve</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Change Summary */}
+            {changes.length > 0 && (
+              <div className="space-y-2 pt-4 border-t">
+                <div className="flex items-center space-x-2">
+                  <Edit className="h-4 w-4 text-orange-600" />
+                  <span className="text-sm font-medium">Changes Made</span>
+                </div>
+                <div className="text-xs text-muted-foreground space-y-1">
+                  {changes.map((change, index) => (
+                    <div key={index} className="flex items-center space-x-2">
+                      <span className="w-2 h-2 bg-orange-400 rounded-full"></span>
+                      <span>Modified {change.section}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </CardContent>
     </Card>

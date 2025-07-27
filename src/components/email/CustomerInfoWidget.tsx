@@ -55,9 +55,26 @@ export default function CustomerInfoWidget({ customerEmail, className }: Custome
   const [error, setError] = useState<string | null>(null);
   const [showDetails, setShowDetails] = useState(false);
   const [checked, setChecked] = useState(false);
+  const [metakockaEnabled, setMetakockaEnabled] = useState<boolean | null>(null);
+
+  // Check if Metakocka is enabled for this user's organization
+  const checkMetakockaEnabled = async () => {
+    try {
+      const response = await fetch('/api/feature-flags/METAKOCKA_INTEGRATION');
+      if (response.ok) {
+        const data = await response.json();
+        setMetakockaEnabled(data.enabled);
+      } else {
+        setMetakockaEnabled(false);
+      }
+    } catch (err) {
+      console.error('Error checking Metakocka feature flag:', err);
+      setMetakockaEnabled(false);
+    }
+  };
 
   const checkCustomerInMetakocka = async () => {
-    if (checked || !customerEmail) return;
+    if (checked || !customerEmail || metakockaEnabled === false) return;
     
     setLoading(true);
     setError(null);
@@ -91,8 +108,16 @@ export default function CustomerInfoWidget({ customerEmail, className }: Custome
   };
 
   useEffect(() => {
-    checkCustomerInMetakocka();
-  }, [customerEmail]);
+    checkMetakockaEnabled();
+  }, []);
+
+  useEffect(() => {
+    if (metakockaEnabled === true) {
+      checkCustomerInMetakocka();
+    } else if (metakockaEnabled === false) {
+      setChecked(true); // Don't show Metakocka functionality
+    }
+  }, [customerEmail, metakockaEnabled]);
 
   if (!checked && !loading) {
     return (
@@ -136,8 +161,8 @@ export default function CustomerInfoWidget({ customerEmail, className }: Custome
     );
   }
 
-  if (!customer) {
-    return null; // Customer not found, don't show anything
+  if (!customer || metakockaEnabled === false) {
+    return null; // Customer not found or Metakocka not enabled, don't show anything
   }
 
   const getStatusColor = (status: string) => {

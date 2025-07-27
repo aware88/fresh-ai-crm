@@ -8,6 +8,8 @@
  */
 
 import OpenAI from 'openai';
+
+// NOTE: analyzeEmail function has been removed - functionality consolidated into generate-response API
 import { getLimitedFormattedDataForPrompt, getAllFormattedDataForPrompt } from '../personality/flexible-data';
 import axios from 'axios';
 import * as cheerio from 'cheerio';
@@ -418,9 +420,11 @@ If you continue to experience issues, please contact support.`;
 /**
  * Analyzes email content using OpenAI's GPT model
  * @param {string} emailContent - The email content to analyze
+ * @param {string} senderEmail - Optional sender email for contact lookup
+ * @param {string} userId - Optional user ID for database access
  * @returns {Promise<string>} Analysis result
  */
-export const analyzeEmail = async (emailContent: string): Promise<string> => {
+export const analyzeEmail = async (emailContent: string, senderEmail?: string, userId?: string): Promise<string> => {
   try {
     // Check if OpenAI API key is available
     if (!process.env.OPENAI_API_KEY) {
@@ -456,7 +460,92 @@ export const analyzeEmail = async (emailContent: string): Promise<string> => {
 
     const openai = getOpenAIClient();
     
-    const systemPrompt = `You are an expert email analyst for a CRM system. Analyze the provided email and return a JSON response with the following structure:
+    // Get comprehensive data from database if sender email and user ID are provided
+    let comprehensiveData = null;
+    if (senderEmail && userId) {
+      try {
+        const { createClient } = await import('@/lib/supabase/client');
+        const { getPersonalityDataForPrompt } = await import('@/lib/personality/data');
+        const { getMatchingSalesTactics } = await import('@/lib/ai/sales-tactics');
+        
+        const supabase = createClient();
+        
+        // Get contact with AI profiler relationship
+        const { data: contact } = await supabase
+          .from('contacts')
+          .select(`
+            id,
+            firstname,
+            lastname,
+            email,
+            company,
+            position,
+            personalitytype,
+            personalityanalysis,
+            personalitynotes,
+            lastinteraction,
+            notes,
+            ai_profiler_id,
+            ai_profiler (
+              id,
+              Personality_Type,
+              Traits,
+              Sales_Strategy,
+              Messaging_Do,
+              Messaging_Dont,
+              Common_Biases,
+              Emotional_Trigger,
+              Tone_Preference,
+              Best_CTA_Type,
+              Trigger_Signal_Keywords,
+              Avoid_Words,
+              Lead_Score,
+              Conversion_Likelihood
+            )
+          `)
+          .eq('email', senderEmail)
+          .eq('user_id', userId)
+          .single();
+        
+        if (contact) {
+          const personalityProfiles = getPersonalityDataForPrompt();
+          let salesTactics: any[] = [];
+          
+          // Get sales tactics if AI profiler data exists
+          if (contact.ai_profiler) {
+            try {
+              salesTactics = await getMatchingSalesTactics(
+                contact.ai_profiler,
+                { subject: '', content: emailContent }
+              );
+            } catch (error) {
+              console.error('Error fetching sales tactics:', error);
+            }
+          }
+          
+          comprehensiveData = {
+            contactContext: {
+              name: `${contact.firstname || ''} ${contact.lastname || ''}`.trim(),
+              email: contact.email,
+              company: contact.company,
+              position: contact.position,
+              personalityType: contact.personalitytype,
+              personalityAnalysis: contact.personalityanalysis,
+              personalityNotes: contact.personalitynotes,
+              lastInteraction: contact.lastinteraction,
+              notes: contact.notes
+            },
+            aiProfilerData: contact.ai_profiler,
+            salesTactics,
+            personalityProfiles
+          };
+        }
+      } catch (error) {
+        console.error('Error fetching comprehensive data:', error);
+      }
+    }
+    
+    const systemPrompt = `You are an expert email analyst for a CRM system with access to comprehensive contact intelligence. Analyze the provided email and return a JSON response with the following structure:
 
 {
   "analysis": {
@@ -482,7 +571,54 @@ export const analyzeEmail = async (emailContent: string): Promise<string> => {
   }
 }
 
-⚠️ IMPORTANT: NEVER copy-paste profile fields. Use them as inspiration to write natural human language. Your goal is to **guide the user to reply smarter**, not to sound like an AI.`;
+${comprehensiveData ? `
+COMPREHENSIVE CONTACT INTELLIGENCE:
+
+${comprehensiveData.contactContext ? `CONTACT CONTEXT:
+Name: ${comprehensiveData.contactContext.name}
+Company: ${comprehensiveData.contactContext.company || 'Not specified'}
+Position: ${comprehensiveData.contactContext.position || 'Not specified'}
+Personality Type: ${comprehensiveData.contactContext.personalityType || 'Not analyzed'}
+Last Interaction: ${comprehensiveData.contactContext.lastInteraction || 'Not available'}
+Notes: ${comprehensiveData.contactContext.notes || 'No notes available'}
+
+${comprehensiveData.contactContext.personalityAnalysis ? `PERSONALITY ANALYSIS:
+${JSON.stringify(comprehensiveData.contactContext.personalityAnalysis, null, 2)}` : ''}
+
+${comprehensiveData.contactContext.personalityNotes ? `PERSONALITY NOTES:
+${comprehensiveData.contactContext.personalityNotes}` : ''}` : ''}
+
+${comprehensiveData.aiProfilerData ? `AI PROFILER DATA:
+Personality Type: ${(comprehensiveData.aiProfilerData as any)?.Personality_Type || 'Not specified'}
+Traits: ${(comprehensiveData.aiProfilerData as any)?.Traits || 'Not specified'}
+Sales Strategy: ${(comprehensiveData.aiProfilerData as any)?.Sales_Strategy || 'Not specified'}
+Messaging Do: ${(comprehensiveData.aiProfilerData as any)?.Messaging_Do || 'Not specified'}
+Messaging Don't: ${(comprehensiveData.aiProfilerData as any)?.Messaging_Dont || 'Not specified'}
+Emotional Trigger: ${(comprehensiveData.aiProfilerData as any)?.Emotional_Trigger || 'Not specified'}
+Tone Preference: ${(comprehensiveData.aiProfilerData as any)?.Tone_Preference || 'Not specified'}
+Best CTA Type: ${(comprehensiveData.aiProfilerData as any)?.Best_CTA_Type || 'Not specified'}
+Trigger Keywords: ${(comprehensiveData.aiProfilerData as any)?.Trigger_Signal_Keywords || 'Not specified'}
+Avoid Words: ${(comprehensiveData.aiProfilerData as any)?.Avoid_Words || 'Not specified'}
+Lead Score: ${(comprehensiveData.aiProfilerData as any)?.Lead_Score || 'Not specified'}
+Conversion Likelihood: ${(comprehensiveData.aiProfilerData as any)?.Conversion_Likelihood || 'Not specified'}` : ''}
+
+${comprehensiveData.salesTactics && comprehensiveData.salesTactics.length > 0 ? `RELEVANT SALES TACTICS:
+${comprehensiveData.salesTactics.map((tactic: any, index: number) => 
+  `${index + 1}. ${tactic.category}: "${tactic.tactical_snippet}" (Expert: ${tactic.expert})`
+).join('\n')}` : ''}
+
+${comprehensiveData.personalityProfiles ? `PERSONALITY PROFILES REFERENCE:
+${comprehensiveData.personalityProfiles}` : ''}
+
+ANALYSIS INSTRUCTIONS:
+- Use ALL available contact intelligence to provide deeper insights
+- Leverage personality profiles and AI profiler data for accurate trait identification
+- Incorporate sales tactics knowledge for strategic recommendations
+- Consider contact history and relationship context
+- Provide recommendations that align with their personality type and preferences
+` : ''}
+
+⚠️ IMPORTANT: NEVER copy-paste profile fields. Use them as inspiration to write natural human language. Your goal is to **guide the user to reply smarter**, not to sound like an AI. Leverage ALL available data for comprehensive analysis.`;
     
     // Limit email content length if it's too long
     const maxEmailLength = 1500;

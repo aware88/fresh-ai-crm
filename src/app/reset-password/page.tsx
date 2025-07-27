@@ -39,10 +39,21 @@ export default function ResetPasswordPage() {
           return;
         }
 
-        // For password reset, we don't verify the token here
-        // Instead, we let Supabase handle it when the user submits the form
-        // The token verification happens during the password update
-        console.log('Password reset token received:', { token_hash, type });
+        // Immediately verify and exchange the token for a session
+        // This prevents email client pre-fetching issues
+        const { data: verifyData, error: verifyError } = await supabase.auth.verifyOtp({
+          token_hash,
+          type: 'recovery'
+        });
+
+        if (verifyError) {
+          console.error('Token verification error:', verifyError);
+          setValidToken(false);
+          setError('Invalid or expired password reset token. Please request a new password reset.');
+          return;
+        }
+
+        console.log('Password reset token verified successfully');
         setValidToken(true);
       } catch (error) {
         console.error('Token check error:', error);
@@ -85,30 +96,16 @@ export default function ResetPasswordPage() {
         return;
       }
 
-      // Get token from URL parameters
-      const token_hash = searchParams?.get('token_hash');
-      const type = searchParams?.get('type');
-
-      if (!token_hash || type !== 'recovery') {
-        setError('Invalid password reset session. Please request a new password reset.');
+      // Check if user is authenticated (session should exist from token verification)
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        setError('Session expired. Please request a new password reset.');
         setLoading(false);
         return;
       }
 
-      // First verify the OTP token and get the session
-      const { data: verifyData, error: verifyError } = await supabase.auth.verifyOtp({
-        token_hash,
-        type: 'recovery'
-      });
-
-      if (verifyError) {
-        console.error('Token verification error:', verifyError);
-        setError('Invalid or expired password reset token. Please request a new password reset.');
-        setLoading(false);
-        return;
-      }
-
-      // Now update the password with the verified session
+      // Update the password using the authenticated session
       const { data, error } = await supabase.auth.updateUser({
         password: password
       });
@@ -119,6 +116,9 @@ export default function ResetPasswordPage() {
       } else {
         console.log('Password updated successfully');
         setSuccess(true);
+        
+        // Sign out the user to ensure they use the new password
+        await supabase.auth.signOut();
         
         // Redirect to sign-in after a delay
         setTimeout(() => {

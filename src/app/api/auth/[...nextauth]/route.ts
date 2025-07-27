@@ -15,7 +15,7 @@ const authOptions: NextAuthOptions = {
     maxAge: 30 * 24 * 60 * 60, // 30 days - reasonable persistence
     updateAge: 24 * 60 * 60, // 24 hours - reduce frequency of session updates
   },
-  useSecureCookies: false, // Explicitly disable secure cookies for development
+  useSecureCookies: process.env.NODE_ENV === 'production', // Use secure cookies in production
   cookies: {
     sessionToken: {
       name: `next-auth.session-token`,
@@ -23,9 +23,8 @@ const authOptions: NextAuthOptions = {
         httpOnly: true,
         sameSite: 'lax',
         path: '/',
-        // For localhost development, secure should be false
-        // For production, secure should be true
-        secure: false, // Changed to always false for development
+        // Use secure cookies in production, insecure in development
+        secure: process.env.NODE_ENV === 'production',
         // Don't set domain - let it default to the current domain
         domain: undefined,
       },
@@ -36,7 +35,7 @@ const authOptions: NextAuthOptions = {
         httpOnly: false,
         sameSite: 'lax',
         path: '/',
-        secure: false,
+        secure: process.env.NODE_ENV === 'production',
         domain: undefined,
       },
     },
@@ -46,7 +45,7 @@ const authOptions: NextAuthOptions = {
         httpOnly: true,
         sameSite: 'lax',
         path: '/',
-        secure: false,
+        secure: process.env.NODE_ENV === 'production',
         domain: undefined,
       },
     },

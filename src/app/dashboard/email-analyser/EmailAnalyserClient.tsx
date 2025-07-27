@@ -189,28 +189,54 @@ export default function EmailAnalyserClient() {
     setIsGeneratingResponse(true);
     
     try {
-      // Simulate AI response generation
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      const mockResponse = `Thank you for your email regarding "${selectedEmail.subject}". I appreciate you reaching out and will review your request carefully. I'll get back to you within 24 hours with a detailed response.
-
-Best regards,
-Fresh AI CRM Team`;
-      
-      setResponse(mockResponse);
-      
-      toast({
-        title: "Response Generated",
-        description: "AI response has been generated successfully.",
+      // Call the new improved AI response API
+      const response = await fetch('/api/email/generate-response', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          originalEmail: selectedEmail.raw_content,
+          tone: 'professional',
+          customInstructions: '',
+          senderEmail: selectedEmail.sender,
+          contactId: selectedEmail.contact_id || ''
+        }),
       });
+
+      if (!response.ok) {
+        throw new Error('Failed to generate response');
+      }
+
+      const data = await response.json();
+      
+      if (data.success) {
+        setResponse(data.response);
+        
+        toast({
+          title: "Response Generated",
+          description: "AI response has been generated successfully.",
+        });
+      } else {
+        throw new Error(data.error || 'Failed to generate response');
+      }
       
     } catch (error: any) {
       console.error('Error generating response:', error);
       setError('Failed to generate response. Please try again.');
+      
+      // Fallback to improved mock response
+      const fallbackResponse = `Thank you for your email regarding "${selectedEmail.subject}". I appreciate the information you've provided and will review it carefully. I'll get back to you with any additional questions or next steps.
+
+Best regards,
+Fresh AI CRM Team`;
+      
+      setResponse(fallbackResponse);
+      
       toast({
-        title: "Error",
-        description: "Failed to generate response. Please try again.",
-        variant: "destructive",
+        title: "Response Generated (Fallback)",
+        description: "Using fallback response due to API issue.",
+        variant: "default",
       });
     } finally {
       setIsGeneratingResponse(false);

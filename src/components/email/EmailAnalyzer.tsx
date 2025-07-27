@@ -74,12 +74,16 @@ export function EmailAnalyzer() {
         const fromMatch = emailContent.match(emailRegex);
         const senderEmail = fromMatch ? fromMatch[1].trim() : null;
         
-        response = await fetch('/api/analyze-email', {
+        response = await fetch('/api/email/generate-response', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ emailContent }),
+          body: JSON.stringify({ 
+            originalEmail: emailContent,
+            senderEmail: senderEmail || '',
+            tone: 'professional'
+          }),
         });
         
         // If we found a sender email, update their personality profile in the background
@@ -118,38 +122,18 @@ export function EmailAnalyzer() {
       }
 
       const data = await response.json();
-      setAnalysis(data.analysis);
       
-      // Extract suggested email from the analysis
-      const emailMatch = data.analysis.match(/\*\*✉️ Suggested Response\*\*([\s\S]*?)(?=\*\*|$)/);
-      if (emailMatch && emailMatch[1]) {
-        // Clean up the extracted email text
-        let cleanedEmail = emailMatch[1].trim();
+      if (data.success) {
+        // Use the generated response as the analysis
+        setAnalysis(data.response);
+        setSuggestedEmail(data.response);
         
-        // Further clean up - remove any analysis content that might be included
-        // Remove any lines with analysis markers like "Profile Match", "Behavioral Insight", "Strategy"
-        cleanedEmail = cleanedEmail
-          .replace(/\*\*🔍 Profile Match\*\*[\s\S]*?(?=\n\n|$)/g, '')
-          .replace(/\*\*🧠 Behavioral Insight\*\*[\s\S]*?(?=\n\n|$)/g, '')
-          .replace(/\*\*🎯 Strategy\*\*[\s\S]*?(?=\n\n|$)/g, '')
-          .replace(/- Best matches:[\s\S]*?(?=\n\n|$)/g, '')
-          .replace(/- Confidence:[\s\S]*?(?=\n\n|$)/g, '')
-          .replace(/- Why this match:[\s\S]*?(?=\n\n|$)/g, '')
-          .replace(/- Key traits:[\s\S]*?(?=\n\n|$)/g, '')
-          .replace(/- Best tone to use:[\s\S]*?(?=\n\n|$)/g, '')
-          .replace(/- What to emphasize:[\s\S]*?(?=\n\n|$)/g, '')
-          .replace(/- What to avoid:[\s\S]*?(?=\n\n|$)/g, '')
-          .replace(/- If sales:[\s\S]*?(?=\n\n|$)/g, '')
-          .trim();
-        
-        // If we still have content after cleaning, use it
-        if (cleanedEmail) {
-          setSuggestedEmail(cleanedEmail);
-        } else {
-          setSuggestedEmail(null);
+        // Show intelligence summary
+        if (data.intelligence) {
+          console.log('AI Intelligence Used:', data.intelligence);
         }
       } else {
-        setSuggestedEmail(null);
+        throw new Error(data.error || 'Failed to analyze email');
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
