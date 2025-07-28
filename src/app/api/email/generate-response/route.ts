@@ -98,8 +98,9 @@ async function getPersonalityProfilesAndContactContext(senderEmail: string, cont
   
   try {
     // Get personality profiles from CSV/database
-    const personalityProfiles = getPersonalityDataForPrompt();
-    const flexibleProfiles = loadCsvData('personality_profiles');
+    // Removed to save tokens - using AI profiler data instead
+    const personalityProfiles = '';
+    const flexibleProfiles: any[] = [];
     
     // Get contact information with AI profiler relationship
     let contactContext = null;
@@ -271,7 +272,180 @@ async function getPersonalityProfilesAndContactContext(senderEmail: string, cont
 }
 
 /**
+ * Smart Intelligence Summarization Functions
+ * Convert raw personality/sales/history data into actionable intelligence
+ */
+
+/**
+ * Extract key sales personality traits for prompt optimization
+ */
+function extractSalesPersonality(aiProfilerData: any): string {
+  if (!aiProfilerData) return '';
+  
+  const traits: string[] = [];
+  
+  // Core personality type
+  if (aiProfilerData.Personality_Type) {
+    traits.push(aiProfilerData.Personality_Type);
+  }
+  
+  // Communication style
+  if (aiProfilerData.Tone_Preference) {
+    traits.push(`prefers ${aiProfilerData.Tone_Preference.toLowerCase()} tone`);
+  }
+  
+  // Key behavioral traits (extract most important)
+  if (aiProfilerData.Reading_Style) {
+    traits.push(`${aiProfilerData.Reading_Style.toLowerCase()} reader`);
+  }
+  
+  if (aiProfilerData.Stress_Response) {
+    traits.push(`under pressure: ${aiProfilerData.Stress_Response.toLowerCase()}`);
+  }
+  
+  return traits.slice(0, 3).join(', '); // Max 3 key traits
+}
+
+/**
+ * Extract actionable sales tactics (not full descriptions)
+ */
+function extractSalesTactics(salesTactics: any[], aiProfilerData: any): string {
+  if (!salesTactics || salesTactics.length === 0) return '';
+  
+  const tactics: string[] = [];
+  
+  // Get top 2 most relevant tactics
+  const topTactics = salesTactics.slice(0, 2);
+  
+  for (const tactic of topTactics) {
+    if (tactic.tactical_snippet) {
+      // Extract key action from tactical snippet (first sentence or key phrase)
+      const keyAction = tactic.tactical_snippet.split('.')[0].trim();
+      if (keyAction.length > 10 && keyAction.length < 100) {
+        tactics.push(keyAction);
+      }
+    }
+  }
+  
+  // Add AI profiler specific tactics
+  if (aiProfilerData) {
+    if (aiProfilerData.Messaging_Do) {
+      const doAction = aiProfilerData.Messaging_Do.split('.')[0].trim();
+      if (doAction.length > 10 && doAction.length < 80) {
+        tactics.push(`DO: ${doAction}`);
+      }
+    }
+  }
+  
+  return tactics.slice(0, 3).join(' | '); // Max 3 tactics
+}
+
+/**
+ * Extract relevant conversation context from history
+ */
+function extractConversationContext(analysisHistory: any[]): string {
+  if (!analysisHistory || analysisHistory.length === 0) return '';
+  
+  const context: string[] = [];
+  
+  // Look at last 2-3 interactions for key context
+  const recentHistory = analysisHistory.slice(0, 3);
+  
+  for (const entry of recentHistory) {
+    if (entry.analysis_result) {
+      // Extract key facts from previous analysis
+      const analysis = entry.analysis_result;
+      
+      // Look for key information patterns
+      if (typeof analysis === 'string') {
+        // Extract dates mentioned
+        const dateMatch = analysis.match(/\b(?:by|before|after|on|in)\s+(?:january|february|march|april|may|june|july|august|september|october|november|december|\d{1,2}\/\d{1,2})/i);
+        if (dateMatch) {
+          context.push(`timeline: ${dateMatch[0]}`);
+        }
+        
+        // Extract status updates
+        const statusMatch = analysis.match(/\b(?:approved|confirmed|completed|delivered|shipped|ready)\b/i);
+        if (statusMatch) {
+          context.push(`status: ${statusMatch[0]}`);
+        }
+        
+        // Extract quantities/amounts
+        const quantityMatch = analysis.match(/\b\d+\s*(?:tons?|kg|pieces?|units?|lots?)\b/i);
+        if (quantityMatch) {
+          context.push(`quantity: ${quantityMatch[0]}`);
+        }
+      }
+    }
+    
+    // Limit context to avoid token bloat
+    if (context.length >= 3) break;
+  }
+  
+  return context.slice(0, 3).join(', ');
+}
+
+/**
+ * Identify what to avoid repeating from previous conversations
+ */
+function extractAvoidRepeating(analysisHistory: any[], contextSummary: any): string {
+  if (!analysisHistory || analysisHistory.length === 0) return '';
+  
+  const avoid: string[] = [];
+  
+  // Check what was already provided in current email
+  if (contextSummary.avoidAsking && contextSummary.avoidAsking.length > 0) {
+    avoid.push(...contextSummary.avoidAsking.slice(0, 2));
+  }
+  
+  // Check recent history for repeated topics
+  const recentHistory = analysisHistory.slice(0, 2);
+  for (const entry of recentHistory) {
+    if (entry.analysis_result && typeof entry.analysis_result === 'string') {
+      const analysis = entry.analysis_result.toLowerCase();
+      
+      // Common topics to avoid repeating
+      if (analysis.includes('price') || analysis.includes('cost')) {
+        avoid.push('pricing info');
+      }
+      if (analysis.includes('delivery') || analysis.includes('timeline')) {
+        avoid.push('delivery timeline');
+      }
+      if (analysis.includes('document') || analysis.includes('certificate')) {
+        avoid.push('documentation');
+      }
+    }
+    
+    if (avoid.length >= 3) break;
+  }
+  
+  return avoid.slice(0, 3).join(', ');
+}
+
+/**
+ * Create optimized intelligence summary for AI prompt
+ */
+function createIntelligenceSummary(personalityData: any, contextSummary: any): {
+  salesPersonality: string;
+  keyTactics: string;
+  conversationContext: string;
+  avoidRepeating: string;
+  contactInfo: string;
+} {
+  return {
+    salesPersonality: extractSalesPersonality(personalityData.aiProfilerData),
+    keyTactics: extractSalesTactics(personalityData.salesTactics, personalityData.aiProfilerData),
+    conversationContext: extractConversationContext(personalityData.analysisHistory),
+    avoidRepeating: extractAvoidRepeating(personalityData.analysisHistory, contextSummary),
+    contactInfo: personalityData.contactContext 
+      ? `${personalityData.contactContext.name} (${personalityData.contactContext.company || 'Unknown Company'})`
+      : ''
+  };
+}
+
+/**
  * Generate a comprehensive email response using all available intelligence
+ * OPTIMIZED with Smart Intelligence Summarization
  */
 async function generateImprovedResponse(
   originalEmail: string,
@@ -284,93 +458,87 @@ async function generateImprovedResponse(
   try {
     const openai = createOpenAIClient();
 
-    // Create comprehensive system prompt with ALL available intelligence
-    const systemPrompt = `You are an intelligent email assistant with access to comprehensive contact intelligence and sales psychology. Write natural, human-like responses that leverage ALL available data to craft the most effective response.
+    // CREATE SMART INTELLIGENCE SUMMARY (NEW OPTIMIZATION!)
+    const intelligenceSummary = createIntelligenceSummary(personalityData, contextSummary);
 
-CONTEXT FROM THEIR EMAIL:
-${contextSummary.summary}
+    // Build OPTIMIZED system prompt using smart summaries
+    let systemPrompt = `You are an intelligent email assistant. Write natural, human-like responses that avoid repetition.
 
-WHAT THEY ALREADY TOLD YOU:
-${contextSummary.keyPoints.join('\n')}
+CONTEXT: ${contextSummary.summary}
+THEY PROVIDED: ${contextSummary.keyPoints.slice(0, 3).join(', ')}`;
 
-${personalityData.contactContext ? `CONTACT CONTEXT:
-Name: ${personalityData.contactContext.name}
-Company: ${personalityData.contactContext.company || 'Not specified'}
-Position: ${personalityData.contactContext.position || 'Not specified'}
-Personality Type: ${personalityData.contactContext.personalityType || 'Not analyzed'}
-Last Interaction: ${personalityData.contactContext.lastInteraction || 'Not available'}
-Notes: ${personalityData.contactContext.notes || 'No notes available'}
+    // Add contact info (concise)
+    if (intelligenceSummary.contactInfo) {
+      systemPrompt += `\nCONTACT: ${intelligenceSummary.contactInfo}`;
+    }
 
-${personalityData.contactContext.personalityAnalysis ? `PERSONALITY ANALYSIS:
-${JSON.stringify(personalityData.contactContext.personalityAnalysis, null, 2)}` : ''}
+    // Add sales personality (optimized)
+    if (intelligenceSummary.salesPersonality) {
+      systemPrompt += `\nPERSONALITY: ${intelligenceSummary.salesPersonality}`;
+    }
 
-${personalityData.contactContext.personalityNotes ? `PERSONALITY NOTES:
-${personalityData.contactContext.personalityNotes}` : ''}` : ''}
+    // Add key sales tactics (actionable, not full descriptions)
+    if (intelligenceSummary.keyTactics) {
+      systemPrompt += `\nSALES_APPROACH: ${intelligenceSummary.keyTactics}`;
+    }
 
-${personalityData.aiProfilerData ? `AI PROFILER DATA:
-Personality Type: ${(personalityData.aiProfilerData as any)?.Personality_Type || 'Not specified'}
-Traits: ${(personalityData.aiProfilerData as any)?.Traits || 'Not specified'}
-Sales Strategy: ${(personalityData.aiProfilerData as any)?.Sales_Strategy || 'Not specified'}
-Messaging Do: ${(personalityData.aiProfilerData as any)?.Messaging_Do || 'Not specified'}
-Messaging Don't: ${(personalityData.aiProfilerData as any)?.Messaging_Dont || 'Not specified'}
-Emotional Trigger: ${(personalityData.aiProfilerData as any)?.Emotional_Trigger || 'Not specified'}
-Tone Preference: ${(personalityData.aiProfilerData as any)?.Tone_Preference || 'Not specified'}
-Best CTA Type: ${(personalityData.aiProfilerData as any)?.Best_CTA_Type || 'Not specified'}
-Trigger Keywords: ${(personalityData.aiProfilerData as any)?.Trigger_Signal_Keywords || 'Not specified'}
-Avoid Words: ${(personalityData.aiProfilerData as any)?.Avoid_Words || 'Not specified'}
-Lead Score: ${(personalityData.aiProfilerData as any)?.Lead_Score || 'Not specified'}
-Conversion Likelihood: ${(personalityData.aiProfilerData as any)?.Conversion_Likelihood || 'Not specified'}` : ''}
+    // Add conversation context (relevant history)
+    if (intelligenceSummary.conversationContext) {
+      systemPrompt += `\nHISTORY: ${intelligenceSummary.conversationContext}`;
+    }
 
-${personalityData.salesTactics && personalityData.salesTactics.length > 0 ? `RELEVANT SALES TACTICS:
-${personalityData.salesTactics.map((tactic: any, index: number) => 
-  `${index + 1}. ${tactic.category}: "${tactic.tactical_snippet}" (Expert: ${tactic.expert})`
-).join('\n')}` : ''}
+    // Add what to avoid repeating (critical for personalization)
+    if (intelligenceSummary.avoidRepeating) {
+      systemPrompt += `\nAVOID_REPEATING: ${intelligenceSummary.avoidRepeating}`;
+    }
 
-${personalityData.analysisHistory && personalityData.analysisHistory.length > 0 ? `ANALYSIS HISTORY:
-${personalityData.analysisHistory.map((history: any, index: number) => 
-  `${index + 1}. ${history.created_at}: ${history.analysis_summary || 'No summary'}`
-).join('\n')}` : ''}
+    systemPrompt += `\n\nRULES:
+- Don't repeat what they told you
+- Don't ask for info they provided
+- Match their ${tone} tone
+- Be human, not robotic
+- Keep response under 150 words
+- Use the personality and sales approach above
+- Reference conversation history appropriately
+${customInstructions ? `\nNOTES: ${customInstructions.substring(0, 100)}` : ''}`;
 
-${personalityData.personalityProfiles ? `PERSONALITY PROFILES REFERENCE:
-${personalityData.personalityProfiles}` : ''}
+    // Truncate original email to prevent token overflow
+    const truncatedEmail = originalEmail.length > 1000 
+      ? originalEmail.substring(0, 1000) + '...[truncated]'
+      : originalEmail;
 
-COMPREHENSIVE RESPONSE STRATEGY:
-- Acknowledge their information naturally without repeating it
-- Don't ask for details they already provided
-- Focus on what you actually need from them
-- Match their tone and urgency level based on personality insights
-- Use AI profiler data to tailor communication style perfectly
-- Incorporate relevant sales tactics naturally and subtly
-- Leverage personality profiles to optimize persuasion approach
-- Consider their communication preferences and interaction history
-- Apply psychological triggers appropriate to their personality type
-- Use language patterns that resonate with their cognitive style
-- Sound like a real person, not a template or robot
-
-TONE: ${tone}
-${customInstructions ? `ADDITIONAL NOTES: ${customInstructions}` : ''}
-
-Write a natural, conversational response that leverages ALL available intelligence for maximum effectiveness. Be strategic but authentic, persuasive but genuine.`;
-
-    const userPrompt = `Please respond to this email using all available intelligence:
-
-"${originalEmail}"
-
-Craft a response that demonstrates deep understanding of who they are, what they need, and how to communicate with them most effectively. Use everything you know about their personality, preferences, and psychology to create the perfect response.`;
-
+    // Log token usage for debugging
+    console.log('OPTIMIZED System prompt length:', systemPrompt.length);
+    console.log('User prompt length:', truncatedEmail.length);
+    console.log('Intelligence Summary:', intelligenceSummary);
+    
+    // Log the optimization impact
+    console.log('🚀 OPTIMIZATION IMPACT:');
+    console.log(`📊 Contact Data: ${personalityData.contactContext ? 'Available' : 'None'}`);
+    console.log(`🧠 AI Profiler: ${personalityData.aiProfilerData ? 'Available' : 'None'}`);
+    console.log(`🎯 Sales Tactics: ${personalityData.salesTactics?.length || 0} tactics`);
+    console.log(`📚 History: ${personalityData.analysisHistory?.length || 0} entries`);
+    console.log(`✨ Smart Summary Generated: ${Object.keys(intelligenceSummary).filter(k => intelligenceSummary[k as keyof typeof intelligenceSummary]).length}/5 fields`);
+    
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [
         { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt }
+        { role: "user", content: `Respond to: "${truncatedEmail}"` }
       ],
       temperature: 0.7,
-      max_tokens: 600
+      max_tokens: 300
     });
+
+    // Log actual token usage
+    if (response.usage) {
+      console.log('OPTIMIZED Token usage:', response.usage);
+    }
 
     return response.choices[0]?.message?.content || 'Unable to generate response. Please try again.';
   } catch (error) {
-    console.error('Error generating comprehensive response:', error);
+    console.error('Error generating response:', error);
+    // Provide a simple fallback if OpenAI fails
     return 'Thank you for your email. I appreciate the information you provided and will review it carefully. I\'ll get back to you with any additional questions or next steps.\n\nBest regards';
   }
 }
