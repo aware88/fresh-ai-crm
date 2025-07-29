@@ -5,7 +5,10 @@ import OpenAI from 'openai';
 import { EmailContextAnalyzer } from '../../../../lib/email/context-analyzer';
 import { getPersonalityDataForPrompt } from '../../../../lib/personality/data';
 import { loadCsvData } from '../../../../lib/personality/flexible-data';
-import { getMatchingSalesTactics } from '../../../../lib/ai/sales-tactics';
+// import { getMatchingSalesTactics } from '../../../../lib/ai/sales-tactics'; // TEMPORARILY DISABLED
+
+// Simple in-memory rate limiting
+const activeRequests = new Map<string, number>();
 
 // Function to create OpenAI client with fallback for missing API key
 const createOpenAIClient = () => {
@@ -49,6 +52,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Simple rate limiting - prevent multiple simultaneous requests
+    const userKey = `user_${uid}`;
+    const currentTime = Date.now();
+    const lastRequest = activeRequests.get(userKey);
+    
+    if (lastRequest && (currentTime - lastRequest) < 2000) { // 2 second cooldown
+      return NextResponse.json(
+        { 
+          error: 'Please wait a moment before making another request.',
+          details: 'Rate limiting active to prevent API overload.'
+        },
+        { status: 429 }
+      );
+    }
+    
+    // Track this request
+    activeRequests.set(userKey, currentTime);
+
     // Parse request body
     const body = await request.json();
     const { originalEmail, tone = 'professional', customInstructions = '', senderEmail = '', contactId = '' } = body;
@@ -61,7 +82,7 @@ export async function POST(request: NextRequest) {
     const emailContext = EmailContextAnalyzer.analyzeEmail(originalEmail);
     const contextSummary = EmailContextAnalyzer.generateContextSummary(emailContext);
 
-    // Get personality profiles and contact context
+    // Get personality profiles and contact context (WITHOUT sales tactics to reduce tokens)
     const personalityData = await getPersonalityProfilesAndContactContext(senderEmail, contactId, uid);
 
     // Generate improved response with full context
@@ -76,13 +97,25 @@ export async function POST(request: NextRequest) {
       intelligence: {
         contactFound: !!personalityData.contactContext,
         aiProfilerData: !!personalityData.aiProfilerData,
-        salesTacticsCount: personalityData.salesTactics?.length || 0,
+        salesTacticsCount: 0, // TEMPORARILY DISABLED
         analysisHistoryCount: personalityData.analysisHistory?.length || 0,
         personalityProfilesLoaded: !!personalityData.personalityProfiles
       }
     });
   } catch (error) {
     console.error('Error in generate-response API:', error);
+    
+    // Handle 429 rate limit errors specifically
+    if (error instanceof Error && error.message.includes('429')) {
+      return NextResponse.json(
+        { 
+          error: 'Rate limit exceeded. Please wait a moment and try again.',
+          details: 'OpenAI API rate limit reached. The system is temporarily overloaded.'
+        },
+        { status: 429 }
+      );
+    }
+    
     return NextResponse.json(
       { error: 'Failed to generate email response' },
       { status: 500 }
@@ -105,7 +138,7 @@ async function getPersonalityProfilesAndContactContext(senderEmail: string, cont
     // Get contact information with AI profiler relationship
     let contactContext = null;
     let aiProfilerData = null;
-    let salesTactics: any[] = [];
+    let salesTactics: any[] = []; // TEMPORARILY DISABLED
     let analysisHistory = [];
 
     if (contactId) {
@@ -158,15 +191,15 @@ async function getPersonalityProfilesAndContactContext(senderEmail: string, cont
         if (contact.ai_profiler) {
           aiProfilerData = contact.ai_profiler;
 
-          // Get matching sales tactics based on personality profile
-          try {
-            salesTactics = await getMatchingSalesTactics(
-              contact.ai_profiler,
-              { subject: '', content: '' } // We'll use the email content from the main function
-            );
-          } catch (error) {
-            console.error('Error fetching sales tactics:', error);
-          }
+          // TEMPORARILY DISABLED: Get matching sales tactics based on personality profile
+          // try {
+          //   salesTactics = await getMatchingSalesTactics(
+          //     contact.ai_profiler,
+          //     { subject: '', content: '' } // We'll use the email content from the main function
+          //   );
+          // } catch (error) {
+          //   console.error('Error fetching sales tactics:', error);
+          // }
         }
       }
     } else if (senderEmail) {
@@ -219,15 +252,15 @@ async function getPersonalityProfilesAndContactContext(senderEmail: string, cont
         if (contact.ai_profiler) {
           aiProfilerData = contact.ai_profiler;
 
-          // Get matching sales tactics based on personality profile
-          try {
-            salesTactics = await getMatchingSalesTactics(
-              contact.ai_profiler,
-              { subject: '', content: '' } // We'll use the email content from the main function
-            );
-          } catch (error) {
-            console.error('Error fetching sales tactics:', error);
-          }
+          // TEMPORARILY DISABLED: Get matching sales tactics based on personality profile
+          // try {
+          //   salesTactics = await getMatchingSalesTactics(
+          //     contact.ai_profiler,
+          //     { subject: '', content: '' } // We'll use the email content from the main function
+          //   );
+          // } catch (error) {
+          //   console.error('Error fetching sales tactics:', error);
+          // }
         }
       }
     }
@@ -455,44 +488,48 @@ async function generateImprovedResponse(
   tone: string,
   customInstructions: string
 ) {
-  try {
-    const openai = createOpenAIClient();
+  const maxRetries = 3;
+  let retryCount = 0;
+  
+  while (retryCount < maxRetries) {
+    try {
+      const openai = createOpenAIClient();
 
-    // CREATE SMART INTELLIGENCE SUMMARY (NEW OPTIMIZATION!)
-    const intelligenceSummary = createIntelligenceSummary(personalityData, contextSummary);
+      // CREATE SMART INTELLIGENCE SUMMARY (NEW OPTIMIZATION!)
+      const intelligenceSummary = createIntelligenceSummary(personalityData, contextSummary);
 
-    // Build OPTIMIZED system prompt using smart summaries
-    let systemPrompt = `You are an intelligent email assistant. Write natural, human-like responses that avoid repetition.
+      // Build OPTIMIZED system prompt using smart summaries
+      let systemPrompt = `You are an intelligent email assistant. Write natural, human-like responses that avoid repetition.
 
 CONTEXT: ${contextSummary.summary}
 THEY PROVIDED: ${contextSummary.keyPoints.slice(0, 3).join(', ')}`;
 
-    // Add contact info (concise)
-    if (intelligenceSummary.contactInfo) {
-      systemPrompt += `\nCONTACT: ${intelligenceSummary.contactInfo}`;
-    }
+      // Add contact info (concise)
+      if (intelligenceSummary.contactInfo) {
+        systemPrompt += `\nCONTACT: ${intelligenceSummary.contactInfo}`;
+      }
 
-    // Add sales personality (optimized)
-    if (intelligenceSummary.salesPersonality) {
-      systemPrompt += `\nPERSONALITY: ${intelligenceSummary.salesPersonality}`;
-    }
+      // Add sales personality (optimized)
+      if (intelligenceSummary.salesPersonality) {
+        systemPrompt += `\nPERSONALITY: ${intelligenceSummary.salesPersonality}`;
+      }
 
-    // Add key sales tactics (actionable, not full descriptions)
-    if (intelligenceSummary.keyTactics) {
-      systemPrompt += `\nSALES_APPROACH: ${intelligenceSummary.keyTactics}`;
-    }
+      // Add key sales tactics (actionable, not full descriptions)
+      if (intelligenceSummary.keyTactics) {
+        systemPrompt += `\nSALES_APPROACH: ${intelligenceSummary.keyTactics}`;
+      }
 
-    // Add conversation context (relevant history)
-    if (intelligenceSummary.conversationContext) {
-      systemPrompt += `\nHISTORY: ${intelligenceSummary.conversationContext}`;
-    }
+      // Add conversation context (relevant history)
+      if (intelligenceSummary.conversationContext) {
+        systemPrompt += `\nHISTORY: ${intelligenceSummary.conversationContext}`;
+      }
 
-    // Add what to avoid repeating (critical for personalization)
-    if (intelligenceSummary.avoidRepeating) {
-      systemPrompt += `\nAVOID_REPEATING: ${intelligenceSummary.avoidRepeating}`;
-    }
+      // Add what to avoid repeating (critical for personalization)
+      if (intelligenceSummary.avoidRepeating) {
+        systemPrompt += `\nAVOID_REPEATING: ${intelligenceSummary.avoidRepeating}`;
+      }
 
-    systemPrompt += `\n\nRULES:
+      systemPrompt += `\n\nRULES:
 - Don't repeat what they told you
 - Don't ask for info they provided
 - Match their ${tone} tone
@@ -502,45 +539,65 @@ THEY PROVIDED: ${contextSummary.keyPoints.slice(0, 3).join(', ')}`;
 - Reference conversation history appropriately
 ${customInstructions ? `\nNOTES: ${customInstructions.substring(0, 100)}` : ''}`;
 
-    // Truncate original email to prevent token overflow
-    const truncatedEmail = originalEmail.length > 1000 
-      ? originalEmail.substring(0, 1000) + '...[truncated]'
-      : originalEmail;
+      // Truncate original email to prevent token overflow
+      const truncatedEmail = originalEmail.length > 1000 
+        ? originalEmail.substring(0, 1000) + '...[truncated]'
+        : originalEmail;
 
-    // Log token usage for debugging
-    console.log('OPTIMIZED System prompt length:', systemPrompt.length);
-    console.log('User prompt length:', truncatedEmail.length);
-    console.log('Intelligence Summary:', intelligenceSummary);
-    
-    // Log the optimization impact
-    console.log('🚀 OPTIMIZATION IMPACT:');
-    console.log(`📊 Contact Data: ${personalityData.contactContext ? 'Available' : 'None'}`);
-    console.log(`🧠 AI Profiler: ${personalityData.aiProfilerData ? 'Available' : 'None'}`);
-    console.log(`🎯 Sales Tactics: ${personalityData.salesTactics?.length || 0} tactics`);
-    console.log(`📚 History: ${personalityData.analysisHistory?.length || 0} entries`);
-    console.log(`✨ Smart Summary Generated: ${Object.keys(intelligenceSummary).filter(k => intelligenceSummary[k as keyof typeof intelligenceSummary]).length}/5 fields`);
-    
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: `Respond to: "${truncatedEmail}"` }
-      ],
-      temperature: 0.7,
-      max_tokens: 300
-    });
+      // Log token usage for debugging
+      console.log('OPTIMIZED System prompt length:', systemPrompt.length);
+      console.log('User prompt length:', truncatedEmail.length);
+      console.log('Intelligence Summary:', intelligenceSummary);
+      
+      // Log the optimization impact
+      console.log('🚀 OPTIMIZATION IMPACT:');
+      console.log(`📊 Contact Data: ${personalityData.contactContext ? 'Available' : 'None'}`);
+      console.log(`🧠 AI Profiler: ${personalityData.aiProfilerData ? 'Available' : 'None'}`);
+      console.log(`🎯 Sales Tactics: ${personalityData.salesTactics?.length || 0} tactics`);
+      console.log(`📚 History: ${personalityData.analysisHistory?.length || 0} entries`);
+      console.log(`✨ Smart Summary Generated: ${Object.keys(intelligenceSummary).filter(k => intelligenceSummary[k as keyof typeof intelligenceSummary]).length}/5 fields`);
+      
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: `Respond to: "${truncatedEmail}"` }
+        ],
+        temperature: 0.7,
+        max_tokens: 300
+      });
 
-    // Log actual token usage
-    if (response.usage) {
-      console.log('OPTIMIZED Token usage:', response.usage);
+      // Log actual token usage
+      if (response.usage) {
+        console.log('OPTIMIZED Token usage:', response.usage);
+      }
+
+      return response.choices[0]?.message?.content || 'Unable to generate response. Please try again.';
+    } catch (error) {
+      console.error(`Error generating response (attempt ${retryCount + 1}):`, error);
+      
+      // Check if it's a 429 rate limit error
+      if (error instanceof Error && error.message.includes('429')) {
+        retryCount++;
+        if (retryCount < maxRetries) {
+          // Exponential backoff: wait 2^retryCount seconds
+          const waitTime = Math.pow(2, retryCount) * 1000;
+          console.log(`Rate limit hit, waiting ${waitTime}ms before retry ${retryCount + 1}/${maxRetries}`);
+          await new Promise(resolve => setTimeout(resolve, waitTime));
+          continue;
+        } else {
+          console.error('Max retries reached for rate limit');
+          throw new Error('Rate limit exceeded after multiple retries. Please try again later.');
+        }
+      }
+      
+      // For non-429 errors, don't retry
+      throw error;
     }
-
-    return response.choices[0]?.message?.content || 'Unable to generate response. Please try again.';
-  } catch (error) {
-    console.error('Error generating response:', error);
-    // Provide a simple fallback if OpenAI fails
-    return 'Thank you for your email. I appreciate the information you provided and will review it carefully. I\'ll get back to you with any additional questions or next steps.\n\nBest regards';
   }
+  
+  // Provide a simple fallback if all retries fail
+  return 'Thank you for your email. I appreciate the information you provided and will review it carefully. I\'ll get back to you with any additional questions or next steps.\n\nBest regards';
 }
 
  

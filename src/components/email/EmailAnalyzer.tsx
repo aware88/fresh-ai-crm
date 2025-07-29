@@ -89,18 +89,19 @@ export function EmailAnalyzer() {
         // If we found a sender email, update their personality profile in the background
         if (senderEmail) {
           try {
-            // Don't await this - let it run in the background
-            updateContactPersonalityFromEmail(senderEmail, emailContent)
-              .then(updated => {
-                if (updated) {
-                  toast({
-                    title: "Contact Updated",
-                    description: `Personality profile for ${senderEmail} has been updated based on this email analysis.`,
-                    variant: "default"
-                  });
-                }
-              })
-              .catch(err => console.error('Error updating contact personality:', err));
+            // TEMPORARILY DISABLED: Don't await this - let it run in the background
+            // updateContactPersonalityFromEmail(senderEmail, emailContent)
+            //   .then(updated => {
+            //     if (updated) {
+            //       toast({
+            //         title: "Contact Updated",
+            //         description: `Personality profile for ${senderEmail} has been updated based on this email analysis.`,
+            //         variant: "default"
+            //       });
+            //     }
+            //   })
+            //   .catch(err => console.error('Error updating contact personality:', err));
+            console.log('Contact personality update temporarily disabled to prevent rate limiting');
           } catch (err) {
             console.error('Error updating contact personality:', err);
           }
@@ -118,6 +119,11 @@ export function EmailAnalyzer() {
       }
 
       if (!response.ok) {
+        // Handle 429 rate limit errors specifically
+        if (response.status === 429) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Rate limit exceeded. Please wait a moment and try again.');
+        }
         throw new Error(`Failed to analyze ${inputMode === 'email' ? 'email' : 'URL'}`);
       }
 
@@ -136,8 +142,18 @@ export function EmailAnalyzer() {
         throw new Error(data.error || 'Failed to analyze email');
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      const errorMessage = err instanceof Error ? err.message : 'An error occurred';
+      setError(errorMessage);
       setAnalysis(null);
+      
+      // Show specific toast for rate limit errors
+      if (errorMessage.includes('Rate limit') || errorMessage.includes('429')) {
+        toast({
+          variant: "destructive",
+          title: "Rate Limit Exceeded",
+          description: "OpenAI API is temporarily overloaded. Please wait a moment and try again.",
+        });
+      }
     } finally {
       setIsLoading(false);
     }
