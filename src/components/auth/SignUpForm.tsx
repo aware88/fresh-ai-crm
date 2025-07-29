@@ -19,6 +19,8 @@ import {
   DialogHeader, 
   DialogTitle 
 } from '@/components/ui/dialog';
+import Link from 'next/link';
+import { Eye, EyeOff } from 'lucide-react';
 
 // Helper function to generate a URL-friendly slug
 const generateSlug = (name: string): string => {
@@ -53,6 +55,11 @@ export default function SignUpForm() {
   const [showResendConfirmation, setShowResendConfirmation] = useState(false);
   const [resendLoading, setResendLoading] = useState(false);
   
+  // New states for password visibility and validation
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [hasSubmitted, setHasSubmitted] = useState(false);
+  
   const { toast } = useToast();
   const router = useRouter();
 
@@ -68,8 +75,9 @@ export default function SignUpForm() {
     }
   }, [isOrganization]);
 
+  // Password validation - only show errors after first submit attempt
   useEffect(() => {
-    if (password && confirmPassword) {
+    if (hasSubmitted && password && confirmPassword) {
       if (password !== confirmPassword) {
         setPasswordError('Passwords do not match');
         setPasswordsMatch(false);
@@ -77,11 +85,15 @@ export default function SignUpForm() {
         setPasswordError(null);
         setPasswordsMatch(true);
       }
-    } else {
+    } else if (hasSubmitted && (!password || !confirmPassword)) {
       setPasswordError(null);
       setPasswordsMatch(false);
+    } else if (!hasSubmitted) {
+      // Before first submit, only check if passwords match for internal state
+      setPasswordsMatch(password === confirmPassword && password !== '');
+      setPasswordError(null);
     }
-  }, [password, confirmPassword]);
+  }, [password, confirmPassword, hasSubmitted]);
 
   // Handle organization name change - auto-generate slug
   const handleOrgNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -120,6 +132,11 @@ export default function SignUpForm() {
   };
 
   const handleResendConfirmation = async () => {
+    if (!email) {
+      setError('Please enter your email address');
+      return;
+    }
+
     setResendLoading(true);
     setError(null);
     
@@ -133,14 +150,14 @@ export default function SignUpForm() {
       const data = await response.json();
 
       if (response.ok) {
-        setSuccess('Confirmation email has been resent! Please check your email inbox (and spam folder).');
+        setSuccess('Confirmation email sent! Please check your inbox and spam folder.');
         setShowResendConfirmation(false);
         toast({
           title: "Confirmation Email Sent",
           description: "Please check your email inbox and spam folder for the confirmation link.",
         });
       } else {
-        setError(data.error || 'Failed to resend confirmation email');
+        setError(data.error || 'Failed to send confirmation email');
       }
     } catch (error) {
       console.error('Resend confirmation error:', error);
@@ -155,6 +172,7 @@ export default function SignUpForm() {
     setError(null);
     setSuccess(null);
     setShowResendConfirmation(false);
+    setHasSubmitted(true); // Enable password validation
 
     if (!validateForm()) {
       return;
@@ -200,6 +218,7 @@ export default function SignUpForm() {
         setOrgSlug('');
         setSubscriptionPlan('');
         setIsOrganization(false);
+        setHasSubmitted(false); // Reset submit state
       } else {
         setError(data.error || 'Failed to create account');
         
@@ -310,31 +329,49 @@ export default function SignUpForm() {
 
             <div className="space-y-2">
               <Label htmlFor="password" className="text-gray-700 font-medium">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="rounded-xl py-6 px-4 border-gray-200 focus:border-purple-400 focus:ring-purple-400/20"
-                placeholder="Enter your password"
-                required
-              />
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="rounded-xl py-6 px-4 pr-12 border-gray-200 focus:border-purple-400 focus:ring-purple-400/20"
+                  placeholder="Enter your password"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                </button>
+              </div>
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="confirmPassword" className="text-gray-700 font-medium">Confirm Password</Label>
-              <Input
-                id="confirmPassword"
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                className={`rounded-xl py-6 px-4 border-gray-200 focus:border-purple-400 focus:ring-purple-400/20 ${
-                  passwordError ? 'border-red-300' : ''
-                }`}
-                placeholder="Confirm your password"
-                required
-              />
-              {passwordError && (
+              <div className="relative">
+                <Input
+                  id="confirmPassword"
+                  type={showConfirmPassword ? "text" : "password"}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className={`rounded-xl py-6 px-4 pr-12 border-gray-200 focus:border-purple-400 focus:ring-purple-400/20 ${
+                    passwordError ? 'border-red-300' : ''
+                  }`}
+                  placeholder="Confirm your password"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                </button>
+              </div>
+              {passwordError && hasSubmitted && (
                 <p className="text-sm text-red-600">{passwordError}</p>
               )}
             </div>
