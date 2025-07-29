@@ -5,7 +5,7 @@ import OpenAI from 'openai';
 import { EmailContextAnalyzer } from '../../../../lib/email/context-analyzer';
 import { getPersonalityDataForPrompt } from '../../../../lib/personality/data';
 import { loadCsvData } from '../../../../lib/personality/flexible-data';
-// import { getMatchingSalesTactics } from '../../../../lib/ai/sales-tactics'; // TEMPORARILY DISABLED
+import { getMatchingSalesTactics } from '../../../../lib/ai/sales-tactics'; // RE-ENABLED with optimization
 
 // Simple in-memory rate limiting
 const activeRequests = new Map<string, number>();
@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
       intelligence: {
         contactFound: !!personalityData.contactContext,
         aiProfilerData: !!personalityData.aiProfilerData,
-        salesTacticsCount: 0, // TEMPORARILY DISABLED
+        salesTacticsCount: personalityData.salesTactics?.length || 0,
         analysisHistoryCount: personalityData.analysisHistory?.length || 0,
         personalityProfilesLoaded: !!personalityData.personalityProfiles
       }
@@ -191,15 +191,15 @@ async function getPersonalityProfilesAndContactContext(senderEmail: string, cont
         if (contact.ai_profiler) {
           aiProfilerData = contact.ai_profiler;
 
-          // TEMPORARILY DISABLED: Get matching sales tactics based on personality profile
-          // try {
-          //   salesTactics = await getMatchingSalesTactics(
-          //     contact.ai_profiler,
-          //     { subject: '', content: '' } // We'll use the email content from the main function
-          //   );
-          // } catch (error) {
-          //   console.error('Error fetching sales tactics:', error);
-          // }
+          // Get matching sales tactics based on personality profile
+          try {
+            salesTactics = await getMatchingSalesTactics(
+              contact.ai_profiler,
+              { subject: '', content: '' } // We'll use the email content from the main function
+            );
+          } catch (error) {
+            console.error('Error fetching sales tactics:', error);
+          }
         }
       }
     } else if (senderEmail) {
@@ -252,15 +252,15 @@ async function getPersonalityProfilesAndContactContext(senderEmail: string, cont
         if (contact.ai_profiler) {
           aiProfilerData = contact.ai_profiler;
 
-          // TEMPORARILY DISABLED: Get matching sales tactics based on personality profile
-          // try {
-          //   salesTactics = await getMatchingSalesTactics(
-          //     contact.ai_profiler,
-          //     { subject: '', content: '' } // We'll use the email content from the main function
-          //   );
-          // } catch (error) {
-          //   console.error('Error fetching sales tactics:', error);
-          // }
+          // Get matching sales tactics based on personality profile
+          try {
+            salesTactics = await getMatchingSalesTactics(
+              contact.ai_profiler,
+              { subject: '', content: '' } // We'll use the email content from the main function
+            );
+          } catch (error) {
+            console.error('Error fetching sales tactics:', error);
+          }
         }
       }
     }
@@ -317,26 +317,22 @@ function extractSalesPersonality(aiProfilerData: any): string {
   
   const traits: string[] = [];
   
-  // Core personality type
+  // Core personality type (most important)
   if (aiProfilerData.Personality_Type) {
     traits.push(aiProfilerData.Personality_Type);
   }
   
-  // Communication style
+  // Communication style (second most important)
   if (aiProfilerData.Tone_Preference) {
     traits.push(`prefers ${aiProfilerData.Tone_Preference.toLowerCase()} tone`);
   }
   
-  // Key behavioral traits (extract most important)
-  if (aiProfilerData.Reading_Style) {
+  // Only include one additional trait to keep it concise
+  if (aiProfilerData.Reading_Style && traits.length < 2) {
     traits.push(`${aiProfilerData.Reading_Style.toLowerCase()} reader`);
   }
   
-  if (aiProfilerData.Stress_Response) {
-    traits.push(`under pressure: ${aiProfilerData.Stress_Response.toLowerCase()}`);
-  }
-  
-  return traits.slice(0, 3).join(', '); // Max 3 key traits
+  return traits.slice(0, 2).join(', '); // Max 2 key traits (reduced from 3)
 }
 
 /**
@@ -347,30 +343,30 @@ function extractSalesTactics(salesTactics: any[], aiProfilerData: any): string {
   
   const tactics: string[] = [];
   
-  // Get top 2 most relevant tactics
-  const topTactics = salesTactics.slice(0, 2);
+  // Get top 1 most relevant tactic only (reduced from 2)
+  const topTactics = salesTactics.slice(0, 1);
   
   for (const tactic of topTactics) {
     if (tactic.tactical_snippet) {
       // Extract key action from tactical snippet (first sentence or key phrase)
       const keyAction = tactic.tactical_snippet.split('.')[0].trim();
-      if (keyAction.length > 10 && keyAction.length < 100) {
+      if (keyAction.length > 10 && keyAction.length < 60) { // Reduced max length
         tactics.push(keyAction);
       }
     }
   }
   
-  // Add AI profiler specific tactics
+  // Add AI profiler specific tactics (more concise)
   if (aiProfilerData) {
     if (aiProfilerData.Messaging_Do) {
       const doAction = aiProfilerData.Messaging_Do.split('.')[0].trim();
-      if (doAction.length > 10 && doAction.length < 80) {
+      if (doAction.length > 10 && doAction.length < 50) { // Reduced max length
         tactics.push(`DO: ${doAction}`);
       }
     }
   }
   
-  return tactics.slice(0, 3).join(' | '); // Max 3 tactics
+  return tactics.slice(0, 2).join(' | '); // Max 2 tactics (reduced from 3)
 }
 
 /**
@@ -381,8 +377,8 @@ function extractConversationContext(analysisHistory: any[]): string {
   
   const context: string[] = [];
   
-  // Look at last 2-3 interactions for key context
-  const recentHistory = analysisHistory.slice(0, 3);
+  // Look at last 2 interactions only (reduced from 3)
+  const recentHistory = analysisHistory.slice(0, 2);
   
   for (const entry of recentHistory) {
     if (entry.analysis_result) {
@@ -391,31 +387,25 @@ function extractConversationContext(analysisHistory: any[]): string {
       
       // Look for key information patterns
       if (typeof analysis === 'string') {
-        // Extract dates mentioned
+        // Extract dates mentioned (more concise)
         const dateMatch = analysis.match(/\b(?:by|before|after|on|in)\s+(?:january|february|march|april|may|june|july|august|september|october|november|december|\d{1,2}\/\d{1,2})/i);
-        if (dateMatch) {
+        if (dateMatch && context.length < 2) { // Limit context items
           context.push(`timeline: ${dateMatch[0]}`);
         }
         
-        // Extract status updates
+        // Extract status updates (more concise)
         const statusMatch = analysis.match(/\b(?:approved|confirmed|completed|delivered|shipped|ready)\b/i);
-        if (statusMatch) {
+        if (statusMatch && context.length < 2) { // Limit context items
           context.push(`status: ${statusMatch[0]}`);
-        }
-        
-        // Extract quantities/amounts
-        const quantityMatch = analysis.match(/\b\d+\s*(?:tons?|kg|pieces?|units?|lots?)\b/i);
-        if (quantityMatch) {
-          context.push(`quantity: ${quantityMatch[0]}`);
         }
       }
     }
     
-    // Limit context to avoid token bloat
-    if (context.length >= 3) break;
+    // Limit context to avoid token bloat (reduced limit)
+    if (context.length >= 2) break;
   }
   
-  return context.slice(0, 3).join(', ');
+  return context.slice(0, 2).join(', '); // Max 2 context items
 }
 
 /**
@@ -502,7 +492,7 @@ async function generateImprovedResponse(
       let systemPrompt = `You are an intelligent email assistant. Write natural, human-like responses that avoid repetition.
 
 CONTEXT: ${contextSummary.summary}
-THEY PROVIDED: ${contextSummary.keyPoints.slice(0, 3).join(', ')}`;
+PROVIDED: ${contextSummary.keyPoints.slice(0, 2).join(', ')}`; // Reduced from 3 to 2
 
       // Add contact info (concise)
       if (intelligenceSummary.contactInfo) {
@@ -516,7 +506,7 @@ THEY PROVIDED: ${contextSummary.keyPoints.slice(0, 3).join(', ')}`;
 
       // Add key sales tactics (actionable, not full descriptions)
       if (intelligenceSummary.keyTactics) {
-        systemPrompt += `\nSALES_APPROACH: ${intelligenceSummary.keyTactics}`;
+        systemPrompt += `\nAPPROACH: ${intelligenceSummary.keyTactics}`;
       }
 
       // Add conversation context (relevant history)
@@ -526,18 +516,16 @@ THEY PROVIDED: ${contextSummary.keyPoints.slice(0, 3).join(', ')}`;
 
       // Add what to avoid repeating (critical for personalization)
       if (intelligenceSummary.avoidRepeating) {
-        systemPrompt += `\nAVOID_REPEATING: ${intelligenceSummary.avoidRepeating}`;
+        systemPrompt += `\nAVOID: ${intelligenceSummary.avoidRepeating}`;
       }
 
       systemPrompt += `\n\nRULES:
-- Don't repeat what they told you
-- Don't ask for info they provided
+- Don't repeat what they provided
 - Match their ${tone} tone
 - Be human, not robotic
-- Keep response under 150 words
-- Use the personality and sales approach above
-- Reference conversation history appropriately
-${customInstructions ? `\nNOTES: ${customInstructions.substring(0, 100)}` : ''}`;
+- Keep under 150 words
+- Use personality/approach above
+${customInstructions ? `\nNOTES: ${customInstructions.substring(0, 80)}` : ''}`; // Reduced from 100 to 80
 
       // Truncate original email to prevent token overflow
       const truncatedEmail = originalEmail.length > 1000 
@@ -545,17 +533,20 @@ ${customInstructions ? `\nNOTES: ${customInstructions.substring(0, 100)}` : ''}`
         : originalEmail;
 
       // Log token usage for debugging
-      console.log('OPTIMIZED System prompt length:', systemPrompt.length);
-      console.log('User prompt length:', truncatedEmail.length);
-      console.log('Intelligence Summary:', intelligenceSummary);
+      console.log('=== OPTIMIZED EMAIL RESPONSE GENERATION ===');
+      console.log('📊 System prompt length:', systemPrompt.length);
+      console.log('📝 User prompt length:', truncatedEmail.length);
+      console.log('🎯 Total estimated tokens:', Math.ceil((systemPrompt.length + truncatedEmail.length) / 4));
+      console.log('✨ Intelligence Summary:', intelligenceSummary);
       
       // Log the optimization impact
-      console.log('🚀 OPTIMIZATION IMPACT:');
-      console.log(`📊 Contact Data: ${personalityData.contactContext ? 'Available' : 'None'}`);
-      console.log(`🧠 AI Profiler: ${personalityData.aiProfilerData ? 'Available' : 'None'}`);
-      console.log(`🎯 Sales Tactics: ${personalityData.salesTactics?.length || 0} tactics`);
+      console.log('🚀 COMPREHENSIVE DATA INTEGRATION:');
+      console.log(`📊 Contact Data: ${personalityData.contactContext ? '✅ Available' : '❌ None'}`);
+      console.log(`🧠 AI Profiler: ${personalityData.aiProfilerData ? '✅ Available' : '❌ None'}`);
+      console.log(`🎯 Sales Tactics: ${personalityData.salesTactics?.length || 0} tactics loaded`);
       console.log(`📚 History: ${personalityData.analysisHistory?.length || 0} entries`);
-      console.log(`✨ Smart Summary Generated: ${Object.keys(intelligenceSummary).filter(k => intelligenceSummary[k as keyof typeof intelligenceSummary]).length}/5 fields`);
+      console.log(`🔧 Smart Summary Fields: ${Object.keys(intelligenceSummary).filter(k => intelligenceSummary[k as keyof typeof intelligenceSummary]).length}/5 active`);
+      console.log('===============================================');
       
       const response = await openai.chat.completions.create({
         model: "gpt-4o",
@@ -569,7 +560,11 @@ ${customInstructions ? `\nNOTES: ${customInstructions.substring(0, 100)}` : ''}`
 
       // Log actual token usage
       if (response.usage) {
-        console.log('OPTIMIZED Token usage:', response.usage);
+        console.log('🎉 ACTUAL TOKEN USAGE:');
+        console.log(`📥 Input tokens: ${response.usage.prompt_tokens}`);
+        console.log(`📤 Output tokens: ${response.usage.completion_tokens}`);
+        console.log(`💰 Total tokens: ${response.usage.total_tokens}`);
+        console.log(`💡 Efficiency: ${response.usage.total_tokens < 30000 ? '✅ Within limits' : '⚠️ High usage'}`);
       }
 
       return response.choices[0]?.message?.content || 'Unable to generate response. Please try again.';

@@ -89,19 +89,23 @@ export function EmailAnalyzer() {
         // If we found a sender email, update their personality profile in the background
         if (senderEmail) {
           try {
-            // TEMPORARILY DISABLED: Don't await this - let it run in the background
-            // updateContactPersonalityFromEmail(senderEmail, emailContent)
-            //   .then(updated => {
-            //     if (updated) {
-            //       toast({
-            //         title: "Contact Updated",
-            //         description: `Personality profile for ${senderEmail} has been updated based on this email analysis.`,
-            //         variant: "default"
-            //       });
-            //     }
-            //   })
-            //   .catch(err => console.error('Error updating contact personality:', err));
-            console.log('Contact personality update temporarily disabled to prevent rate limiting');
+            // Re-enabled with optimization: Add delay to prevent simultaneous API calls
+            setTimeout(() => {
+              updateContactPersonalityFromEmail(senderEmail, emailContent)
+                .then(updated => {
+                  if (updated) {
+                    toast({
+                      title: "Contact Updated",
+                      description: `Personality profile for ${senderEmail} has been updated based on this email analysis.`,
+                      variant: "default"
+                    });
+                  }
+                })
+                .catch(err => {
+                  console.error('Error updating contact personality:', err);
+                  // Don't show error toast to user - this is background operation
+                });
+            }, 3000); // 3 second delay to avoid simultaneous API calls
           } catch (err) {
             console.error('Error updating contact personality:', err);
           }
