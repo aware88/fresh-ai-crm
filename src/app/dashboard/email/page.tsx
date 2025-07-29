@@ -10,10 +10,9 @@ import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import OutlookClient from '@/components/email/outlook/OutlookClient';
 import ImapClient from '@/components/email/imap/ImapClient';
-import EmailAnalyserClient from "@/app/dashboard/email-analyser/EmailAnalyserClient";
 import EmailComposer from '@/components/email/EmailComposer';
 import { FaEnvelope, FaRobot, FaSearch, FaSync, FaCog } from 'react-icons/fa';
-import { Mail, TrendingUp, Inbox, Send, AlertCircle, Database, MessageSquare, TestTube, Brain } from 'lucide-react';
+import { Mail, TrendingUp, Inbox, Send, AlertCircle, Database, TestTube, Brain } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { AnalysisResultsModal } from '@/components/email/AnalysisResultsModal';
@@ -355,14 +354,10 @@ export default function EmailPage() {
 
         {/* Email Dashboard */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="inbox" className="flex items-center gap-2">
               <Inbox className="h-4 w-4" />
               Inbox
-            </TabsTrigger>
-            <TabsTrigger value="ai-analysis" className="flex items-center gap-2">
-              <MessageSquare className="h-4 w-4" />
-              Analysis History
             </TabsTrigger>
             <TabsTrigger value="compose" className="flex items-center gap-2">
               <Send className="h-4 w-4" />
@@ -389,20 +384,6 @@ export default function EmailPage() {
 
                   </div>
                 )}
-              </div>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="ai-analysis" className="mt-4">
-            <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
-              <div className="flex items-center justify-between px-4 py-2 border-b bg-gray-50">
-                <h3 className="font-medium flex items-center gap-2 text-gray-800">
-                  <MessageSquare className="h-4 w-4 text-purple-600" />
-                  Analysis History
-                </h3>
-              </div>
-              <div className="p-4">
-                <EmailAnalyserClient />
               </div>
             </div>
           </TabsContent>
