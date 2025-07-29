@@ -98,7 +98,7 @@ export default function ResetPasswordPage() {
 
       // Check if user is authenticated (session should exist from token verification)
       const { data: { session } } = await supabase.auth.getSession();
-      
+
       if (!session) {
         setError('Session expired. Please request a new password reset.');
         setLoading(false);

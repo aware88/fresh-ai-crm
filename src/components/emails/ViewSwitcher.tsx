@@ -60,10 +60,10 @@ export function ViewSwitcher({ activeView, onViewChange }: ViewSwitcherProps) {
           Response
         </TabsTrigger>
         {metakockaEnabled && (
-          <TabsTrigger value="metakocka">
-            <Database className="h-4 w-4 mr-2" />
-            Metakocka
-          </TabsTrigger>
+        <TabsTrigger value="metakocka">
+          <Database className="h-4 w-4 mr-2" />
+          Metakocka
+        </TabsTrigger>
         )}
       </TabsList>
     </Tabs>

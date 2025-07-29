@@ -24,7 +24,7 @@ export function EmailRenderer({ content, className = '', style = {} }: EmailRend
     if (!iframeRef.current) return;
 
     const iframe = iframeRef.current;
-    const parsedContent = parseEmailContent(content);
+  const parsedContent = parseEmailContent(content);
     
     // Reset scroll position when content changes
     setIsLoaded(false);
@@ -268,7 +268,7 @@ export function EmailRenderer({ content, className = '', style = {} }: EmailRend
       <iframe
         ref={iframeRef}
         sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"
-        style={{
+      style={{
           width: '100%',
           minHeight: '200px',
           border: 'none',

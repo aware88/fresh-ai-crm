@@ -113,7 +113,7 @@ export default function CustomerInfoWidget({ customerEmail, className }: Custome
 
   useEffect(() => {
     if (metakockaEnabled === true) {
-      checkCustomerInMetakocka();
+    checkCustomerInMetakocka();
     } else if (metakockaEnabled === false) {
       setChecked(true); // Don't show Metakocka functionality
     }

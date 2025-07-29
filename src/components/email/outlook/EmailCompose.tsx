@@ -221,7 +221,7 @@ export default function EmailCompose({ mode, originalEmail, onClose, onSend }: E
         
         <div className="pt-2">
           <RichTextEditor
-            value={body}
+            value={body} 
             onChange={setBody}
             placeholder="Compose your email..."
             height="300px"
