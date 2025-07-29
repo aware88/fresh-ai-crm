@@ -167,15 +167,19 @@ export default function AIDraftWindow({
         }
       }
 
-      const response = await fetch('/api/emails/ai-draft', {
+      const response = await fetch('/api/email/generate-response', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
+          originalEmail: typeof originalEmail === 'string' ? originalEmail : originalEmail.body,
+          senderEmail: typeof originalEmail === 'object' ? originalEmail.from : '',
+          tone: finalSettings.responseStyle || 'professional',
+          customInstructions: finalSettings.customInstructions || '',
           emailId,
-          originalEmail,
-          settings: finalSettings
+          settings: finalSettings,
+          includeDrafting: true // Enable comprehensive drafting mode
         })
       });
       
@@ -188,15 +192,15 @@ export default function AIDraftWindow({
       const data = await response.json();
       
       const newDraft: AIDraftData = {
-        id: data.id,
-        subject: data.subject,
-        body: data.body,
-        tone: data.tone || settings.responseStyle,
+        id: data.id || emailId,
+        subject: data.subject || (typeof originalEmail === 'object' ? originalEmail.subject : 'Re: Your email'),
+        body: data.response || data.body || 'Unable to generate draft',
+        tone: data.tone || finalSettings.responseStyle || 'professional',
         confidence: data.confidence || 0.8,
         generatedAt: new Date(),
         context: {
-          originalEmail: originalEmail.body,
-          senderInfo: { email: originalEmail.from },
+          originalEmail: typeof originalEmail === 'string' ? originalEmail : originalEmail.body,
+          senderInfo: { email: typeof originalEmail === 'object' ? originalEmail.from : '' },
           previousContext: data.context || ''
         }
       };

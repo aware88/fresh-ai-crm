@@ -7,7 +7,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Loader2, Copy, Check, Mail, Brain, Sparkles, Send, Trash2, UserPlus, AlertCircle, Globe, Link } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
 import { ToastAction } from '@/components/ui/toast';
-import { updateContactPersonalityFromEmail } from '@/lib/contacts/personality';
 
 export function EmailAnalyzer() {
   const [inputMode, setInputMode] = useState<'email' | 'url'>('email');
@@ -86,29 +85,9 @@ export function EmailAnalyzer() {
           }),
         });
         
-        // If we found a sender email, update their personality profile in the background
+        // If we found a sender email, the unified API will handle personality updates in the background
         if (senderEmail) {
-          try {
-            // Re-enabled with optimization: Add delay to prevent simultaneous API calls
-            setTimeout(() => {
-              updateContactPersonalityFromEmail(senderEmail, emailContent)
-                .then(updated => {
-                  if (updated) {
-                    toast({
-                      title: "Contact Updated",
-                      description: `Personality profile for ${senderEmail} has been updated based on this email analysis.`,
-                      variant: "default"
-                    });
-                  }
-                })
-                .catch(err => {
-                  console.error('Error updating contact personality:', err);
-                  // Don't show error toast to user - this is background operation
-                });
-            }, 3000); // 3 second delay to avoid simultaneous API calls
-          } catch (err) {
-            console.error('Error updating contact personality:', err);
-          }
+          console.log('Personality update will be handled by unified API for:', senderEmail);
         }
       } else {
         // For URL analysis, we'll analyze the first URL in the list for now
