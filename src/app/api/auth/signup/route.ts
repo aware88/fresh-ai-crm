@@ -6,8 +6,16 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { email, password, firstName, lastName, subscriptionPlan, isOrganization, orgName, orgSlug } = body;
     
-    // Use NEXTAUTH_URL for reliable email redirects in production
-    const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
+    // Dynamic URL detection for reliable email redirects
+    const host = request.headers.get('host');
+    const protocol = request.headers.get('x-forwarded-proto') || (host?.includes('localhost') ? 'http' : 'https');
+    const dynamicBaseUrl = `${protocol}://${host}`;
+    
+    // Fallback to environment variable or production URL
+    const baseUrl = dynamicBaseUrl || process.env.NEXTAUTH_URL || 'https://app.helloaris.com';
+    
+    console.log('🔗 Host:', host);
+    console.log('🔗 Protocol:', protocol);
     console.log('🔗 Using baseUrl for email confirmation:', baseUrl);
     
     // Validate required fields
