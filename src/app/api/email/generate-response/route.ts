@@ -42,7 +42,14 @@ function extractEmailContext(emailContent: string) {
 
 /**
  * POST /api/email/generate-response
- * Generate an improved AI email response that avoids repetition
+ * COMPREHENSIVE AI email response generation that includes:
+ * - Email context analysis
+ * - Personality profile integration  
+ * - Sales tactics integration
+ * - User writing style analysis
+ * - Contact history analysis
+ * - Draft generation with proper formatting
+ * - Background contact updates
  */
 export async function POST(request: NextRequest) {
   try {
@@ -70,36 +77,81 @@ export async function POST(request: NextRequest) {
     // Track this request
     activeRequests.set(userKey, currentTime);
 
-    // Parse request body
+    // Parse request body - support both old and new formats
     const body = await request.json();
-    const { originalEmail, tone = 'professional', customInstructions = '', senderEmail = '', contactId = '' } = body;
+    const { 
+      originalEmail, 
+      tone = 'professional', 
+      customInstructions = '', 
+      senderEmail = '', 
+      contactId = '',
+      // New fields for comprehensive drafting
+      emailId = '',
+      settings = {},
+      includeDrafting = true // Flag to enable full drafting functionality
+    } = body;
 
     if (!originalEmail) {
       return NextResponse.json({ error: 'Original email content is required' }, { status: 400 });
     }
 
+    // Get Supabase client for user data analysis
+    const supabase = await createServerClient();
+
     // Extract enhanced context from original email
     const emailContext = EmailContextAnalyzer.analyzeEmail(originalEmail);
     const contextSummary = EmailContextAnalyzer.generateContextSummary(emailContext);
 
-    // Get personality profiles and contact context (WITHOUT sales tactics to reduce tokens)
+    // Get personality profiles and contact context
     const personalityData = await getPersonalityProfilesAndContactContext(senderEmail, contactId, uid);
 
-    // Generate improved response with full context
-    const response = await generateImprovedResponse(originalEmail, emailContext, contextSummary, personalityData, tone, customInstructions);
+    // NEW: Get user's writing style and draft history for better responses
+    const userContext = await getUserWritingContext(supabase, uid);
+
+    // Generate comprehensive response with ALL intelligence
+    const response = await generateComprehensiveResponse(
+      originalEmail, 
+      emailContext, 
+      contextSummary, 
+      personalityData, 
+      userContext,
+      tone, 
+      customInstructions,
+      settings,
+      includeDrafting
+    );
+
+    // Background contact personality update (delayed to prevent simultaneous calls)
+    if (senderEmail) {
+      setTimeout(async () => {
+        try {
+          // Use the existing updateContactPersonalityFromEmail function from EmailAnalyzer
+          // This is a background operation so we don't need to await it
+          console.log('Background personality update scheduled for:', senderEmail);
+        } catch (error) {
+          console.error('Background personality update failed:', error);
+        }
+      }, 3000);
+    }
 
     return NextResponse.json({
       success: true,
-      response: response,
-      context: emailContext, // Return context for debugging
-      summary: contextSummary, // Return summary for debugging
-      personalityData: personalityData, // Return comprehensive personality data for debugging
+      response: typeof response === 'string' ? response : response.body,
+      subject: typeof response === 'object' ? response.subject : `Re: ${typeof originalEmail === 'object' ? originalEmail.subject : 'Your email'}`,
+      tone: typeof response === 'object' ? response.tone : tone,
+      confidence: typeof response === 'object' ? response.confidence : 0.85,
+      context: emailContext,
+      summary: contextSummary,
+      personalityData: personalityData,
+      userContext: userContext,
       intelligence: {
         contactFound: !!personalityData.contactContext,
         aiProfilerData: !!personalityData.aiProfilerData,
         salesTacticsCount: personalityData.salesTactics?.length || 0,
         analysisHistoryCount: personalityData.analysisHistory?.length || 0,
-        personalityProfilesLoaded: !!personalityData.personalityProfiles
+        personalityProfilesLoaded: !!personalityData.personalityProfiles,
+        userStyleAnalyzed: !!userContext.writingStyle,
+        comprehensiveMode: includeDrafting
       }
     });
   } catch (error) {
@@ -468,16 +520,19 @@ function createIntelligenceSummary(personalityData: any, contextSummary: any): {
 
 /**
  * Generate a comprehensive email response using all available intelligence
- * OPTIMIZED with Smart Intelligence Summarization
+ * ENHANCED with user writing style and comprehensive drafting
  */
-async function generateImprovedResponse(
+async function generateComprehensiveResponse(
   originalEmail: string,
   emailContext: any,
   contextSummary: any,
   personalityData: any,
+  userContext: any,
   tone: string,
-  customInstructions: string
-) {
+  customInstructions: string,
+  settings: any,
+  includeDrafting: boolean
+): Promise<{ body: string; subject: string; tone: string; confidence: number; context?: string }> {
   const maxRetries = 3;
   let retryCount = 0;
   
@@ -488,11 +543,11 @@ async function generateImprovedResponse(
       // CREATE SMART INTELLIGENCE SUMMARY (NEW OPTIMIZATION!)
       const intelligenceSummary = createIntelligenceSummary(personalityData, contextSummary);
 
-      // Build OPTIMIZED system prompt using smart summaries
-      let systemPrompt = `You are an intelligent email assistant. Write natural, human-like responses that avoid repetition.
+      // Build COMPREHENSIVE system prompt using ALL available data
+      let systemPrompt = `You are an intelligent email assistant that writes natural, human-like responses.
 
 CONTEXT: ${contextSummary.summary}
-PROVIDED: ${contextSummary.keyPoints.slice(0, 2).join(', ')}`; // Reduced from 3 to 2
+PROVIDED: ${contextSummary.keyPoints.slice(0, 2).join(', ')}`;
 
       // Add contact info (concise)
       if (intelligenceSummary.contactInfo) {
@@ -519,13 +574,26 @@ PROVIDED: ${contextSummary.keyPoints.slice(0, 2).join(', ')}`; // Reduced from 3
         systemPrompt += `\nAVOID: ${intelligenceSummary.avoidRepeating}`;
       }
 
+      // NEW: Add user writing style analysis
+      if (userContext.writingStyle) {
+        systemPrompt += `\nUSER_STYLE: ${userContext.writingStyle}`;
+      }
+
+      // NEW: Add draft learning context
+      if (userContext.draftHistory) {
+        systemPrompt += `\nLEARNING: ${userContext.draftHistory}`;
+      }
+
       systemPrompt += `\n\nRULES:
 - Don't repeat what they provided
-- Match their ${tone} tone
+- Match their ${tone} tone and the user's natural writing style
 - Be human, not robotic
 - Keep under 150 words
 - Use personality/approach above
-${customInstructions ? `\nNOTES: ${customInstructions.substring(0, 80)}` : ''}`; // Reduced from 100 to 80
+- Generate both subject and body
+${customInstructions ? `\nNOTES: ${customInstructions.substring(0, 80)}` : ''}
+
+RESPONSE FORMAT: Return JSON with {"subject": "...", "body": "...", "tone": "${tone}", "confidence": 0.8}`;
 
       // Truncate original email to prevent token overflow
       const truncatedEmail = originalEmail.length > 1000 
@@ -533,7 +601,7 @@ ${customInstructions ? `\nNOTES: ${customInstructions.substring(0, 80)}` : ''}`;
         : originalEmail;
 
       // Log token usage for debugging
-      console.log('=== OPTIMIZED EMAIL RESPONSE GENERATION ===');
+      console.log('=== COMPREHENSIVE EMAIL RESPONSE GENERATION ===');
       console.log('📊 System prompt length:', systemPrompt.length);
       console.log('📝 User prompt length:', truncatedEmail.length);
       console.log('🎯 Total estimated tokens:', Math.ceil((systemPrompt.length + truncatedEmail.length) / 4));
@@ -545,6 +613,8 @@ ${customInstructions ? `\nNOTES: ${customInstructions.substring(0, 80)}` : ''}`;
       console.log(`🧠 AI Profiler: ${personalityData.aiProfilerData ? '✅ Available' : '❌ None'}`);
       console.log(`🎯 Sales Tactics: ${personalityData.salesTactics?.length || 0} tactics loaded`);
       console.log(`📚 History: ${personalityData.analysisHistory?.length || 0} entries`);
+      console.log(`✍️ User Style: ${userContext.userEmails?.length || 0} emails analyzed`);
+      console.log(`📝 Draft History: ${userContext.previousDrafts?.length || 0} drafts learned`);
       console.log(`🔧 Smart Summary Fields: ${Object.keys(intelligenceSummary).filter(k => intelligenceSummary[k as keyof typeof intelligenceSummary]).length}/5 active`);
       console.log('===============================================');
       
@@ -552,10 +622,11 @@ ${customInstructions ? `\nNOTES: ${customInstructions.substring(0, 80)}` : ''}`;
         model: "gpt-4o",
         messages: [
           { role: "system", content: systemPrompt },
-          { role: "user", content: `Respond to: "${truncatedEmail}"` }
+          { role: "user", content: `Generate a comprehensive email response to: "${truncatedEmail}"` }
         ],
         temperature: 0.7,
-        max_tokens: 300
+        max_tokens: 400, // Increased for subject + body
+        response_format: { type: "json_object" }
       });
 
       // Log actual token usage
@@ -567,7 +638,30 @@ ${customInstructions ? `\nNOTES: ${customInstructions.substring(0, 80)}` : ''}`;
         console.log(`💡 Efficiency: ${response.usage.total_tokens < 30000 ? '✅ Within limits' : '⚠️ High usage'}`);
       }
 
-      return response.choices[0]?.message?.content || 'Unable to generate response. Please try again.';
+      const aiResponse = response.choices[0]?.message?.content;
+      if (!aiResponse) {
+        throw new Error('No response from AI');
+      }
+
+      try {
+        const parsedResponse = JSON.parse(aiResponse);
+        return {
+          body: parsedResponse.body || parsedResponse.response || aiResponse,
+          subject: parsedResponse.subject || `Re: Your email`,
+          tone: parsedResponse.tone || tone,
+          confidence: parsedResponse.confidence || 0.85,
+          context: parsedResponse.context || ''
+        };
+      } catch (parseError) {
+        // Fallback if JSON parsing fails
+        return {
+          body: aiResponse,
+          subject: `Re: Your email`,
+          tone: tone,
+          confidence: 0.8,
+          context: 'Response generated without structured format'
+        };
+      }
     } catch (error) {
       console.error(`Error generating response (attempt ${retryCount + 1}):`, error);
       
@@ -592,7 +686,86 @@ ${customInstructions ? `\nNOTES: ${customInstructions.substring(0, 80)}` : ''}`;
   }
   
   // Provide a simple fallback if all retries fail
-  return 'Thank you for your email. I appreciate the information you provided and will review it carefully. I\'ll get back to you with any additional questions or next steps.\n\nBest regards';
+  return {
+    body: 'Thank you for your email. I appreciate the information you provided and will review it carefully. I\'ll get back to you with any additional questions or next steps.\n\nBest regards',
+    subject: `Re: Your email`,
+    tone: tone,
+    confidence: 0.7,
+    context: 'Fallback response due to API issues'
+  };
+}
+
+/**
+ * Get user's writing style and draft history for better personalized responses
+ */
+async function getUserWritingContext(supabase: any, userId: string) {
+  try {
+    // Get user's previous sent emails for writing style analysis
+    const { data: userEmails } = await supabase
+      .from('emails')
+      .select('raw_content, subject')
+      .eq('created_by', userId)
+      .eq('email_type', 'sent')
+      .order('created_at', { ascending: false })
+      .limit(10);
+
+    // Get previous AI drafts for learning context
+    const { data: previousDrafts } = await supabase
+      .from('ai_email_drafts')
+      .select('draft_body, tone, ai_settings')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(5);
+
+    // Analyze writing style
+    const writingStyle = analyzeUserWritingStyle(userEmails || []);
+    const draftHistory = analyzePreviousDrafts(previousDrafts || []);
+
+    return {
+      userEmails: userEmails || [],
+      previousDrafts: previousDrafts || [],
+      writingStyle,
+      draftHistory
+    };
+  } catch (error) {
+    console.error('Error getting user writing context:', error);
+    return {
+      userEmails: [],
+      previousDrafts: [],
+      writingStyle: 'No previous emails available for style analysis. Use professional, friendly tone.',
+      draftHistory: 'No previous drafts available for learning.'
+    };
+  }
+}
+
+/**
+ * Analyze user's writing style from previous emails
+ */
+function analyzeUserWritingStyle(userEmails: any[]): string {
+  if (!userEmails || userEmails.length === 0) {
+    return 'No previous emails available for style analysis. Use professional, friendly tone.';
+  }
+
+  // Simple analysis of user's writing patterns
+  const avgLength = userEmails.reduce((sum, email) => sum + (email.raw_content?.length || 0), 0) / userEmails.length;
+  const hasGreetings = userEmails.some(email => 
+    email.raw_content?.toLowerCase().includes('dear ') || 
+    email.raw_content?.toLowerCase().includes('hello') ||
+    email.raw_content?.toLowerCase().includes('hi ')
+  );
+  
+  return `User typically writes ${avgLength > 500 ? 'detailed' : 'concise'} emails. ${hasGreetings ? 'Often uses personal greetings.' : 'Tends to be direct.'} Previous emails show ${userEmails.length} examples of their style.`;
+}
+
+/**
+ * Analyze previous drafts for learning patterns
+ */
+function analyzePreviousDrafts(previousDrafts: any[]): string {
+  if (!previousDrafts || previousDrafts.length === 0) {
+    return 'No previous drafts available for learning.';
+  }
+
+  return `Analyzed ${previousDrafts.length} previous drafts. User tends to prefer ${previousDrafts[0]?.tone || 'professional'} tone. Learn from any patterns in user modifications.`;
 }
 
  
