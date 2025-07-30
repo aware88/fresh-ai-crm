@@ -63,8 +63,18 @@ export function useOrganization(): UseOrganizationResult {
       
       // Add a simple fallback to check if we've already tried to fetch an organization
       // and if it failed more than twice, wait before trying again
-      const lastAttemptTime = sessionStorage.getItem('lastOrgFetchAttempt');
-      const attemptCount = parseInt(sessionStorage.getItem('orgFetchAttemptCount') || '0');
+      let lastAttemptTime: string | null = null;
+      let attemptCount = 0;
+      
+      try {
+        if (typeof window !== 'undefined') {
+          lastAttemptTime = sessionStorage.getItem('lastOrgFetchAttempt');
+          attemptCount = parseInt(sessionStorage.getItem('orgFetchAttemptCount') || '0');
+        }
+      } catch (e) {
+        // Ignore sessionStorage errors
+        console.warn('SessionStorage access failed:', e);
+      }
       
       if (lastAttemptTime && attemptCount > 2) {
         const lastTime = parseInt(lastAttemptTime);
@@ -73,15 +83,28 @@ export function useOrganization(): UseOrganizationResult {
         if (now - lastTime < 5000) {
           console.log('Waiting before retrying organization fetch...');
           setTimeout(() => {
-            sessionStorage.setItem('lastOrgFetchAttempt', Date.now().toString());
+            try {
+              if (typeof window !== 'undefined') {
+                sessionStorage.setItem('lastOrgFetchAttempt', Date.now().toString());
+              }
+            } catch (e) {
+              // Ignore sessionStorage errors
+            }
           }, 5000);
           return;
         }
       }
       
       // Record this attempt
-      sessionStorage.setItem('lastOrgFetchAttempt', Date.now().toString());
-      sessionStorage.setItem('orgFetchAttemptCount', (attemptCount + 1).toString());
+      try {
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem('lastOrgFetchAttempt', Date.now().toString());
+          sessionStorage.setItem('orgFetchAttemptCount', (attemptCount + 1).toString());
+        }
+      } catch (e) {
+        // Ignore sessionStorage errors
+        console.warn('SessionStorage write failed:', e);
+      }
 
       try {
         // Get user ID from NextAuth session

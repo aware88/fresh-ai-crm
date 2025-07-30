@@ -208,7 +208,7 @@ export default function DashboardPage() {
       fetchDashboardStats();
       fetchRecentActivities();
     }
-  }, [userId, fetchDashboardStats, fetchRecentActivities]);
+  }, [userId]); // Remove function dependencies to prevent loops
 
   const quickActions = [
     { 
