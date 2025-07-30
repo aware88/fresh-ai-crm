@@ -37,11 +37,20 @@ export default function EmailAccountsPage() {
   }, [searchParams, router]);
 
   // Handle authentication redirect - only for truly unauthenticated users
+  // Add a delay to prevent premature redirects during auth loading
   useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push('/signin');
+    if (status === 'unauthenticated' && !session) {
+      // Add a small delay to ensure auth has fully loaded
+      const timer = setTimeout(() => {
+        // Double-check both status and session before redirecting
+        if (status === 'unauthenticated' && !session) {
+          console.log('Redirecting to signin - user not authenticated');
+          router.push('/signin');
+        }
+      }, 1500); // 1.5 second delay to ensure auth is fully loaded
+      return () => clearTimeout(timer);
     }
-  }, [status, router]);
+  }, [status, session, router]);
 
   // Fetch email accounts when authenticated
   useEffect(() => {

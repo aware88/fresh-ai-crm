@@ -217,19 +217,10 @@ export default function EmailPage() {
     );
   }
 
-  // Auto-redirect to email settings if no accounts configured - TEMPORARILY DISABLED
-  // useEffect(() => {
-  //   if (!loading && !connected && status === 'authenticated') {
-  //     console.log('No email accounts found, redirecting to email settings...');
-  //     // Use setTimeout to prevent React rendering issues
-  //     const timer = setTimeout(() => {
-  //       router.push('/settings/email-accounts');
-  //     }, 100);
-  //     return () => clearTimeout(timer);
-  //   }
-  // }, [loading, connected, status]); // Remove router from dependencies
+  // Note: Removed auto-redirect logic to prevent React errors
+  // Users now see the email setup UI which is more user-friendly
 
-  // Show connection required state (this will rarely be seen due to auto-redirect above)
+  // Show email setup UI when no accounts are connected
   if (!connected) {
     return (
       <div className="p-6">
