@@ -8,12 +8,12 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/components/ui/use-toast';
 import { Brain, FileText, CheckCircle, Play } from 'lucide-react';
 
-export default function WithcarLearningDemo() {
+export default function EmailLearningDemo() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [processedSamples, setProcessedSamples] = useState<string[]>([]);
   const { toast } = useToast();
 
-  // Sample Withcar emails for demonstration
+  // Sample emails for demonstration
   const sampleEmails = [
     {
       id: 'sample-1',
@@ -29,12 +29,12 @@ After checking your order #WC-2024-1156, I can confirm that your premium all-wea
 
 As a gesture of goodwill for the delay, I'm applying a 15% discount to your next order. This discount will be automatically applied to your account.
 
-If you have any other questions or concerns, please don't hesitate to reach out. We're here to help and ensure you have the best possible experience with Withcar.
+If you have any other questions or concerns, please don't hesitate to reach out. We're here to help and ensure you have the best possible experience with Our Company.
 
 Best regards,
 Sarah Mitchell
 Customer Success Team
-Withcar Italy`
+Our Company Italy`
     },
     {
       id: 'sample-2',
@@ -61,7 +61,7 @@ Looking forward to helping you enhance your BMW!
 Best regards,
 Roberto Fernandez
 Sales Specialist
-Withcar Italy`
+Our Company Italy`
     },
     {
       id: 'sample-3',
@@ -87,7 +87,7 @@ Again, I deeply apologize for this error. If you need anything else or have any 
 Warmest regards,
 Giulia Romano
 Customer Care Manager
-Withcar Italy`
+Our Company Italy`
     }
   ];
 
@@ -98,7 +98,7 @@ Withcar Italy`
 
       // Generate unique IDs to prevent duplicates
       const timestamp = Date.now();
-      const response = await fetch('/api/learning/withcar-emails', {
+      const response = await fetch('/api/learning/email-patterns', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -122,7 +122,7 @@ Withcar Italy`
 
       toast({
         title: "Demo Processing Complete!",
-        description: `Successfully processed ${data.processed} sample emails. The AI has learned Withcar's communication patterns.`,
+        description: `Successfully processed ${data.processed} sample emails. The AI has learned your communication patterns.`,
       });
 
       setProcessedSamples(sampleEmails.map(e => e.id));
@@ -145,14 +145,14 @@ Withcar Italy`
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Brain className="h-5 w-5 text-blue-600" />
-            Withcar Learning Demo
+            Email Learning Demo
           </CardTitle>
         </CardHeader>
         <CardContent>
           <Alert className="mb-4">
             <FileText className="h-4 w-4" />
             <AlertDescription>
-              This demo will process 3 sample Withcar emails to teach the AI your communication style. 
+              This demo will process 3 sample emails to teach the AI your communication style. 
               The patterns learned will then be used in future email drafts.
             </AlertDescription>
           </Alert>
@@ -160,7 +160,7 @@ Withcar Italy`
           <div className="flex items-center justify-between mb-6">
             <div>
               <p className="font-medium">Sample Emails Ready</p>
-              <p className="text-sm text-gray-600">3 representative Withcar emails covering different scenarios</p>
+              <p className="text-sm text-gray-600">3 representative emails covering different scenarios</p>
             </div>
             <Button
               onClick={processSampleEmails}

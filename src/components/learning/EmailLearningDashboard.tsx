@@ -13,7 +13,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useToast } from '@/components/ui/use-toast';
-import WithcarLearningDemo from './WithcarLearningDemo';
+import EmailLearningDemo from './EmailLearningDemo';
 import {
   Upload,
   Brain,
@@ -135,7 +135,7 @@ export default function EmailLearningDashboard() {
     try {
       setIsAnalyzing(true);
 
-      const response = await fetch('/api/learning/withcar-emails', {
+      const response = await fetch('/api/learning/email-patterns', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -204,7 +204,7 @@ export default function EmailLearningDashboard() {
         throw new Error('No valid emails found in file');
       }
 
-      const response = await fetch('/api/learning/withcar-emails', {
+      const response = await fetch('/api/learning/email-patterns', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -282,7 +282,7 @@ export default function EmailLearningDashboard() {
     }
 
     try {
-      const response = await fetch('/api/learning/withcar-emails?action=reset_all', {
+              const response = await fetch('/api/learning/email-patterns?action=reset_all', {
         method: 'DELETE'
       });
 
@@ -340,10 +340,10 @@ export default function EmailLearningDashboard() {
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <Brain className="h-6 w-6 text-blue-600" />
-            Withcar Email Learning
+                            Email Learning
           </h1>
           <p className="text-gray-600">
-            Teach the AI your email style by analyzing sent Withcar emails
+            Teach the AI your email style by analyzing your sent emails
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -456,7 +456,7 @@ export default function EmailLearningDashboard() {
                   Analyze Single Email
                 </CardTitle>
                 <CardDescription>
-                  Paste a Withcar email to extract patterns and learn your style
+                  Paste an email to extract patterns and learn your style
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -525,7 +525,7 @@ export default function EmailLearningDashboard() {
                   Batch Upload
                 </CardTitle>
                 <CardDescription>
-                  Upload a text file containing multiple Withcar emails
+                  Upload a text file containing multiple emails
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -569,7 +569,7 @@ export default function EmailLearningDashboard() {
 
         {/* Demo Tab */}
         <TabsContent value="demo" className="space-y-4">
-          <WithcarLearningDemo />
+                          <EmailLearningDemo />
         </TabsContent>
 
         {/* Learned Patterns Tab */}
@@ -581,7 +581,7 @@ export default function EmailLearningDashboard() {
                 Learned Patterns
               </CardTitle>
               <CardDescription>
-                Patterns extracted from your Withcar emails
+                Patterns extracted from your emails
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -589,7 +589,7 @@ export default function EmailLearningDashboard() {
                 <div className="text-center py-8 text-gray-500">
                   <Brain className="h-12 w-12 mx-auto mb-4 opacity-50" />
                   <p>No patterns learned yet.</p>
-                  <p className="text-sm">Upload some Withcar emails to start learning!</p>
+                  <p className="text-sm">Upload some emails to start learning!</p>
                 </div>
               ) : (
                 <ScrollArea className="h-[400px]">
@@ -640,7 +640,7 @@ export default function EmailLearningDashboard() {
                 Email Samples
               </CardTitle>
               <CardDescription>
-                Recently analyzed Withcar email samples
+                Recently analyzed email samples
               </CardDescription>
             </CardHeader>
             <CardContent>

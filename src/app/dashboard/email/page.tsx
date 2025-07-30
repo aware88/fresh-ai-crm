@@ -227,7 +227,7 @@ export default function EmailPage() {
       }, 100);
       return () => clearTimeout(timer);
     }
-  }, [loading, connected, status, router]);
+  }, [loading, connected, status]); // Remove router from dependencies
 
   // Show connection required state (this will rarely be seen due to auto-redirect above)
   if (!connected) {
