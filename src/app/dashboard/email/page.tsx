@@ -221,7 +221,11 @@ export default function EmailPage() {
   useEffect(() => {
     if (!loading && !connected && status === 'authenticated') {
       console.log('No email accounts found, redirecting to email settings...');
-      router.push('/settings/email-accounts');
+      // Use setTimeout to prevent React rendering issues
+      const timer = setTimeout(() => {
+        router.push('/settings/email-accounts');
+      }, 100);
+      return () => clearTimeout(timer);
     }
   }, [loading, connected, status, router]);
 
