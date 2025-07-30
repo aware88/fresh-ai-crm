@@ -217,17 +217,17 @@ export default function EmailPage() {
     );
   }
 
-  // Auto-redirect to email settings if no accounts configured
-  useEffect(() => {
-    if (!loading && !connected && status === 'authenticated') {
-      console.log('No email accounts found, redirecting to email settings...');
-      // Use setTimeout to prevent React rendering issues
-      const timer = setTimeout(() => {
-        router.push('/settings/email-accounts');
-      }, 100);
-      return () => clearTimeout(timer);
-    }
-  }, [loading, connected, status]); // Remove router from dependencies
+  // Auto-redirect to email settings if no accounts configured - TEMPORARILY DISABLED
+  // useEffect(() => {
+  //   if (!loading && !connected && status === 'authenticated') {
+  //     console.log('No email accounts found, redirecting to email settings...');
+  //     // Use setTimeout to prevent React rendering issues
+  //     const timer = setTimeout(() => {
+  //       router.push('/settings/email-accounts');
+  //     }, 100);
+  //     return () => clearTimeout(timer);
+  //   }
+  // }, [loading, connected, status]); // Remove router from dependencies
 
   // Show connection required state (this will rarely be seen due to auto-redirect above)
   if (!connected) {
