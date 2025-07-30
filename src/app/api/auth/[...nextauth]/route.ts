@@ -165,6 +165,13 @@ const authOptions: NextAuthOptions = {
       // Handle redirect after successful sign-in
       console.log('NextAuth redirect callback:', { url, baseUrl });
       
+      // For sign-in success, always go to dashboard
+      // The organization setup will happen in the JWT callback
+      if (url.includes('/signin') || url === baseUrl || url === `${baseUrl}/`) {
+        console.log('Redirecting to dashboard after sign-in');
+        return `${baseUrl}/dashboard`;
+      }
+      
       // If url is relative, make it absolute with baseUrl
       if (url.startsWith('/')) {
         return `${baseUrl}${url}`;
@@ -175,7 +182,7 @@ const authOptions: NextAuthOptions = {
         return url;
       }
       
-      // Default to dashboard for successful sign-ins
+      // Default fallback
       return `${baseUrl}/dashboard`;
     },
     async jwt({ token, user, account, trigger }) {
@@ -187,11 +194,18 @@ const authOptions: NextAuthOptions = {
         if (trigger === 'signIn' || trigger === 'signUp') {
           try {
             console.log('Ensuring user has organization setup for:', user.id);
-            await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/user/ensure-organization`, {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/user/ensure-organization`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ userId: user.id, email: user.email }),
             });
+            
+            if (response.ok) {
+              const result = await response.json();
+              console.log('Organization setup result:', result.message);
+            } else {
+              console.error('Organization setup failed with status:', response.status);
+            }
           } catch (error) {
             console.error('Failed to ensure user organization:', error);
             // Don't fail the sign-in process if this fails

@@ -52,9 +52,9 @@ export default function SignInForm() {
           setShowResendConfirmation(true);
         }
       } else if (result?.ok) {
-        console.log('✅ Sign in successful, redirecting to dashboard');
-        // Redirect to dashboard or intended page
-        router.push('/dashboard');
+        console.log('✅ Sign in successful, NextAuth will handle redirect');
+        // Let NextAuth handle the redirect via its redirect callback
+        // Don't manually redirect to prevent race conditions
       } else {
         console.warn('🔐 Unexpected sign in result:', result);
         setError('Sign in failed - please try again');
