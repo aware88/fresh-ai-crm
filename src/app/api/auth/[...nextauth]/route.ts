@@ -161,10 +161,42 @@ const authOptions: NextAuthOptions = {
       }
       return session;
     },
-    async jwt({ token, user, account }) {
+    async redirect({ url, baseUrl }) {
+      // Handle redirect after successful sign-in
+      console.log('NextAuth redirect callback:', { url, baseUrl });
+      
+      // If url is relative, make it absolute with baseUrl
+      if (url.startsWith('/')) {
+        return `${baseUrl}${url}`;
+      }
+      
+      // If url is on the same origin, allow it
+      if (new URL(url).origin === baseUrl) {
+        return url;
+      }
+      
+      // Default to dashboard for successful sign-ins
+      return `${baseUrl}/dashboard`;
+    },
+    async jwt({ token, user, account, trigger }) {
       // If we have a user, set the ID in the token
       if (user) {
         token.id = user.id;
+        
+        // Ensure user has organization setup on first sign-in
+        if (trigger === 'signIn' || trigger === 'signUp') {
+          try {
+            console.log('Ensuring user has organization setup for:', user.id);
+            await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/user/ensure-organization`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ userId: user.id, email: user.email }),
+            });
+          } catch (error) {
+            console.error('Failed to ensure user organization:', error);
+            // Don't fail the sign-in process if this fails
+          }
+        }
       }
       
       // Store OAuth tokens for Google and other providers
