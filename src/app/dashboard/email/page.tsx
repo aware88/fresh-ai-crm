@@ -217,7 +217,15 @@ export default function EmailPage() {
     );
   }
 
-  // Show connection required state
+  // Auto-redirect to email settings if no accounts configured
+  useEffect(() => {
+    if (!loading && !connected && status === 'authenticated') {
+      console.log('No email accounts found, redirecting to email settings...');
+      router.push('/settings/email-accounts');
+    }
+  }, [loading, connected, status, router]);
+
+  // Show connection required state (this will rarely be seen due to auto-redirect above)
   if (!connected) {
     return (
       <div className="p-6">
