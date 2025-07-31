@@ -8,6 +8,7 @@ const PUBLIC_PATHS = [
   '/signin',
   '/signup',
   '/auth/callback',
+  '/auth/confirm',
   '/reset-password',
   '/forgot-password',
 ];
@@ -47,6 +48,18 @@ export async function middleware(request: NextRequest) {
   
   // If no token found, redirect to signin
   if (!token) {
+    // Check if this is a fresh sign-in attempt (has nextauth session cookie)
+    const hasSessionCookie = request.cookies.has('next-auth.session-token') || 
+                             request.cookies.has('__Secure-next-auth.session-token');
+    
+    // If we have a session cookie but no token, give NextAuth time to process
+    if (hasSessionCookie) {
+      console.log('🔄 Session cookie found but no token yet, allowing request to proceed');
+      const response = NextResponse.next();
+      response.headers.set('x-middleware-cache', 'no-cache');
+      return applySecurityHeaders(response);
+    }
+    
     const url = new URL('/signin', request.url);
     // Add the original URL as a callback parameter
     url.searchParams.set('callbackUrl', encodeURI(request.url));
@@ -117,11 +130,17 @@ function applySecurityHeaders(response: NextResponse) {
 
 /**
  * Configure which paths this middleware runs on
- * TEMPORARILY DISABLED - Testing if middleware is causing sign-in issues
+ * Fixed to properly handle NextAuth sign-in process
  */
 export const config = {
   matcher: [
-    // TEMPORARILY DISABLE ALL MIDDLEWARE TO TEST SIGN-IN
-    // '/((?!_next/static|_next/image|favicon.ico).*)',
+    /*
+     * Match all request paths except for the ones starting with:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * Apply authentication and security headers to all other routes
+     */
+    '/((?!_next/static|_next/image|favicon.ico).*)',
   ],
 };

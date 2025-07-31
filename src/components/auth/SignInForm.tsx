@@ -53,21 +53,8 @@ export default function SignInForm() {
         }
       } else if (result?.ok) {
         console.log('✅ Sign in successful, NextAuth will handle redirect');
-        console.log('🔍 Sign in result details:', result);
         // Let NextAuth handle the redirect via its redirect callback
         // Don't manually redirect to prevent race conditions
-        
-        // TEMPORARY DEBUG: Wait a moment and check if redirect happened
-        setTimeout(() => {
-          console.log('🔍 Current URL after 2 seconds:', window.location.href);
-          console.log('🔍 Current pathname:', window.location.pathname);
-          
-          // If we're still on the signin page after 2 seconds, force redirect
-          if (window.location.pathname === '/signin') {
-            console.log('🚑 NextAuth redirect failed, forcing manual redirect');
-            window.location.href = '/dashboard';
-          }
-        }, 2000);
       } else {
         console.warn('🔐 Unexpected sign in result:', result);
         setError('Sign in failed - please try again');
