@@ -7,6 +7,9 @@ import { getPersonalityDataForPrompt } from '../../../../lib/personality/data';
 import { loadCsvData } from '../../../../lib/personality/flexible-data';
 import { getMatchingSalesTactics } from '../../../../lib/ai/sales-tactics'; // RE-ENABLED with optimization
 
+// Ensure this API route runs in Node.js runtime (not Edge)
+export const runtime = 'nodejs';
+
 // Simple in-memory rate limiting
 const activeRequests = new Map<string, number>();
 
