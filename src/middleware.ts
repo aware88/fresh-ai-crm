@@ -23,7 +23,10 @@ const PUBLIC_API_PATHS = [
 /**
  * Middleware for authentication and security headers
  * This enforces authentication across all protected routes
+ * 
+ * COMPLETELY DISABLED - COMMENTED OUT TO PREVENT EXECUTION
  */
+/*
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   
@@ -86,11 +89,15 @@ export async function middleware(request: NextRequest) {
   response.headers.set('Expires', '0');
   return applySecurityHeaders(response);
 }
+*/
 
 /**
  * Apply security headers to the response
  * Preserves existing cache control headers
+ * 
+ * ALSO DISABLED SINCE MIDDLEWARE IS DISABLED
  */
+/*
 function applySecurityHeaders(response: NextResponse) {
   // Content Security Policy (CSP)
   response.headers.set(
@@ -138,15 +145,18 @@ function applySecurityHeaders(response: NextResponse) {
   
   return response;
 }
+*/
 
 /**
  * MIDDLEWARE COMPLETELY DISABLED
  * The middleware was causing sign-in redirect loops and authentication issues.
  * We're using page-level authentication checks instead for better reliability.
  */
+
+// EMERGENCY FIX: Completely disable middleware by not exporting the middleware function
+// export async function middleware(request: NextRequest) { ... }
+
+// This config ensures NO paths are matched, truly disabling middleware
 export const config = {
-  matcher: [
-    // COMPLETELY DISABLED - NO PATHS MATCHED
-    // '/((?!_next/static|_next/image|favicon.ico).*)',
-  ],
+  matcher: [],
 };
