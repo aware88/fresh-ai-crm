@@ -184,10 +184,18 @@ export default function EmailPage() {
   //   }
   // }, [status, session, lastRefresh]);
 
-  // If not authenticated, redirect to sign in
+  // If not authenticated, show loading or let middleware handle it
   if (status === 'unauthenticated') {
-    router.push('/signin');
-    return null;
+    // Don't redirect here - let the middleware handle authentication
+    // This prevents race conditions during sign-in process
+    return (
+      <div className="flex items-center justify-center p-8">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Checking authentication...</p>
+        </div>
+      </div>
+    );
   }
 
   // Show loading state

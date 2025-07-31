@@ -37,11 +37,6 @@ async function cleanupUsers() {
       usersToDelete.includes(user.email)
     );
     
-    if (usersError) {
-      console.error('❌ Error finding users:', usersError);
-      return;
-    }
-    
     if (!usersToDeleteData || usersToDeleteData.length === 0) {
       console.log('ℹ️ No users found to delete');
       return;
@@ -63,7 +58,20 @@ async function cleanupUsers() {
       console.log('✅ Organization members deleted');
     }
     
-    // Delete organizations created by these users
+    // Delete user preferences first (to avoid foreign key constraints)
+    console.log('🗑️ Deleting user preferences...');
+    const { error: prefsError } = await supabase
+      .from('user_preferences')
+      .delete()
+      .in('user_id', userIds);
+    
+    if (prefsError) {
+      console.error('❌ Error deleting user preferences:', prefsError);
+    } else {
+      console.log('✅ User preferences deleted');
+    }
+    
+    // Now delete organizations (after user_preferences are gone)
     console.log('🗑️ Deleting organizations...');
     const { error: orgsError } = await supabase
       .from('organizations')
@@ -77,30 +85,21 @@ async function cleanupUsers() {
       console.log('✅ Organizations deleted');
     }
     
-    // Delete user preferences
-    console.log('🗑️ Deleting user preferences...');
-    const { error: prefsError } = await supabase
-      .from('user_preferences')
-      .delete()
-      .in('user_id', userIds);
-    
-    if (prefsError) {
-      console.error('❌ Error deleting user preferences:', prefsError);
-    } else {
-      console.log('✅ User preferences deleted');
-    }
-    
-    // Delete AI profiler data
+    // Delete AI profiler data (check correct column name)
     console.log('🗑️ Deleting AI profiler data...');
-    const { error: profilerError } = await supabase
-      .from('ai_profiler')
-      .delete()
-      .in('user_id', userIds);
-    
-    if (profilerError) {
-      console.error('❌ Error deleting AI profiler data:', profilerError);
-    } else {
-      console.log('✅ AI profiler data deleted');
+    try {
+      const { error: profilerError } = await supabase
+        .from('ai_profiler')
+        .delete()
+        .in('user_id', userIds);
+      
+      if (profilerError) {
+        console.error('❌ Error deleting AI profiler data:', profilerError);
+      } else {
+        console.log('✅ AI profiler data deleted');
+      }
+    } catch (error) {
+      console.log('⚠️ AI profiler table might not exist or have different structure');
     }
     
     // Delete contacts
@@ -129,30 +128,39 @@ async function cleanupUsers() {
       console.log('✅ Email accounts deleted');
     }
     
-    // Delete email analysis history
+    // Try to delete email analysis history (table might not exist)
     console.log('🗑️ Deleting email analysis history...');
-    const { error: historyError } = await supabase
-      .from('email_analysis_history')
-      .delete()
-      .in('user_id', userIds);
-    
-    if (historyError) {
-      console.error('❌ Error deleting email analysis history:', historyError);
-    } else {
-      console.log('✅ Email analysis history deleted');
+    try {
+      const { error: historyError } = await supabase
+        .from('email_analysis_history')
+        .delete()
+        .in('user_id', userIds);
+      
+      if (historyError) {
+        console.error('❌ Error deleting email analysis history:', historyError);
+      } else {
+        console.log('✅ Email analysis history deleted');
+      }
+    } catch (error) {
+      console.log('⚠️ Email analysis history table might not exist');
     }
     
-    // Finally, delete the users from auth.users
+    // Finally, delete the users from auth.users using correct method
     console.log('🗑️ Deleting users from auth.users...');
-    const { error: deleteUsersError } = await supabase.auth.admin.deleteUsers(userIds);
-    
-    if (deleteUsersError) {
-      console.error('❌ Error deleting users:', deleteUsersError);
-    } else {
-      console.log('✅ Users deleted from auth.users');
+    for (const userId of userIds) {
+      try {
+        const { error: deleteUserError } = await supabase.auth.admin.deleteUser(userId);
+        if (deleteUserError) {
+          console.error(`❌ Error deleting user ${userId}:`, deleteUserError);
+        } else {
+          console.log(`✅ User ${userId} deleted`);
+        }
+      } catch (error) {
+        console.error(`❌ Error deleting user ${userId}:`, error);
+      }
     }
     
-    console.log('🎉 Database cleanup completed successfully!');
+    console.log('🎉 Database cleanup completed!');
     
     // Verify cleanup
     console.log('📊 Verification - Remaining users:');
