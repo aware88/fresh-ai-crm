@@ -191,7 +191,7 @@ const authOptions: NextAuthOptions = {
         token.id = user.id;
         
         // Ensure user has organization setup on first sign-in
-        if (trigger === 'signIn' || trigger === 'signUp') {
+        if ((trigger === 'signIn' || trigger === 'signUp') && !token.organizationSetup) {
           try {
             console.log('Ensuring user has organization setup for:', user.id);
             const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/user/ensure-organization`, {
@@ -203,13 +203,21 @@ const authOptions: NextAuthOptions = {
             if (response.ok) {
               const result = await response.json();
               console.log('Organization setup result:', result.message);
+              // Mark organization setup as complete in the token
+              token.organizationSetup = true;
             } else {
               console.error('Organization setup failed with status:', response.status);
+              // Still mark as complete to prevent infinite loops
+              token.organizationSetup = true;
             }
           } catch (error) {
             console.error('Failed to ensure user organization:', error);
-            // Don't fail the sign-in process if this fails
+            // Still mark as complete to prevent infinite loops
+            token.organizationSetup = true;
           }
+        } else if (!token.organizationSetup) {
+          // For existing tokens, assume organization setup is complete
+          token.organizationSetup = true;
         }
       }
       

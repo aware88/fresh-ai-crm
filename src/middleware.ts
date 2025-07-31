@@ -53,6 +53,18 @@ export async function middleware(request: NextRequest) {
     return applySecurityHeaders(NextResponse.redirect(url));
   }
   
+  // If token is found but user might not have organization setup yet,
+  // give a brief moment for the JWT callback to complete organization creation
+  if (token && !token.organizationSetup) {
+    // For the first few seconds after sign-in, allow requests to proceed
+    // The organization setup happens asynchronously in the JWT callback
+    const tokenAge = Date.now() - (token.iat * 1000);
+    if (tokenAge < 10000) { // 10 seconds grace period
+      console.log('Allowing request during organization setup grace period');
+      return applySecurityHeaders(NextResponse.next());
+    }
+  }
+  
   // If token is found, user is authenticated, proceed with the request
   return applySecurityHeaders(NextResponse.next());
 }
