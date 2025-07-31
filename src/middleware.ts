@@ -140,18 +140,13 @@ function applySecurityHeaders(response: NextResponse) {
 }
 
 /**
- * Configure which paths this middleware runs on
- * Fixed to properly handle NextAuth sign-in process
+ * MIDDLEWARE COMPLETELY DISABLED
+ * The middleware was causing sign-in redirect loops and authentication issues.
+ * We're using page-level authentication checks instead for better reliability.
  */
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * Apply authentication and security headers to all other routes
-     */
-    '/((?!_next/static|_next/image|favicon.ico).*)',
+    // COMPLETELY DISABLED - NO PATHS MATCHED
+    // '/((?!_next/static|_next/image|favicon.ico).*)',
   ],
 };
