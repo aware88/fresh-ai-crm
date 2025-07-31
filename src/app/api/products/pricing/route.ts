@@ -1,8 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '../../../../lib/supabase/server';
-import { getUID } from '../../../../lib/auth/utils';
+import { getUID, getSession } from '../../../../lib/auth/utils';
 
-// GET /api/products/pricing - Get pricing data with optional filters
+// Helper function to get organization ID from session
+async function getOrganizationId(): Promise<string | null> {
+  try {
+    const session = await getSession();
+    return (session?.user as any)?.organizationId || session?.user?.id || null;
+  } catch (error) {
+    console.error('Error getting organization ID:', error);
+    return null;
+  }
+}
+
+// GET /api/products/pricing - Get organization pricing data with optional filters
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
@@ -10,9 +21,9 @@ export async function GET(request: NextRequest) {
     const supplierId = searchParams.get('supplierId');
     const useView = searchParams.get('view') !== 'false'; // Default to using the view
     
-    // Get user ID from session
-    const uid = await getUID();
-    if (!uid) {
+    // Get organization ID from session
+    const organizationId = await getOrganizationId();
+    if (!organizationId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -22,11 +33,11 @@ export async function GET(request: NextRequest) {
     // Determine which table/view to query
     const table = useView ? 'supplier_product_pricing' : 'supplier_pricing';
     
-    // Build query
+    // Build query for organization data (shared)
     let dbQuery = supabase
       .from(table)
       .select('*')
-      .eq('user_id', uid);
+      .eq('organization_id', organizationId);
     
     // Apply filters if provided
     if (productId) {
@@ -69,19 +80,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Price is required' }, { status: 400 });
     }
     
-    // Get user ID from session
+    // Get organization and user ID from session
+    const organizationId = await getOrganizationId();
     const uid = await getUID();
-    if (!uid) {
+    if (!organizationId || !uid) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
     // Create Supabase client
     const supabase = createServerClient();
     
-    // Add user_id to the pricing data
+    // Add organization_id and user_id to the pricing data
     const pricingData = {
       ...body,
-      user_id: uid
+      organization_id: organizationId,
+      user_id: uid, // Keep for audit trail
     };
     
     // Insert into database
@@ -117,21 +130,21 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Price is required' }, { status: 400 });
     }
     
-    // Get user ID from session
-    const uid = await getUID();
-    if (!uid) {
+    // Get organization ID from session
+    const organizationId = await getOrganizationId();
+    if (!organizationId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
     // Create Supabase client
     const supabase = createServerClient();
     
-    // Update in database
+    // Update in database (organization members can update shared pricing)
     const { data, error } = await supabase
       .from('supplier_pricing')
       .update(body)
       .eq('id', id)
-      .eq('user_id', uid)  // Ensure user can only update their own pricing data
+      .eq('organization_id', organizationId)  // Ensure user can only update organization pricing
       .select()
       .single();
     
@@ -141,7 +154,7 @@ export async function PUT(request: NextRequest) {
     }
     
     if (!data) {
-      return NextResponse.json({ error: 'Pricing entry not found or you do not have permission to update it' }, { status: 404 });
+      return NextResponse.json({ error: 'Pricing entry not found or not accessible by your organization' }, { status: 404 });
     }
     
     return NextResponse.json(data);
@@ -161,21 +174,21 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Pricing ID is required' }, { status: 400 });
     }
     
-    // Get user ID from session
-    const uid = await getUID();
-    if (!uid) {
+    // Get organization ID from session
+    const organizationId = await getOrganizationId();
+    if (!organizationId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
     // Create Supabase client
     const supabase = createServerClient();
     
-    // Delete from database
+    // Delete from database (organization members can delete shared pricing)
     const { error } = await supabase
       .from('supplier_pricing')
       .delete()
       .eq('id', id)
-      .eq('user_id', uid);  // Ensure user can only delete their own pricing data
+      .eq('organization_id', organizationId);  // Ensure user can only delete organization pricing
     
     if (error) {
       console.error('Error deleting pricing entry:', error);

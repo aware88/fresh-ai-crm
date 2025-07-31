@@ -4,23 +4,30 @@ import { createServiceRoleClient } from '../../../lib/supabase/service-role';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../auth/[...nextauth]/route';
 
-// GET /api/suppliers - Get all suppliers for the current user
+// Helper function to get organization ID from session
+function getOrganizationId(session: any): string {
+  return (session?.user as any)?.organizationId || session?.user?.id;
+}
+
+// GET /api/suppliers - Get all suppliers for the organization
 export async function GET(request: NextRequest) {
   try {
-    // Get user ID from NextAuth session
+    // Get session and organization ID
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const organizationId = getOrganizationId(session);
+
     // Use service role client to bypass RLS issues
     const supabase = createServiceRoleClient();
     
-    // Fetch suppliers for the current user
+    // Fetch suppliers for the organization (shared data)
     const { data: suppliers, error } = await supabase
       .from('suppliers')
       .select('*')
-      .eq('user_id', session.user.id)
+      .eq('organization_id', organizationId)
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -46,19 +53,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Name and email are required' }, { status: 400 });
     }
     
-    // Get user ID from NextAuth session
+    // Get session and organization ID
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const organizationId = getOrganizationId(session);
     
     // Use service role client to bypass RLS issues
     const supabase = createServiceRoleClient();
     
-    // Add user_id to the supplier data
+    // Add organization_id and user_id to the supplier data
     const supplierData = {
       ...body,
-      user_id: session.user.id
+      organization_id: organizationId,
+      user_id: session.user.id, // Keep for audit trail
     };
     
     // Insert into database
@@ -94,21 +104,23 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Name and email are required' }, { status: 400 });
     }
     
-    // Get user ID from NextAuth session
+    // Get session and organization ID
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const organizationId = getOrganizationId(session);
     
     // Use service role client to bypass RLS issues
     const supabase = createServiceRoleClient();
     
-    // Update in database
+    // Update in database (organization members can update shared suppliers)
     const { data, error } = await supabase
       .from('suppliers')
       .update(body)
       .eq('id', id)
-      .eq('user_id', session.user.id)  // Ensure user can only update their own suppliers
+      .eq('organization_id', organizationId)  // Ensure user can only update organization suppliers
       .select()
       .single();
     
@@ -118,7 +130,7 @@ export async function PUT(request: NextRequest) {
     }
     
     if (!data) {
-      return NextResponse.json({ error: 'Supplier not found or you do not have permission to update it' }, { status: 404 });
+      return NextResponse.json({ error: 'Supplier not found or not accessible by your organization' }, { status: 404 });
     }
     
     return NextResponse.json({ supplier: data });
@@ -138,21 +150,23 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Supplier ID is required' }, { status: 400 });
     }
     
-    // Get user ID from NextAuth session
+    // Get session and organization ID
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const organizationId = getOrganizationId(session);
     
     // Use service role client to bypass RLS issues
     const supabase = createServiceRoleClient();
     
-    // Delete from database
+    // Delete from database (organization members can delete shared suppliers)
     const { data, error } = await supabase
       .from('suppliers')
       .delete()
       .eq('id', id)
-      .eq('user_id', session.user.id)  // Ensure user can only delete their own suppliers
+      .eq('organization_id', organizationId)  // Ensure user can only delete organization suppliers
       .select()
       .single();
     
@@ -162,7 +176,7 @@ export async function DELETE(request: NextRequest) {
     }
     
     if (!data) {
-      return NextResponse.json({ error: 'Supplier not found or you do not have permission to delete it' }, { status: 404 });
+      return NextResponse.json({ error: 'Supplier not found or not accessible by your organization' }, { status: 404 });
     }
     
     return NextResponse.json({ success: true });

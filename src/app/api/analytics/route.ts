@@ -3,6 +3,11 @@ import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 import { Database } from '@/types/supabase';
 
+// Helper function to get organization ID from session
+function getOrganizationId(session: any): string {
+  return (session?.user as any)?.organizationId || session?.user?.id;
+}
+
 export async function GET(request: Request) {
   try {
     // Create Supabase client with proper cookies handling for Next.js 15+
@@ -21,6 +26,7 @@ export async function GET(request: Request) {
     }
 
     const userId = session.user.id;
+    const organizationId = getOrganizationId(session);
 
     // Get current date ranges with proper timezone handling
     const currentDate = new Date();
@@ -55,80 +61,80 @@ export async function GET(request: Request) {
       customersCurrentResult,
       customersPreviousResult
     ] = await Promise.allSettled([
-      // Count suppliers
+      // Count suppliers (organization shared data)
       supabase
         .from('suppliers')
         .select('id', { count: 'exact', head: true })
-        .eq('user_id', userId as any),
+        .eq('organization_id', organizationId as any),
       
-      // Count products
+      // Count products (organization shared data)
       supabase
         .from('products')
         .select('id', { count: 'exact', head: true })
-        .eq('user_id', userId as any),
+        .eq('organization_id', organizationId as any),
       
-      // Count documents
+      // Count documents (organization shared data)
       supabase
         .from('supplier_documents')
         .select('id', { count: 'exact', head: true })
-        .eq('user_id', userId as any),
+        .eq('organization_id', organizationId as any),
       
-      // Count supplier emails (all emails - no read field exists)
+      // Count supplier emails (organization shared data)
       supabase
         .from('supplier_emails')
         .select('id', { count: 'exact', head: true })
-        .eq('user_id', userId as any),
+        .eq('organization_id', organizationId as any),
       
-      // Get pricing stats
+      // Get pricing stats (organization shared data)
       supabase
         .from('supplier_pricing')
         .select('price')
-        .eq('user_id', userId as any),
+        .eq('organization_id', organizationId as any),
 
-      // Current revenue (last 30 days)
+      // Current revenue (last 30 days) - organization shared data
       supabase
         .from('sales_documents')
         .select('total_amount')
-        .eq('user_id', userId as any)
+        .eq('organization_id', organizationId as any)
         .eq('status', 'completed' as any)
         .gte('created_at', thirtyDaysAgo.toISOString()),
 
-      // Previous revenue (30-60 days ago)
+      // Previous revenue (30-60 days ago) - organization shared data
       supabase
         .from('sales_documents')
         .select('total_amount')
-        .eq('user_id', userId as any)
+        .eq('organization_id', organizationId as any)
         .eq('status', 'completed' as any)
         .gte('created_at', sixtyDaysAgo.toISOString())
         .lt('created_at', thirtyDaysAgo.toISOString()),
 
-      // Current orders (last 30 days)
+      // Current orders (last 30 days) - organization shared data
       supabase
         .from('sales_documents')
         .select('id', { count: 'exact', head: true })
-        .eq('user_id', userId as any)
+        .eq('organization_id', organizationId as any)
         .gte('created_at', thirtyDaysAgo.toISOString()),
 
-      // Previous orders (30-60 days ago)
+      // Previous orders (30-60 days ago) - organization shared data
       supabase
         .from('sales_documents')
         .select('id', { count: 'exact', head: true })
-        .eq('user_id', userId as any)
+        .eq('organization_id', organizationId as any)
         .gte('created_at', sixtyDaysAgo.toISOString())
         .lt('created_at', thirtyDaysAgo.toISOString()),
 
-      // Current customers (use suppliers as customers since that's what exists)
+      // Current customers (use suppliers as customers) - organization shared data
       supabase
         .from('suppliers')
         .select('id', { count: 'exact', head: true })
-        .eq('user_id', userId as any)
+        .eq('organization_id', organizationId as any)
         .gte('created_at', thirtyDaysAgo.toISOString()),
 
-      // Previous customers (30-60 days ago)
+      // Previous customers (30-60 days ago) - organization shared data
       supabase
         .from('suppliers')
         .select('id', { count: 'exact', head: true })
-        .eq('user_id', userId as any)
+        .eq('organization_id', organizationId as any)
         .gte('created_at', sixtyDaysAgo.toISOString())
         .lt('created_at', thirtyDaysAgo.toISOString()),
     ]);
