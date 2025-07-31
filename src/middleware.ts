@@ -117,14 +117,11 @@ function applySecurityHeaders(response: NextResponse) {
 
 /**
  * Configure which paths this middleware runs on
- * We want to apply authentication and security headers to all routes
+ * TEMPORARILY DISABLED - Testing if middleware is causing sign-in issues
  */
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except for specific static assets
-     * that don't need authentication checks
-     */
-    '/((?!_next/static|_next/image|favicon.ico).*)',
+    // TEMPORARILY DISABLE ALL MIDDLEWARE TO TEST SIGN-IN
+    // '/((?!_next/static|_next/image|favicon.ico).*)',
   ],
 };
