@@ -50,11 +50,12 @@ export async function middleware(request: NextRequest) {
     const url = new URL('/signin', request.url);
     // Add the original URL as a callback parameter
     url.searchParams.set('callbackUrl', encodeURI(request.url));
-    return applySecurityHeaders(NextResponse.redirect(url));
+    const redirectResponse = NextResponse.redirect(url);
+    // CRITICAL FIX: Disable middleware cache to prevent cookie reading issues
+    redirectResponse.headers.set('x-middleware-cache', 'no-cache');
+    return applySecurityHeaders(redirectResponse);
   }
   
-  // TEMPORARY: Allow all authenticated requests to proceed
-  // This will help us debug the organization setup issue
   console.log('🔍 Middleware: Token found, allowing request to proceed');
   console.log('🔍 Token details:', {
     id: token.sub,
@@ -65,11 +66,15 @@ export async function middleware(request: NextRequest) {
   });
   
   // If token is found, user is authenticated, proceed with the request
-  return applySecurityHeaders(NextResponse.next());
+  const response = NextResponse.next();
+  // CRITICAL FIX: Disable middleware cache for all responses
+  response.headers.set('x-middleware-cache', 'no-cache');
+  return applySecurityHeaders(response);
 }
 
 /**
  * Apply security headers to the response
+ * Preserves existing cache control headers
  */
 function applySecurityHeaders(response: NextResponse) {
   // Content Security Policy (CSP)
@@ -101,6 +106,11 @@ function applySecurityHeaders(response: NextResponse) {
     'Permissions-Policy',
     'camera=(), microphone=(), geolocation=(), interest-cohort=()'
   );
+  
+  // Ensure cache control is preserved (don't override x-middleware-cache)
+  if (!response.headers.has('x-middleware-cache')) {
+    response.headers.set('x-middleware-cache', 'no-cache');
+  }
   
   return response;
 }
