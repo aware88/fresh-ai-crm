@@ -43,29 +43,28 @@ export async function middleware(request: NextRequest) {
     return applySecurityHeaders(NextResponse.next());
   }
   
-  // For all other routes, check if user is authenticated
-  const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
+  // CRITICAL FIX: Use a more aggressive approach to prevent middleware caching issues
+  // This is based on the proven solution from Next.js GitHub issues and community
+  
+  let token;
+  try {
+    token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
+  } catch (error) {
+    console.error('🚨 Error getting token in middleware:', error);
+    token = null;
+  }
   
   // If no token found, redirect to signin
   if (!token) {
-    // Check if this is a fresh sign-in attempt (has nextauth session cookie)
-    const hasSessionCookie = request.cookies.has('next-auth.session-token') || 
-                             request.cookies.has('__Secure-next-auth.session-token');
-    
-    // If we have a session cookie but no token, give NextAuth time to process
-    if (hasSessionCookie) {
-      console.log('🔄 Session cookie found but no token yet, allowing request to proceed');
-      const response = NextResponse.next();
-      response.headers.set('x-middleware-cache', 'no-cache');
-      return applySecurityHeaders(response);
-    }
-    
     const url = new URL('/signin', request.url);
     // Add the original URL as a callback parameter
     url.searchParams.set('callbackUrl', encodeURI(request.url));
     const redirectResponse = NextResponse.redirect(url);
     // CRITICAL FIX: Disable middleware cache to prevent cookie reading issues
     redirectResponse.headers.set('x-middleware-cache', 'no-cache');
+    redirectResponse.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+    redirectResponse.headers.set('Pragma', 'no-cache');
+    redirectResponse.headers.set('Expires', '0');
     return applySecurityHeaders(redirectResponse);
   }
   
@@ -82,6 +81,9 @@ export async function middleware(request: NextRequest) {
   const response = NextResponse.next();
   // CRITICAL FIX: Disable middleware cache for all responses
   response.headers.set('x-middleware-cache', 'no-cache');
+  response.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+  response.headers.set('Pragma', 'no-cache');
+  response.headers.set('Expires', '0');
   return applySecurityHeaders(response);
 }
 
@@ -120,9 +122,18 @@ function applySecurityHeaders(response: NextResponse) {
     'camera=(), microphone=(), geolocation=(), interest-cohort=()'
   );
   
-  // Ensure cache control is preserved (don't override x-middleware-cache)
+  // Ensure critical cache control headers are preserved
   if (!response.headers.has('x-middleware-cache')) {
     response.headers.set('x-middleware-cache', 'no-cache');
+  }
+  if (!response.headers.has('Cache-Control')) {
+    response.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+  }
+  if (!response.headers.has('Pragma')) {
+    response.headers.set('Pragma', 'no-cache');
+  }
+  if (!response.headers.has('Expires')) {
+    response.headers.set('Expires', '0');
   }
   
   return response;
