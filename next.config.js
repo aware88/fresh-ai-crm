@@ -60,6 +60,18 @@ const nextConfig = {
       { message: /Critical dependency: the request of a dependency is an expression/ }
     ];
     
+    // Add polyfills for browser APIs during server-side builds
+    if (isServer) {
+      // Define browser APIs as undefined during server builds
+      config.plugins.push(
+        new config.webpack.DefinePlugin({
+          'typeof File': JSON.stringify('undefined'),
+          'typeof FormData': JSON.stringify('function'),
+          'typeof Blob': JSON.stringify('undefined'),
+        })
+      );
+    }
+    
     return config;
   },
 

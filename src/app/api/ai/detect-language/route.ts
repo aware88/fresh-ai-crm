@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getOpenAIClient } from '@/lib/openai/client';
 
+// Ensure this API route runs in Node.js runtime (not Edge)
+export const runtime = 'nodejs';
+
 export async function POST(request: NextRequest) {
   try {
     const { text } = await request.json();
