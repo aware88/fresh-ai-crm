@@ -58,7 +58,7 @@ export default function DashboardPage() {
           </div>
           
           <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="text-lg font-semibent mb-2">📊 Status</h3>
+            <h3 className="text-lg font-semibold mb-2">📊 Status</h3>
             <p className="text-green-600 font-medium">All systems operational</p>
           </div>
         </div>
