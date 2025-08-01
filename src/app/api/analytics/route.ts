@@ -1,24 +1,13 @@
 import { NextResponse } from 'next/server';
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
-import { Database } from '@/types/supabase';
-
-// Helper function to get organization ID from session
-function getOrganizationId(session: any): string {
-  return (session?.user as any)?.organizationId || session?.user?.id;
-}
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { supabase } from '@/lib/supabaseClient';
 
 export async function GET(request: Request) {
   try {
-    // Create Supabase client with proper cookies handling for Next.js 15+
-    const cookieStore = cookies();
-    const supabase = createRouteHandlerClient<Database>({ 
-      cookies: () => cookieStore
-    });
-    
-    // Check if user is authenticated
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
+    // Check if user is authenticated via NextAuth
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
@@ -26,7 +15,7 @@ export async function GET(request: Request) {
     }
 
     const userId = session.user.id;
-    const organizationId = getOrganizationId(session);
+    const organizationId = userId; // Use user ID as organization ID for now
 
     // Get current date ranges with proper timezone handling
     const currentDate = new Date();

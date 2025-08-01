@@ -105,16 +105,7 @@ export async function fetchAnalyticsServer(): Promise<AnalyticsData & { organiza
   const organizationId = session?.user?.id || (isDev() ? "dev-user-id" : "");
   debugLog('Organization ID:', organizationId);
   
-  // In development mode, return sample data instead of empty data
-  if (isDev()) {
-    debugLog('Using sample analytics data in development mode');
-    return {
-      ...developmentAnalyticsData,
-      organizationId
-    };
-  }
-  
-  // In production, require authentication
+  // Require authentication in all environments
   if (!session) {
     throw new Error('Unauthorized: No session found');
   }
@@ -166,17 +157,7 @@ export async function fetchSupplierDistributionServer() {
   const session = await getServerSession();
   
   // In development mode, return sample data
-  if (isDev()) {
-    debugLog('Using sample supplier data in development mode');
-    return [
-      { name: "Tech Corp", count: 5, reliabilityScore: 85 },
-      { name: "Global Supplies", count: 3, reliabilityScore: 92 },
-      { name: "Local Materials", count: 4, reliabilityScore: 78 },
-      { name: "Premium Parts", count: 2, reliabilityScore: 95 }
-    ];
-  }
-  
-  // In production, require authentication
+  // Require authentication in all environments
   if (!session) {
     throw new Error('Unauthorized: No session found');
   }
@@ -212,19 +193,7 @@ export async function fetchSupplierDistributionServer() {
 export async function fetchProductDistributionServer() {
   const session = await getServerSession();
   
-  // In development mode, return sample data
-  if (isDev()) {
-    debugLog('Using sample product data in development mode');
-    return [
-      { name: "Electronics", value: 8 },
-      { name: "Tools", value: 5 },
-      { name: "Materials", value: 3 },
-      { name: "Components", value: 12 },
-      { name: "Software", value: 2 }
-    ];
-  }
-  
-  // In production, require authentication
+  // Require authentication in all environments
   if (!session) {
     throw new Error('Unauthorized: No session found');
   }
@@ -260,18 +229,7 @@ export async function fetchProductDistributionServer() {
 export async function fetchPriceTrendsServer() {
   const session = await getServerSession();
   
-  // In development mode, return sample data
-  if (isDev()) {
-    debugLog('Using sample price data in development mode');
-    return [
-      { name: "2024-01", min: 25, avg: 145, max: 450 },
-      { name: "2024-02", min: 30, avg: 152, max: 425 },
-      { name: "2024-03", min: 28, avg: 148, max: 480 },
-      { name: "2024-04", min: 35, avg: 165, max: 520 }
-    ];
-  }
-  
-  // In production, require authentication
+  // Require authentication in all environments
   if (!session) {
     throw new Error('Unauthorized: No session found');
   }

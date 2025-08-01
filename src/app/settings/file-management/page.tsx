@@ -7,7 +7,7 @@ import { FilesList } from '@/components/files/FilesList';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 export default function FileManagementPage() {
-  const { data: session, status } = useOptimizedAuth();
+  const { data: session, status, isLoading } = useOptimizedAuth();
 
   if (status === 'loading') {
     return (
@@ -20,7 +20,7 @@ export default function FileManagementPage() {
     );
   }
 
-  if (status === 'unauthenticated' && !session) {
+  if (status === 'unauthenticated' && !session && !isLoading) {
     return (
       <div className="space-y-6">
         <div className="text-center py-8">

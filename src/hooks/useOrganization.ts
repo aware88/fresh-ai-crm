@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Organization } from '@/types/organizations';
 import { supabase } from '@/lib/supabaseClient';
 import { useSession } from 'next-auth/react';
@@ -43,14 +43,94 @@ function createDefaultOrganization(userId: string): Organization {
 }
 
 export function useOrganization(): UseOrganizationResult {
-  // 🚨 EMERGENCY DISABLE: Completely disable organization loading to fix sign-in
-  console.log('🚨 useOrganization DISABLED - returning safe defaults to fix sign-in');
-  
+  const { data: session, status } = useSession();
+  const [organization, setOrganizationState] = useState<Organization | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchOrganization = useCallback(async () => {
+    // Don't fetch if not authenticated
+    if (status !== 'authenticated' || !session?.user?.id) {
+      console.log('🏢 useOrganization: Not authenticated, skipping fetch');
+      setOrganizationState(null);
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+      
+      console.log('🏢 useOrganization: Fetching user preferences...');
+      
+      // First get user preferences to see if they have an organization
+      const prefsResponse = await fetch('/api/user/preferences');
+      
+      if (!prefsResponse.ok) {
+        if (prefsResponse.status === 404) {
+          console.log('🏢 useOrganization: No user preferences found, user is independent');
+          setOrganizationState(null);
+          return;
+        }
+        throw new Error(`Failed to fetch user preferences: ${prefsResponse.status}`);
+      }
+      
+      const prefs = await prefsResponse.json();
+      
+      // If no organization ID, user is independent
+      if (!prefs.current_organization_id) {
+        console.log('🏢 useOrganization: User is independent (no organization)');
+        setOrganizationState(null);
+        return;
+      }
+      
+      console.log('🏢 useOrganization: Fetching organization:', prefs.current_organization_id);
+      
+      // Fetch the organization
+      const orgResponse = await fetch(`/api/organizations/${prefs.current_organization_id}`);
+      
+      if (!orgResponse.ok) {
+        if (orgResponse.status === 404) {
+          console.log('🏢 useOrganization: Organization not found, treating as independent user');
+          setOrganizationState(null);
+          return;
+        }
+        throw new Error(`Failed to fetch organization: ${orgResponse.status}`);
+      }
+      
+      const orgData = await orgResponse.json();
+      console.log('🏢 useOrganization: Successfully loaded organization:', orgData.name);
+      setOrganizationState(orgData);
+      
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load organization';
+      console.error('🏢 useOrganization: Error:', errorMessage);
+      setError(errorMessage);
+      // On error, treat as independent user rather than breaking
+      setOrganizationState(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [session?.user?.id, status]);
+
+  // Fetch organization when session changes
+  useEffect(() => {
+    fetchOrganization();
+  }, [fetchOrganization]);
+
+  const setOrganization = useCallback((org: Organization | null) => {
+    setOrganizationState(org);
+  }, []);
+
+  const refreshOrganization = useCallback(async () => {
+    await fetchOrganization();
+  }, [fetchOrganization]);
+
   return {
-    organization: null,
-    loading: false,
-    error: null,
-    setOrganization: () => {},
-    refreshOrganization: async () => {},
+    organization,
+    loading,
+    error,
+    setOrganization,
+    refreshOrganization,
   };
 }

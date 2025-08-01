@@ -11,12 +11,55 @@ interface ThemeProviderProps {
 }
 
 export function ThemeProvider({ children, ...props }: ThemeProviderProps) {
-  // 🚨 EMERGENCY DISABLE: Skip organization branding to fix sign-in
-  console.log('🚨 ThemeProvider: Skipping organization branding to fix sign-in');
-  
+  const { organization, loading: orgLoading } = useOrganization();
   const [brandingTheme, setBrandingTheme] = useState<BrandingTheme | null>(null);
-  
-  // Skip organization branding fetch for now
+  const [brandingLoading, setBrandingLoading] = useState(false);
+
+  // Fetch organization branding
+  useEffect(() => {
+    const fetchBranding = async () => {
+      // Skip if organization is still loading
+      if (orgLoading) {
+        return;
+      }
+
+      // If no organization, use default branding
+      if (!organization) {
+        console.log('🎨 ThemeProvider: No organization, using default branding');
+        setBrandingTheme(null);
+        return;
+      }
+
+      try {
+        setBrandingLoading(true);
+        console.log('🎨 ThemeProvider: Fetching branding for organization:', organization.name);
+        
+        const response = await fetch(`/api/organizations/${organization.id}/branding`);
+        
+        if (!response.ok) {
+          if (response.status === 404) {
+            console.log('🎨 ThemeProvider: No custom branding found, using defaults');
+            setBrandingTheme(null);
+            return;
+          }
+          throw new Error(`Failed to fetch branding: ${response.status}`);
+        }
+        
+        const branding = await response.json();
+        console.log('🎨 ThemeProvider: Applied organization branding');
+        setBrandingTheme(branding);
+        
+      } catch (error) {
+        console.error('🎨 ThemeProvider: Error fetching branding:', error);
+        // On error, use default branding
+        setBrandingTheme(null);
+      } finally {
+        setBrandingLoading(false);
+      }
+    };
+
+    fetchBranding();
+  }, [organization, orgLoading]);
   
   // Apply custom CSS variables
   useEffect(() => {

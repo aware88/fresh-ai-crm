@@ -229,8 +229,9 @@ export default function ProfileSettings() {
     );
   }
 
-  // Only show auth required if definitively unauthenticated (not loading)
-  if (status === 'unauthenticated') {
+  // Only show auth required if definitively unauthenticated AND not loading
+  // This prevents the flash of "Authentication Required" during the initial load
+  if (status === 'unauthenticated' && !isLoading) {
     return (
       <Card>
         <CardHeader>

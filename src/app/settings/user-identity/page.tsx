@@ -100,7 +100,7 @@ export default function UserIdentityPage() {
     );
   }
 
-  if (authError || status === 'unauthenticated') {
+  if (authError || (status === 'unauthenticated' && !isLoading)) {
     return (
       <Card>
         <CardHeader>

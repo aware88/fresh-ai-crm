@@ -1,14 +1,13 @@
 import { NextResponse } from 'next/server';
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { supabase } from '@/lib/supabaseClient';
 
 export async function GET(request: Request) {
   try {
-    const supabase = createRouteHandlerClient({ cookies });
-    
-    // Check if user is authenticated
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
+    // Check if user is authenticated via NextAuth
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
@@ -16,7 +15,7 @@ export async function GET(request: Request) {
     }
 
     const userId = session.user.id;
-    const organizationId = (session.user as any).organizationId || userId;
+    const organizationId = userId; // Use user ID as organization ID for now
 
     // Fetch products from database
     const { data: products, error } = await supabase
@@ -45,11 +44,9 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const supabase = createRouteHandlerClient({ cookies });
-    
-    // Check if user is authenticated
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
+    // Check if user is authenticated via NextAuth
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
@@ -57,7 +54,7 @@ export async function POST(request: Request) {
     }
 
     const userId = session.user.id;
-    const organizationId = (session.user as any).organizationId || userId;
+    const organizationId = userId; // Use user ID as organization ID for now
 
     const body = await request.json();
     const { name, sku, description, category, unit, selling_price, cost_price, min_stock_level, quantity_on_hand } = body;
@@ -110,11 +107,9 @@ export async function POST(request: Request) {
 // PUT /api/products - Update an existing product
 export async function PUT(request: Request) {
   try {
-    const supabase = createRouteHandlerClient({ cookies });
-    
-    // Check if user is authenticated
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
+    // Check if user is authenticated via NextAuth
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
@@ -122,7 +117,7 @@ export async function PUT(request: Request) {
     }
 
     const userId = session.user.id;
-    const organizationId = (session.user as any).organizationId || userId;
+    const organizationId = userId; // Use user ID as organization ID for now
 
     const body = await request.json();
     const { id, name } = body;
@@ -165,11 +160,9 @@ export async function PUT(request: Request) {
 // DELETE /api/products - Delete a product
 export async function DELETE(request: Request) {
   try {
-    const supabase = createRouteHandlerClient({ cookies });
-    
-    // Check if user is authenticated
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
+    // Check if user is authenticated via NextAuth
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
@@ -177,7 +170,7 @@ export async function DELETE(request: Request) {
     }
 
     const userId = session.user.id;
-    const organizationId = (session.user as any).organizationId || userId;
+    const organizationId = userId; // Use user ID as organization ID for now
 
          const url = new URL(request.url);
      const id = url.searchParams.get('id');

@@ -7,7 +7,7 @@ import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import Link from 'next/link';
 
 export default function EmailAccountsPage() {
-  const { data: session, status } = useOptimizedAuth();
+  const { data: session, status, isLoading } = useOptimizedAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(true);
@@ -37,20 +37,13 @@ export default function EmailAccountsPage() {
   }, [searchParams, router]);
 
   // Handle authentication redirect - only for truly unauthenticated users
-  // Add a delay to prevent premature redirects during auth loading
+  // Use isLoading to prevent premature redirects during auth loading
   useEffect(() => {
-    if (status === 'unauthenticated' && !session) {
-      // Add a small delay to ensure auth has fully loaded
-      const timer = setTimeout(() => {
-        // Double-check both status and session before redirecting
-        if (status === 'unauthenticated' && !session) {
-          console.log('Redirecting to signin - user not authenticated');
-          router.push('/signin');
-        }
-      }, 1500); // 1.5 second delay to ensure auth is fully loaded
-      return () => clearTimeout(timer);
+    if (status === 'unauthenticated' && !session && !isLoading) {
+      console.log('Redirecting to signin - user not authenticated');
+      router.push('/signin');
     }
-  }, [status, session, router]);
+  }, [status, session, isLoading, router]);
 
   // Fetch email accounts when authenticated
   useEffect(() => {
@@ -108,11 +101,18 @@ export default function EmailAccountsPage() {
     }
   };
 
-  if (status === 'loading') {
-    return <div>Loading...</div>;
+  if (status === 'loading' || isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading email settings...</p>
+        </div>
+      </div>
+    );
   }
 
-  if (status === 'unauthenticated' && !session) {
+  if (status === 'unauthenticated' && !session && !isLoading) {
     return null; // The useEffect will handle the redirect
   }
 

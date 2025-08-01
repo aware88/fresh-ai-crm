@@ -6,7 +6,7 @@ import { UnifiedDataUploader } from '@/components/settings/UnifiedDataUploader';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 export default function DataManagementPage() {
-  const { data: session, status } = useOptimizedAuth();
+  const { data: session, status, isLoading } = useOptimizedAuth();
 
   if (status === 'loading') {
     return (
@@ -19,7 +19,7 @@ export default function DataManagementPage() {
     );
   }
 
-  if (status === 'unauthenticated' && !session) {
+  if (status === 'unauthenticated' && !session && !isLoading) {
     return (
       <div className="space-y-6">
         <div className="text-center py-8">

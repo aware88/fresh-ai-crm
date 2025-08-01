@@ -8,7 +8,7 @@ import { SettingsForm } from '@/components/settings/settings-form';
 import { useToast } from '@/components/ui/use-toast';
 
 export default function BrandingPage() {
-  const { data: session, status } = useOptimizedAuth();
+  const { data: session, status, isLoading } = useOptimizedAuth();
   const { toast } = useToast();
   const [brandingSettings, setBrandingSettings] = useState({
     companyName: '',
@@ -57,7 +57,7 @@ export default function BrandingPage() {
     );
   }
 
-  if (status === 'unauthenticated' && !session) {
+  if (status === 'unauthenticated' && !session && !isLoading) {
     return (
       <div className="space-y-6">
         <div className="text-center py-8">
