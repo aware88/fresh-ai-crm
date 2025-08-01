@@ -11,36 +11,12 @@ interface ThemeProviderProps {
 }
 
 export function ThemeProvider({ children, ...props }: ThemeProviderProps) {
-  const { organization } = useOrganization();
+  // 🚨 EMERGENCY DISABLE: Skip organization branding to fix sign-in
+  console.log('🚨 ThemeProvider: Skipping organization branding to fix sign-in');
+  
   const [brandingTheme, setBrandingTheme] = useState<BrandingTheme | null>(null);
   
-  // Fetch organization branding
-  useEffect(() => {
-    const fetchBranding = async () => {
-      if (!organization?.id) return;
-      
-      try {
-        const response = await fetch(`/api/organizations/${organization.id}/branding`);
-        if (response.ok) {
-          const data = await response.json();
-          if (data.branding) {
-            setBrandingTheme({
-              primaryColor: data.branding.primary_color || '#0f172a',
-              secondaryColor: data.branding.secondary_color || '#64748b',
-              accentColor: data.branding.accent_color || '#2563eb',
-              fontFamily: data.branding.font_family || 'Inter, system-ui, sans-serif',
-              logoUrl: data.branding.logo_url,
-              faviconUrl: data.branding.favicon_url
-            });
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching organization branding:', error);
-      }
-    };
-    
-    fetchBranding();
-  }, [organization?.id]);
+  // Skip organization branding fetch for now
   
   // Apply custom CSS variables
   useEffect(() => {
