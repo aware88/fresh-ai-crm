@@ -217,21 +217,22 @@ export default function ProfileSettings() {
     router.push('/signin');
   };
 
-  // Show loading state while session is being fetched
-  if (status === 'loading') {
+  // Show loading state while session is being fetched OR during initial load
+  // This prevents the authentication flash by ensuring we wait for the session to be fully loaded
+  if (status === 'loading' || isLoading || !session) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
           <div className="animate-spin h-8 w-8 border-4 border-blue-500 rounded-full border-t-transparent mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading...</p>
+          <p className="text-muted-foreground">Loading profile...</p>
         </div>
       </div>
     );
   }
 
-  // Only show auth required if definitively unauthenticated AND not loading
-  // This prevents the flash of "Authentication Required" during the initial load
-  if (status === 'unauthenticated' && !isLoading) {
+  // Only show auth required if we're DEFINITELY unauthenticated (session is null AND not loading)
+  // This should rarely trigger since we're being very conservative above
+  if (status === 'unauthenticated' && !isLoading && !session) {
     return (
       <Card>
         <CardHeader>
@@ -259,8 +260,8 @@ export default function ProfileSettings() {
     );
   }
 
-  // If session is loading or missing, show loading state
-  if (isLoading || !session || !session.user) {
+  // Final safety check - if no user object, show loading
+  if (!session.user) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
