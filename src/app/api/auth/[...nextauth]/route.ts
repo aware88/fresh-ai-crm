@@ -190,35 +190,9 @@ const authOptions: NextAuthOptions = {
       if (user) {
         token.id = user.id;
         
-        // Ensure user has organization setup on first sign-in
-        if ((trigger === 'signIn' || trigger === 'signUp') && !token.organizationSetup) {
-          try {
-            console.log('Ensuring user has organization setup for:', user.id);
-            const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/user/ensure-organization`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ userId: user.id, email: user.email }),
-            });
-            
-            if (response.ok) {
-              const result = await response.json();
-              console.log('Organization setup result:', result.message);
-              // Mark organization setup as complete in the token
-              token.organizationSetup = true;
-            } else {
-              console.error('Organization setup failed with status:', response.status);
-              // Still mark as complete to prevent infinite loops
-              token.organizationSetup = true;
-            }
-          } catch (error) {
-            console.error('Failed to ensure user organization:', error);
-            // Still mark as complete to prevent infinite loops
-            token.organizationSetup = true;
-          }
-        } else if (!token.organizationSetup) {
-          // For existing tokens, assume organization setup is complete
-          token.organizationSetup = true;
-        }
+        // 🚨 EMERGENCY DISABLE: Skip organization setup to fix sign-in
+        console.log('🚨 Skipping organization setup call to fix sign-in');
+        token.organizationSetup = true; // Always mark as complete
       }
       
       // Store OAuth tokens for Google and other providers
