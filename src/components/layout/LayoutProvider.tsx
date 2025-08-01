@@ -59,5 +59,7 @@ function LayoutProvider({ children }: LayoutProviderProps) {
   return <AuthenticatedLayout>{children}</AuthenticatedLayout>;
 }
 
+// 🚨 TEMPORARILY DISABLE withAuth middleware - it conflicts with NextAuth
 // Apply auth middleware to the LayoutProvider
-export default withAuth(LayoutProvider);
+// export default withAuth(LayoutProvider);
+export default LayoutProvider;
