@@ -132,57 +132,11 @@ export function useOrganization(): UseOrganizationResult {
         }
 
         if (!userPrefs?.current_organization_id) {
-          // If no current organization is set, get the first organization the user is a member of
-          let memberData, memberError;
-          try {
-            const result = await supabase
-              .from('organization_members')
-              .select('organization_id')
-              .eq('user_id', userId);
-            memberData = result.data;
-            memberError = result.error;
-          } catch (queryError) {
-            console.warn('Exception during organization_members query:', queryError);
-            memberError = queryError;
-          }
-
-          // Log query results for debugging
-          console.log('Organization members query result:', memberData ? `found ${memberData.length} memberships` : 'no data');
-          
-          // Handle case when there's an error or no organizations yet
-          if (memberError) {
-            console.warn('Organization members query error:', memberError.message || memberError, 'Code:', memberError.code);
-            // Create a default organization as fallback for any database error
-            console.log('Creating default organization due to query error');
-            const defaultOrg = createDefaultOrganization(userId);
-            setOrganization(defaultOrg);
-            return;
-          }
-          
-          // Handle case when user has no organizations yet
-          if (!memberData || memberData.length === 0) {
-            console.log('User has no organizations yet - creating default organization');
-            // Create a default organization for new users
-            const defaultOrg = createDefaultOrganization(userId);
-            setOrganization(defaultOrg);
-            return;
-          }
-          
-          // Get the organization details for the first membership
-          const { data: orgData, error: orgError } = await supabase
-            .from('organizations')
-            .select('*')
-            .eq('id', memberData[0].organization_id)
-            .single();
-
-          // Log query results for debugging
-          console.log('Organization query result:', orgData ? 'data found' : 'no data');
-          if (orgError) {
-            console.warn('Organization query error:', orgError.message);
-            // Don't throw, just log the error and continue without an organization
-          } else if (orgData) {
-            setOrganization(orgData);
-          }
+          // User is an INDEPENDENT USER - no organization needed
+          console.log('✅ Independent user detected - no organization required');
+          setOrganization(null);
+          setLoading(false);
+          return;
         } else {
           // Get the organization details for the current organization
           const { data: orgData, error: orgError } = await supabase
