@@ -1,5 +1,7 @@
+import { getServerSession } from 'next-auth';
 import { cookies } from 'next/headers';
-import { getServerSession } from '@/lib/auth';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { supabase } from '@/lib/supabaseClient';
 import { AnalyticsData } from './types';
 import { mockAnalyticsData, mockSupplierData, mockProductData, mockPriceData } from './mock-data';
 
@@ -95,8 +97,7 @@ const emptyAnalyticsData = {
  * Server-side function to fetch analytics data
  */
 export async function fetchAnalyticsServer(): Promise<AnalyticsData & { organizationId: string }> {
-  // Use the custom getServerSession function that handles auth options internally
-  const session = await getServerSession();
+  const session = await getServerSession(authOptions);
   
   // Debug session info
   debugLog('Session in fetchAnalyticsServer:', session ? 'exists' : 'missing');
@@ -115,29 +116,74 @@ export async function fetchAnalyticsServer(): Promise<AnalyticsData & { organiza
   }
   
   try {
-    // Use full URL for production, relative URL for development/server-side
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_SITE_URL || '';
-    const apiUrl = baseUrl ? `${baseUrl}/api/analytics` : '/api/analytics';
+    // Instead of fetch, directly query the database
+    const { data: contacts } = await supabase
+      .from('contacts')
+      .select('*')
+      .eq('organization_id', organizationId);
     
-    const response = await fetch(apiUrl, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Cookie': (await cookies()).toString(),
+    const { data: suppliers } = await supabase
+      .from('suppliers')
+      .select('*')
+      .eq('organization_id', organizationId);
+    
+    const { data: products } = await supabase
+      .from('products')
+      .select('*')
+      .eq('organization_id', organizationId);
+    
+    // Calculate analytics from real data
+    const totalContacts = contacts?.length || 0;
+    const totalSuppliers = suppliers?.length || 0;
+    const totalProducts = products?.length || 0;
+    
+    // Calculate revenue (placeholder - you can enhance this)
+    const totalRevenue = 0; // TODO: Calculate from orders
+    
+    // Calculate growth rates (placeholder)
+    const contactGrowth = 0;
+    const supplierGrowth = 0;
+    const productGrowth = 0;
+    const revenueGrowth = 0;
+    
+    const analyticsData: AnalyticsData = {
+      counts: {
+        revenue: totalRevenue,
+        orders: 0, // TODO: Calculate from orders table
+        customers: totalContacts,
+        suppliers: totalSuppliers,
+        products: totalProducts,
+        documents: 0 // TODO: Calculate from documents table
       },
-      next: { tags: ['analytics'] },
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Failed to fetch analytics data');
-    }
-
-    const data = await response.json();
+      pricing: {
+        average: 0, // TODO: Calculate from products
+        minimum: 0,
+        maximum: 0
+      },
+      revenue: {
+        total: totalRevenue,
+        previousPeriod: 0,
+        percentChange: revenueGrowth
+      },
+      orders: {
+        total: 0, // TODO: Calculate from orders
+        previousPeriod: 0,
+        percentChange: 0
+      },
+      customers: {
+        total: totalContacts,
+        previousPeriod: 0,
+        percentChange: contactGrowth
+      },
+      suppliers: {
+        total: totalSuppliers,
+        previousPeriod: 0,
+        percentChange: supplierGrowth
+      }
+    };
     
-    // Add organization ID to the response
     return {
-      ...data,
+      ...analyticsData,
       organizationId
     };
   } catch (error) {
@@ -154,33 +200,33 @@ export async function fetchAnalyticsServer(): Promise<AnalyticsData & { organiza
  * Server-side function to fetch supplier distribution data
  */
 export async function fetchSupplierDistributionServer() {
-  const session = await getServerSession();
+  const session = await getServerSession(authOptions);
   
-  // In development mode, return sample data
   // Require authentication in all environments
   if (!session) {
     throw new Error('Unauthorized: No session found');
   }
   
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_SITE_URL || '';
-    const apiUrl = baseUrl ? `${baseUrl}/api/analytics/suppliers` : '/api/analytics/suppliers';
+    const organizationId = session?.user?.id;
     
-    const response = await fetch(apiUrl, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Cookie': (await cookies()).toString(),
-      },
-      next: { tags: ['analytics-suppliers'] },
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Failed to fetch supplier distribution data');
-    }
-
-    return response.json();
+    // Direct database query instead of fetch
+    const { data: suppliers } = await supabase
+      .from('suppliers')
+      .select('*')
+      .eq('organization_id', organizationId);
+    
+    // Group by category and count
+    const distribution = suppliers?.reduce((acc: any, supplier: any) => {
+      const category = supplier.category || 'Uncategorized';
+      acc[category] = (acc[category] || 0) + 1;
+      return acc;
+    }, {}) || {};
+    
+    return Object.entries(distribution).map(([category, count]) => ({
+      category,
+      count: count as number
+    }));
   } catch (error) {
     console.error('Error in fetchSupplierDistributionServer:', error);
     return [];
@@ -191,7 +237,7 @@ export async function fetchSupplierDistributionServer() {
  * Server-side function to fetch product category distribution data
  */
 export async function fetchProductDistributionServer() {
-  const session = await getServerSession();
+  const session = await getServerSession(authOptions);
   
   // Require authentication in all environments
   if (!session) {
@@ -199,24 +245,25 @@ export async function fetchProductDistributionServer() {
   }
   
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_SITE_URL || '';
-    const apiUrl = baseUrl ? `${baseUrl}/api/analytics/products` : '/api/analytics/products';
+    const organizationId = session?.user?.id;
     
-    const response = await fetch(apiUrl, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Cookie': (await cookies()).toString(),
-      },
-      next: { tags: ['analytics-products'] },
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Failed to fetch product distribution data');
-    }
-
-    return response.json();
+    // Direct database query instead of fetch
+    const { data: products } = await supabase
+      .from('products')
+      .select('*')
+      .eq('organization_id', organizationId);
+    
+    // Group by category and count
+    const distribution = products?.reduce((acc: any, product: any) => {
+      const category = product.category || 'Uncategorized';
+      acc[category] = (acc[category] || 0) + 1;
+      return acc;
+    }, {}) || {};
+    
+    return Object.entries(distribution).map(([category, count]) => ({
+      category,
+      count: count as number
+    }));
   } catch (error) {
     console.error('Error in fetchProductDistributionServer:', error);
     return [];
@@ -227,7 +274,7 @@ export async function fetchProductDistributionServer() {
  * Server-side function to fetch price trends data
  */
 export async function fetchPriceTrendsServer() {
-  const session = await getServerSession();
+  const session = await getServerSession(authOptions);
   
   // Require authentication in all environments
   if (!session) {
@@ -235,24 +282,23 @@ export async function fetchPriceTrendsServer() {
   }
   
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_SITE_URL || '';
-    const apiUrl = baseUrl ? `${baseUrl}/api/analytics/pricing` : '/api/analytics/pricing';
+    const organizationId = session?.user?.id;
     
-    const response = await fetch(apiUrl, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Cookie': (await cookies()).toString(),
-      },
-      next: { tags: ['analytics-pricing'] },
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Failed to fetch price trends data');
-    }
-
-    return response.json();
+    // Direct database query instead of fetch
+    const { data: products } = await supabase
+      .from('products')
+      .select('*')
+      .eq('organization_id', organizationId);
+    
+    // Calculate average price trends (simplified)
+    const averagePrice = products?.length > 0 
+      ? products.reduce((sum: number, product: any) => sum + (product.price || 0), 0) / products.length
+      : 0;
+    
+    return [{
+      month: new Date().toISOString().slice(0, 7),
+      averagePrice
+    }];
   } catch (error) {
     console.error('Error in fetchPriceTrendsServer:', error);
     return [];
