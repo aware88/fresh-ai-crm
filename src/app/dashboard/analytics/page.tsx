@@ -3,6 +3,9 @@ import { fetchAnalyticsServer, fetchSupplierDistributionServer, fetchProductDist
 import AnalyticsDashboardClient from './components/AnalyticsDashboardClient';
 import { Card, CardContent } from "@/components/ui/card";
 
+// Force dynamic rendering to avoid static generation errors
+export const dynamic = 'force-dynamic';
+
 // Loading component for Suspense
 function AnalyticsLoading() {
   return (

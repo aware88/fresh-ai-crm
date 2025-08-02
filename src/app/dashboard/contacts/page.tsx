@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
@@ -59,7 +59,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-export default function ContactsPage() {
+function ContactsContent() {
   const [activeTab, setActiveTab] = useState('contacts');
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
@@ -544,5 +544,13 @@ export default function ContactsPage() {
         </TabsContent>
       </Tabs>
     </div>
+  );
+}
+
+export default function ContactsPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center min-h-screen">Loading contacts...</div>}>
+      <ContactsContent />
+    </Suspense>
   );
 }

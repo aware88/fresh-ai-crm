@@ -16,7 +16,7 @@ import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, Download, Edit, Trash2 } from 'lucide-react';
 import { SalesDocumentSyncSection } from '@/components/integrations/metakocka/SalesDocumentSyncSection';
-import { createSafeClient } from '@/lib/supabase/safe-client';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useToast } from '@/components/ui/use-toast';
 
 interface SalesDocument {
@@ -50,7 +50,7 @@ export default function SalesDocumentDetailPage({ params }: { params: { id: stri
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
   const { toast } = useToast();
-  const supabase = createSafeClient();
+  const supabase = createClientComponentClient();
 
   // Fetch sales document details
   useEffect(() => {

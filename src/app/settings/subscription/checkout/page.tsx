@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { SubscriptionPlan, SubscriptionService } from '@/lib/services/subscription-service';
 
-export default function SubscriptionCheckoutPage() {
+function SubscriptionCheckoutContent() {
   const [organizationId, setOrganizationId] = useState<string>('');
   const [plan, setPlan] = useState<SubscriptionPlan | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -212,5 +212,13 @@ export default function SubscriptionCheckoutPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function SubscriptionCheckoutPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center min-h-screen">Loading...</div>}>
+      <SubscriptionCheckoutContent />
+    </Suspense>
   );
 }

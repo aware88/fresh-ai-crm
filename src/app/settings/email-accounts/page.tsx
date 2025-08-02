@@ -1,12 +1,12 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useOptimizedAuth } from '@/hooks/useOptimizedAuth';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import Link from 'next/link';
 
-export default function EmailAccountsPage() {
+function EmailAccountsContent() {
   const { data: session, status, isLoading } = useOptimizedAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -440,5 +440,13 @@ CREATE INDEX email_accounts_email_idx ON public.email_accounts (email);`}
         </div>
       )}
     </div>
+  );
+}
+
+export default function EmailAccountsPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center min-h-screen">Loading email settings...</div>}>
+      <EmailAccountsContent />
+    </Suspense>
   );
 }

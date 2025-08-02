@@ -1,4 +1,5 @@
 import { Metadata } from 'next';
+import { Suspense } from 'react';
 import AuditLogViewer from '@/components/admin/AuditLogViewer';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
@@ -17,7 +18,9 @@ export default function AuditLogsPage() {
         </p>
       </div>
       
-      <AuditLogViewer />
+      <Suspense fallback={<div className="text-center py-8">Loading audit logs...</div>}>
+        <AuditLogViewer />
+      </Suspense>
     </div>
   );
 }

@@ -24,6 +24,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useMobileMenu } from '@/hooks/use-mobile-menu';
+import { useOrganization } from '@/hooks/useOrganization';
 
 // Types
 interface SidebarProps {
@@ -35,6 +36,106 @@ type NavItem = {
   href: string;
   icon: React.ReactNode;
   comingSoon?: boolean;
+};
+
+// Organization-specific navigation configurations
+const NAVIGATION_CONFIGS = {
+  withcar: [
+    {
+      title: 'Dashboard',
+      href: '/dashboard',
+      icon: <LayoutDashboard className="h-5 w-5" />,
+    },
+    {
+      title: 'Email',
+      href: '/dashboard/email',
+      icon: <Mail className="h-5 w-5" />,
+    },
+    {
+      title: 'Products',
+      href: '/dashboard/products',
+      icon: <Package2 className="h-5 w-5" />,
+    },
+    {
+      title: 'Contacts',
+      href: '/dashboard/contacts',
+      icon: <Users className="h-5 w-5" />,
+    },
+    {
+      title: 'Calendar',
+      href: '#calendar',
+      icon: <Calendar className="h-5 w-5" />,
+      comingSoon: true
+    },
+    {
+      title: 'Analytics',
+      href: '/dashboard/analytics',
+      icon: <BarChart className="h-5 w-5" />
+    },
+    {
+      title: 'Settings',
+      href: '/settings',
+      icon: <Settings className="h-5 w-5" />
+    }
+  ],
+  default: [
+    {
+      title: 'Dashboard',
+      href: '/dashboard',
+      icon: <LayoutDashboard className="h-5 w-5" />,
+    },
+    {
+      title: 'Email',
+      href: '/dashboard/email',
+      icon: <Mail className="h-5 w-5" />,
+    },
+    {
+      title: 'Suppliers',
+      href: '/dashboard/suppliers',
+      icon: <Package className="h-5 w-5" />,
+    },
+    {
+      title: 'Products',
+      href: '/dashboard/products',
+      icon: <Package2 className="h-5 w-5" />,
+    },
+    {
+      title: 'Orders',
+      href: '/dashboard/orders',
+      icon: <ShoppingCart className="h-5 w-5" />,
+    },
+    {
+      title: 'Contacts',
+      href: '/dashboard/contacts',
+      icon: <Users className="h-5 w-5" />,
+    },
+    {
+      title: 'Interactions',
+      href: '/dashboard/interactions',
+      icon: <MessageSquare className="h-5 w-5" />,
+    },
+    {
+      title: 'AI Assistant',
+      href: '/dashboard/assistant',
+      icon: <Brain className="h-5 w-5" />
+    },
+    {
+      title: 'Calendar',
+      href: '#calendar',
+      icon: <Calendar className="h-5 w-5" />,
+      comingSoon: true
+    },
+    {
+      title: 'Analytics',
+      href: '/dashboard/analytics',
+      icon: <BarChart className="h-5 w-5" />
+    },
+    {
+      title: 'Settings',
+      href: '/settings',
+      icon: <Settings className="h-5 w-5" />
+    }
+  ]
 };
 
 // Memoized NavItem component for better performance
@@ -101,6 +202,9 @@ export function Sidebar({ className }: SidebarProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [logoPath, setLogoPath] = useState<string | null>(null);
   const [companyName, setCompanyName] = useState('ARIS');
+  
+  // Get organization data
+  const { organization, loading: orgLoading } = useOrganization();
 
   // Check if we're in a browser environment
   const isBrowser = typeof window !== 'undefined';
@@ -151,65 +255,25 @@ export function Sidebar({ className }: SidebarProps) {
     closeMenu();
   }, [pathname, closeMenu]);
 
-  // Navigation items configuration - memoized to prevent recreation on each render
-  const navItems = useMemo<NavItem[]>(() => [
-    {
-      title: 'Dashboard',
-      href: '/dashboard',
-      icon: <LayoutDashboard className="h-5 w-5" />,
-    },
-    {
-      title: 'Email',
-      href: '/dashboard/email',
-      icon: <Mail className="h-5 w-5" />,
-    },
-    {
-      title: 'Suppliers',
-      href: '/dashboard/suppliers',
-      icon: <Package className="h-5 w-5" />,
-    },
-    {
-      title: 'Products',
-      href: '/dashboard/products',
-      icon: <Package2 className="h-5 w-5" />,
-    },
-    {
-      title: 'Orders',
-      href: '/dashboard/orders',
-      icon: <ShoppingCart className="h-5 w-5" />,
-    },
-    {
-      title: 'Contacts',
-      href: '/dashboard/contacts',
-      icon: <Users className="h-5 w-5" />,
-    },
-    {
-      title: 'Interactions',
-      href: '/dashboard/interactions',
-      icon: <MessageSquare className="h-5 w-5" />,
-    },
-    {
-      title: 'AI Assistant',
-      href: '/dashboard/assistant',
-      icon: <Brain className="h-5 w-5" />
-    },
-    {
-      title: 'Calendar',
-      href: '#calendar',
-      icon: <Calendar className="h-5 w-5" />,
-      comingSoon: true
-    },
-    {
-      title: 'Analytics',
-      href: '/dashboard/analytics',
-      icon: <BarChart className="h-5 w-5" />
-    },
-    {
-      title: 'Settings',
-      href: '/settings',
-      icon: <Settings className="h-5 w-5" />
+  // Get navigation items based on organization
+  const navItems = useMemo<NavItem[]>(() => {
+    // If still loading organization, use default
+    if (orgLoading) {
+      return NAVIGATION_CONFIGS.default;
     }
-  ], []);
+
+    // Check organization slug/name for specific configurations
+    const orgSlug = organization?.slug?.toLowerCase();
+    const orgName = organization?.name?.toLowerCase();
+    
+    if (orgSlug === 'withcar' || orgName === 'withcar') {
+      console.log('🚗 Using Withcar navigation configuration');
+      return NAVIGATION_CONFIGS.withcar;
+    }
+    
+    // Default navigation for all other organizations
+    return NAVIGATION_CONFIGS.default;
+  }, [organization, orgLoading]);
 
   // Filter nav items based on search query
   const filteredNavItems = searchQuery 
