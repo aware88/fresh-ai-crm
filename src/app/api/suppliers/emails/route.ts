@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabaseClient';
 import { initializeSupplierData } from '@/lib/suppliers/init';
-import { getServerSession } from '@/lib/auth';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 
 // Initialize Supabase connection
 const initSupabaseConnection = async () => {
@@ -24,9 +25,9 @@ export async function GET(request: NextRequest) {
     }
     
     // Get the current user's session
-    const session = await getServerSession();
+    const session = await getServerSession(authOptions);
     
-    if (!session?.user) {
+    if (!session?.user?.id) {
       console.error('Error getting user: Auth session missing!');
       return NextResponse.json(
         { error: 'Authentication error' },
@@ -34,20 +35,14 @@ export async function GET(request: NextRequest) {
       );
     }
     
-    const userId = session.user.id;
-    if (!userId) {
-      return NextResponse.json(
-        { error: 'User not authenticated' },
-        { status: 401 }
-      );
-    }
+    const organizationId = session.user.id;
     
     // Fetch emails from Supabase
     const { data: emails, error } = await supabase
       .from('supplier_emails')
       .select('*')
       .eq('supplier_id', supplierId)
-      .eq('created_by', userId)
+.eq('organization_id', organizationId)
       .order('received_date', { ascending: false });
     
     if (error) {
@@ -92,14 +87,14 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    const userId = session.user.id;
+    const organizationId = session.user.id;
     
     // Check if supplier exists and belongs to the user
     const { data: supplier, error: supplierError } = await supabase
       .from('suppliers')
       .select('id')
       .eq('id', supplierId)
-      .eq('created_by', userId)
+.eq('organization_id', organizationId)
       .single();
     
     if (supplierError) {
@@ -122,7 +117,7 @@ export async function POST(request: NextRequest) {
         received_date: receivedDate || new Date().toISOString(),
         product_tags: productTags || [],
         metadata: metadata || {},
-        created_by: userId
+        organization_id: organizationId
       })
       .select()
       .single();
@@ -170,14 +165,14 @@ export async function DELETE(request: NextRequest) {
       );
     }
     
-    const userId = session.user.id;
+    const organizationId = session.user.id;
     
     // Check if email exists and belongs to the user
     const { data: email, error: checkError } = await supabase
       .from('supplier_emails')
       .select('id')
       .eq('id', emailId)
-      .eq('created_by', userId)
+.eq('organization_id', organizationId)
       .single();
     
     if (checkError) {
@@ -193,7 +188,7 @@ export async function DELETE(request: NextRequest) {
       .from('supplier_emails')
       .delete()
       .eq('id', emailId)
-      .eq('created_by', userId);
+.eq('organization_id', organizationId);
     
     if (deleteError) {
       console.error('Error deleting email from Supabase:', deleteError);

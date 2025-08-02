@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient } from '../../../../lib/supabase/server';
-import { getUID } from '../../../../lib/auth/utils';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { supabase } from '@/lib/supabaseClient';
 import { v4 as uuidv4 } from 'uuid';
 import fs from 'fs';
 import path from 'path';
@@ -28,20 +29,18 @@ export async function GET(request: NextRequest) {
     }
     
     // Get user ID from session
-    const uid = await getUID();
-    if (!uid) {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-
-    // Create Supabase client
-    const supabase = await createServerClient();
+    const organizationId = session.user.id;
     
     // Fetch documents from Supabase
     const { data: documents, error } = await supabase
       .from('supplier_documents')
       .select('*')
       .eq('supplier_id', supplierId)
-      .eq('created_by', uid);
+      .eq('organization_id', organizationId);
     
     if (error) {
       console.error('Error fetching supplier documents from Supabase:', error);
@@ -85,20 +84,18 @@ export async function POST(request: NextRequest) {
     }
     
     // Get user ID from session
-    const uid = await getUID();
-    if (!uid) {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-
-    // Create Supabase client
-    const supabase = await createServerClient();
+    const organizationId = session.user.id;
     
-    // Check if supplier exists and belongs to the user
+    // Check if supplier exists and belongs to the organization
     const { data: supplier, error: supplierError } = await supabase
       .from('suppliers')
       .select('id')
       .eq('id', supplierId)
-      .eq('user_id', uid)
+      .eq('organization_id', organizationId)
       .single();
     
     if (supplierError) {
@@ -134,7 +131,7 @@ export async function POST(request: NextRequest) {
         document_type: documentType,
         file_path: filePath,
         metadata: { original_name: file.name, size: file.size },
-        created_by: uid
+        organization_id: organizationId
       })
       .select()
       .single();
@@ -175,20 +172,18 @@ export async function DELETE(request: NextRequest) {
     }
     
     // Get user ID from session
-    const uid = await getUID();
-    if (!uid) {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-
-    // Create Supabase client
-    const supabase = await createServerClient();
+    const organizationId = session.user.id;
     
     // Get document details before deletion
     const { data: document, error: fetchError } = await supabase
       .from('supplier_documents')
       .select('*')
       .eq('id', documentId)
-      .eq('created_by', uid)
+      .eq('organization_id', organizationId)
       .single();
     
     if (fetchError) {
@@ -204,7 +199,7 @@ export async function DELETE(request: NextRequest) {
       .from('supplier_documents')
       .delete()
       .eq('id', documentId)
-      .eq('created_by', uid);
+      .eq('organization_id', organizationId);
     
     if (deleteError) {
       console.error('Error deleting document from Supabase:', deleteError);

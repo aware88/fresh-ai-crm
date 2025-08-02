@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabaseClient';
 import { initializeSupplierData } from '@/lib/suppliers/init';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import OpenAI from 'openai';
 
 // Function to create OpenAI client with fallback for missing API key
@@ -39,23 +41,17 @@ export async function GET(request: NextRequest) {
     const queryId = searchParams.get('id');
     
     // Get the current user's ID
-    const { data: userData, error: userError } = await supabase.auth.getUser();
+    const session = await getServerSession(authOptions);
     
-    if (userError) {
-      console.error('Error getting user:', userError);
+    if (!session?.user?.id) {
+      console.error('Error getting user: Auth session missing!');
       return NextResponse.json(
         { error: 'Authentication error' },
         { status: 401 }
       );
     }
     
-    const userId = userData.user?.id;
-    if (!userId) {
-      return NextResponse.json(
-        { error: 'User not authenticated' },
-        { status: 401 }
-      );
-    }
+    const organizationId = session.user.id;
     
     if (queryId) {
       // Fetch specific query with its results
@@ -63,7 +59,7 @@ export async function GET(request: NextRequest) {
         .from('supplier_queries')
         .select('*')
         .eq('id', queryId)
-        .eq('created_by', userId)
+        .eq('organization_id', organizationId)
         .single();
       
       if (queryError) {
@@ -100,7 +96,7 @@ export async function GET(request: NextRequest) {
       const { data: queries, error } = await supabase
         .from('supplier_queries')
         .select('*')
-        .eq('created_by', userId)
+        .eq('organization_id', organizationId)
         .order('timestamp', { ascending: false });
       
       if (error) {
@@ -136,26 +132,20 @@ export async function POST(request: NextRequest) {
     }
     
     // Get the current user's ID
-    const { data: userData, error: userError } = await supabase.auth.getUser();
+    const session = await getServerSession(authOptions);
     
-    if (userError) {
-      console.error('Error getting user:', userError);
+    if (!session?.user?.id) {
+      console.error('Error getting user: Auth session missing!');
       return NextResponse.json(
         { error: 'Authentication error' },
         { status: 401 }
       );
     }
     
-    const userId = userData.user?.id;
-    if (!userId) {
-      return NextResponse.json(
-        { error: 'User not authenticated' },
-        { status: 401 }
-      );
-    }
+    const organizationId = session.user.id;
     
     // Fetch data to provide context for the AI
-    const contextData = await fetchContextData(userId);
+    const contextData = await fetchContextData(organizationId);
     
     // If no AI response was provided, generate one using the OpenAI API
     let finalAiResponse = aiResponse;
@@ -169,7 +159,7 @@ export async function POST(request: NextRequest) {
       .insert({
         query,
         ai_response: finalAiResponse || null,
-        created_by: userId
+        organization_id: organizationId
       })
       .select()
       .single();
@@ -223,21 +213,20 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// Delete a query
 // Fetch context data for AI processing
-async function fetchContextData(userId: string) {
+async function fetchContextData(organizationId: string) {
   try {
     // Fetch suppliers
     const { data: suppliers } = await supabase
       .from('suppliers')
       .select('*')
-      .eq('user_id', userId);
+      .eq('organization_id', organizationId);
     
     // Fetch products
     const { data: products } = await supabase
       .from('products')
       .select('*')
-      .eq('user_id', userId);
+      .eq('organization_id', organizationId);
     
     // Fetch supplier pricing
     const { data: pricing } = await supabase
@@ -247,7 +236,7 @@ async function fetchContextData(userId: string) {
         supplier:supplier_id (id, name),
         product:product_id (id, name, description)
       `)
-      .eq('user_id', userId);
+      .eq('organization_id', organizationId);
     
     // Fetch recent documents
     const { data: documents } = await supabase
@@ -262,7 +251,7 @@ async function fetchContextData(userId: string) {
         processed_at,
         created_at
       `)
-      .eq('created_by', userId)
+      .eq('organization_id', organizationId)
       .eq('processing_status', 'approved')
       .order('created_at', { ascending: false })
       .limit(10);
@@ -347,30 +336,24 @@ export async function DELETE(request: NextRequest) {
     }
     
     // Get the current user's ID
-    const { data: userData, error: userError } = await supabase.auth.getUser();
+    const session = await getServerSession(authOptions);
     
-    if (userError) {
-      console.error('Error getting user:', userError);
+    if (!session?.user?.id) {
+      console.error('Error getting user: Auth session missing!');
       return NextResponse.json(
         { error: 'Authentication error' },
         { status: 401 }
       );
     }
     
-    const userId = userData.user?.id;
-    if (!userId) {
-      return NextResponse.json(
-        { error: 'User not authenticated' },
-        { status: 401 }
-      );
-    }
+    const organizationId = session.user.id;
     
-    // Check if query exists and belongs to the user
+    // Check if query exists and belongs to the organization
     const { data: query, error: checkError } = await supabase
       .from('supplier_queries')
       .select('id')
       .eq('id', queryId)
-      .eq('created_by', userId)
+      .eq('organization_id', organizationId)
       .single();
     
     if (checkError) {
@@ -386,7 +369,7 @@ export async function DELETE(request: NextRequest) {
       .from('supplier_queries')
       .delete()
       .eq('id', queryId)
-      .eq('created_by', userId);
+      .eq('organization_id', organizationId);
     
     if (deleteError) {
       console.error('Error deleting query from Supabase:', deleteError);
