@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
         .from('supplier_queries')
         .select('*')
         .eq('id', queryId)
-        .eq('organization_id', organizationId)
+        .eq('user_id', organizationId)
         .single();
       
       if (queryError) {
@@ -96,8 +96,8 @@ export async function GET(request: NextRequest) {
       const { data: queries, error } = await supabase
         .from('supplier_queries')
         .select('*')
-        .eq('organization_id', organizationId)
-        .order('timestamp', { ascending: false });
+        .eq('user_id', organizationId)
+        .order('created_at', { ascending: false });
       
       if (error) {
         console.error('Error fetching supplier queries:', error);
@@ -159,6 +159,7 @@ export async function POST(request: NextRequest) {
       .insert({
         query,
         ai_response: finalAiResponse || null,
+        user_id: organizationId,
         organization_id: organizationId
       })
       .select()
@@ -353,7 +354,7 @@ export async function DELETE(request: NextRequest) {
       .from('supplier_queries')
       .select('id')
       .eq('id', queryId)
-      .eq('organization_id', organizationId)
+      .eq('user_id', organizationId)
       .single();
     
     if (checkError) {
@@ -369,7 +370,7 @@ export async function DELETE(request: NextRequest) {
       .from('supplier_queries')
       .delete()
       .eq('id', queryId)
-      .eq('organization_id', organizationId);
+      .eq('user_id', organizationId);
     
     if (deleteError) {
       console.error('Error deleting query from Supabase:', deleteError);

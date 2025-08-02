@@ -310,51 +310,13 @@ export function Sidebar({ className }: SidebarProps) {
               pathname === item.href || 
               (item.href !== "/dashboard" && pathname.startsWith(item.href));
             
-            const itemContent = (
-              <div className="flex items-center">
-                <span className={cn("flex items-center justify-center w-6 h-6 rounded-md", isActive ? "text-primary" : "text-muted-foreground")}>
-                  {item.icon}
-                </span>
-                <span className="ml-3">{item.title}</span>
-                {item.comingSoon && (
-                  <span className="ml-auto text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full">
-                    Soon
-                  </span>
-                )}
-              </div>
-            );
-
-            if (item.comingSoon) {
-              return (
-                <div
-                  key={item.href}
-                  className={cn(
-                    'px-3 py-2 text-sm font-medium rounded-md transition-colors cursor-not-allowed',
-                    'text-muted-foreground/60 hover:bg-muted/50',
-                    isActive && 'bg-muted/50'
-                  )}
-                  title="Coming soon"
-                >
-                  {itemContent}
-                </div>
-              );
-            }
-
             return (
-              <Link
+              <NavItemComponent
                 key={item.href}
-                href={item.href}
-                className={cn(
-                  'block px-3 py-2 text-sm font-medium rounded-xl transition-all duration-200',
-                  isActive
-                    ? 'bg-gradient-to-r from-blue-600/10 via-purple-600/10 to-pink-600/10 text-foreground font-medium'
-                    : 'text-muted-foreground hover:bg-gray-50 hover:text-foreground',
-                  'focus:outline-none focus:ring-2 focus:ring-blue-500/20 hover:scale-[1.01]'
-                )}
+                item={item}
+                isActive={isActive}
                 onClick={closeMenu}
-              >
-                {itemContent}
-              </Link>
+              />
             );
           })}
         </nav>

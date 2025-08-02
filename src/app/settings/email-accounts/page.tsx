@@ -13,7 +13,8 @@ export default function EmailAccountsPage() {
   const [loading, setLoading] = useState(true);
   const [emailAccounts, setEmailAccounts] = useState<any[]>([]);
   const [error, setError] = useState<any>(null);
-  const [tableExists, setTableExists] = useState(false);
+  const [tableExists, setTableExists] = useState(true); // Default to true to prevent flash
+  const [tableChecked, setTableChecked] = useState(false);
   const [oauthMessage, setOauthMessage] = useState<{ type: 'success' | 'error', message: string } | null>(null);
   // Handle OAuth callback messages
   useEffect(() => {
@@ -75,12 +76,15 @@ export default function EmailAccountsPage() {
           if (fetchError.code === '42P01') { // PostgreSQL code for undefined_table
             console.warn('Email accounts table does not exist yet');
             setTableExists(false);
+            setTableChecked(true);
           } else {
             console.error('Error fetching email accounts:', fetchError);
             setError(fetchError);
+            setTableChecked(true);
           }
         } else {
           setTableExists(true);
+          setTableChecked(true);
           setEmailAccounts(data || []);
         }
       } catch (e) {
@@ -89,6 +93,7 @@ export default function EmailAccountsPage() {
           message: e instanceof Error ? e.message : 'Error querying the database',
           details: e
         });
+        setTableChecked(true);
       }
     } catch (e) {
       console.error('Error with database connection:', e);
@@ -96,6 +101,7 @@ export default function EmailAccountsPage() {
         message: e instanceof Error ? e.message : 'Error connecting to the database',
         details: e
       });
+      setTableChecked(true);
     } finally {
       setLoading(false);
     }
@@ -224,7 +230,7 @@ export default function EmailAccountsPage() {
         </div>
       )}
       
-      {!tableExists && (
+      {!tableExists && tableChecked && (
         <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
           <div className="flex">
             <div className="flex-shrink-0">
@@ -341,7 +347,7 @@ CREATE INDEX email_accounts_email_idx ON public.email_accounts (email);`}
       </div>
       
       {/* Connected Email Accounts */}
-      {tableExists && (
+      {tableExists && tableChecked && (
         <div className="space-y-4">
           <h2 className="text-xl font-semibold">Connected Email Accounts</h2>
           <div className="bg-card rounded-lg border overflow-hidden">

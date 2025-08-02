@@ -163,12 +163,9 @@ const authOptions: NextAuthOptions = {
     },
     async redirect({ url, baseUrl }) {
       // Handle redirect after successful sign-in
-      console.log('NextAuth redirect callback:', { url, baseUrl });
-      
-      // For sign-in success, always go to dashboard
-      // The organization setup will happen in the JWT callback
+      // Only log when redirecting to dashboard after sign-in
       if (url.includes('/signin') || url === baseUrl || url === `${baseUrl}/`) {
-        console.log('Redirecting to dashboard after sign-in');
+        // For sign-in success, always go to dashboard
         return `${baseUrl}/dashboard`;
       }
       

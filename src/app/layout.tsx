@@ -1,50 +1,30 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
-import "./globals.css";
-import "@/styles/dropdown-fix.css";
-import { ThemeProvider } from "@/components/theme/ThemeProvider";
-import LayoutProvider from "@/components/layout/LayoutProvider";
-import AuthProvider from "@/components/auth/AuthProvider";
+'use client';
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
+import './globals.css';
+import { Inter } from 'next/font/google';
+import { SessionProvider } from 'next-auth/react';
+import { ThemeProvider } from '@/components/theme/ThemeProvider';
+import { Toaster } from '@/components/ui/toaster';
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
-export const metadata: Metadata = {
-  title: "ARIS - Agentic Relationship Intelligence System",
-  description: "AI-powered CRM system for analyzing emails and managing customer relationships",
-  icons: {
-    icon: [
-      { url: '/favicon.svg', sizes: 'any', type: 'image/svg+xml' },
-      { url: '/icon-192.png', sizes: '192x192', type: 'image/png' },
-      { url: '/icon-512.png', sizes: '512x512', type: 'image/png' },
-    ],
-    apple: [
-      { url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
-    ],
-  },
-  manifest: '/site.webmanifest',
-};
+const inter = Inter({ subsets: ['latin'] });
 
 export default function RootLayout({
   children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
   return (
-    <html lang="en" suppressHydrationWarning className="light">
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased bg-white text-black`}>
-        <AuthProvider>
-          <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
-            <LayoutProvider>{children}</LayoutProvider>
+    <html lang="en">
+      <body className={inter.className}>
+        <SessionProvider 
+          refetchInterval={0} 
+          refetchOnWindowFocus={false}
+        >
+          <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
+            {children}
+            <Toaster />
           </ThemeProvider>
-        </AuthProvider>
+        </SessionProvider>
       </body>
     </html>
   );
