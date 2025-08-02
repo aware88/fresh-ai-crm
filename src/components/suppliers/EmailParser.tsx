@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Supplier, SupplierEmail } from '@/types/supplier';
-import { fetchSuppliers, parseSupplierEmail, fetchSupplierEmails } from '@/lib/suppliers/api';
+import { fetchSuppliers, parseSupplierEmail, fetchAllSupplierEmails } from '@/lib/suppliers/api';
 import { formatDate, extractProductNames, extractEmailSender, extractEmailSubject, extractEmailDate } from '@/lib/suppliers/utils';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -94,7 +94,7 @@ export default function EmailParser() {
     try {
       setLoading(true);
       setError(null);
-      const data = await fetchSupplierEmails();
+      const data = await fetchAllSupplierEmails();
       setEmails(data);
     } catch (err) {
       setError('Failed to load emails. Please try again.');

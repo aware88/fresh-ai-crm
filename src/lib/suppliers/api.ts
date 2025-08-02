@@ -233,6 +233,26 @@ export const fetchSupplierEmails = async (supplierId: string): Promise<SupplierE
 };
 
 /**
+ * Fetch all emails (without supplier filter)
+ */
+export const fetchAllSupplierEmails = async (): Promise<SupplierEmail[]> => {
+  const response = await fetch('/api/suppliers/emails', {
+    credentials: 'include', // Include cookies in the request
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  });
+  
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    console.error('Email fetch error:', error);
+    throw new Error(error.error || `Failed to fetch supplier emails: ${response.status}`);
+  }
+  
+  return response.json();
+};
+
+/**
  * Delete a supplier email
  */
 export const deleteSupplierEmail = async (emailId: string): Promise<void> => {

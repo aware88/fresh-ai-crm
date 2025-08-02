@@ -17,13 +17,6 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const supplierId = searchParams.get('supplierId');
     
-    if (!supplierId) {
-      return NextResponse.json(
-        { error: 'Supplier ID is required' },
-        { status: 400 }
-      );
-    }
-    
     // Get the current user's session
     const session = await getServerSession(authOptions);
     
@@ -37,13 +30,17 @@ export async function GET(request: NextRequest) {
     
     const organizationId = session.user.id;
     
-    // Fetch emails from Supabase
-    const { data: emails, error } = await supabase
+    // Fetch emails from Supabase - if supplierId is provided, filter by it, otherwise get all
+    let query = supabase
       .from('supplier_emails')
       .select('*')
-      .eq('supplier_id', supplierId)
-.eq('organization_id', organizationId)
-      .order('received_date', { ascending: false });
+.eq('organization_id', organizationId);
+    
+    if (supplierId) {
+      query = query.eq('supplier_id', supplierId);
+    }
+    
+    const { data: emails, error } = await query.order('received_date', { ascending: false });
     
     if (error) {
       console.error('Error fetching supplier emails from Supabase:', error);
