@@ -12,7 +12,14 @@ import {
   Palette, 
   Shield, 
   Zap,
-  ChevronRight
+  ChevronRight,
+  CreditCard,
+  Building,
+  MessageCircle,
+  Database,
+  FileText,
+  Bot,
+  BookOpen
 } from 'lucide-react';
 
 interface SidebarNavItem {
@@ -31,9 +38,15 @@ interface SidebarNavProps {
 const iconMap: Record<string, React.ReactNode> = {
   'Profile': <User className="mr-3 h-4 w-4" />,
   'Account': <Settings className="mr-3 h-4 w-4" />,
+  'Subscription': <CreditCard className="mr-3 h-4 w-4" />,
+  'Company Branding': <Building className="mr-3 h-4 w-4" />,
+  'Data Management': <Database className="mr-3 h-4 w-4" />,
+  'File Management': <FileText className="mr-3 h-4 w-4" />,
   'Email Accounts': <Mail className="mr-3 h-4 w-4" />,
-  'Appearance': <Palette className="mr-3 h-4 w-4" />,
+  'AI Email Settings': <Bot className="mr-3 h-4 w-4" />,
+  'Email Learning': <BookOpen className="mr-3 h-4 w-4" />,
   'Notifications': <Bell className="mr-3 h-4 w-4" />,
+  'Appearance': <Palette className="mr-3 h-4 w-4" />,
   'Display': <LayoutDashboard className="mr-3 h-4 w-4" />,
   'Security': <Shield className="mr-3 h-4 w-4" />,
   'Integrations': <Zap className="mr-3 h-4 w-4" />,

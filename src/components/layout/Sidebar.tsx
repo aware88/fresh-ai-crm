@@ -57,15 +57,14 @@ const NAVIGATION_CONFIGS = {
       icon: <Package2 className="h-5 w-5" />,
     },
     {
+      title: 'Orders',
+      href: '/dashboard/orders',
+      icon: <ShoppingCart className="h-5 w-5" />,
+    },
+    {
       title: 'Contacts',
       href: '/dashboard/contacts',
       icon: <Users className="h-5 w-5" />,
-    },
-    {
-      title: 'Calendar',
-      href: '#calendar',
-      icon: <Calendar className="h-5 w-5" />,
-      comingSoon: true
     },
     {
       title: 'Analytics',
@@ -209,21 +208,41 @@ export function Sidebar({ className }: SidebarProps) {
   // Check if we're in a browser environment
   const isBrowser = typeof window !== 'undefined';
 
-  // Load logo and company name from localStorage
+  // Load logo and company name based on organization
   useEffect(() => {
     if (!isBrowser) return;
     
     const loadLogoAndCompanyName = () => {
-      // Check for logo in localStorage
+      // Check organization first for specific branding
+      const orgSlug = organization?.slug?.toLowerCase();
+      const orgName = organization?.name?.toLowerCase();
+      
+      if (orgSlug === 'withcar' || orgName === 'withcar') {
+        // For Withcar: First check for uploaded logo, then fallback to default
+        const savedLogo = localStorage.getItem('companyLogo');
+        if (savedLogo) {
+          setLogoPath(savedLogo);
+        } else {
+          setLogoPath('/images/organizations/withcar-logo.png');
+        }
+        setCompanyName('WITHCAR');
+        return;
+      }
+      
+      // Default: Check for logo in localStorage
       const savedLogo = localStorage.getItem('companyLogo');
       if (savedLogo) {
         setLogoPath(savedLogo);
+      } else {
+        setLogoPath(null); // Use default ARIS logo
       }
       
       // Check for company name in localStorage
       const savedCompanyName = localStorage.getItem('companyName');
       if (savedCompanyName) {
         setCompanyName(savedCompanyName);
+      } else {
+        setCompanyName('ARIS'); // Default company name
       }
     };
     
@@ -248,7 +267,7 @@ export function Sidebar({ className }: SidebarProps) {
       window.removeEventListener('storage', handleStorageChange);
       window.removeEventListener('localStorageUpdated', loadLogoAndCompanyName);
     };
-  }, [isBrowser]);
+  }, [isBrowser, organization]);
 
   // Close mobile menu when pathname changes
   useEffect(() => {
@@ -257,9 +276,17 @@ export function Sidebar({ className }: SidebarProps) {
 
   // Get navigation items based on organization
   const navItems = useMemo<NavItem[]>(() => {
-    // If still loading organization, use default
+    console.log('🔍 Sidebar organization check:', { 
+      organization, 
+      orgLoading, 
+      orgSlug: organization?.slug, 
+      orgName: organization?.name 
+    });
+
+    // If still loading organization, return empty array to prevent flash
     if (orgLoading) {
-      return NAVIGATION_CONFIGS.default;
+      console.log('⏳ Organization still loading, showing loading state');
+      return [];
     }
 
     // Check organization slug/name for specific configurations
@@ -271,6 +298,7 @@ export function Sidebar({ className }: SidebarProps) {
       return NAVIGATION_CONFIGS.withcar;
     }
     
+    console.log('📋 Using default navigation configuration');
     // Default navigation for all other organizations
     return NAVIGATION_CONFIGS.default;
   }, [organization, orgLoading]);
@@ -324,30 +352,55 @@ export function Sidebar({ className }: SidebarProps) {
         <div className="flex h-16 items-center justify-center border-b border-gray-100">
           <Link href="/dashboard" className="flex items-center justify-center">
             <div className="flex items-center">
-              <div className="h-10 w-10 flex items-center justify-center overflow-hidden">
-                {logoPath ? (
+              {orgLoading ? (
+                // Loading state for logo
+                <div className="flex items-center">
+                  <div className="h-10 w-10 flex items-center justify-center">
+                    <div className="animate-pulse bg-gray-200 rounded-full w-8 h-8"></div>
+                  </div>
+                  <div className="ml-2 animate-pulse bg-gray-200 rounded w-16 h-4"></div>
+                </div>
+              ) : companyName === 'WITHCAR' ? (
+                // For Withcar, show only the logo (which contains the text)
+                <div className="h-12 w-auto flex items-center justify-center">
                   <Image 
-                    src={logoPath} 
-                    alt="Company Logo" 
-                    width={40}
-                    height={40}
+                    src={logoPath || '/images/organizations/withcar-logo.png'} 
+                    alt="WITHCAR Logo" 
+                    width={120}
+                    height={48}
                     className="object-contain"
                     priority
                   />
-                ) : (
-                  <Image 
-                    src="/images/aris-logo.svg" 
-                    alt="ARIS Logo" 
-                    width={40}
-                    height={40}
-                    className="object-contain" 
-                    priority
-                  />
-                )}
-              </div>
-              <span className="ml-2 font-semibold text-lg bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-transparent bg-clip-text">
-                {companyName}
-              </span>
+                </div>
+              ) : (
+                // For other organizations, show logo + text
+                <>
+                  <div className="h-10 w-10 flex items-center justify-center overflow-hidden">
+                    {logoPath ? (
+                      <Image 
+                        src={logoPath} 
+                        alt={`${companyName} Logo`} 
+                        width={40}
+                        height={40}
+                        className="object-contain"
+                        priority
+                      />
+                    ) : (
+                      <Image 
+                        src="/images/aris-logo.svg" 
+                        alt="ARIS Logo" 
+                        width={40}
+                        height={40}
+                        className="object-contain" 
+                        priority
+                      />
+                    )}
+                  </div>
+                  <span className="ml-2 font-semibold text-lg bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-transparent bg-clip-text">
+                    {companyName}
+                  </span>
+                </>
+              )}
             </div>
           </Link>
         </div>
@@ -369,20 +422,28 @@ export function Sidebar({ className }: SidebarProps) {
 
         {/* Navigation */}
         <nav className="flex-1 px-2 py-4 space-y-1.5 overflow-y-auto">
-          {filteredNavItems.map((item) => {
-            const isActive = 
-              pathname === item.href || 
-              (item.href !== "/dashboard" && pathname.startsWith(item.href));
-            
-            return (
-              <NavItemComponent
-                key={item.href}
-                item={item}
-                isActive={isActive}
-                onClick={closeMenu}
-              />
-            );
-          })}
+          {orgLoading ? (
+            // Loading state
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-600"></div>
+            </div>
+          ) : (
+            // Navigation items
+            filteredNavItems.map((item) => {
+              const isActive = 
+                pathname === item.href || 
+                (item.href !== "/dashboard" && pathname.startsWith(item.href));
+              
+              return (
+                <NavItemComponent
+                  key={item.href}
+                  item={item}
+                  isActive={isActive}
+                  onClick={closeMenu}
+                />
+              );
+            })
+          )}
         </nav>
       </div>
     </div>

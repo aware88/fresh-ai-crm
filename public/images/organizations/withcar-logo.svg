@@ -1,0 +1,7 @@
+<svg width="120" height="48" viewBox="0 0 120 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- "WITH" in orange -->
+  <text x="5" y="30" font-family="Arial, sans-serif" font-size="20" font-weight="900" fill="#E55A2B" letter-spacing="-1px">WITH</text>
+  
+  <!-- "CAR" in black -->
+  <text x="65" y="30" font-family="Arial, sans-serif" font-size="20" font-weight="900" fill="#000000" letter-spacing="-1px">CAR</text>
+</svg>

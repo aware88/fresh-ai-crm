@@ -24,7 +24,7 @@ export default function FeaturesPage() {
                   <Mail className="h-6 w-6 text-blue-600" />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-bold text-blue-800">Email Analysis</h2>
+                  <h2 className="text-2xl font-bold text-blue-800">Email Agent</h2>
                   <p className="text-blue-600">AI-powered email psychology insights</p>
                 </div>
               </div>
@@ -47,7 +47,7 @@ export default function FeaturesPage() {
               </ul>
               <Link href="/dashboard/email">
                 <Button className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700">
-                  Try Email Analysis <ArrowRight className="ml-2 h-4 w-4" />
+                  Try Email Agent <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </Link>
             </div>

@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { useState, useEffect } from 'react';
 import { Bell, User, Brain } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
+import { signOut } from 'next-auth/react';
 
 interface NavigationProps {
   className?: string;
@@ -121,9 +122,24 @@ export function Navigation({ className = '' }: NavigationProps) {
                   </Link>
                   <button 
                     onClick={async () => {
-                      if (!supabase) return;
-                      await supabase.auth.signOut();
-                      window.location.href = '/dashboard';
+                      try {
+                        // Sign out from both NextAuth and Supabase
+                        await Promise.all([
+                          signOut({ redirect: false }),
+                          supabase?.auth.signOut()
+                        ]);
+                        
+                        // Clear any cached data
+                        localStorage.clear();
+                        sessionStorage.clear();
+                        
+                        // Force redirect to signin page
+                        window.location.href = '/signin';
+                      } catch (error) {
+                        console.error('Sign out error:', error);
+                        // Force redirect even if sign out fails
+                        window.location.href = '/signin';
+                      }
                     }}
                     className="w-full text-left block px-4 py-2 text-sm font-medium bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-white hover:from-blue-700 hover:via-purple-700 hover:to-pink-700 transition-colors duration-150"
                   >

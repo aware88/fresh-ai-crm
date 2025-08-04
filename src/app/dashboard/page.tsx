@@ -22,9 +22,12 @@ import {
   Plus,
   ArrowRight,
   Sparkles,
-  Building2
+  Building2,
+  RefreshCw,
+  Database
 } from 'lucide-react';
 import { useSession } from 'next-auth/react';
+import { useOrganization } from '@/hooks/useOrganization';
 
 // Types for dashboard statistics
 interface DashboardStats {
@@ -46,6 +49,7 @@ interface DashboardStats {
 
 export default function DashboardPage() {
   const { data: session, status } = useSession();
+  const { organization } = useOrganization();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -66,54 +70,73 @@ export default function DashboardPage() {
           const totalProducts = productsRes.products?.length || 0;
           const emailAccounts = emailStatusRes.accounts?.length || 0;
 
-          // Enhanced recent activity with better design
-          const recentActivity = [
-            { 
-              id: '1',
-              type: 'contact', 
-              title: 'New Contact Added',
-              message: 'John Smith from Acme Corp was added to your contacts', 
-              time: '2 hours ago',
+          // Generate real recent activity based on actual data
+          const recentActivity = [];
+          
+          // Add contact-related activities
+          if (totalContacts > 0) {
+            recentActivity.push({
+              id: 'contacts',
+              type: 'contact',
+              title: 'Contact Management',
+              message: `You have ${totalContacts} contact${totalContacts !== 1 ? 's' : ''} in your database`,
+              time: 'Current',
               icon: 'Users',
               color: 'blue'
-            },
-            { 
-              id: '2',
-              type: 'email', 
-              title: 'Supplier Email Received',
-              message: 'New price quote from TechSupply Co.', 
-              time: '3 hours ago',
-              icon: 'Mail',
-              color: 'green'
-            },
-            { 
-              id: '3',
-              type: 'product', 
-              title: 'Product Price Updated',
-              message: 'Updated pricing for Widget Pro 2000', 
-              time: '5 hours ago',
-              icon: 'Package',
-              color: 'orange'
-            },
-            { 
-              id: '4',
-              type: 'supplier', 
-              title: 'New Supplier Added',
-              message: 'GlobalTech Solutions added to supplier database', 
-              time: '1 day ago',
+            });
+          }
+          
+          // Add supplier-related activities
+          if (totalSuppliers > 0) {
+            recentActivity.push({
+              id: 'suppliers',
+              type: 'supplier',
+              title: 'Supplier Network',
+              message: `${totalSuppliers} supplier${totalSuppliers !== 1 ? 's' : ''} available for procurement`,
+              time: 'Active',
               icon: 'Building2',
               color: 'purple'
-            },
-            { 
-              id: '5',
-              type: 'analysis', 
-              title: 'AI Analysis Complete',
-              message: 'Email personality analysis completed for 5 contacts', 
-              time: '2 days ago',
+            });
+          }
+          
+          // Add product-related activities
+          if (totalProducts > 0) {
+            recentActivity.push({
+              id: 'products',
+              type: 'product',
+              title: 'Product Catalog',
+              message: `${totalProducts} product${totalProducts !== 1 ? 's' : ''} in your inventory`,
+              time: 'Updated',
+              icon: 'Package',
+              color: 'orange'
+            });
+          }
+          
+          // Add email-related activities
+          if (emailAccounts > 0) {
+            recentActivity.push({
+              id: 'email',
+              type: 'email',
+              title: 'Email Integration',
+              message: `${emailAccounts} email account${emailAccounts !== 1 ? 's' : ''} connected for AI analysis`,
+              time: 'Connected',
+              icon: 'Mail',
+              color: 'green'
+            });
+          }
+          
+          // Add default activity if no data
+          if (recentActivity.length === 0) {
+            recentActivity.push({
+              id: 'welcome',
+              type: 'system',
+              title: 'Welcome to ARIS CRM',
+              message: 'Start by connecting your email or adding contacts',
+              time: 'Getting started',
               icon: 'Sparkles',
               color: 'pink'
-            }
-          ];
+            });
+          }
 
           setStats({ 
             totalContacts, 
@@ -182,7 +205,7 @@ export default function DashboardPage() {
           <Button asChild className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
             <Link href="/dashboard/email">
               <Sparkles className="mr-2 h-4 w-4" />
-              Analyze Emails
+              Email Agent
             </Link>
           </Button>
           <Button variant="outline" asChild>
@@ -207,7 +230,7 @@ export default function DashboardPage() {
             <div className="text-3xl font-bold text-blue-900">{stats?.totalContacts || 0}</div>
             <p className="text-xs text-blue-600 flex items-center mt-1">
               <TrendingUp className="h-3 w-3 mr-1" />
-              {stats?.totalContacts ? '+2 since last month' : 'No contacts yet'}
+              {stats?.totalContacts ? `${stats.totalContacts > 1 ? 'Active contacts' : 'First contact added'}` : 'No contacts yet'}
             </p>
           </CardContent>
         </Card>
@@ -223,7 +246,7 @@ export default function DashboardPage() {
             <div className="text-3xl font-bold text-purple-900">{stats?.totalSuppliers || 0}</div>
             <p className="text-xs text-purple-600 flex items-center mt-1">
               <TrendingUp className="h-3 w-3 mr-1" />
-              {stats?.totalSuppliers ? '+5 since last month' : 'No suppliers yet'}
+              {stats?.totalSuppliers ? `${stats.totalSuppliers > 1 ? 'Active suppliers' : 'First supplier added'}` : 'No suppliers yet'}
             </p>
           </CardContent>
         </Card>
@@ -239,7 +262,7 @@ export default function DashboardPage() {
             <div className="text-3xl font-bold text-green-900">{stats?.totalProducts || 0}</div>
             <p className="text-xs text-green-600 flex items-center mt-1">
               <TrendingUp className="h-3 w-3 mr-1" />
-              {stats?.totalProducts ? '+12 since last month' : 'No products yet'}
+              {stats?.totalProducts ? `${stats.totalProducts > 1 ? 'Products in catalog' : 'First product added'}` : 'No products yet'}
             </p>
           </CardContent>
         </Card>
@@ -263,10 +286,25 @@ export default function DashboardPage() {
 
       {/* Main Content Tabs */}
       <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="recent">Recent Activity</TabsTrigger>
-          <TabsTrigger value="actions">Quick Actions</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-3 h-12 bg-gradient-to-r from-slate-50 to-slate-100 border border-slate-200 shadow-sm">
+          <TabsTrigger 
+            value="overview" 
+            className="font-semibold text-slate-700 data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-blue-200 transition-all duration-200"
+          >
+            📊 Overview
+          </TabsTrigger>
+          <TabsTrigger 
+            value="recent" 
+            className="font-semibold text-slate-700 data-[state=active]:bg-white data-[state=active]:text-green-600 data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-green-200 transition-all duration-200"
+          >
+            🕒 Recent Activity
+          </TabsTrigger>
+          <TabsTrigger 
+            value="actions" 
+            className="font-semibold text-slate-700 data-[state=active]:bg-white data-[state=active]:text-purple-600 data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-purple-200 transition-all duration-200"
+          >
+            ⚡ Quick Actions
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
@@ -312,7 +350,7 @@ export default function DashboardPage() {
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="font-medium">Email Analysis</p>
+                      <p className="font-medium">Email Agent</p>
                       <p className="text-sm text-muted-foreground">AI-powered personality insights</p>
                     </div>
                     <Button size="sm" asChild>
@@ -409,25 +447,50 @@ export default function DashboardPage() {
               </CardContent>
             </Card>
 
-            <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow duration-200 bg-gradient-to-br from-green-50 to-green-100">
-              <CardContent className="p-6">
-                <div className="flex flex-col items-center text-center space-y-4">
-                  <div className="p-4 bg-green-200 rounded-full">
-                    <Building2 className="h-8 w-8 text-green-700" />
+            {/* Organization-specific third card */}
+            {organization?.slug?.toLowerCase() === 'withcar' || organization?.name?.toLowerCase() === 'withcar' ? (
+              // Withcar: Metakocka Sync card
+              <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow duration-200 bg-gradient-to-br from-green-50 to-green-100">
+                <CardContent className="p-6">
+                  <div className="flex flex-col items-center text-center space-y-4">
+                    <div className="p-4 bg-green-200 rounded-full">
+                      <RefreshCw className="h-8 w-8 text-green-700" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-lg text-green-900">Sync Metakocka</CardTitle>
+                      <CardDescription className="text-green-700">Synchronize products and contacts with Metakocka ERP</CardDescription>
+                    </div>
+                    <Button asChild variant="outline" className="w-full border-green-300 text-green-700 hover:bg-green-100">
+                      <Link href="/settings/integrations/metakocka">
+                        <RefreshCw className="mr-2 h-4 w-4" />
+                        Manage Sync
+                      </Link>
+                    </Button>
                   </div>
-                  <div>
-                    <CardTitle className="text-lg text-green-900">Add Supplier</CardTitle>
-                    <CardDescription className="text-green-700">Create a new supplier profile with AI insights</CardDescription>
+                </CardContent>
+              </Card>
+            ) : (
+              // Default: Add Supplier card
+              <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow duration-200 bg-gradient-to-br from-green-50 to-green-100">
+                <CardContent className="p-6">
+                  <div className="flex flex-col items-center text-center space-y-4">
+                    <div className="p-4 bg-green-200 rounded-full">
+                      <Building2 className="h-8 w-8 text-green-700" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-lg text-green-900">Add Supplier</CardTitle>
+                      <CardDescription className="text-green-700">Create a new supplier profile with AI insights</CardDescription>
+                    </div>
+                    <Button asChild variant="outline" className="w-full border-green-300 text-green-700 hover:bg-green-100">
+                      <Link href="/dashboard/suppliers/new">
+                        <Plus className="mr-2 h-4 w-4" />
+                        Add Supplier
+                      </Link>
+                    </Button>
                   </div>
-                  <Button asChild variant="outline" className="w-full border-green-300 text-green-700 hover:bg-green-100">
-                    <Link href="/dashboard/suppliers/new">
-                      <Plus className="mr-2 h-4 w-4" />
-                      Add Supplier
-                    </Link>
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            )}
 
             <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow duration-200 bg-gradient-to-br from-orange-50 to-orange-100">
               <CardContent className="p-6">
@@ -436,7 +499,7 @@ export default function DashboardPage() {
                     <Sparkles className="h-8 w-8 text-orange-700" />
                   </div>
                   <div>
-                    <CardTitle className="text-lg text-orange-900">Email Analysis</CardTitle>
+                    <CardTitle className="text-lg text-orange-900">Email Agent</CardTitle>
                     <CardDescription className="text-orange-700">Analyze supplier communications with AI</CardDescription>
                   </div>
                   <Button asChild variant="outline" className="w-full border-orange-300 text-orange-700 hover:bg-orange-100">

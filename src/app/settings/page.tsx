@@ -23,6 +23,7 @@ export default function ProfileSettings() {
   const [formData, setFormData] = useState({
     name: '',
     bio: '',
+    company: '',
     avatar_url: undefined as string | undefined
   });
 
@@ -51,6 +52,7 @@ export default function ProfileSettings() {
       const defaultFormData = {
         name: userName,
         bio: '',
+        company: '',
         avatar_url: user.image || undefined
       };
 
@@ -62,6 +64,7 @@ export default function ProfileSettings() {
           setFormData({
             name: parsed.name || userName,
             bio: parsed.bio || '',
+            company: parsed.company || '',
             avatar_url: parsed.avatar_url || user.image || undefined
           });
         } catch (error) {
@@ -71,6 +74,31 @@ export default function ProfileSettings() {
       } else {
         setFormData(defaultFormData);
       }
+    }
+  }, [user]);
+
+  // Load user identity data
+  useEffect(() => {
+    const loadUserIdentity = async () => {
+      try {
+        const response = await fetch('/api/user-identity');
+        if (response.ok) {
+          const data = await response.json();
+          if (data.identity) {
+            setFormData(prev => ({
+              ...prev,
+              company: data.identity.company || prev.company,
+              name: data.identity.name || prev.name
+            }));
+          }
+        }
+      } catch (error) {
+        console.error('Error loading user identity:', error);
+      }
+    };
+
+    if (user) {
+      loadUserIdentity();
     }
   }, [user]);
 
@@ -156,6 +184,7 @@ export default function ProfileSettings() {
       const profileData = {
         name: data.name,
         bio: data.bio,
+        company: data.company,
         avatar_url: data.avatar_url
       };
       
@@ -201,6 +230,28 @@ export default function ProfileSettings() {
       
       // Update local form data
       setFormData(profileData);
+
+      // Also save to user identity API if company or name changed
+      if (profileData.company || profileData.name) {
+        try {
+          await fetch('/api/user-identity', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ 
+              identity: {
+                name: profileData.name,
+                company: profileData.company,
+                email: user?.email || ''
+              }
+            }),
+          });
+        } catch (identityError) {
+          console.error('Error saving user identity:', identityError);
+          // Don't throw here as profile was saved successfully
+        }
+      }
       
     } catch (error) {
       console.error('Error saving profile:', error);
@@ -275,7 +326,7 @@ export default function ProfileSettings() {
   return (
     <SettingsForm
       title="Profile"
-      description="This is how others will see you in the application."
+      description="Manage your personal information and identity details for AI email analysis."
       onSave={handleSaveProfile}
       initialData={formData}
     >
@@ -341,6 +392,20 @@ export default function ProfileSettings() {
                 onChange={(e) => setFormData(prev => ({ ...prev, bio: e.target.value }))}
                 placeholder="Tell us a little about yourself"
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="company">Company</Label>
+              <Input
+                id="company"
+                name="company"
+                value={formData.company}
+                onChange={(e) => setFormData(prev => ({ ...prev, company: e.target.value }))}
+                placeholder="e.g., Bulk Nutrition"
+              />
+              <p className="text-xs text-muted-foreground">
+                This helps the AI identify your business context in email conversations
+              </p>
             </div>
 
             <div className="space-y-2">

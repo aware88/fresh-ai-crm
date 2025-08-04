@@ -14,16 +14,6 @@ const sidebarNavItems = [
     group: 'User'
   },
   {
-    title: 'Account',
-    href: '/settings/account',
-    group: 'User'
-  },
-  {
-    title: 'User Identity',
-    href: '/settings/user-identity',
-    group: 'User'
-  },
-  {
     title: 'Subscription',
     href: '/settings/subscription',
     group: 'Billing'
@@ -74,9 +64,14 @@ const sidebarNavItems = [
     group: 'Preferences'
   },
   {
+    title: 'Account',
+    href: '/settings/account',
+    group: 'Security'
+  },
+  {
     title: 'Security',
     href: '/settings/security',
-    group: 'Advanced'
+    group: 'Security'
   },
   {
     title: 'Integrations',

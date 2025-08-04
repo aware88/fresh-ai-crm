@@ -45,10 +45,16 @@ function createDefaultOrganization(userId: string): Organization {
 export function useOrganization(): UseOrganizationResult {
   const { data: session, status } = useSession();
   const [organization, setOrganizationState] = useState<Organization | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true); // Start with loading=true
   const [error, setError] = useState<string | null>(null);
 
   const fetchOrganization = useCallback(async () => {
+    // If session is still loading, keep loading state
+    if (status === 'loading') {
+      console.log('🏢 useOrganization: Session still loading, waiting...');
+      return;
+    }
+    
     // Don't fetch if not authenticated
     if (status !== 'authenticated' || !session?.user?.id) {
       console.log('🏢 useOrganization: Not authenticated, skipping fetch');
@@ -61,7 +67,7 @@ export function useOrganization(): UseOrganizationResult {
       setLoading(true);
       setError(null);
       
-      console.log('🏢 useOrganization: Fetching user preferences...');
+      console.log('🏢 useOrganization: Fetching user preferences for user:', session.user.id);
       
       // First get user preferences to see if they have an organization
       const prefsResponse = await fetch('/api/user/preferences');
@@ -76,6 +82,7 @@ export function useOrganization(): UseOrganizationResult {
       }
       
       const prefs = await prefsResponse.json();
+      console.log('🏢 useOrganization: User preferences:', prefs);
       
       // If no organization ID, user is independent
       if (!prefs.current_organization_id) {

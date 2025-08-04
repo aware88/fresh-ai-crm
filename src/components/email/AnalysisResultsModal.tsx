@@ -219,7 +219,7 @@ export const AnalysisResultsModal: React.FC<AnalysisResultsModalProps> = ({
             <div>
               <DialogTitle className="flex items-center gap-2">
                 <Brain className="h-5 w-5 text-purple-600" />
-                AI Email Analysis Complete
+                AI Email Agent Complete
               </DialogTitle>
               <DialogDescription>
                 <span className="block mb-1"><strong>From:</strong> {emailInfo.from}</span>

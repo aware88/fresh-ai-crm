@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import { supabase } from '@/lib/supabaseClient';
+import { createClient } from '@supabase/supabase-js';
+
+// Use service role key for server-side operations to bypass RLS
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
 export async function GET(request: NextRequest) {
   try {
@@ -12,11 +18,15 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch user preferences from Supabase
+    console.log('🔍 Fetching preferences for user:', session.user.id);
     const { data: preferences, error } = await supabase
       .from('user_preferences')
       .select('*')
       .eq('user_id', session.user.id)
       .single();
+    
+    console.log('📋 Raw preferences data:', preferences);
+    console.log('❌ Preferences error:', error);
 
     if (error) {
       if (error.code === 'PGRST116') {
