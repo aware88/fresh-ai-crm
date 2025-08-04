@@ -24,13 +24,13 @@ export async function GET(request: Request) {
     // Handle errors from OAuth provider
     if (error) {
       console.error('Microsoft OAuth error:', error);
-      return NextResponse.redirect(`/settings/email-accounts?error=${encodeURIComponent(error)}`);
+      return NextResponse.redirect(`http://localhost:3000/settings/email-accounts?error=${encodeURIComponent(error)}`);
     }
     
     // Validate required parameters
     if (!code || !stateParam) {
       console.error('Missing required OAuth parameters');
-      return NextResponse.redirect('/settings/email-accounts?error=Invalid OAuth response');
+      return NextResponse.redirect('http://localhost:3000/settings/email-accounts?error=Invalid OAuth response');
     }
     
     // Decode state parameter to get user ID
@@ -40,11 +40,11 @@ export async function GET(request: Request) {
       userId = stateData.userId;
     } catch (err) {
       console.error('Invalid state parameter:', err);
-      return NextResponse.redirect('/settings/email-accounts?error=Invalid state parameter');
+      return NextResponse.redirect('http://localhost:3000/settings/email-accounts?error=Invalid state parameter');
     }
     
     if (!userId) {
-      return NextResponse.redirect('/settings/email-accounts?error=User ID not found in state');
+      return NextResponse.redirect('http://localhost:3000/settings/email-accounts?error=User ID not found in state');
     }
     
     // Log the OAuth flow progress
@@ -53,7 +53,7 @@ export async function GET(request: Request) {
     // Verify Microsoft OAuth configuration
     if (!MICROSOFT_CLIENT_ID || !MICROSOFT_CLIENT_SECRET) {
       console.error('Microsoft callback: Missing Microsoft OAuth credentials');
-      return NextResponse.redirect('/settings/email-accounts?error=Missing Microsoft OAuth credentials');
+      return NextResponse.redirect('http://localhost:3000/settings/email-accounts?error=Missing Microsoft OAuth credentials');
     }
     
     // Exchange authorization code for tokens
@@ -79,7 +79,7 @@ export async function GET(request: Request) {
     if (!tokenResponse.ok) {
       const errorData = await tokenResponse.text();
       console.error('Token exchange error:', errorData);
-      return NextResponse.redirect('/settings/email-accounts?error=Failed to exchange code for tokens');
+      return NextResponse.redirect('http://localhost:3000/settings/email-accounts?error=Failed to exchange code for tokens');
     }
     
     const tokenData = await tokenResponse.json();
@@ -93,7 +93,7 @@ export async function GET(request: Request) {
     
     if (!userInfoResponse.ok) {
       console.error('Failed to get user info from Microsoft Graph');
-      return NextResponse.redirect('/settings/email-accounts?error=Failed to get user info');
+      return NextResponse.redirect('http://localhost:3000/settings/email-accounts?error=Failed to get user info');
     }
     
     const userInfo = await userInfoResponse.json();
@@ -150,13 +150,13 @@ export async function GET(request: Request) {
     
     if (result.error) {
       console.error('Error storing Microsoft email account:', result.error);
-      return NextResponse.redirect('/settings/email-accounts?error=Failed to store email account');
+      return NextResponse.redirect('http://localhost:3000/settings/email-accounts?error=Failed to store email account');
     }
     
     // Redirect back to the email settings page with success message
-    return NextResponse.redirect('/settings/email-accounts?success=true&provider=microsoft');
+    return NextResponse.redirect('http://localhost:3000/settings/email-accounts?success=true&provider=microsoft');
   } catch (error) {
     console.error('Error in Microsoft OAuth callback:', error);
-    return NextResponse.redirect('/settings/email-accounts?error=An unexpected error occurred');
+    return NextResponse.redirect('http://localhost:3000/settings/email-accounts?error=An unexpected error occurred');
   }
 }
