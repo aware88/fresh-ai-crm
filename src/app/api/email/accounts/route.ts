@@ -1,65 +1,52 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '../../auth/[...nextauth]/route';
 import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     // Get session
     const session = await getServerSession(authOptions);
-    
-    if (!session?.user?.id) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { status: 401 }
-      );
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Get Supabase client
-    const cookieStore = cookies();
-    const supabase = createServerComponentClient({ cookies: () => cookieStore });
+    const supabase = createServerComponentClient({ cookies });
 
-    // Get all email accounts for this user
-    const { data: accounts, error: accountsError } = await supabase
+    // Get email accounts from database
+    const { data: emailAccounts, error } = await supabase
       .from('email_accounts')
       .select('*')
       .eq('user_id', session.user.id);
 
-    if (accountsError) {
-      console.error('Error fetching email accounts:', accountsError);
-      return NextResponse.json(
-        { success: false, error: 'Failed to fetch email accounts' },
-        { status: 500 }
-      );
+    if (error) {
+      console.error('Database error:', error);
+      return NextResponse.json({ error: 'Failed to fetch email accounts' }, { status: 500 });
     }
 
-    // Get Google accounts specifically
-    const googleAccounts = accounts?.filter(acc => acc.provider_type === 'google') || [];
-    const activeGoogleAccounts = googleAccounts.filter(acc => acc.is_active);
+    // Transform accounts for the response
+    const accounts = emailAccounts?.map(account => ({
+      id: account.id,
+      email: account.email,
+      provider_type: account.provider_type,
+      name: account.display_name || account.email,
+      status: account.is_active ? 'active' : 'inactive',
+      created_at: account.created_at,
+      updated_at: account.updated_at
+    })) || [];
 
     return NextResponse.json({
       success: true,
-      user_id: session.user.id,
-      total_accounts: accounts?.length || 0,
-      google_accounts: googleAccounts.length,
-      active_google_accounts: activeGoogleAccounts.length,
-      accounts: accounts?.map(acc => ({
-        id: acc.id,
-        email: acc.email,
-        provider_type: acc.provider_type,
-        is_active: acc.is_active,
-        has_access_token: !!acc.access_token,
-        token_expires_at: acc.token_expires_at,
-        created_at: acc.created_at
-      })) || []
+      accounts: accounts,
+      count: accounts.length
     });
 
   } catch (error) {
-    console.error('Email accounts API error:', error);
-    return NextResponse.json(
-      { success: false, error: 'Internal server error' },
-      { status: 500 }
-    );
+    console.error('Error fetching email accounts:', error);
+    return NextResponse.json({ 
+      error: 'Internal server error',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 });
   }
-} 
+}

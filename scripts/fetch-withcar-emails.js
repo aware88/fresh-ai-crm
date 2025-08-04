@@ -92,8 +92,6 @@ class WithcarEmailFetcher {
     console.log('Looking for Withcar email account...');
     
     try {
-      // This would need to be adapted based on how you identify the Withcar account
-      // For now, we'll assume you'll provide the account details
       const response = await fetch('http://localhost:3000/api/email/accounts', {
         method: 'GET',
         headers: {
@@ -107,9 +105,10 @@ class WithcarEmailFetcher {
 
       const data = await response.json();
       
-      // Look for Italian email account (you may need to adjust this logic)
+      // Look for Withcar email account
       const withcarAccount = data.accounts?.find(account => 
         account.email?.includes('withcar') || 
+        account.email?.includes('negozio@withcar.it') ||
         account.email?.includes('.it') ||
         account.name?.toLowerCase().includes('withcar')
       );
