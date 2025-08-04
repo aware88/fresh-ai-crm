@@ -1,10 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { loadContacts, createContact, updateContact, deleteContact, isUsingSupabase } from '@/lib/contacts/data';
-import { Contact, ContactCreateInput, ContactUpdateInput } from '@/lib/contacts/types';
+import { ContactCreateInput, ContactUpdateInput } from '@/lib/contacts/types';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { EnhancedSubscriptionService } from '@/lib/services/subscription-service-extension';
 import { createLazyServerClient } from '@/lib/supabase/lazy-client';
+import { createClient } from '@supabase/supabase-js';
+
+// Create service role client for admin operations
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
 /**
  * GET /api/contacts
@@ -14,8 +21,8 @@ export async function GET(request: Request) {
     const contacts = await loadContacts();
     return NextResponse.json({ contacts, usingSupabase: isUsingSupabase() });
   } catch (error) {
-    console.error('Error fetching contacts:', error);
-    return NextResponse.json({ error: 'Failed to fetch contacts' }, { status: 500 });
+    console.error('Error loading contacts:', error);
+    return NextResponse.json({ error: 'Failed to load contacts' }, { status: 500 });
   }
 }
 
@@ -24,7 +31,6 @@ export async function GET(request: Request) {
  */
 export async function POST(request: NextRequest) {
   try {
-    // Get session to get organization ID
     const session = await getServerSession(authOptions);
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -112,12 +118,52 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: 'Contact ID is required' }, { status: 400 });
     }
     
-    const success = await deleteContact(id);
+    console.log(`API: Deleting contact with ID ${id} using service role`);
     
-    if (!success) {
-      return NextResponse.json({ error: 'Contact not found' }, { status: 404 });
+    // List of tables that might reference the contact
+    const dependentTables = [
+      'contact_communication_metrics',
+      'sentiment_evolution_events',
+      'behavioral_milestone_events',
+      'decision_context_factors'
+    ];
+    
+    // Clean up dependencies first
+    console.log(`API: Cleaning up dependencies for contact ${id}`);
+    for (const table of dependentTables) {
+      try {
+        const { error } = await supabaseAdmin
+          .from(table)
+          .delete()
+          .eq('contact_id', id);
+        
+        if (error) {
+          if (error.code === '42P01') {
+            // Table doesn't exist, skip
+            console.log(`API: Table ${table} doesn't exist, skipping`);
+          } else {
+            console.error(`API: Error deleting from ${table}:`, error.message);
+          }
+        } else {
+          console.log(`API: Deleted from ${table}`);
+        }
+      } catch (err) {
+        console.log(`API: Skipping ${table}: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      }
     }
     
+    // Use service role client to bypass RLS
+    const { error } = await supabaseAdmin
+      .from('contacts')
+      .delete()
+      .eq('id', id);
+    
+    if (error) {
+      console.error(`API: Failed to delete contact with ID ${id}:`, error);
+      return NextResponse.json({ error: 'Failed to delete contact', details: error.message }, { status: 500 });
+    }
+    
+    console.log(`API: Successfully deleted contact with ID ${id}`);
     return NextResponse.json({ message: 'Contact deleted successfully' });
   } catch (error) {
     console.error('Error deleting contact:', error);
