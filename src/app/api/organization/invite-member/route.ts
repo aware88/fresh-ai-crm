@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { createServerClient } from '@/lib/supabase/server';
+import { createClient } from '@supabase/supabase-js';
 import { EnhancedSubscriptionService } from '@/lib/services/subscription-service-extension';
 
 /**
@@ -17,13 +17,27 @@ export async function POST(request: NextRequest) {
     }
 
     const userId = session.user.id;
-    const organizationId = (session.user as any).organizationId;
-
-    if (!organizationId) {
+    
+    // Use service role key for server-side operations to bypass RLS
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+    
+    // Get user's current organization from preferences
+    const { data: preferences, error: prefsError } = await supabase
+      .from('user_preferences')
+      .select('current_organization_id')
+      .eq('user_id', userId)
+      .single();
+    
+    if (prefsError || !preferences?.current_organization_id) {
       return NextResponse.json({ 
         error: 'User not associated with an organization' 
       }, { status: 400 });
     }
+    
+    const organizationId = preferences.current_organization_id;
 
     const body = await request.json();
     const { email, role = 'member' } = body;
@@ -36,21 +50,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const supabase = await createServerClient();
+    // Check if the email is already invited to the organization
+    const { data: authUsers } = await supabase.auth.admin.listUsers();
+    const existingUser = authUsers.users?.find(u => u.email === email);
+    
+    if (existingUser) {
+      const { data: existingMember } = await supabase
+        .from('organization_members')
+        .select('user_id')
+        .eq('organization_id', organizationId)
+        .eq('user_id', existingUser.id)
+        .single();
 
-    // Check if user already exists in the organization
-    const { data: existingMember } = await supabase
-      .from('user_organizations')
-      .select('user_id')
-      .eq('organization_id', organizationId)
-      .eq('user_id', userId)
-      .single();
-
-    if (existingMember) {
-      return NextResponse.json(
-        { error: 'User is already a member of this organization' },
-        { status: 400 }
-      );
+      if (existingMember) {
+        return NextResponse.json(
+          { error: 'User is already a member of this organization' },
+          { status: 400 }
+        );
+      }
     }
 
     // Check subscription limits before adding user
@@ -58,7 +75,7 @@ export async function POST(request: NextRequest) {
     
     // Get current user count for the organization
     const { count: currentUserCount, error: countError } = await supabase
-      .from('user_organizations')
+      .from('organization_members')
       .select('*', { count: 'exact', head: true })
       .eq('organization_id', organizationId);
     
@@ -83,39 +100,27 @@ export async function POST(request: NextRequest) {
       }, { status: 403 });
     }
 
-    // Check if user already exists in the system
-    let invitedUserId;
-    const { data: existingUser } = await supabase
-      .from('users')
-      .select('id')
-      .eq('email', email)
-      .single();
-
-    if (existingUser) {
-      invitedUserId = existingUser.id;
-    } else {
-      // Invite the user via Supabase Auth
-      const { data: newUser, error: inviteError } = await supabase.auth.admin.inviteUserByEmail(email);
-      
-      if (inviteError) {
-        console.error('Error inviting user:', inviteError);
-        return NextResponse.json({ 
-          error: 'Failed to send invitation' 
-        }, { status: 500 });
-      }
-      
-      invitedUserId = newUser.user.id;
+    // Invite the user via Supabase Auth (this creates the user and sends invitation email)
+    const { data: newUser, error: inviteError } = await supabase.auth.admin.inviteUserByEmail(email);
+    
+    if (inviteError) {
+      console.error('Error inviting user:', inviteError);
+      return NextResponse.json({ 
+        error: 'Failed to send invitation' 
+      }, { status: 500 });
     }
+    
+    const invitedUserId = newUser.user.id;
 
     // Add user to organization
     const { error: addError } = await supabase
-      .from('user_organizations')
+      .from('organization_members')
       .insert({
         user_id: invitedUserId,
         organization_id: organizationId,
         role,
-        invited_by: userId,
-        invited_at: new Date().toISOString()
+        status: 'invited',
+        invited_by: userId
       });
 
     if (addError) {

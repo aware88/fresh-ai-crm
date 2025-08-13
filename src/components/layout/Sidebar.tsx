@@ -19,7 +19,8 @@ import {
   Menu,
   Package2,
   ShoppingCart,
-  MessageSquare
+  MessageSquare,
+  Sparkles
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -36,6 +37,7 @@ type NavItem = {
   href: string;
   icon: React.ReactNode;
   comingSoon?: boolean;
+  special?: boolean;
 };
 
 // Organization-specific navigation configurations
@@ -65,6 +67,17 @@ const NAVIGATION_CONFIGS = {
       title: 'Contacts',
       href: '/dashboard/contacts',
       icon: <Users className="h-5 w-5" />,
+    },
+    {
+              title: 'CRM Assistant',
+      href: '/dashboard/ai-future',
+      icon: (
+        <div className="relative">
+          <Brain className="h-5 w-5" />
+          <Sparkles className="w-3 h-3 absolute -top-1 -right-1 text-yellow-500" />
+        </div>
+      ),
+      special: true
     },
     {
       title: 'Analytics',
@@ -112,6 +125,23 @@ const NAVIGATION_CONFIGS = {
       title: 'Interactions',
       href: '/dashboard/interactions',
       icon: <MessageSquare className="h-5 w-5" />,
+    },
+    {
+      title: 'WhatsApp',
+      href: '/dashboard/whatsapp',
+      icon: <MessageSquare className="h-5 w-5" />,
+      comingSoon: false,
+    },
+    {
+              title: 'CRM Assistant',
+      href: '/dashboard/ai-future',
+      icon: (
+        <div className="relative">
+          <Brain className="h-5 w-5" />
+          <Sparkles className="w-3 h-3 absolute -top-1 -right-1 text-yellow-500" />
+        </div>
+      ),
+      special: true
     },
     {
       title: 'AI Assistant',
@@ -181,10 +211,14 @@ const NavItemComponent = memo(({
       href={item.href}
       className={cn(
         'block px-3 py-2 text-sm font-medium rounded-xl transition-all duration-200',
-        isActive
-          ? 'bg-gradient-to-r from-blue-600/10 via-purple-600/10 to-pink-600/10 text-foreground font-medium'
+        item.special && !isActive
+          ? 'aris-gradient text-white border border-gray-200 shadow-sm'
+          : item.special && isActive
+          ? 'aris-gradient text-white border border-gray-300 font-semibold shadow-md'
+          : isActive
+          ? 'bg-gray-50 text-foreground font-medium'
           : 'text-muted-foreground hover:bg-gray-50 hover:text-foreground',
-        'focus:outline-none focus:ring-2 focus:ring-blue-500/20 hover:scale-[1.01]'
+        'focus:outline-none focus:ring-2 focus:ring-[color:var(--accent-color)]/20 hover:scale-[1.01]'
       )}
       onClick={onClick}
     >

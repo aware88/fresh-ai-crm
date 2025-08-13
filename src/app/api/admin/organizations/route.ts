@@ -32,9 +32,32 @@ export async function GET(request: NextRequest) {
     }
 
     // Process the data to get user counts
-    const orgsWithUserCount = organizations.map((org: any) => ({
+    const orgIds = (organizations || []).map((o: any) => o.id);
+
+    // Aggregate usage per org (last 30 days)
+    let usageByOrg: Record<string, { messages: number; costUsd: number }> = {};
+    if (orgIds.length > 0) {
+      const thirtyDaysAgoISO = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+      const { data: usageRows } = await supabase
+        .from('ai_usage_tracking')
+        .select('organization_id, cost_usd')
+        .in('organization_id', orgIds)
+        .gte('created_at', thirtyDaysAgoISO);
+      if (usageRows) {
+        for (const row of usageRows as any[]) {
+          const orgId = row.organization_id;
+          usageByOrg[orgId] = usageByOrg[orgId] || { messages: 0, costUsd: 0 };
+          usageByOrg[orgId].messages += 1;
+          usageByOrg[orgId].costUsd += parseFloat(row.cost_usd || '0');
+        }
+      }
+    }
+
+    const orgsWithUserCount = (organizations || []).map((org: any) => ({
       ...org,
       user_count: org.users?.[0]?.count || 0,
+      monthly_ai_messages: usageByOrg[org.id]?.messages || 0,
+      monthly_ai_cost_usd: Math.round((usageByOrg[org.id]?.costUsd || 0) * 100) / 100,
       users: undefined // Remove the users array
     }));
 

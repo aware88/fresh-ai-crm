@@ -19,7 +19,8 @@ import {
   Database,
   FileText,
   Bot,
-  BookOpen
+  BookOpen,
+  Users
 } from 'lucide-react';
 
 interface SidebarNavItem {
@@ -39,6 +40,7 @@ const iconMap: Record<string, React.ReactNode> = {
   'Profile': <User className="mr-3 h-4 w-4" />,
   'Account': <Settings className="mr-3 h-4 w-4" />,
   'Subscription': <CreditCard className="mr-3 h-4 w-4" />,
+  'Team': <Users className="mr-3 h-4 w-4" />,
   'Company Branding': <Building className="mr-3 h-4 w-4" />,
   'Data Management': <Database className="mr-3 h-4 w-4" />,
   'File Management': <FileText className="mr-3 h-4 w-4" />,
@@ -50,7 +52,7 @@ const iconMap: Record<string, React.ReactNode> = {
   'Display': <LayoutDashboard className="mr-3 h-4 w-4" />,
   'Security': <Shield className="mr-3 h-4 w-4" />,
   'Integrations': <Zap className="mr-3 h-4 w-4" />,
-  'Metakocka': <Zap className="mr-3 h-4 w-4" />
+  'Metakocka': <Database className="mr-3 h-4 w-4" />
 };
 
 export function SidebarNav({ items, className }: SidebarNavProps) {

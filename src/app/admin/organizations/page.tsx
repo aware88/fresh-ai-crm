@@ -12,6 +12,8 @@ interface Organization {
   updated_at: string;
   user_count?: number;
   subscription_status?: string;
+  monthly_ai_messages?: number;
+  monthly_ai_cost_usd?: number;
 }
 
 export default function OrganizationsPage() {
@@ -86,9 +88,9 @@ export default function OrganizationsPage() {
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Slug
                 </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Users
-                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Users</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">AI Msg (30d)</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">AI Cost (30d)</th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Subscription
                 </th>
@@ -109,9 +111,9 @@ export default function OrganizationsPage() {
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {org.slug}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {org.user_count || 0}
-                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{org.user_count || 0}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{org.monthly_ai_messages || 0}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${(org.monthly_ai_cost_usd || 0).toFixed(2)}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getSubscriptionBadgeColor(org.subscription_status)}`}>
                       {org.subscription_status || 'None'}

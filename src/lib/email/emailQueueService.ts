@@ -215,13 +215,61 @@ export async function processQueuedEmail(queueItemId: string, userId: string) {
     // Step 4: Build comprehensive context for AI processing
     const context = await buildEmailProcessingContext(email.id);
     
-    // Step 5: Determine if manual review is required
-    const requiresManualReview = context.processingInstructions.requireManualReview;
+    // Step 5: Optionally generate an AI draft to obtain confidence for auto-reply decisions
+    let aiDraft: { subject: string; body: string; confidence: number } | null = null;
+    try {
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+      const resp = await fetch(`${appUrl}/api/email/generate-response`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          originalEmail: email.raw_content || email.text_content || '',
+          senderEmail: (email.sender || email.from_address || ''),
+          tone: 'professional',
+          customInstructions: '',
+          emailId: email.id,
+          settings: { includeContext: true },
+          includeDrafting: true
+        })
+      });
+      if (resp.ok) {
+        const data = await resp.json();
+        aiDraft = {
+          subject: data.subject || `Re: ${email.subject || ''}`,
+          body: data.response || data.body || '',
+          confidence: typeof data.confidence === 'number' ? data.confidence : 0.85
+        };
+      }
+    } catch (e) {
+      // Non-fatal; proceed without draft
+      aiDraft = null;
+    }
+
+    // Step 6: Determine if manual review is required, factoring in user auto-reply preferences
+    const requiresManualReviewBase = context.processingInstructions.requireManualReview;
+    let requiresManualReview = requiresManualReviewBase;
+    let autoApproved = false;
+    try {
+      // Fetch user-level AI email settings
+      const { data: userSettings } = await supabase
+        .from('user_ai_email_settings')
+        .select('auto_reply_mode, auto_reply_confidence_threshold')
+        .eq('user_id', userId)
+        .maybeSingle();
+      const mode = (userSettings?.auto_reply_mode as 'semi' | 'full') || 'semi';
+      const threshold = typeof userSettings?.auto_reply_confidence_threshold === 'number' ? userSettings.auto_reply_confidence_threshold : 0.9;
+      if (mode === 'full' && aiDraft && aiDraft.confidence >= threshold && !requiresManualReviewBase) {
+        requiresManualReview = false;
+        autoApproved = true;
+      }
+    } catch (_e) {
+      // Ignore settings errors; default to base behavior
+    }
     
-    // Step 6: Update queue item status
+    // Step 7: Update queue item status
     const newStatus = requiresManualReview ? 
       EmailQueueStatus.REQUIRES_REVIEW : 
-      EmailQueueStatus.COMPLETED;
+      (autoApproved ? EmailQueueStatus.APPROVED : EmailQueueStatus.COMPLETED);
     
     const { error: queueUpdateError } = await supabase
       .from('email_queue')
@@ -231,7 +279,9 @@ export async function processQueuedEmail(queueItemId: string, userId: string) {
           ...queueItem.metadata,
           analysis_summary: summarizeAnalysis(analysis),
           processing_context: context,
-          requires_manual_review: requiresManualReview
+          requires_manual_review: requiresManualReview,
+          ai_draft: aiDraft || undefined,
+          auto_approved: autoApproved || undefined
         },
         requires_manual_review: requiresManualReview,
         last_processed_at: new Date().toISOString()

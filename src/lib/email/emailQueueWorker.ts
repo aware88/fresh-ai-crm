@@ -48,6 +48,33 @@ export async function processEmailQueue(
         results.succeeded++;
       } else if (result.status === EmailQueueStatus.REQUIRES_REVIEW) {
         results.requiresReview++;
+      } else if (result.status === EmailQueueStatus.APPROVED) {
+        // Approved means high-confidence auto-approval – attempt to auto-send
+        try {
+          const supabase = await createLazyServerClient();
+          const { data: q } = await supabase
+            .from('email_queue')
+            .select('*, emails(*)')
+            .eq('id', queueItem.id)
+            .single();
+          const draft = q?.metadata?.ai_draft;
+          const to = q?.emails?.sender || q?.emails?.from_address;
+          if (draft?.body && to) {
+            await fetch('/api/emails/send', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                subject: draft.subject || `Re: ${q?.emails?.subject || ''}`,
+                content: draft.body,
+                toRecipients: [to],
+                contentType: 'HTML'
+              })
+            });
+          }
+        } catch (e) {
+          console.warn('Auto-send failed, item remains approved but unsent');
+        }
+        results.succeeded++;
       } else if (result.status === EmailQueueStatus.FAILED) {
         results.failed++;
       }

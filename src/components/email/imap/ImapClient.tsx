@@ -313,7 +313,7 @@ export default function ImapClient({ account, onSalesAgent, isSalesProcessing }:
   const handleEmailClick = (email: Email) => {
     setSelectedEmail(email);
     
-    // Mark as read
+    // Mark as read locally only (dev-phase)
     if (!email.read) {
       const updatedReadEmails = new Set([...readEmails, email.id]);
       setReadEmails(updatedReadEmails);

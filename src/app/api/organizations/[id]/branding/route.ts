@@ -28,38 +28,67 @@ export async function GET(
     // Create Supabase client properly with await
     const supabase = await createServerClient();
     
-    // SIMPLIFIED: Always return default branding to avoid sign-in issues
-    // TODO: Implement proper organization membership checks later
-    console.log('Returning default branding for organization:', organizationId);
-    return NextResponse.json({ 
-      branding: {
-        primary_color: '#0f172a',
-        secondary_color: '#64748b',
-        accent_color: '#2563eb',
-        font_family: 'Inter, system-ui, sans-serif',
-        logo_url: null,
-        favicon_url: null,
-        organization_id: organizationId,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        created_by: session.user.id,
-        updated_by: session.user.id
-      }
-    });
-    
-    // Get organization branding
-    const { data: branding, error: brandingError } = await supabase
+    // Try DB branding first
+    const { data: existingBranding } = await supabase
       .from('organization_branding')
       .select('*')
       .eq('organization_id', organizationId)
       .single();
-    
-    if (brandingError && brandingError.code !== 'PGRST116') { // PGRST116 is "no rows returned"
-      console.error('Error fetching organization branding:', brandingError);
-      return NextResponse.json({ error: 'Failed to fetch organization branding' }, { status: 500 });
+    if (existingBranding) {
+      return NextResponse.json({ branding: existingBranding });
     }
+
+    // Fallback: preset with special-case for Withcar until admin UI sets branding
+    const WITHCAR_ORG_ID = '577485fb-50b4-4bb2-a4c6-54b97e1545ad'; // Only the real Withcar ID
+    const supabaseLite = await createServerClient();
+    let isWithcar = organizationId === WITHCAR_ORG_ID;
     
+    if (!isWithcar) {
+      const { data: orgMeta } = await supabaseLite
+        .from('organizations')
+        .select('name, slug')
+        .eq('id', organizationId)
+        .single();
+      const slug = orgMeta?.slug?.toLowerCase();
+      const name = orgMeta?.name?.toLowerCase();
+      // Only detect Withcar by exact name/slug match
+      isWithcar = slug === 'withcar' || name === 'withcar';
+    }
+    const now = new Date().toISOString();
+    const branding = isWithcar
+      ? {
+          // Withcar brand preset
+          primary_color: '#111111',
+          secondary_color: '#1f2937',
+          accent_color: '#ff6a00',
+          font_family: 'Inter, system-ui, sans-serif',
+          logo_url: null,
+          favicon_url: null,
+          organization_id: organizationId,
+          created_at: now,
+          updated_at: now,
+          created_by: session.user.id,
+          updated_by: session.user.id,
+        }
+      : {
+          // Default ARIS preset
+          primary_color: '#0f172a',
+          secondary_color: '#64748b',
+          accent_color: '#2563eb',
+          font_family: 'Inter, system-ui, sans-serif',
+          logo_url: null,
+          favicon_url: null,
+          organization_id: organizationId,
+          created_at: now,
+          updated_at: now,
+          created_by: session.user.id,
+          updated_by: session.user.id,
+        };
+    console.log('Returning preset branding for organization:', organizationId, isWithcar ? '(Withcar preset)' : '(Default preset)');
     return NextResponse.json({ branding });
+    
+    // Unreachable legacy DB path retained for reference only
+    // (Real DB-backed branding can be re-enabled later.)
   } catch (error) {
     console.error('Error in organization branding API:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

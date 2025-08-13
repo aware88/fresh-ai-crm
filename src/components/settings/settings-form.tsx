@@ -71,24 +71,25 @@ export function SettingsForm({
   
   return (
     <div className="space-y-6">
-      <NavigationHeader title={title} backUrl={backUrl} />
-      
-      <div>
-        <p className="text-sm text-muted-foreground">{description}</p>
+      {/* Page title */}
+      <div className="border-b border-gray-200 pb-4">
+        <h2 className="text-xl font-semibold text-gray-900">{title}</h2>
+        <p className="text-sm text-gray-600 mt-1">{description}</p>
       </div>
-      
-      <Separator />
-      
-      {/* Render children without injecting props */}
-      {children}
-      
-      <div className="flex justify-end">
-        <Button 
-          onClick={handleSave} 
+
+      {/* Content */}
+      <div className="space-y-6">
+        {children}
+      </div>
+
+      {/* Footer actions */}
+      <div className="flex justify-end pt-6 border-t border-gray-200">
+        <Button
+          onClick={handleSave}
           disabled={isSaving || !hasChanges}
           className="px-6"
         >
-          {isSaving ? "Saving..." : "Save Changes"}
+          {isSaving ? 'Saving...' : 'Save Changes'}
         </Button>
       </div>
     </div>

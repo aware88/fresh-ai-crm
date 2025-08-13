@@ -20,23 +20,9 @@ export default function OutlookClient({ onAnalyzeEmail, onSalesAgent }: OutlookC
   const [view, setView] = useState<'list' | 'detail' | 'compose'>('list');
   const [emailData, setEmailData] = useState<any>(null); // Store the selected email data
   
-  // Handle authentication state
-  if (status === 'loading') {
-    return <div className="flex justify-center p-8"><div className="animate-spin h-8 w-8 border-4 border-blue-500 rounded-full border-t-transparent"></div></div>;
-  }
-  
-  if (status === 'unauthenticated' || !session) {
-    return (
-      <div className="p-8 text-center">
-        <Alert variant="destructive">
-          <p>You need to sign in to access your emails.</p>
-        </Alert>
-        <Button className="mt-4" onClick={() => window.location.href = '/api/auth/outlook/connect'}>
-          Connect Outlook Account
-        </Button>
-      </div>
-    );
-  }
+  // Render early states without breaking hooks rules
+  const isLoadingAuth = status === 'loading';
+  const isUnauthenticated = status === 'unauthenticated' || !session;
 
   // Handle email selection
   const handleEmailSelect = (emailId: string) => {
@@ -183,6 +169,21 @@ export default function OutlookClient({ onAnalyzeEmail, onSalesAgent }: OutlookC
       </div>
 
       <div className="p-0">
+        {isLoadingAuth && (
+          <div className="flex justify-center p-8"><div className="animate-spin h-8 w-8 border-4 border-blue-500 rounded-full border-t-transparent"></div></div>
+        )}
+
+        {isUnauthenticated && !isLoadingAuth && (
+          <div className="p-8 text-center">
+            <Alert variant="destructive">
+              <p>You need to sign in to access your emails.</p>
+            </Alert>
+            <Button className="mt-4" onClick={() => window.location.href = '/api/auth/outlook/connect'}>
+              Connect Outlook Account
+            </Button>
+          </div>
+        )}
+
         {view === 'list' && (
           <div className="email-list-container">
             <EmailList onEmailSelect={handleEmailSelect} />

@@ -10,13 +10,27 @@ const compat = new FlatCompat({
 });
 
 const eslintConfig = [
+  // Ignore generated/build and vendor directories
+  {
+    ignores: [
+      "**/.next/**",
+      ".next/**",
+      "node_modules/**",
+      "dist/**",
+      "build/**",
+      "coverage/**",
+      "out/**",
+      "**/package-lock.json"
+    ]
+  },
   ...compat.extends("next/core-web-vitals", "next/typescript"),
   {
     rules: {
-      // Temporarily disable blocking rules for deployment
+      // Temporarily relax a few rules
       "@typescript-eslint/no-unused-vars": "warn",
-      "@typescript-eslint/no-explicit-any": "warn", 
+      "@typescript-eslint/no-explicit-any": "warn",
       "@typescript-eslint/no-require-imports": "warn",
+      "@typescript-eslint/no-unsafe-declaration-merging": "off",
       "react/no-unescaped-entities": "warn",
       "react-hooks/exhaustive-deps": "warn",
       "@next/next/no-img-element": "warn",

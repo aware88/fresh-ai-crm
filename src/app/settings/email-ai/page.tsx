@@ -44,6 +44,9 @@ interface AIEmailSettings {
   // Privacy Settings
   dataRetention: 'forever' | '1year' | '6months' | '3months';
   shareForImprovement: boolean;
+  // Auto Reply
+  autoReplyMode?: 'semi' | 'full';
+  autoReplyConfidenceThreshold?: number; // 0..1
 }
 
 export default function AIEmailSettingsPage() {
@@ -64,7 +67,9 @@ export default function AIEmailSettingsPage() {
     trackChanges: true,
     saveUserNotes: true,
     dataRetention: '1year',
-    shareForImprovement: false
+    shareForImprovement: false,
+    autoReplyMode: 'semi',
+    autoReplyConfidenceThreshold: 0.9
   });
   const [initialSettings, setInitialSettings] = useState<AIEmailSettings>({
     aiDraftEnabled: false,
@@ -77,7 +82,9 @@ export default function AIEmailSettingsPage() {
     trackChanges: true,
     saveUserNotes: true,
     dataRetention: '1year',
-    shareForImprovement: false
+    shareForImprovement: false,
+    autoReplyMode: 'semi',
+    autoReplyConfidenceThreshold: 0.9
   });
 
   // Load settings from localStorage and database
@@ -119,7 +126,11 @@ export default function AIEmailSettingsPage() {
               trackChanges: userSettings.track_changes || true,
               saveUserNotes: userSettings.save_user_notes || true,
               dataRetention: userSettings.data_retention || '1year',
-              shareForImprovement: userSettings.share_for_improvement || false
+              shareForImprovement: userSettings.share_for_improvement || false,
+              autoReplyMode: (userSettings.auto_reply_mode as 'semi' | 'full') || 'semi',
+              autoReplyConfidenceThreshold: typeof userSettings.auto_reply_confidence_threshold === 'number' 
+                ? userSettings.auto_reply_confidence_threshold 
+                : 0.9
             };
             setSettings(loadedSettings);
             setInitialSettings(loadedSettings);
@@ -160,6 +171,8 @@ export default function AIEmailSettingsPage() {
             save_user_notes: settings.saveUserNotes,
             data_retention: settings.dataRetention,
             share_for_improvement: settings.shareForImprovement,
+            auto_reply_mode: settings.autoReplyMode || 'semi',
+            auto_reply_confidence_threshold: settings.autoReplyConfidenceThreshold ?? 0.9,
             updated_at: new Date().toISOString()
           }, {
             onConflict: 'user_id'
@@ -274,6 +287,47 @@ export default function AIEmailSettingsPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label htmlFor="auto-reply-mode">Auto-reply mode</Label>
+              <div className="text-sm text-muted-foreground">
+                Semi-auto requires approval. Full-auto sends high-confidence replies automatically.
+              </div>
+            </div>
+            <Select 
+              value={settings.autoReplyMode || 'semi'}
+              onValueChange={(value) => updateSetting('autoReplyMode', value as any)}
+            >
+              <SelectTrigger className="w-48">
+                <SelectValue placeholder="Select mode" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="semi">Semi-auto (default)</SelectItem>
+                <SelectItem value="full">Full-auto (with review queue)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {settings.autoReplyMode === 'full' && (
+            <div className="space-y-2">
+              <Label htmlFor="auto-reply-threshold">Auto-reply confidence threshold</Label>
+              <div className="text-sm text-muted-foreground">Only auto-send when AI confidence ≥ threshold</div>
+              <Select
+                value={String(settings.autoReplyConfidenceThreshold || 0.9)}
+                onValueChange={(value) => updateSetting('autoReplyConfidenceThreshold', Number(value))}
+              >
+                <SelectTrigger className="w-48">
+                  <SelectValue placeholder="Select threshold" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="0.8">80%</SelectItem>
+                  <SelectItem value="0.85">85%</SelectItem>
+                  <SelectItem value="0.9">90% (Recommended)</SelectItem>
+                  <SelectItem value="0.95">95%</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
               <Label htmlFor="ai-draft-enabled">Enable AI Draft Assistant</Label>

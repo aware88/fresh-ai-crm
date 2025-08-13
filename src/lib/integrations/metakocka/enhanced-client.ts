@@ -58,14 +58,14 @@ export class EnhancedMetakockaClient extends MetakockaClient {
     ];
     
     for (const methodName of methodsToEnhance) {
-      const originalMethod = this[methodName] as Function;
-      
+      const originalMethod = (this as unknown as Record<string, (...args: unknown[]) => unknown>)[methodName];
+
       if (typeof originalMethod === 'function') {
         // Create a wrapped version with retry logic
-        this[methodName] = MetakockaRetryHandler.wrapWithRetry(
+        (this as unknown as Record<string, unknown>)[methodName as string] = MetakockaRetryHandler.wrapWithRetry(
           originalMethod.bind(this),
           methodName,
-          (args) => this.getContextFromArgs(methodName, args),
+          (args) => this.getContextFromArgs(methodName, args as unknown[]),
           this.retryConfig
         );
       }
@@ -75,7 +75,7 @@ export class EnhancedMetakockaClient extends MetakockaClient {
   /**
    * Extract context information from method arguments for logging
    */
-  private getContextFromArgs(methodName: string, args: any[]): any {
+  private getContextFromArgs(methodName: string, args: unknown[]): Record<string, unknown> {
     const context: any = {
       userId: this.userId,
       details: { methodName }
@@ -84,24 +84,27 @@ export class EnhancedMetakockaClient extends MetakockaClient {
     // Extract relevant IDs based on method name and arguments
     if (methodName.includes('Partner')) {
       // For partner-related methods
-      if (args[0] && typeof args[0] === 'object' && args[0].mk_id) {
-        context.metakockaId = args[0].mk_id;
-      } else if (args[0] && typeof args[0] === 'string') {
-        context.metakockaId = args[0]; // For getPartner, deletePartner
+      const firstArg = args[0] as any;
+      if (firstArg && typeof firstArg === 'object' && 'mk_id' in firstArg) {
+        context.metakockaId = firstArg.mk_id;
+      } else if (typeof firstArg === 'string') {
+        context.metakockaId = firstArg; // For getPartner, deletePartner
       }
     } else if (methodName.includes('SalesDocument')) {
       // For document-related methods
-      if (args[0] && typeof args[0] === 'object' && args[0].mk_id) {
-        context.documentId = args[0].mk_id;
-      } else if (args[0] && typeof args[0] === 'string') {
-        context.documentId = args[0]; // For getSalesDocument, deleteSalesDocument
+      const firstArg = args[0] as any;
+      if (firstArg && typeof firstArg === 'object' && 'mk_id' in firstArg) {
+        context.documentId = firstArg.mk_id;
+      } else if (typeof firstArg === 'string') {
+        context.documentId = firstArg; // For getSalesDocument, deleteSalesDocument
       }
     } else if (methodName.includes('Product')) {
       // For product-related methods
-      if (args[0] && typeof args[0] === 'object' && args[0].mk_id) {
-        context.details.productId = args[0].mk_id;
-      } else if (args[0] && typeof args[0] === 'string') {
-        context.details.productId = args[0]; // For getProduct, deleteProduct
+      const firstArg = args[0] as any;
+      if (firstArg && typeof firstArg === 'object' && 'mk_id' in firstArg) {
+        context.details.productId = firstArg.mk_id;
+      } else if (typeof firstArg === 'string') {
+        context.details.productId = firstArg; // For getProduct, deleteProduct
       }
     }
     

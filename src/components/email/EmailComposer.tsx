@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Monitor, Phone, FileText, Maximize2, Minimize2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -15,6 +16,39 @@ export default function EmailComposer() {
   const [showCc, setShowCc] = useState(false);
   const [showBcc, setShowBcc] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [previewMode, setPreviewMode] = useState<'desktop' | 'mobile' | 'plain'>('desktop');
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isRefining, setIsRefining] = useState(false);
+
+  const handleRefine = async (command: string) => {
+    if (!body.trim()) return;
+    try {
+      setIsRefining(true);
+      const resp = await fetch('/api/emails/ai-refine', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          emailId: '',
+          originalEmail: { subject, from: '' },
+          currentSubject: subject,
+          currentBody: body,
+          refinementCommand: command,
+          draftContext: { tone: 'professional' }
+        })
+      });
+      if (!resp.ok) {
+        const e = await resp.json().catch(() => ({}));
+        throw new Error(e.error || resp.statusText);
+      }
+      const data = await resp.json();
+      setSubject(data.subject || subject);
+      setBody(data.body || body);
+    } catch (e: any) {
+      alert(`Refine failed: ${e.message || 'Unknown error'}`);
+    } finally {
+      setIsRefining(false);
+    }
+  };
 
   const handleSendEmail = async () => {
     if (!to || !subject || !body) {
@@ -48,9 +82,18 @@ export default function EmailComposer() {
   };
 
   return (
-    <Card className="w-full max-w-4xl mx-auto">
+    <Card className={`w-full ${isFullscreen ? 'fixed inset-4 z-50 max-w-none mx-0' : 'max-w-4xl mx-auto'}`}>
       <CardHeader>
-        <CardTitle>Compose New Email</CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle>Compose New Email</CardTitle>
+          <button
+            onClick={() => setIsFullscreen(v => !v)}
+            className="p-1 hover:bg-gray-100 rounded"
+            title={isFullscreen ? 'Exit full screen' : 'Full screen'}
+          >
+            {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+          </button>
+        </div>
         <CardDescription>
           Create and send a new email with rich text formatting
         </CardDescription>
@@ -121,12 +164,67 @@ export default function EmailComposer() {
 
         <div className="grid w-full items-center gap-1.5">
           <Label htmlFor="body">Message *</Label>
-          <RichTextEditor
-            value={body}
-            onChange={setBody}
-            placeholder="Compose your email with rich text formatting..."
-            height="400px"
-          />
+          <div className="flex items-center justify-end gap-2 mb-2 text-sm">
+            <span className="text-gray-500">Preview:</span>
+            <button
+              className={`px-2 py-1 rounded flex items-center gap-1 ${previewMode==='desktop' ? 'bg-gray-200' : 'hover:bg-gray-100'}`}
+              onClick={() => setPreviewMode('desktop')}
+            >
+              <Monitor className="h-3 w-3" /> Desktop
+            </button>
+            <button
+              className={`px-2 py-1 rounded flex items-center gap-1 ${previewMode==='mobile' ? 'bg-gray-2 00' : 'hover:bg-gray-100'}`}
+              onClick={() => setPreviewMode('mobile')}
+            >
+              <Phone className="h-3 w-3" /> Mobile
+            </button>
+            <button
+              className={`px-2 py-1 rounded flex items-center gap-1 ${previewMode==='plain' ? 'bg-gray-200' : 'hover:bg-gray-100'}`}
+              onClick={() => setPreviewMode('plain')}
+            >
+              <FileText className="h-3 w-3" /> Plain
+            </button>
+          </div>
+          {/* Quick AI refine */}
+          <div className="flex items-center justify-end gap-2 mb-2 text-xs">
+            <span className="text-gray-500">AI:</span>
+            <button
+              disabled={isRefining}
+              className="px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-50"
+              onClick={() => handleRefine('Make this more concise')}
+            >Shorten</button>
+            <button
+              disabled={isRefining}
+              className="px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-50"
+              onClick={() => handleRefine('Expand with more detail where useful')}
+            >Expand</button>
+            <button
+              disabled={isRefining}
+              className="px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-50"
+              onClick={() => handleRefine('Improve clarity and fix grammar without changing meaning')}
+            >Clarity</button>
+            <button
+              disabled={isRefining}
+              className="px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-50"
+              onClick={() => handleRefine('Match a professional tone')}
+            >Tone</button>
+          </div>
+          {previewMode === 'plain' ? (
+            <textarea
+              readOnly
+              className="w-full border rounded p-3 text-sm text-gray-700 bg-gray-50 h-[400px]"
+              value={body.replace(/<[^>]*>/g, '').trim()}
+            />
+          ) : (
+            <div className={previewMode === 'mobile' ? 'max-w-sm mx-auto border rounded' : ''}>
+              <RichTextEditor
+                value={body}
+                onChange={setBody}
+                placeholder="Compose your email with rich text formatting..."
+                height="400px"
+              />
+            </div>
+          )}
         </div>
 
         <div className="flex justify-between items-center pt-4">

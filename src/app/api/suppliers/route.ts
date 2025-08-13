@@ -5,8 +5,9 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '../auth/[...nextauth]/route';
 
 // Helper function to get organization ID from session
-function getOrganizationId(session: any): string {
-  return (session?.user as any)?.organizationId || session?.user?.id;
+function getOrganizationId(session: any): string | null {
+  // session.user.id is not the organization id; prefer preferences or membership
+  return (session?.user as any)?.organizationId || null;
 }
 
 // GET /api/suppliers - Get all suppliers for the organization
@@ -18,16 +19,34 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const organizationId = getOrganizationId(session);
+    // Resolve organization id from DB
+    const supabaseRW = await createServerClient();
+    let organizationId = getOrganizationId(session);
+    try {
+      if (!organizationId) {
+        const { data: prefs } = await supabaseRW
+          .from('user_preferences')
+          .select('current_organization_id')
+          .eq('user_id', session.user.id)
+          .maybeSingle();
+        if (prefs?.current_organization_id) organizationId = prefs.current_organization_id;
+        if (!organizationId) {
+          const { data: member } = await supabaseRW
+            .from('organization_members')
+            .select('organization_id')
+            .eq('user_id', session.user.id)
+            .maybeSingle();
+          if (member?.organization_id) organizationId = member.organization_id;
+        }
+      }
+    } catch {}
 
-    // Use service role client to bypass RLS issues
     const supabase = createServiceRoleClient();
-    
-    // Fetch suppliers for the organization (shared data)
+    // Fetch suppliers for organization OR created by the user
     const { data: suppliers, error } = await supabase
       .from('suppliers')
       .select('*')
-      .eq('organization_id', organizationId)
+      .or(`organization_id.eq.${organizationId || '00000000-0000-0000-0000-000000000000'},user_id.eq.${session.user.id}`)
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -48,9 +67,9 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     
     // Validate required fields
-    const { name, email } = body;
-    if (!name || !email) {
-      return NextResponse.json({ error: 'Name and email are required' }, { status: 400 });
+    const { name } = body;
+    if (!name) {
+      return NextResponse.json({ error: 'Name is required' }, { status: 400 });
     }
     
     // Get session and organization ID

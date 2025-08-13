@@ -96,7 +96,7 @@ export function Navigation({ className = '' }: NavigationProps) {
             aria-label="Notifications"
           >
             <Bell className="h-5 w-5 text-gray-600" />
-            <span className="absolute top-2 right-2 h-2 w-2 bg-gradient-to-r from-blue-600 to-pink-600 rounded-full"></span>
+            <span className="absolute top-2 right-2 h-2 w-2 aris-gradient rounded-full"></span>
           </button>
           <div className="relative">
             <button 
@@ -106,7 +106,7 @@ export function Navigation({ className = '' }: NavigationProps) {
               aria-expanded={isMenuOpen}
               aria-label="User menu"
             >
-              <div className="h-8 w-8 rounded-xl bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 flex items-center justify-center text-white text-sm shadow-md">
+              <div className="h-8 w-8 rounded-xl aris-gradient flex items-center justify-center text-white text-sm shadow-md">
                 <User className="h-4 w-4" />
               </div>
             </button>
@@ -141,7 +141,7 @@ export function Navigation({ className = '' }: NavigationProps) {
                         window.location.href = '/signin';
                       }
                     }}
-                    className="w-full text-left block px-4 py-2 text-sm font-medium bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-white hover:from-blue-700 hover:via-purple-700 hover:to-pink-700 transition-colors duration-150"
+                    className="w-full text-left block px-4 py-2 text-sm font-medium aris-gradient text-white hover:opacity-90 transition-colors duration-150"
                   >
                     Sign out
                   </button>

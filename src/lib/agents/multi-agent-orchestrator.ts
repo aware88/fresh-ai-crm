@@ -549,17 +549,22 @@ export class MultiAgentOrchestrator extends EventEmitter {
 
   private identifyBottlenecks(): string[] {
     const bottlenecks: string[] = [];
-    const metrics = this.getMetrics();
+    // Avoid recursion by calculating metrics directly here
+    const executions = Array.from(this.executions.values());
+    const agentUtilization: Record<string, number> = {};
+    
+    executions.forEach(execution => {
+      agentUtilization[execution.agentId] = (agentUtilization[execution.agentId] || 0) + 1;
+    });
 
     // Identify agents with high utilization
-    Object.entries(metrics.agentUtilization).forEach(([agentId, count]) => {
+    Object.entries(agentUtilization).forEach(([agentId, count]) => {
       if (count > 10) {
         bottlenecks.push(`High utilization on agent: ${agentId}`);
       }
     });
 
     // Identify slow workflows
-    const executions = Array.from(this.executions.values());
     const slowExecutions = executions.filter(e => {
       if (e.status === 'completed' && e.endTime) {
         const duration = e.endTime.getTime() - e.startTime.getTime();

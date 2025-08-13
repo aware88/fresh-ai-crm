@@ -4,8 +4,12 @@ import { getUID } from '../../../../lib/auth/utils';
 import OpenAI from 'openai';
 import { EmailContextAnalyzer } from '../../../../lib/email/context-analyzer';
 import { getPersonalityDataForPrompt } from '../../../../lib/personality/data';
+import { getSupportFacts, stringifySupportFactsForPrompt } from '@/lib/email/support-facts';
+import { getUserOrganization } from '@/lib/middleware/ai-limit-middleware';
 import { loadCsvData } from '../../../../lib/personality/flexible-data';
 import { getMatchingSalesTactics } from '../../../../lib/ai/sales-tactics'; // RE-ENABLED with optimization
+import { withAILimitCheckAndTopup } from '@/lib/middleware/ai-limit-middleware-v2';
+import { featureFlagService } from '@/lib/services/feature-flag-service';
 
 // Ensure this API route runs in Node.js runtime (not Edge)
 export const runtime = 'nodejs';
@@ -55,12 +59,15 @@ function extractEmailContext(emailContent: string) {
  * - Background contact updates
  */
 export async function POST(request: NextRequest) {
-  try {
-    // Get user ID from session
-    const uid = await getUID();
-    if (!uid) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+  // Get user ID from session
+  const uid = await getUID();
+  if (!uid) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  // Use enhanced AI limit middleware with top-up support and grace
+  return withAILimitCheckAndTopup(request, uid, 'email_response', async () => {
+    try {
 
     // Simple rate limiting - prevent multiple simultaneous requests
     const userKey = `user_${uid}`;
@@ -111,16 +118,45 @@ export async function POST(request: NextRequest) {
     // NEW: Get user's writing style and draft history for better responses
     const userContext = await getUserWritingContext(supabase, uid);
 
-    // Generate comprehensive response with ALL intelligence
+    // Optionally gather support facts (semi-auto, human in loop)
+    let supportFactsText = '';
+    try {
+      const orgId = await getUserOrganization(uid);
+      const facts = await getSupportFacts({
+        organizationId: orgId,
+        senderEmail,
+        subject: typeof originalEmail === 'object' ? originalEmail.subject : '',
+        body: typeof originalEmail === 'object' ? originalEmail.body : String(originalEmail)
+      });
+      supportFactsText = stringifySupportFactsForPrompt(facts);
+    } catch (e) {
+      // Non-fatal; continue without facts
+      supportFactsText = '';
+    }
+
+    // Check feature access to enforce Starter generic AI (no profiling/tactics)
+    const organizationId = await getUserOrganization(uid);
+    const allowProfiling = organizationId 
+      ? (await featureFlagService.canUsePsychologicalProfiling(organizationId)).hasAccess
+      : false;
+
+    // Generate response; if no profiling, pass empty intelligence
     const response = await generateComprehensiveResponse(
       originalEmail, 
       emailContext, 
       contextSummary, 
-      personalityData, 
+      allowProfiling ? personalityData : {
+        personalityProfiles: '',
+        flexibleProfiles: [],
+        contactContext: null,
+        aiProfilerData: null,
+        salesTactics: [],
+        analysisHistory: []
+      }, 
       userContext,
       tone, 
       customInstructions,
-      settings,
+      { ...settings, supportFacts: supportFactsText },
       includeDrafting
     );
 
@@ -137,6 +173,8 @@ export async function POST(request: NextRequest) {
       }, 3000);
     }
 
+    // Optional auto-reply decision (non-breaking): never auto-send from this endpoint
+    // UI/Queue systems can later use classification.confidence + settings.autoReplyMode to decide sending.
     return NextResponse.json({
       success: true,
       response: typeof response === 'string' ? response : response.body,
@@ -157,25 +195,26 @@ export async function POST(request: NextRequest) {
         comprehensiveMode: includeDrafting
       }
     });
-  } catch (error) {
-    console.error('Error in generate-response API:', error);
-    
-    // Handle 429 rate limit errors specifically
-    if (error instanceof Error && error.message.includes('429')) {
+    } catch (error) {
+      console.error('Error in generate-response API:', error);
+      
+      // Handle 429 rate limit errors specifically
+      if (error instanceof Error && error.message.includes('429')) {
+        return NextResponse.json(
+          { 
+            error: 'Rate limit exceeded. Please wait a moment and try again.',
+            details: 'OpenAI API rate limit reached. The system is temporarily overloaded.'
+          },
+          { status: 429 }
+        );
+      }
+      
       return NextResponse.json(
-        { 
-          error: 'Rate limit exceeded. Please wait a moment and try again.',
-          details: 'OpenAI API rate limit reached. The system is temporarily overloaded.'
-        },
-        { status: 429 }
+        { error: 'Failed to generate email response' },
+        { status: 500 }
       );
     }
-    
-    return NextResponse.json(
-      { error: 'Failed to generate email response' },
-      { status: 500 }
-    );
-  }
+  }); // Close withAILimitCheckAndTopup
 }
 
 /**
@@ -585,6 +624,11 @@ PROVIDED: ${contextSummary.keyPoints.slice(0, 2).join(', ')}`;
       // NEW: Add draft learning context
       if (userContext.draftHistory) {
         systemPrompt += `\nLEARNING: ${userContext.draftHistory}`;
+      }
+
+      // NEW: Add support facts section (optional, concise)
+      if (settings?.supportFacts) {
+        systemPrompt += `\nFACTS: ${settings.supportFacts}`;
       }
 
       systemPrompt += `\n\nRULES:

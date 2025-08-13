@@ -197,28 +197,28 @@ function ContactsContent() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid grid-cols-4 mb-6 p-1 bg-blue-50 rounded-xl shadow-inner border border-blue-100">
+        <TabsList className="grid grid-cols-4 mb-6 p-1 rounded-xl shadow-inner border bg-slate-50 border-slate-200">
           <TabsTrigger 
             value="contacts" 
-            className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white rounded-lg flex items-center justify-center gap-2 transition-all duration-200 hover:bg-blue-100 data-[state=active]:hover:bg-blue-500"
+            className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-[var(--accent-color)] data-[state=active]:to-[var(--accent-color)] data-[state=active]:text-white rounded-lg flex items-center justify-center gap-2 transition-all duration-200 hover:bg-muted"
           >
             <Users className="h-4 w-4" /> Contacts
           </TabsTrigger>
           <TabsTrigger 
             value="segments" 
-            className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white rounded-lg flex items-center justify-center gap-2 transition-all duration-200 hover:bg-blue-100 data-[state=active]:hover:bg-blue-500"
+            className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-[var(--accent-color)] data-[state=active]:to-[var(--accent-color)] data-[state=active]:text-white rounded-lg flex items-center justify-center gap-2 transition-all duration-200 hover:bg-muted"
           >
             <UserCheck className="h-4 w-4" /> Segments
           </TabsTrigger>
           <TabsTrigger 
             value="analytics" 
-            className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white rounded-lg flex items-center justify-center gap-2 transition-all duration-200 hover:bg-blue-100 data-[state=active]:hover:bg-blue-500"
+            className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-[var(--accent-color)] data-[state=active]:to-[var(--accent-color)] data-[state=active]:text-white rounded-lg flex items-center justify-center gap-2 transition-all duration-200 hover:bg-muted"
           >
             <BarChart3 className="h-4 w-4" /> Analytics
           </TabsTrigger>
           <TabsTrigger 
             value="history" 
-            className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white rounded-lg flex items-center justify-center gap-2 transition-all duration-200 hover:bg-blue-100 data-[state=active]:hover:bg-blue-500"
+            className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-[var(--accent-color)] data-[state=active]:to-[var(--accent-color)] data-[state=active]:text-white rounded-lg flex items-center justify-center gap-2 transition-all duration-200 hover:bg-muted"
           >
             <History className="h-4 w-4" /> History
           </TabsTrigger>
@@ -226,7 +226,7 @@ function ContactsContent() {
 
         <TabsContent value="contacts" className="mt-0">
           <Card className="border-0 shadow-lg bg-gradient-to-b from-white to-blue-50 overflow-hidden">
-            <CardHeader className="bg-gradient-to-r from-blue-500 to-indigo-600 pb-4">
+            <CardHeader className="bg-[var(--accent-color)] pb-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center">
                   <div className="p-2 bg-white bg-opacity-20 rounded-full mr-3">
@@ -234,14 +234,14 @@ function ContactsContent() {
                   </div>
                   <div>
                     <CardTitle className="text-white">Contact Management</CardTitle>
-                    <CardDescription className="text-blue-100">
-                      Manage your contacts and their personality profiles
-                    </CardDescription>
+                  <CardDescription className="text-white/80">
+                    Manage your contacts and their personality profiles
+                  </CardDescription>
                   </div>
                 </div>
                 <div className="flex gap-2">
                   <Link href="/dashboard/contacts/new">
-                    <Button variant="outline" className="bg-white bg-opacity-20 hover:bg-opacity-30 text-white border-white border-opacity-20">
+                    <Button variant="outline" className="bg-white/20 hover:bg-white/30 text-white border-white/20">
                       <UserPlus className="mr-2 h-4 w-4" />
                       New Contact
                     </Button>
@@ -463,15 +463,15 @@ function ContactsContent() {
         </TabsContent>
 
         <TabsContent value="segments" className="mt-0">
-          <Card className="border-0 shadow-lg bg-gradient-to-b from-white to-blue-50 overflow-hidden">
-            <CardHeader className="bg-gradient-to-r from-blue-500 to-indigo-600 pb-4">
+          <Card className="border-0 shadow-lg bg-gradient-to-b from-white to-[color-mix(in_oklab,var(--accent-color)_10%,white)] overflow-hidden">
+            <CardHeader className="bg-[var(--accent-color)] pb-4">
               <div className="flex items-center">
                 <div className="p-2 bg-white bg-opacity-20 rounded-full mr-3">
                   <UserCheck className="h-5 w-5 text-white" />
                 </div>
                 <div>
                   <CardTitle className="text-white">Contact Segments</CardTitle>
-                  <CardDescription className="text-blue-100">
+                  <CardDescription className="text-white/80">
                     Organize contacts into targeted segments for better engagement
                   </CardDescription>
                 </div>
@@ -490,15 +490,15 @@ function ContactsContent() {
         </TabsContent>
 
         <TabsContent value="analytics" className="mt-0">
-          <Card className="border-0 shadow-lg bg-gradient-to-b from-white to-blue-50 overflow-hidden">
-            <CardHeader className="bg-gradient-to-r from-blue-500 to-indigo-600 pb-4">
+          <Card className="border-0 shadow-lg bg-gradient-to-b from-white to-[color-mix(in_oklab,var(--accent-color)_10%,white)] overflow-hidden">
+            <CardHeader className="bg-[var(--accent-color)] pb-4">
               <div className="flex items-center">
                 <div className="p-2 bg-white bg-opacity-20 rounded-full mr-3">
                   <BarChart3 className="h-5 w-5 text-white" />
                 </div>
                 <div>
                   <CardTitle className="text-white">Contact Analytics</CardTitle>
-                  <CardDescription className="text-blue-100">
+                  <CardDescription className="text-white/80">
                     Insights and analytics about your contact relationships
                   </CardDescription>
                 </div>
@@ -517,15 +517,15 @@ function ContactsContent() {
         </TabsContent>
 
         <TabsContent value="history" className="mt-0">
-          <Card className="border-0 shadow-lg bg-gradient-to-b from-white to-blue-50 overflow-hidden">
-            <CardHeader className="bg-gradient-to-r from-blue-500 to-indigo-600 pb-4">
+          <Card className="border-0 shadow-lg bg-gradient-to-b from-white to-[color-mix(in_oklab,var(--accent-color)_10%,white)] overflow-hidden">
+            <CardHeader className="bg-[var(--accent-color)] pb-4">
               <div className="flex items-center">
                 <div className="p-2 bg-white bg-opacity-20 rounded-full mr-3">
                   <History className="h-5 w-5 text-white" />
                 </div>
                 <div>
                   <CardTitle className="text-white">Contact History</CardTitle>
-                  <CardDescription className="text-blue-100">
+                  <CardDescription className="text-white/80">
                     View contact changes, interactions, and audit trail
                   </CardDescription>
                 </div>

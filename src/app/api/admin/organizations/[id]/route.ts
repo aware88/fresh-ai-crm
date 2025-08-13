@@ -44,7 +44,34 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       users: undefined // Remove the users array
     };
 
-    return NextResponse.json({ organization: orgWithUserCount });
+    // Enrich with quick 30d metrics
+    const thirtyDaysAgoISO = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    const [{ data: usageRows }, { data: queueRows }] = await Promise.all([
+      supabase
+        .from('ai_usage_tracking')
+        .select('cost_usd')
+        .eq('organization_id', organizationId)
+        .gte('created_at', thirtyDaysAgoISO),
+      supabase
+        .from('email_queue')
+        .select('status')
+        .eq('organization_id', organizationId)
+        .gte('created_at', thirtyDaysAgoISO)
+    ]);
+    const messages = (usageRows || []).length;
+    const costUsd = (usageRows || []).reduce((sum: number, r: any) => sum + parseFloat(r.cost_usd || '0'), 0);
+    const autoApproved = (queueRows || []).filter((r: any) => (r.status || '').toLowerCase() === 'approved').length;
+
+    return NextResponse.json({ 
+      organization: {
+        ...orgWithUserCount,
+        metrics: {
+          monthly_ai_messages: messages,
+          monthly_ai_cost_usd: Math.round(costUsd * 100) / 100,
+          monthly_auto_approved: autoApproved
+        }
+      }
+    });
   } catch (error) {
     console.error('Error in organization API:', error);
     return NextResponse.json(

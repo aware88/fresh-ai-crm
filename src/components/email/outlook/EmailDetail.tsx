@@ -10,6 +10,7 @@ import EmailAttachments from './EmailAttachments';
 import EmailLanguageDetection from './EmailLanguageDetection';
 import AIDraftWindow from '../AIDraftWindow';
 import EmailRenderer from '../EmailRenderer';
+import { Phase2Insights } from '@/components/email/AnalysisResultsModal';
 
 interface EmailDetailProps {
   messageId: string;
@@ -64,6 +65,7 @@ export default function EmailDetail({ messageId, onReply, onReplyAll, onForward 
   const [error, setError] = useState<string | null>(null);
   const [aiSettings, setAiSettings] = useState<any>(null);
   const [showAIDraft, setShowAIDraft] = useState(false);
+  const [phase2, setPhase2] = useState<any>(null);
 
   // Load AI settings on mount
   useEffect(() => {
@@ -118,18 +120,50 @@ export default function EmailDetail({ messageId, onReply, onReplyAll, onForward 
     fetchEmail();
   }, [session, messageId]);
 
+  useEffect(() => {
+    async function loadPhase2() {
+      try {
+        const res = await fetch(`/api/emails/phase2/${messageId}`);
+        if (res.ok) {
+          const data = await res.json();
+          setPhase2(data.phase2 || null);
+        }
+      } catch (e) {
+        // no-op
+      }
+    }
+    if (messageId) loadPhase2();
+  }, [messageId]);
+
   // Handle AI draft functions
   const handleSendDraft = async (draftData: {
     subject: string;
     body: string;
     changes: any[];
     userNotes?: string;
+    attachments?: { name: string; contentType: string; contentBytes: string }[];
   }) => {
     try {
-      // This would typically call an API to send the email
-      console.log('Sending draft:', draftData);
-      // For now, just show the compose window with the draft
-      // In a real implementation, this would send the email
+      const toRecipients = email?.toRecipients?.map(r => r.emailAddress.address) || [];
+      const payload: any = {
+        subject: draftData.subject || email?.subject || '',
+        contentType: 'HTML',
+        content: draftData.body,
+        toRecipients,
+      };
+      if (draftData.attachments && draftData.attachments.length > 0) {
+        payload.attachments = draftData.attachments;
+      }
+
+      const resp = await fetch('/api/emails/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (!resp.ok) {
+        const e = await resp.json().catch(() => ({}));
+        throw new Error(e.error || resp.statusText);
+      }
       alert('Draft sent successfully!');
     } catch (error) {
       console.error('Error sending draft:', error);
@@ -156,7 +190,7 @@ export default function EmailDetail({ messageId, onReply, onReplyAll, onForward 
     : 'block';
 
   return (
-    <div className={`email-detail-container ${layoutClass}`}>
+    <div className="flex flex-col gap-4">
       <div className={`email-detail bg-white rounded-lg shadow p-6 ${showAIDraft && aiSettings?.aiDraftPosition === 'sidebar' ? 'flex-1' : ''}`}>
         <div className="email-header border-b pb-4 mb-4">
           <div className="flex items-center justify-between">
@@ -274,6 +308,9 @@ export default function EmailDetail({ messageId, onReply, onReplyAll, onForward 
         {/* Comments section */}
         <EmailNotes emailId={email.id} emailSubject={email.subject} emailFrom={email.from.emailAddress.address} />
       </div>
+
+      {/* Phase 2 Insights */}
+      <Phase2Insights phase2={phase2} />
 
       {/* AI Draft Window */}
       {showAIDraft && aiSettings?.aiDraftEnabled && (

@@ -333,6 +333,10 @@ TWILIO_PHONE_NUMBER=+1234567890
    TWILIO_ACCOUNT_SID=your_twilio_sid
    TWILIO_AUTH_TOKEN=your_twilio_token
    TWILIO_PHONE_NUMBER=+1234567890
+   NEXT_PUBLIC_SITE_URL=https://your-production-domain.com
+   
+   # WhatsApp Meta Cloud API (per organization stored via settings; access token can be stored transiently here if desired)
+   # WHATSAPP_META_ACCESS_TOKEN=...
    ```
 
 ## 🏃‍♂️ Running the Development Server

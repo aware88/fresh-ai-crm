@@ -104,13 +104,16 @@ export async function fetchUnreadEmails(): Promise<Email[]> {
           read: fetchedMessage.flags?.has('\\Seen') || false
         });
         
-        // Mark as seen if needed
-        if (!fetchedMessage.flags?.has('\\Seen')) {
-          try {
-            await client.messageFlagsAdd(i.toString(), ['\\Seen']);
-            console.log(`Marked message ${i} as seen`);
-          } catch (markError) {
-            console.error(`Error marking message ${i} as seen:`, markError);
+        // Dev-phase: do NOT mark as seen on the server; only reflect locally
+        const localOnly = process.env.EMAIL_LOCAL_READ_ONLY === 'true' || process.env.NEXT_PUBLIC_EMAIL_LOCAL_READ_ONLY === 'true';
+        if (!localOnly) {
+          if (!fetchedMessage.flags?.has('\\Seen')) {
+            try {
+              await client.messageFlagsAdd(i.toString(), ['\\Seen']);
+              console.log(`Marked message ${i} as seen`);
+            } catch (markError) {
+              console.error(`Error marking message ${i} as seen:`, markError);
+            }
           }
         }
       } catch (error) {

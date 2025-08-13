@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
 import { EnhancedSubscriptionService } from '@/lib/services/subscription-service-extension';
+import { aiUsageService } from '@/lib/services/ai-usage-service';
 
 /**
  * GET /api/organization/subscription-limits
@@ -36,8 +37,8 @@ export async function GET(request: NextRequest) {
       }, { status: 404 });
     }
 
-    // Get current usage counts
-    const [contactsResult, usersResult] = await Promise.all([
+    // Get current usage counts including AI usage
+    const [contactsResult, usersResult, aiUsageStats] = await Promise.all([
       supabase
         .from('contacts')
         .select('*', { count: 'exact', head: true })
@@ -45,7 +46,8 @@ export async function GET(request: NextRequest) {
       supabase
         .from('user_organizations')
         .select('*', { count: 'exact', head: true })
-        .eq('organization_id', organizationId)
+        .eq('organization_id', organizationId),
+      aiUsageService.getCurrentUsage(organizationId)
     ]);
 
     if (contactsResult.error || usersResult.error) {
@@ -57,6 +59,7 @@ export async function GET(request: NextRequest) {
 
     const currentContacts = contactsResult.count || 0;
     const currentUsers = usersResult.count || 0;
+    const currentAIMessages = aiUsageStats?.currentMessages || 0;
 
     // Get plan limits
     const contactLimit = typeof planData.features?.MAX_CONTACTS === 'number' ? planData.features.MAX_CONTACTS : 0;
@@ -66,10 +69,12 @@ export async function GET(request: NextRequest) {
     // Calculate remaining capacity
     const remainingContacts = contactLimit === -1 ? 'unlimited' : Math.max(0, contactLimit - currentContacts);
     const remainingUsers = userLimit === -1 ? 'unlimited' : Math.max(0, userLimit - currentUsers);
+    const remainingAIMessages = aiMessagesLimit === -1 ? 'unlimited' : Math.max(0, aiMessagesLimit - currentAIMessages);
 
     // Check if limits are reached
     const contactLimitReached = contactLimit !== -1 && currentContacts >= contactLimit;
     const userLimitReached = userLimit !== -1 && currentUsers >= userLimit;
+    const aiLimitReached = aiMessagesLimit !== -1 && currentAIMessages >= aiMessagesLimit;
 
     return NextResponse.json({
       plan: {
@@ -92,14 +97,15 @@ export async function GET(request: NextRequest) {
         },
         aiMessages: {
           max: aiMessagesLimit === -1 ? 'unlimited' : aiMessagesLimit,
-          // Note: Current AI message usage would need to be tracked separately
-          current: 0,
-          remaining: aiMessagesLimit === -1 ? 'unlimited' : aiMessagesLimit
+          current: currentAIMessages,
+          remaining: remainingAIMessages,
+          isLimitReached: aiLimitReached
         }
       },
       usage: {
         contactsPercentage: contactLimit === -1 || contactLimit === 0 ? 0 : Math.round((currentContacts / contactLimit) * 100),
-        usersPercentage: userLimit === -1 || userLimit === 0 ? 0 : Math.round((currentUsers / userLimit) * 100)
+        usersPercentage: userLimit === -1 || userLimit === 0 ? 0 : Math.round((currentUsers / userLimit) * 100),
+        aiMessagesPercentage: aiMessagesLimit === -1 || aiMessagesLimit === 0 ? 0 : Math.round((currentAIMessages / aiMessagesLimit) * 100)
       }
     }, { status: 200 });
 

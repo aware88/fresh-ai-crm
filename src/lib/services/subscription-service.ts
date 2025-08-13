@@ -112,6 +112,21 @@ export class SubscriptionService {
   }
 
   /**
+   * Get a subscription plan by name
+   */
+  async getSubscriptionPlanByName(planName: string): Promise<{ data: SubscriptionPlan | null; error: PostgrestError | null }> {
+    const supabase = await createServerClient();
+    
+    const { data, error } = await supabase
+      .from('subscription_plans')
+      .select('*')
+      .ilike('name', planName)
+      .single();
+    
+    return { data, error };
+  }
+
+  /**
    * Get an organization's current subscription
    */
   async getOrganizationSubscription(organizationId: string): Promise<{ data: OrganizationSubscription | null; error: PostgrestError | null }> {

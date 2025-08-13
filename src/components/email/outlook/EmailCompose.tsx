@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
-import { X, Send, Paperclip, ChevronDown } from 'lucide-react';
+import { X, Send, Paperclip, ChevronDown, Maximize2, Minimize2, Phone, Monitor, FileText } from 'lucide-react';
 import EmailAttachments from './EmailAttachments';
 import EmailSignature from './EmailSignature';
 import EmailLanguageDetection from './EmailLanguageDetection';
@@ -28,6 +28,9 @@ export default function EmailCompose({ mode, originalEmail, onClose, onSend }: E
   const [sending, setSending] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [showSignatureSelector, setShowSignatureSelector] = useState<boolean>(false);
+  const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
+  const [previewMode, setPreviewMode] = useState<'desktop' | 'mobile' | 'plain'>('desktop');
+  const [isRefining, setIsRefining] = useState<boolean>(false);
   
   const bodyRef = useRef<HTMLTextAreaElement>(null);
 
@@ -117,6 +120,36 @@ export default function EmailCompose({ mode, originalEmail, onClose, onSend }: E
     setAttachments(attachments.filter(att => att.id !== attachmentId));
   };
 
+  const handleRefine = async (command: string) => {
+    if (!body.trim()) return;
+    try {
+      setIsRefining(true);
+      const resp = await fetch('/api/emails/ai-refine', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          emailId: '',
+          originalEmail: { subject, from: '' },
+          currentSubject: subject,
+          currentBody: body,
+          refinementCommand: command,
+          draftContext: { tone: 'professional' }
+        })
+      });
+      if (!resp.ok) {
+        const e = await resp.json().catch(() => ({}));
+        throw new Error(e.error || resp.statusText);
+      }
+      const data = await resp.json();
+      setSubject(data.subject || subject);
+      setBody(data.body || body);
+    } catch (e:any) {
+      alert(`Refine failed: ${e.message || 'Unknown error'}`);
+    } finally {
+      setIsRefining(false);
+    }
+  };
+
   const handleSignatureSelect = (signatureHtml: string) => {
     // Insert signature at cursor position or at the end
     if (bodyRef.current) {
@@ -133,7 +166,7 @@ export default function EmailCompose({ mode, originalEmail, onClose, onSend }: E
   };
 
   return (
-    <div className="email-compose bg-white rounded-lg shadow-lg border p-4 max-w-4xl mx-auto">
+    <div className={`email-compose bg-white rounded-lg shadow-lg border p-4 ${isFullscreen ? 'fixed inset-4 z-50 max-w-none mx-0' : 'max-w-4xl mx-auto'}`}>
       <div className="flex justify-between items-center mb-4 border-b pb-2">
         <h2 className="text-xl font-semibold">
           {mode === 'new' && 'New Message'}
@@ -141,12 +174,21 @@ export default function EmailCompose({ mode, originalEmail, onClose, onSend }: E
           {mode === 'replyAll' && 'Reply All'}
           {mode === 'forward' && 'Forward'}
         </h2>
-        <button 
-          onClick={onClose}
-          className="p-1 hover:bg-gray-100 rounded"
-        >
-          <X size={20} />
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setIsFullscreen(v => !v)}
+            className="p-1 hover:bg-gray-100 rounded"
+            title={isFullscreen ? 'Exit full screen' : 'Full screen'}
+          >
+            {isFullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
+          </button>
+          <button 
+            onClick={onClose}
+            className="p-1 hover:bg-gray-100 rounded"
+          >
+            <X size={20} />
+          </button>
+        </div>
       </div>
       
       {error && (
@@ -220,12 +262,73 @@ export default function EmailCompose({ mode, originalEmail, onClose, onSend }: E
         </div>
         
         <div className="pt-2">
-          <RichTextEditor
-            value={body} 
-            onChange={setBody}
-            placeholder="Compose your email..."
-            height="300px"
-          />
+          {/* Preview mode toggle */}
+          <div className="flex items-center justify-end gap-2 mb-2 text-sm">
+            <span className="text-gray-500">Preview:</span>
+            <button
+              className={`px-2 py-1 rounded flex items-center gap-1 ${previewMode==='desktop' ? 'bg-gray-200' : 'hover:bg-gray-100'}`}
+              onClick={() => setPreviewMode('desktop')}
+              title="Desktop preview"
+            >
+              <Monitor size={14} /> Desktop
+            </button>
+            <button
+              className={`px-2 py-1 rounded flex items-center gap-1 ${previewMode==='mobile' ? 'bg-gray-200' : 'hover:bg-gray-100'}`}
+              onClick={() => setPreviewMode('mobile')}
+              title="Mobile preview"
+            >
+              <Phone size={14} /> Mobile
+            </button>
+            <button
+              className={`px-2 py-1 rounded flex items-center gap-1 ${previewMode==='plain' ? 'bg-gray-200' : 'hover:bg-gray-100'}`}
+              onClick={() => setPreviewMode('plain')}
+              title="Plain text preview"
+            >
+              <FileText size={14} /> Plain
+            </button>
+          </div>
+
+          {/* Quick AI refine buttons */}
+          <div className="flex items-center justify-end gap-2 mb-2 text-xs">
+            <span className="text-gray-500">AI:</span>
+            <button
+              disabled={isRefining}
+              className="px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-50"
+              onClick={() => handleRefine('Make this more concise')}
+            >Shorten</button>
+            <button
+              disabled={isRefining}
+              className="px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-50"
+              onClick={() => handleRefine('Expand with more detail where useful')}
+            >Expand</button>
+            <button
+              disabled={isRefining}
+              className="px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-50"
+              onClick={() => handleRefine('Improve clarity and fix grammar without changing meaning')}
+            >Clarity</button>
+            <button
+              disabled={isRefining}
+              className="px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-50"
+              onClick={() => handleRefine('Match a professional tone')}
+            >Tone</button>
+          </div>
+
+          {previewMode === 'plain' ? (
+            <textarea
+              readOnly
+              className="w-full border rounded p-3 text-sm text-gray-700 bg-gray-50 h-[300px]"
+              value={body.replace(/<[^>]*>/g, '').trim()}
+            />
+          ) : (
+            <div className={previewMode === 'mobile' ? 'max-w-sm mx-auto border rounded' : ''}>
+              <RichTextEditor
+                value={body} 
+                onChange={setBody}
+                placeholder="Compose your email..."
+                height="300px"
+              />
+            </div>
+          )}
         </div>
         
         {/* Language detection */}

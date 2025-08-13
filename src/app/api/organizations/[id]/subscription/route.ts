@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { SubscriptionService } from '@/lib/services/subscription-service';
+import { SubscriptionInitializationService } from '@/lib/services/subscription-initialization';
 import { EnhancedSubscriptionService } from '@/lib/services/subscription-service-extension';
 
 // GET /api/organizations/[id]/subscription
@@ -20,50 +20,49 @@ export async function GET(
     const { id } = await params;
     const organizationId = id;
     
-    // Check if user has access to this organization
-    // This would be replaced with your actual authorization logic
-    // For now, we'll assume the user has access if they're authenticated
+    console.log('🔍 Fetching subscription for organization:', organizationId);
+    console.log('🌍 Environment:', process.env.NODE_ENV);
     
-    const subscriptionService = new SubscriptionService();
+    const subscriptionInitService = new SubscriptionInitializationService();
     
-    // Get the organization's subscription
-    const { data: subscription, error: subscriptionError } = 
-      await subscriptionService.getOrganizationSubscription(organizationId);
+    // For your development organization, create premium subscription
+    if (organizationId === '577485fb-50b4-4bb2-a4c6-54b97e1545ad' && process.env.NODE_ENV === 'development') {
+      console.log('🚧 Development mode: Creating premium subscription...');
+      
+      const result = await subscriptionInitService.createDevelopmentPremiumSubscription(organizationId);
+      
+      if (result.error) {
+        console.error('❌ Development subscription error:', result.error);
+        // Fall back to normal flow
+      } else if (result.subscription && result.plan) {
+        console.log('✅ Development premium subscription created successfully');
+        return NextResponse.json(
+          { subscription: result.subscription, plan: result.plan },
+          { status: 200 }
+        );
+      }
+    }
     
-    if (subscriptionError) {
-      console.error('Error fetching subscription:', subscriptionError);
+         // Get existing subscription (no automatic creation)
+     const result = await subscriptionInitService.getOrganizationSubscription(organizationId);
+    
+    if (result.error) {
+      console.error('❌ Subscription error:', result.error);
       return NextResponse.json(
-        { error: 'Failed to fetch subscription' },
+        { error: result.error },
         { status: 500 }
       );
     }
     
-    // If no subscription exists, return empty data
-    if (!subscription) {
-      return NextResponse.json(
-        { subscription: null, plan: null },
-        { status: 200 }
-      );
-    }
-    
-    // Get the subscription plan
-    const { data: plan, error: planError } = 
-      await subscriptionService.getSubscriptionPlanById(subscription.subscription_plan_id);
-    
-    if (planError) {
-      console.error('Error fetching subscription plan:', planError);
-      return NextResponse.json(
-        { error: 'Failed to fetch subscription plan' },
-        { status: 500 }
-      );
-    }
+    console.log('✅ Successfully retrieved/created subscription');
     
     return NextResponse.json(
-      { subscription, plan },
+      { subscription: result.subscription, plan: result.plan },
       { status: 200 }
     );
+    
   } catch (error) {
-    console.error('Error in subscription endpoint:', error);
+    console.error('❌ Error in subscription endpoint:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -172,14 +171,11 @@ export async function DELETE(
     const { id } = await params;
     const organizationId = id;
     
-    // Check if user has access to this organization and can cancel subscriptions
-    // This would be replaced with your actual authorization logic
-    
-    const subscriptionService = new SubscriptionService();
+    const enhancedSubscriptionService = new EnhancedSubscriptionService();
     
     // Get the organization's subscription
     const { data: subscription, error: subscriptionError } = 
-      await subscriptionService.getOrganizationSubscription(organizationId);
+      await enhancedSubscriptionService.getOrganizationSubscription(organizationId);
     
     if (subscriptionError) {
       console.error('Error fetching subscription:', subscriptionError);
@@ -198,7 +194,7 @@ export async function DELETE(
     
     // Cancel the subscription
     const { data: canceledSubscription, error: cancelError } = 
-      await subscriptionService.cancelSubscription(subscription.id);
+      await enhancedSubscriptionService.cancelSubscription(subscription.id);
     
     if (cancelError) {
       console.error('Error canceling subscription:', cancelError);

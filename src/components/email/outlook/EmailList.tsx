@@ -75,18 +75,21 @@ export function EmailList({ onEmailSelect }: EmailListProps = {}) {
       onEmailSelect(emailId);
     }
     
-    // Mark email as read if it's not already read
+    // Mark email as read in-app (dev-phase: do NOT update provider)
     const email = emails.find(e => e.id === emailId);
     if (email && !email.isRead) {
       try {
-        await fetch(`/api/emails/${emailId}`, {
-          method: 'PATCH',
-          credentials: 'include', // Include cookies in the request
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ isRead: true }),
-        });
+        const localOnly = process.env.NEXT_PUBLIC_EMAIL_LOCAL_READ_ONLY === 'true';
+        if (!localOnly) {
+          await fetch(`/api/emails/${emailId}`, {
+            method: 'PATCH',
+            credentials: 'include', // Include cookies in the request
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ isRead: true }),
+          });
+        }
         
         // Update local state
         setEmails(emails.map(e => 

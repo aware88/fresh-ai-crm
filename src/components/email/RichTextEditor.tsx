@@ -30,6 +30,7 @@ export default function RichTextEditor({
   const modules = useMemo(() => ({
     toolbar: [
       [{ 'font': [] }, { 'size': ['small', false, 'large', 'huge'] }],
+      [{ 'header': [1, 2, 3, false] }],
       ['bold', 'italic', 'underline', 'strike'],
       [{ 'color': [] }, { 'background': [] }],
       [{ 'list': 'ordered'}, { 'list': 'bullet' }],
@@ -45,7 +46,7 @@ export default function RichTextEditor({
   }), []);
 
   const formats = [
-    'font', 'size',
+    'font', 'size', 'header',
     'bold', 'italic', 'underline', 'strike',
     'color', 'background',
     'list', 'bullet', 'indent',

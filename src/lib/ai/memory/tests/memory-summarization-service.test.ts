@@ -316,7 +316,7 @@ describe('MemorySummarizationService', () => {
   });
   
   describe('generateSummary', () => {
-    it('should generate a summary using OpenAI', async () => {
+  it('should generate a summary using OpenAI', async () => {
       // Mock OpenAI client response
       const mockOpenAI = {
         chat: {
@@ -332,7 +332,7 @@ describe('MemorySummarizationService', () => {
         }
       };
       
-      // @ts-ignore - Replace private OpenAI client
+      // @ts-expect-error - Replace private OpenAI client
       service.openai = mockOpenAI;
       
       const contents = ['Memory content 1', 'Memory content 2'];
@@ -342,7 +342,7 @@ describe('MemorySummarizationService', () => {
       expect(mockOpenAI.chat.completions.create).toHaveBeenCalled();
     });
     
-    it('should handle errors during summary generation', async () => {
+  it('should handle errors during summary generation', async () => {
       // Mock OpenAI client to throw an error
       const mockOpenAI = {
         chat: {
@@ -352,7 +352,7 @@ describe('MemorySummarizationService', () => {
         }
       };
       
-      // @ts-ignore - Replace private OpenAI client
+      // @ts-expect-error - Replace private OpenAI client
       service.openai = mockOpenAI;
       
       const contents = ['Memory content 1', 'Memory content 2'];

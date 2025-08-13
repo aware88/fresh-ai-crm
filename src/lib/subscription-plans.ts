@@ -26,7 +26,8 @@ export interface SubscriptionPlanDefinition {
 }
 
 /**
- * Simplified 3-tier subscription plans matching the landing page
+ * Optimized 3-tier subscription plans for maximum user acquisition and conversion
+ * Based on research of successful SaaS pricing strategies
  */
 export const subscriptionPlans: SubscriptionPlanDefinition[] = [
   {
@@ -37,17 +38,20 @@ export const subscriptionPlans: SubscriptionPlanDefinition[] = [
     annualPrice: 0,
     annualSavingsPercent: 0,
     badge: 'FREE BETA',
-    highlight: 'Best for early-stage founders',
+    highlight: 'Always Free',
     popular: false,
     features: {
       MAX_USERS: 1,
-      MAX_CONTACTS: 500,
-      AI_MESSAGES_LIMIT: 100,
-      PSYCHOLOGICAL_PROFILING: true,
+      MAX_CONTACTS: -1, // Unlimited contacts to remove friction
+      AI_MESSAGES_LIMIT: 50, // Reduced to create upgrade pressure
+      PSYCHOLOGICAL_PROFILING: false, // No psychological profiling - basic AI only
       EMAIL_SUPPORT: true,
       CORE_AUTOMATION: true,
+      EMAIL_SYNC: true, // Available in Starter to add value
+      // Premium features disabled
+      AI_FUTURE_ACCESS: false,
+      WHATSAPP_INTEGRATION: false,
       ADVANCED_PSYCHOLOGICAL_PROFILING: false,
-      EMAIL_SYNC: false,
       ERP_INTEGRATION: false,
       PRIORITY_SUPPORT: false,
       PHONE_SUPPORT: false,
@@ -56,7 +60,11 @@ export const subscriptionPlans: SubscriptionPlanDefinition[] = [
       ADVANCED_ANALYTICS: false,
       WHITE_LABEL: false,
       AI_CUSTOMIZATION: false,
-      MOBILE_APP_ACCESS: true
+      MOBILE_APP_ACCESS: true,
+      CRM_ASSISTANT: false, // No CRM Assistant in Starter
+      SALES_TACTICS: false, // No sales tactics/psychology in Starter
+      PERSONALITY_INSIGHTS: false, // No personality insights in Starter
+      AI_DRAFTING_ASSISTANCE: false // No AI drafting assistance in Starter
     },
     trialDays: 0,
     userLimit: 1,
@@ -66,23 +74,32 @@ export const subscriptionPlans: SubscriptionPlanDefinition[] = [
     id: 'pro',
     name: 'Pro',
     description: 'Perfect for growing teams',
-    monthlyPrice: 0, // Free during beta (will be $59 post-beta)
-    annualPrice: 0,
-    annualSavingsPercent: 0,
+    monthlyPrice: 0, // Free during beta (will be $49 post-beta)
+    annualPrice: 0, // Free during beta (will be $39 post-beta)
+    annualSavingsPercent: 20,
     badge: 'FREE BETA',
     highlight: 'Most Popular Choice',
     popular: true,
     features: {
       MAX_USERS: 5,
-      MAX_CONTACTS: 5000,
-      AI_MESSAGES_LIMIT: 250,
-      PSYCHOLOGICAL_PROFILING: true,
-      ADVANCED_PSYCHOLOGICAL_PROFILING: true,
-      EMAIL_SYNC: true,
-      ERP_INTEGRATION: true,
-      PRIORITY_SUPPORT: true,
+      MAX_CONTACTS: -1, // Unlimited contacts
+      AI_MESSAGES_LIMIT: 500, // 500 total messages shared across team
+      PSYCHOLOGICAL_PROFILING: true, // Full psychological profiling
       EMAIL_SUPPORT: true,
       CORE_AUTOMATION: true,
+      EMAIL_SYNC: true,
+      PRIORITY_SUPPORT: true,
+      // Pro-exclusive features
+      CRM_ASSISTANT: true, // CRM Assistant included
+      SALES_TACTICS: true, // Sales tactics and psychology enabled
+      PERSONALITY_INSIGHTS: true, // Personality insights enabled
+      AI_DRAFTING_ASSISTANCE: true, // AI drafting assistance enabled
+      AI_FUTURE_ACCESS: true,
+      WHATSAPP_INTEGRATION: true,
+      AI_FUTURE_MESSAGES_LIMIT: 500,
+      ADVANCED_PSYCHOLOGICAL_PROFILING: true,
+      // Premium features still disabled
+      ERP_INTEGRATION: false, // Only for organizations
       PHONE_SUPPORT: false,
       DEDICATED_SUCCESS_AGENT: false,
       CUSTOM_INTEGRATIONS: false,
@@ -111,17 +128,27 @@ export const subscriptionPlans: SubscriptionPlanDefinition[] = [
       AI_MESSAGES_LIMIT: -1, // Unlimited
       PSYCHOLOGICAL_PROFILING: true,
       ADVANCED_PSYCHOLOGICAL_PROFILING: true,
-      AI_CUSTOMIZATION: true,
+      EMAIL_SUPPORT: true,
+      CORE_AUTOMATION: true,
+      EMAIL_SYNC: true,
+      PRIORITY_SUPPORT: true,
+      PHONE_SUPPORT: true,
+      // All Pro features included
+      CRM_ASSISTANT: true,
+      SALES_TACTICS: true,
+      PERSONALITY_INSIGHTS: true,
+      AI_DRAFTING_ASSISTANCE: true,
+      AI_FUTURE_ACCESS: true,
+      WHATSAPP_INTEGRATION: true,
+      AI_FUTURE_MESSAGES_LIMIT: -1,
+      AI_FUTURE_PRIORITY_SUPPORT: true,
+      // Premium-exclusive features
+      ERP_INTEGRATION: true, // Metakocka integration
       DEDICATED_SUCCESS_AGENT: true,
       CUSTOM_INTEGRATIONS: true,
       ADVANCED_ANALYTICS: true,
       WHITE_LABEL: true,
-      EMAIL_SYNC: true,
-      ERP_INTEGRATION: true,
-      PRIORITY_SUPPORT: true,
-      PHONE_SUPPORT: true,
-      EMAIL_SUPPORT: true,
-      CORE_AUTOMATION: true,
+      AI_CUSTOMIZATION: true,
       MOBILE_APP_ACCESS: true
     },
     trialDays: 14,

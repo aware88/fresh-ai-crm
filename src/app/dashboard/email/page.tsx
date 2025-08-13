@@ -311,7 +311,7 @@ export default function EmailPage() {
         <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-4 mb-4">
           <div className="flex justify-between items-center">
             <div className="flex items-center space-x-4">
-              <div className="bg-gradient-to-r from-purple-600 to-blue-600 p-3 rounded-lg">
+              <div className="p-3 rounded-lg" style={{ background: 'var(--accent-color)' }}>
                 <Mail className="h-6 w-6 text-white" />
               </div>
               <div>
@@ -365,12 +365,12 @@ export default function EmailPage() {
 
         {/* Email Dashboard */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="inbox" className="flex items-center gap-2">
+          <TabsList className="grid w-full grid-cols-2 rounded-md border bg-slate-50 border-slate-200 h-12">
+            <TabsTrigger value="inbox" className="flex items-center gap-2 data-[state=active]:bg-[var(--accent-color)] data-[state=active]:text-white">
               <Inbox className="h-4 w-4" />
               Inbox
             </TabsTrigger>
-            <TabsTrigger value="compose" className="flex items-center gap-2">
+            <TabsTrigger value="compose" className="flex items-center gap-2 data-[state=active]:bg-[var(--accent-color)] data-[state=active]:text-white">
               <Send className="h-4 w-4" />
               Compose
             </TabsTrigger>

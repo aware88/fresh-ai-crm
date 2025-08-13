@@ -1,18 +1,18 @@
-'use client';
+"use client";
 
 import { SessionProvider } from 'next-auth/react';
-import { ThemeProvider } from './theme-provider';
+import { ThemeProvider as OrgThemeProvider } from '@/components/theme/ThemeProvider';
+import { Toaster } from '@/components/ui/toaster';
+import FaviconHydrator from './FaviconHydrator';
 
-export function Providers({ 
-  children 
-}: { 
-  children: React.ReactNode 
-}) {
+export function Providers({ children }: { children: React.ReactNode }) {
   return (
-    <SessionProvider>
-      <ThemeProvider>
+    <SessionProvider refetchInterval={0} refetchOnWindowFocus={false}>
+      <OrgThemeProvider>
         {children}
-      </ThemeProvider>
+        <Toaster />
+        <FaviconHydrator />
+      </OrgThemeProvider>
     </SessionProvider>
   );
 }

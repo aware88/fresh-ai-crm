@@ -597,6 +597,24 @@ export function MetakockaErrorLogs() {
     setKeyboardShortcutsDialogOpen(true);
   });
   
+  // Calculate stats (must be before any conditional returns to satisfy hooks rules)
+  useEffect(() => {
+    if (errorLogs.length > 0) {
+      const newErrors = errorLogs.filter(log => log.error_status === 'new').length;
+      const inProgressErrors = errorLogs.filter(log => log.error_status === 'in_progress').length;
+      const resolvedErrors = errorLogs.filter(log => log.error_status === 'resolved').length;
+      const uniqueOrgs = new Set(errorLogs.map(log => log.organization_id)).size;
+
+      setErrorStats({
+        totalErrors: errorLogs.length,
+        newErrors,
+        inProgressErrors,
+        resolvedErrors,
+        organizationCount: uniqueOrgs
+      });
+    }
+  }, [errorLogs]);
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -608,24 +626,6 @@ export function MetakockaErrorLogs() {
   
   // Apply filters to error logs
   const filteredLogs = applyFilters();
-  
-  // Calculate stats
-  useEffect(() => {
-    if (errorLogs.length > 0) {
-      const newErrors = errorLogs.filter(log => log.error_status === 'new').length;
-      const inProgressErrors = errorLogs.filter(log => log.error_status === 'in_progress').length;
-      const resolvedErrors = errorLogs.filter(log => log.error_status === 'resolved').length;
-      const uniqueOrgs = new Set(errorLogs.map(log => log.organization_id)).size;
-      
-      setErrorStats({
-        totalErrors: errorLogs.length,
-        newErrors,
-        inProgressErrors,
-        resolvedErrors,
-        organizationCount: uniqueOrgs
-      });
-    }
-  }, [errorLogs]);
   
   return (
     <div className="space-y-4">

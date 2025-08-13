@@ -170,7 +170,14 @@ export default function SubscriptionPage() {
   // Check if a plan is currently active
   const isPlanActive = (planName: string) => {
     const currentPlanName = getCurrentPlanName().toLowerCase();
-    return currentPlanName === planName.toLowerCase();
+    const targetPlan = planName.toLowerCase();
+    
+    // Handle Premium Advanced as Premium plan
+    if (targetPlan === 'premium') {
+      return currentPlanName.includes('premium');
+    }
+    
+    return currentPlanName === targetPlan;
   };
 
   // Pricing data based on screenshots
@@ -486,7 +493,7 @@ export default function SubscriptionPage() {
             </div>
 
             {/* Premium Plan */}
-            <div className="border rounded-lg p-4 hover:shadow-md transition-shadow">
+            <div className={`border rounded-lg p-4 hover:shadow-md transition-shadow ${isPlanActive('Premium') ? 'border-blue-500 bg-blue-50' : ''}`}>
               <div className="text-lg font-semibold">Premium</div>
               <div className="text-2xl font-bold mt-2">
                 ${getPlanPricing('premium', isAnnual).current}.00
@@ -497,12 +504,23 @@ export default function SubscriptionPage() {
               )}
               <div className="text-sm text-muted-foreground mt-1">Built for sales-led organizations</div>
               <div className="text-xs text-orange-600 font-medium mt-2">Enterprise Features</div>
+              {isPlanActive('Premium') && (
+                <div className="flex items-center gap-2 mt-2">
+                  <CheckCircle className="w-4 h-4 text-green-600" />
+                  <span className="text-sm text-green-600 font-medium">Active Plan</span>
+                </div>
+              )}
               <Button 
                 className="w-full mt-4" 
-                variant="outline"
-                onClick={() => window.location.href = 'mailto:tim@neuroai.agency?subject=Premium Subscription Inquiry&body=Hi, I am interested in the Premium subscription plan for my organization. Please contact me to discuss pricing and features.'}
+                variant={isPlanActive('Premium') ? 'secondary' : 'outline'}
+                disabled={isPlanActive('Premium')}
+                onClick={() => {
+                  if (!isPlanActive('Premium')) {
+                    window.location.href = 'mailto:tim@neuroai.agency?subject=Premium Subscription Inquiry&body=Hi, I am interested in the Premium subscription plan for my organization. Please contact me to discuss pricing and features.';
+                  }
+                }}
               >
-                Contact Sales
+                {isPlanActive('Premium') ? 'Current Plan' : 'Contact Sales'}
               </Button>
             </div>
           </div>

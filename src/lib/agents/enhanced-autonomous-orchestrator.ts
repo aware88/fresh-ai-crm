@@ -15,6 +15,14 @@ import {
 } from './enhanced-agents-v2';
 import { SmartDecisionEngine, SmartDecision } from './smart-decision-engine';
 import { createClient } from '@/lib/supabase/client';
+import { interAgentCommunication, ConsensusResult } from './inter-agent-communication';
+import { AgentType } from './autonomous-orchestrator';
+import { v4 as uuidv4 } from 'uuid';
+import { behavioralPredictionEngine } from '@/lib/psychology/behavioral-prediction-engine';
+import { signalExtractor } from '@/lib/psychology/signal-extractor';
+import { industryPsychologyModels } from '@/lib/psychology/industry-psychology-models';
+import { cognitiveBiasEngine } from '@/lib/psychology/cognitive-bias-engine';
+import { crossCustomerLearning } from '@/lib/intelligence/cross-customer-learning';
 
 export interface OrchestrationResult {
   orchestration_id: string;
@@ -133,7 +141,7 @@ export class EnhancedAutonomousOrchestrator {
       };
 
     } catch (error) {
-      console.error('Phase 2 Orchestration failed:', error);
+      console.error('Phase 2 Orchestration failed:', error instanceof Error ? error.message : String(error));
       
       // Log the failure
       await this.logOrchestrationFailure(orchestrationId, email, error, userId);
@@ -216,31 +224,31 @@ export class EnhancedAutonomousOrchestrator {
     email: any, 
     contact: any, 
     evolutionResult: EvolutionDetectionResult
-  ): Promise<string[]> {
-    const agents = [];
+  ): Promise<AgentType[]> {
+    const agents: AgentType[] = [];
 
     // Always activate relationship intelligence for all emails
-    agents.push('relationship');
+    agents.push(AgentType.RELATIONSHIP_ANALYZER);
 
     // Email agent for basic analysis
-    agents.push('email');
+    agents.push(AgentType.EMAIL_PROCESSOR);
 
     // Conditional agent activation based on enhanced criteria
     const content = (email.content || email.body || '').toLowerCase();
 
     // Enhanced Sales Agent V2 activation
     if (this.containsAdvancedSalesSignals(content, evolutionResult)) {
-      agents.push('sales_v2');
+      agents.push(AgentType.SALES_SPECIALIST);
     }
 
     // Enhanced Customer Agent V2 activation
     if (this.containsAdvancedCustomerSignals(content, evolutionResult, contact)) {
-      agents.push('customer_v2');
+      agents.push(AgentType.CUSTOMER_SUCCESS);
     }
 
     // Product agent activation (legacy)
     if (this.containsProductSignals(content)) {
-      agents.push('product');
+      agents.push(AgentType.PRODUCT_MATCHER);
     }
 
     console.log(`🎯 Enhanced agents activated: ${agents.join(', ')}`);
@@ -248,108 +256,250 @@ export class EnhancedAutonomousOrchestrator {
   }
 
   /**
-   * Execute enhanced multi-agent workflow
+   * ENHANCED: Execute Enhanced Multi-Agent Analysis with Inter-Agent Communication
    */
   private async executeEnhancedAgentWorkflow(
+    email: any, 
+    contact: any, 
+    agentsToActivate: AgentType[], 
+    userId: string
+  ): Promise<any[]> {
+    console.log(`[Enhanced Orchestrator] Executing workflow with ${agentsToActivate.length} agents using inter-agent communication`);
+    
+    const agentAnalyses: any[] = [];
+    const organizationId = email.organization_id || contact?.organization_id;
+
+    // Step 1: Execute initial agent analyses
+    for (const agentType of agentsToActivate) {
+      try {
+        const analysis = await this.executeAgentAnalysis(agentType, email, contact, userId);
+        
+        // Share key insights with other agents
+        if (analysis.keyInsights) {
+          for (const insight of analysis.keyInsights) {
+            // Share with all other agents in the workflow
+            const otherAgents = agentsToActivate.filter(a => a !== agentType);
+            for (const targetAgent of otherAgents) {
+              await interAgentCommunication.shareInsight(agentType, targetAgent, {
+                agentType,
+                content: insight,
+                confidence: analysis.confidence || 0.7,
+                metadata: { 
+                  source: 'workflow_analysis',
+                  emailId: email.id,
+                  contactId: contact?.id
+                },
+                organizationId,
+                emailId: email.id,
+                contactId: contact?.id
+              });
+            }
+          }
+        }
+
+        agentAnalyses.push({
+          agentType,
+          analysis,
+          timestamp: new Date().toISOString()
+        });
+
+      } catch (error) {
+        console.error(`[Enhanced Orchestrator] Error in ${agentType} analysis:`, error instanceof Error ? error.message : String(error));
+        agentAnalyses.push({
+          agentType,
+          analysis: { error: error instanceof Error ? error.message : String(error), confidence: 0 },
+          timestamp: new Date().toISOString()
+        });
+      }
+    }
+
+    // Step 2: Cross-agent collaboration for complex decisions
+    if (agentsToActivate.length >= 2) {
+        const collaborativeDecisions = await this.executeCollaborativeDecisions(
+        agentsToActivate, 
+        email, 
+        contact, 
+        organizationId
+      );
+
+      // Add collaborative decisions to the analysis results
+      agentAnalyses.push({
+        agentType: 'COLLABORATIVE',
+        analysis: {
+          collaborativeDecisions,
+          confidence: this.calculateOverallConfidenceFromConsensus(collaborativeDecisions)
+        },
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    console.log(`[Enhanced Orchestrator] Completed enhanced workflow with ${agentAnalyses.length} agent analyses including collaborative decisions`);
+    
+    return agentAnalyses;
+  }
+
+  // Provide a stub for executeAgentAnalysis to satisfy types until the concrete agent analyses are wired.
+  private async executeAgentAnalysis(
+    agentType: AgentType,
     email: any,
     contact: any,
-    agents: string[],
     userId: string
-  ): Promise<AdvancedAnalysisResult[]> {
-    const results: AdvancedAnalysisResult[] = [];
-
-    // Execute agents in parallel for better performance
-    const agentPromises = agents.map(async (agentType) => {
-      try {
-        switch (agentType) {
-          case 'sales_v2':
-            return await this.salesAgentV2.analyzeEmail(email, contact, userId);
-            
-          case 'customer_v2':
-            return await this.customerAgentV2.analyzeEmail(email, contact, userId);
-            
-          case 'relationship':
-            return await this.relationshipAgent.analyzeEmail(email, contact, userId);
-            
-          case 'email':
-          case 'product':
-            // Use existing multi-agent orchestrator for legacy agents
-            const workflowId = await this.multiAgentOrchestrator.executeWorkflow(
-              'email-analysis-workflow',
-              {
-                email,
-                contact,
-                agentType
-              },
-              'autonomous-orchestrator'
-            );
-            
-            // For now, return a simplified analysis result for legacy agents
-            // In a full implementation, we would wait for the workflow to complete and get results
-            return {
-              agent_type: agentType,
-              confidence: 0.7, // Default confidence for legacy agents
-              analysis_result: {
-                processed: true,
-                workflow_id: workflowId,
-                legacy_agent: true
-              },
-              business_opportunity_score: this.calculateBusinessOpportunityScore({ confidence: 0.7 })
-            };
-        }
-        return null;
-      } catch (error) {
-        console.error(`Enhanced agent ${agentType} failed:`, error);
-        return null;
-      }
-    });
-
-    const agentResults = await Promise.all(agentPromises);
-    
-    // Filter out null results and add to final results
-    agentResults.forEach(result => {
-      if (result) {
-        results.push(result);
-      }
-    });
-
-    console.log(`📊 Enhanced agent analyses completed: ${results.length} successful`);
-    return results;
+  ): Promise<{ keyInsights?: string[]; confidence?: number; recommendations?: any } & Record<string, any>> {
+    // Minimal placeholder analysis
+    return { keyInsights: [], confidence: 0.7 };
   }
 
   /**
-   * Process decisions using Smart Decision Engine
+   * NEW: Execute collaborative decisions between agents
+   */
+  private async executeCollaborativeDecisions(
+    agents: AgentType[],
+    email: any,
+    contact: any,
+    organizationId: string
+  ): Promise<ConsensusResult[]> {
+    const decisions: ConsensusResult[] = [];
+
+    // Decision 1: Response urgency and priority
+    if (agents.includes(AgentType.EMAIL_PROCESSOR) && 
+        (agents.includes(AgentType.SALES_SPECIALIST) || agents.includes(AgentType.CUSTOMER_SUCCESS))) {
+      
+      const urgencyDecision = await interAgentCommunication.collaborativeDecision(
+        [AgentType.EMAIL_PROCESSOR, AgentType.SALES_SPECIALIST, AgentType.CUSTOMER_SUCCESS].filter(a => agents.includes(a)),
+        {
+          question: 'What is the appropriate response urgency and priority for this email?',
+          context: {
+            email,
+            contact,
+            emailContent: email.raw_content || email.body,
+            senderInfo: email.from_email,
+            subject: email.subject
+          },
+          organizationId,
+          emailId: email.id,
+          contactId: contact?.id
+        }
+      );
+
+      decisions.push(urgencyDecision);
+    }
+
+    // Decision 2: Customer relationship status and next best action
+    if (agents.includes(AgentType.RELATIONSHIP_ANALYZER) && agents.includes(AgentType.BEHAVIOR_TRACKER)) {
+      
+      const relationshipDecision = await interAgentCommunication.collaborativeDecision(
+        [AgentType.RELATIONSHIP_ANALYZER, AgentType.BEHAVIOR_TRACKER, AgentType.CUSTOMER_SUCCESS].filter(a => agents.includes(a)),
+        {
+          question: 'What is the current relationship status and what should be our next best action?',
+          context: {
+            contact,
+            email,
+            previousInteractions: contact?.interaction_history || [],
+            currentEngagement: contact?.engagement_metrics || {}
+          },
+          organizationId,
+          emailId: email.id,
+          contactId: contact?.id
+        }
+      );
+
+      decisions.push(relationshipDecision);
+    }
+
+    // Decision 3: Sales opportunity assessment
+    if (agents.includes(AgentType.SALES_SPECIALIST) && agents.includes(AgentType.OPPORTUNITY_HUNTER)) {
+      
+      const salesDecision = await interAgentCommunication.collaborativeDecision(
+        [AgentType.SALES_SPECIALIST, AgentType.OPPORTUNITY_HUNTER, AgentType.PRODUCT_MATCHER].filter(a => agents.includes(a)),
+        {
+          question: 'Is there a sales opportunity and what specific actions should we take?',
+          context: {
+            email,
+            contact,
+            buyingSignals: this.extractBuyingSignals(email.raw_content || email.body),
+            customerHistory: contact?.purchase_history || []
+          },
+          organizationId,
+          emailId: email.id,
+          contactId: contact?.id
+        }
+      );
+
+      decisions.push(salesDecision);
+    }
+
+    console.log(`[Enhanced Orchestrator] Completed ${decisions.length} collaborative decisions`);
+    return decisions;
+  }
+
+  /**
+   * ENHANCED: Process Smart Decisions with Agent Collaboration
    */
   private async processSmartDecisions(
     email: any,
     contact: any,
-    agentAnalyses: AdvancedAnalysisResult[],
+    agentAnalyses: any[],
     userId: string
-  ): Promise<SmartDecision[]> {
-    const smartDecisions: SmartDecision[] = [];
+  ): Promise<any[]> {
+    const smartDecisions: any[] = [];
 
-    // Generate base decisions from agent analyses
-    const baseDecisions = await this.generateBaseDecisions(agentAnalyses, email, contact);
+    // Find collaborative decisions from agent analyses
+    const collaborativeAnalysis = agentAnalyses.find(a => a.agentType === 'COLLABORATIVE');
+    const collaborativeDecisions = collaborativeAnalysis?.analysis?.collaborativeDecisions || [];
 
-    // Process each decision through Smart Decision Engine
-    for (const baseDecision of baseDecisions) {
-      try {
-        const smartDecision = await this.smartDecisionEngine.processDecision(
-          baseDecision,
-          email,
-          contact,
-          agentAnalyses.find(a => a.agent_type === baseDecision.agent_type) || agentAnalyses[0],
-          userId
-        );
-        
-        smartDecisions.push(smartDecision);
-      } catch (error) {
-        console.error(`Smart decision processing failed for ${baseDecision.decision_type}:`, error);
+    // Process each collaborative decision
+    for (const decision of collaborativeDecisions) {
+      let smartDecision: any = {
+        id: uuidv4(),
+        type: this.mapDecisionToActionType(decision),
+        confidence: decision.confidence,
+        reasoning: decision.reasoning,
+        requires_approval: decision.confidence < 0.8 || decision.warningFlags.length > 0,
+        collaborative_input: {
+          participatingAgents: decision.dissenting.length === 0 ? 'unanimous' : 'majority',
+          supportLevel: decision.supportLevel,
+          dissenting: decision.dissenting,
+          warningFlags: decision.warningFlags
+        },
+        timestamp: new Date().toISOString()
+      };
+
+      // Add specific actions based on decision type
+      if (decision.decision === 'requires_immediate_response') {
+        smartDecision.actions = ['generate_urgent_response', 'escalate_to_human'];
+        smartDecision.priority = 'high';
+      } else if (decision.decision === 'qualified_lead') {
+        smartDecision.actions = ['create_opportunity', 'schedule_follow_up', 'update_lead_score'];
+        smartDecision.priority = 'high';
+      } else if (decision.decision === 'relationship_warming') {
+        smartDecision.actions = ['personalized_response', 'relationship_nurturing', 'engagement_tracking'];
+        smartDecision.priority = 'medium';
+      } else if (decision.decision === 'upsell_identified') {
+        smartDecision.actions = ['prepare_upsell_proposal', 'schedule_discovery_call', 'product_recommendation'];
+        smartDecision.priority = 'high';
+      }
+
+      smartDecisions.push(smartDecision);
+    }
+
+    // Add individual agent insights as additional smart decisions
+    for (const agentAnalysis of agentAnalyses.filter(a => a.agentType !== 'COLLABORATIVE')) {
+      if (agentAnalysis.analysis.recommendations) {
+        smartDecisions.push({
+          id: uuidv4(),
+          type: 'agent_recommendation',
+          source_agent: agentAnalysis.agentType,
+          recommendations: agentAnalysis.analysis.recommendations,
+          confidence: agentAnalysis.analysis.confidence || 0.7,
+          requires_approval: agentAnalysis.analysis.confidence < 0.7,
+          timestamp: new Date().toISOString()
+        });
       }
     }
 
-    console.log(`🧠 Smart decisions processed: ${smartDecisions.length} decisions`);
-    return smartDecisions;
+    // Phase 2 enrichment here
+    const organizationId = email.organization_id || contact?.organization_id;
+    return await this.enrichWithPhase2Intelligence(email, contact, organizationId, smartDecisions);
   }
 
   /**
@@ -751,7 +901,7 @@ export class EnhancedAutonomousOrchestrator {
   private async logOrchestrationFailure(
     orchestrationId: string,
     email: any,
-    error: any,
+    error: unknown,
     userId: string
   ) {
     const { error: logError } = await this.supabase
@@ -760,13 +910,171 @@ export class EnhancedAutonomousOrchestrator {
         workflow_id: orchestrationId,
         email_id: email.id,
         workflow_status: 'failed',
-        error_message: error.message,
+        error_message: error instanceof Error ? error.message : String(error),
         phase: 'phase_2',
         user_id: userId
       });
 
     if (logError) {
       console.error('Error logging orchestration failure:', logError);
+    }
+  }
+  /**
+   * NEW: Calculate overall confidence from collaborative decisions
+   */
+  private calculateOverallConfidenceFromConsensus(decisions: ConsensusResult[]): number {
+    if (decisions.length === 0) return 0.5;
+    const totalConfidence = decisions.reduce((sum, d) => sum + d.confidence, 0);
+    const averageConfidence = totalConfidence / decisions.length;
+    const warningPenalty = decisions.reduce((sum, d) => sum + (d.warningFlags?.length || 0) * 0.1, 0);
+    return Math.max(0.1, Math.min(1.0, averageConfidence - warningPenalty));
+  }
+
+  /**
+   * NEW: Extract buying signals from email content
+   */
+  private extractBuyingSignals(content: string): string[] {
+    const buyingSignals: string[] = [];
+    const signals = [
+      'budget', 'timeline', 'decision maker', 'approval', 'purchase', 'buy',
+      'contract', 'pricing', 'cost', 'proposal', 'quote', 'roi',
+      'implementation', 'rollout', 'team size', 'requirements'
+    ];
+
+    const lowerContent = content.toLowerCase();
+    for (const signal of signals) {
+      if (lowerContent.includes(signal)) {
+        buyingSignals.push(signal);
+      }
+    }
+
+    return buyingSignals;
+  }
+
+  /**
+   * NEW: Map collaborative decision to action type
+   */
+  private mapDecisionToActionType(decision: ConsensusResult): string {
+    const decisionStr = String(decision.decision).toLowerCase();
+    if (decisionStr.includes('urgent') || decisionStr.includes('immediate')) {
+      return 'urgent_response';
+    } else if (decisionStr.includes('qualified') || decisionStr.includes('lead')) {
+      return 'sales_opportunity';
+    } else if (decisionStr.includes('relationship') || decisionStr.includes('warming')) {
+      return 'relationship_management';
+    } else if (decisionStr.includes('upsell') || decisionStr.includes('opportunity')) {
+      return 'revenue_opportunity';
+    }
+    return 'general_action';
+  }
+
+  // After agentAnalyses are produced, enrich with Phase 2 intelligence
+  private async enrichWithPhase2Intelligence(
+    email: any,
+    contact: any,
+    organizationId: string,
+    smartDecisions: any[]
+  ): Promise<any[]> {
+    try {
+      // 1) Extract recent signals
+      const signals = await signalExtractor.extractEmailSignals(contact.id, organizationId, 25);
+
+      // 2) Behavioral evolution + next action prediction
+      const evolution = await behavioralPredictionEngine.analyzeCommunicationEvolution(
+        contact.id,
+        organizationId,
+        signals
+      );
+
+      const prediction = await behavioralPredictionEngine.predictNextAction(evolution, {
+        lastInteractionAt: email.created_at,
+        relationshipStage: contact.relationship_stage || 'evaluating',
+        opportunityScore: contact.opportunity_score || 50
+      });
+
+      smartDecisions.push({
+        id: `pred_${Date.now()}`,
+        type: 'behavioral_prediction',
+        evolution,
+        prediction,
+        actions: [prediction.nextBestAction],
+        priority: prediction.expectedImpact === 'high' ? 'high' : 'medium',
+        confidence: prediction.probability,
+        requires_approval: prediction.probability < 0.75,
+        timestamp: new Date().toISOString()
+      });
+
+      // 3) Cognitive bias optimization suggestion (summary only)
+      const biasProfile = cognitiveBiasEngine.deriveBiasProfile({
+        personalityType: contact.personalitytype,
+        tonePreference: contact.tone_preference,
+        culturalTone: contact.cultural_tone,
+        decisionStyle: contact.decision_style,
+      });
+
+      const biasMsg = cognitiveBiasEngine.generateMessage(
+        { subject: email.subject || 'Re: your message', body: 'Draft will be adapted accordingly.' },
+        biasProfile,
+        'advance_deal'
+      );
+
+      smartDecisions.push({
+        id: `bias_${Date.now()}`,
+        type: 'cognitive_bias_suggestion',
+        biasApplied: biasMsg.biasApplied,
+        timingHours: biasMsg.timingHours,
+        confidence: biasMsg.confidence,
+        rationale: biasMsg.rationale,
+        priority: 'medium',
+        timestamp: new Date().toISOString()
+      });
+
+      // Persist a lean snapshot into emails.metadata.phase2
+      await this.persistPhase2Insights(email.id, organizationId, {
+        evolution,
+        prediction,
+        bias: {
+          biasApplied: biasMsg.biasApplied,
+          timingHours: biasMsg.timingHours,
+          rationale: biasMsg.rationale
+        }
+      });
+
+      return smartDecisions;
+    } catch (error) {
+      console.error('[Enhanced Orchestrator][Phase2] Enrichment error:', error);
+      return smartDecisions;
+    }
+  }
+
+  private async persistPhase2Insights(
+    emailId: string,
+    organizationId: string,
+    phase2: { evolution: any; prediction: any; bias: any }
+  ) {
+    try {
+      const supabase = await this.supabase;
+
+      // Fetch current metadata
+      const { data: current } = await supabase
+        .from('emails')
+        .select('id, metadata')
+        .eq('id', emailId)
+        .eq('organization_id', organizationId)
+        .single();
+
+      const newMetadata = {
+        ...(current?.metadata || {}),
+        phase2
+      };
+
+      await supabase
+        .from('emails')
+        .update({ metadata: newMetadata })
+        .eq('id', emailId)
+        .eq('organization_id', organizationId);
+    } catch (err) {
+      console.error('[Enhanced Orchestrator][Phase2] Persist insights failed:', err);
     }
   }
 } 

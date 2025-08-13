@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import { supabase } from '@/lib/supabaseClient';
+import { createClient as createServerClient } from '@/lib/supabase/server';
+import { createServiceRoleClient } from '@/lib/supabase/service-role';
 
 export async function GET(request: Request) {
   try {
@@ -15,24 +16,62 @@ export async function GET(request: Request) {
     }
 
     const userId = session.user.id;
-    const organizationId = userId; // Use user ID as organization ID for now
 
-    // Fetch products from database
-    const { data: products, error } = await supabase
-      .from('products')
-      .select('*')
-      .eq('organization_id', organizationId)
-      .order('created_at', { ascending: false });
+    // Resolve organization id from preferences or organization membership
+    const serverSupabase = await createServerClient();
+    let organizationId: string | null = null;
+    try {
+      const { data: prefs } = await serverSupabase
+        .from('user_preferences')
+        .select('current_organization_id')
+        .eq('user_id', userId)
+        .maybeSingle();
+      if (prefs?.current_organization_id) {
+        organizationId = prefs.current_organization_id;
+      } else {
+        const { data: member } = await serverSupabase
+          .from('organization_members')
+          .select('organization_id')
+          .eq('user_id', userId)
+          .maybeSingle();
+        if (member?.organization_id) organizationId = member.organization_id;
+      }
+    } catch {}
 
-    if (error) {
-      console.error('Error fetching products:', error);
-      return NextResponse.json(
-        { error: 'Failed to fetch products' },
-        { status: 500 }
-      );
+    const admin = createServiceRoleClient();
+
+    // Fetch products for organization and user separately, then merge
+    let orgProducts: any[] = [];
+    let userProducts: any[] = [];
+    try {
+      if (organizationId) {
+        const { data } = await admin
+          .from('products')
+          .select('*')
+          .eq('organization_id', organizationId)
+          .order('created_at', { ascending: false });
+        orgProducts = data || [];
+      }
+      // Always fetch user-scoped as well
+      const { data: userData } = await admin
+        .from('products')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+      userProducts = userData || [];
+    } catch (e) {
+      console.error('Error fetching products (admin):', e);
+      return NextResponse.json({ error: 'Failed to fetch products' }, { status: 500 });
     }
 
-    return NextResponse.json({ products: products || [] });
+    // Merge unique by id
+    const map: Record<string, any> = {};
+    [...orgProducts, ...userProducts].forEach((p) => {
+      if (p && p.id) map[p.id] = p;
+    });
+    const merged = Object.values(map);
+
+    return NextResponse.json({ products: merged });
   } catch (error) {
     console.error('Products API error:', error);
     return NextResponse.json(

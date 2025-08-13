@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { useOrganization } from '@/hooks/useOrganization';
+import { formatPriceEUR } from '@/lib/subscription-plans-v2';
 
 // Types for dashboard statistics
 interface DashboardStats {
@@ -52,110 +53,67 @@ export default function DashboardPage() {
   const { organization } = useOrganization();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [aiSavings, setAiSavings] = useState<null | {
+    time: { minutes: number; hours: number; workDays: number };
+    cost: { hourlyRateUsd: number; savedUsd: number };
+    breakdown: { minutesByType: Record<string, number> };
+    headline?: string;
+    topContributor?: string | null;
+  }>(null);
+  const [aiQuality, setAiQuality] = useState<null | {
+    acceptanceRate: number;
+    sampleSize: number;
+    avgChanges: number;
+    avgLengthChangePct: number;
+    autoVsSemi: { autoApproved: number; requiresReview: number; completed: number };
+  }>(null);
 
   useEffect(() => {
-    if (status === 'authenticated') {
-      const fetchDashboardData = async () => {
-        try {
-          const [contactsRes, suppliersRes, productsRes, emailStatusRes] = await Promise.all([
-            fetch('/api/contacts').then(r => r.ok ? r.json() : { contacts: [] }),
-            fetch('/api/suppliers').then(r => r.ok ? r.json() : { suppliers: [] }),
-            fetch('/api/products').then(r => r.ok ? r.json() : { products: [] }),
-            fetch('/api/email/status').then(r => r.ok ? r.json() : { accounts: [] })
-          ]);
+    const fetchDashboardData = async () => {
+      try {
+        setLoading(true);
+        
+        // Production endpoints
+        const [dashboardRes, usageRes, emailAccountsRes] = await Promise.all([
+          fetch('/api/dashboard/overview').then(r => r.ok ? r.json() : null),
+          fetch('/api/usage/dashboard-v2').then(r => r.ok ? r.json() : null),
+          fetch('/api/dashboard/email-accounts').then(r => r.ok ? r.json() : null)
+        ]);
 
-          // Calculate statistics
-          const totalContacts = contactsRes.contacts?.length || 0;
-          const totalSuppliers = suppliersRes.suppliers?.length || 0;
-          const totalProducts = productsRes.products?.length || 0;
-          const emailAccounts = emailStatusRes.accounts?.length || 0;
-
-          // Generate real recent activity based on actual data
-          const recentActivity = [];
-          
-          // Add contact-related activities
-          if (totalContacts > 0) {
-            recentActivity.push({
-              id: 'contacts',
-              type: 'contact',
-              title: 'Contact Management',
-              message: `You have ${totalContacts} contact${totalContacts !== 1 ? 's' : ''} in your database`,
-              time: 'Current',
-              icon: 'Users',
-              color: 'blue'
-            });
-          }
-          
-          // Add supplier-related activities
-          if (totalSuppliers > 0) {
-            recentActivity.push({
-              id: 'suppliers',
-              type: 'supplier',
-              title: 'Supplier Network',
-              message: `${totalSuppliers} supplier${totalSuppliers !== 1 ? 's' : ''} available for procurement`,
-              time: 'Active',
-              icon: 'Building2',
-              color: 'purple'
-            });
-          }
-          
-          // Add product-related activities
-          if (totalProducts > 0) {
-            recentActivity.push({
-              id: 'products',
-              type: 'product',
-              title: 'Product Catalog',
-              message: `${totalProducts} product${totalProducts !== 1 ? 's' : ''} in your inventory`,
-              time: 'Updated',
-              icon: 'Package',
-              color: 'orange'
-            });
-          }
-          
-          // Add email-related activities
-          if (emailAccounts > 0) {
-            recentActivity.push({
-              id: 'email',
-              type: 'email',
-              title: 'Email Integration',
-              message: `${emailAccounts} email account${emailAccounts !== 1 ? 's' : ''} connected for AI analysis`,
-              time: 'Connected',
-              icon: 'Mail',
-              color: 'green'
-            });
-          }
-          
-          // Add default activity if no data
-          if (recentActivity.length === 0) {
-            recentActivity.push({
-              id: 'welcome',
-              type: 'system',
-              title: 'Welcome to ARIS CRM',
-              message: 'Start by connecting your email or adding contacts',
-              time: 'Getting started',
-              icon: 'Sparkles',
-              color: 'pink'
-            });
-          }
-
-          setStats({ 
-            totalContacts, 
-            totalSuppliers, 
-            totalProducts, 
-            totalOrders: 0, 
-            emailAccounts,
-            recentActivity 
-          });
-        } catch (error) {
-          console.error('Error fetching dashboard data:', error);
-        } finally {
-          setLoading(false);
+        if (dashboardRes) {
+          const stats: DashboardStats = {
+            totalContacts: dashboardRes.totalContacts,
+            totalSuppliers: dashboardRes.totalSuppliers,
+            totalProducts: dashboardRes.totalProducts,
+            totalOrders: dashboardRes.totalOrders,
+            emailAccounts: emailAccountsRes?.count || dashboardRes.emailAccounts || 0,
+            recentActivity: dashboardRes.recentActivity || []
+          };
+          console.log('📊 Dashboard stats:', stats);
+          setStats(stats);
         }
-      };
 
-      fetchDashboardData();
-    }
-  }, [status]);
+        if (usageRes && usageRes.savings) {
+          setAiSavings({
+            ...usageRes.savings,
+            headline: usageRes.insights?.savings?.headline,
+            topContributor: usageRes.insights?.savings?.topContributor || usageRes.insights?.efficiency?.mostUsedFeature || null
+          });
+        }
+
+        if (usageRes && usageRes.quality) {
+          setAiQuality(usageRes.quality);
+        }
+        
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, []);
 
   // Loading state
   if (loading) {
@@ -194,15 +152,15 @@ export default function DashboardPage() {
   return (
     <div className="space-y-8">
       {/* Hero Section */}
-      <div className="text-center py-8 bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl border border-blue-100">
-        <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent mb-2">
+      <div className="text-center py-8 rounded-2xl border border-gray-100 bg-white">
+        <h1 className="text-4xl font-bold tracking-tight aris-text-gradient mb-2">
           Welcome back{session?.user?.name ? `, ${session.user.name}` : ''}!
         </h1>
         <p className="text-lg text-muted-foreground mb-6">
           Here's an overview of your business performance and recent activity.
         </p>
         <div className="flex items-center justify-center space-x-4">
-          <Button asChild className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
+          <Button asChild>
             <Link href="/dashboard/email">
               <Sparkles className="mr-2 h-4 w-4" />
               Email Agent
@@ -219,7 +177,7 @@ export default function DashboardPage() {
 
       {/* KPI Cards */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        <Card className="border-0 shadow-lg bg-gradient-to-br from-blue-50 to-blue-100">
+        <Card className="border border-gray-200 shadow-sm bg-white">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-blue-800">Total Contacts</CardTitle>
             <div className="p-2 bg-blue-200 rounded-full">
@@ -343,29 +301,72 @@ export default function DashboardPage() {
               <CardHeader>
                 <CardTitle className="flex items-center">
                   <Sparkles className="mr-2 h-5 w-5 text-purple-600" />
-                  AI Features
+                  AI Impact
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium">Email Agent</p>
-                      <p className="text-sm text-muted-foreground">AI-powered personality insights</p>
+                  {aiSavings ? (
+                    <div className="space-y-2">
+                      <p className="text-sm text-muted-foreground">This month</p>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-medium">Time Saved</p>
+                          <p className="text-sm text-muted-foreground">~{aiSavings.time.hours}h ({aiSavings.time.minutes} min)</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-medium">Cost Saved</p>
+                          <p className="text-sm text-muted-foreground">${aiSavings.cost.savedUsd.toFixed(2)}</p>
+                        </div>
+                      </div>
+                      {aiQuality && (
+                        <div className="grid grid-cols-3 gap-4 text-sm pt-2">
+                          <div>
+                            <p className="text-muted-foreground">Acceptance</p>
+                            <p className="font-medium">{aiQuality.acceptanceRate}%</p>
+                          </div>
+                          <div>
+                            <p className="text-muted-foreground">Avg changes</p>
+                            <p className="font-medium">{aiQuality.avgChanges}</p>
+                          </div>
+                          <div>
+                            <p className="text-muted-foreground">Auto approvals</p>
+                            <p className="font-medium">{aiQuality.autoVsSemi.autoApproved}</p>
+                          </div>
+                        </div>
+                      )}
+                      {!aiSavings && (
+                        <div className="text-sm text-muted-foreground">No AI usage yet. Connect an email account to start tracking savings.</div>
+                      )}
+                      {aiSavings.topContributor && (
+                        <p className="text-xs text-muted-foreground">Top contributor: {aiSavings.topContributor.replace('_', ' ')}</p>
+                      )}
+                      <div className="pt-3 flex items-center gap-2">
+                        <Button size="sm" asChild>
+                          <Link href="/dashboard/email" className="inline-flex items-center w-full h-full">
+                            Use Email Agent
+                          </Link>
+                        </Button>
+                        <Button size="sm" variant="outline" asChild>
+                          <Link href="/dashboard/analytics" className="inline-flex items-center w-full h-full">
+                            View Details
+                          </Link>
+                        </Button>
+                      </div>
                     </div>
-                    <Button size="sm" asChild>
-                      <Link href="/dashboard/email">Try Now</Link>
-                    </Button>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium">Supplier Intelligence</p>
-                      <p className="text-sm text-muted-foreground">Smart procurement insights</p>
+                  ) : (
+                    <div className="space-y-2">
+                      <p className="text-sm text-muted-foreground">Connect AI features to start saving time</p>
+                      <div className="pt-3 flex items-center gap-2">
+                        <Button size="sm" asChild>
+                          <Link href="/dashboard/email">Try Email Agent</Link>
+                        </Button>
+                        <Button size="sm" variant="outline" asChild>
+                          <Link href="/dashboard/ai-future">Explore CRM Assistant</Link>
+                        </Button>
+                      </div>
                     </div>
-                    <Button size="sm" variant="outline" asChild>
-                      <Link href="/dashboard/suppliers">Explore</Link>
-                    </Button>
-                  </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -407,7 +408,7 @@ export default function DashboardPage() {
 
         <TabsContent value="actions" className="space-y-6">
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow duration-200 bg-gradient-to-br from-blue-50 to-blue-100">
+            <Card className="border border-gray-200 shadow-sm hover:shadow transition-shadow duration-200 bg-white">
               <CardContent className="p-6">
                 <div className="flex flex-col items-center text-center space-y-4">
                   <div className="p-4 bg-blue-200 rounded-full">
@@ -427,7 +428,7 @@ export default function DashboardPage() {
               </CardContent>
             </Card>
 
-            <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow duration-200 bg-gradient-to-br from-purple-50 to-purple-100">
+            <Card className="border border-gray-200 shadow-sm hover:shadow transition-shadow duration-200 bg-white">
               <CardContent className="p-6">
                 <div className="flex flex-col items-center text-center space-y-4">
                   <div className="p-4 bg-purple-200 rounded-full">
@@ -512,7 +513,7 @@ export default function DashboardPage() {
               </CardContent>
             </Card>
 
-            <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow duration-200 bg-gradient-to-br from-pink-50 to-pink-100">
+            <Card className="border border-gray-200 shadow-sm hover:shadow transition-shadow duration-200 bg-white">
               <CardContent className="p-6">
                 <div className="flex flex-col items-center text-center space-y-4">
                   <div className="p-4 bg-pink-200 rounded-full">

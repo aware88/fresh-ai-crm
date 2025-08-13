@@ -308,7 +308,7 @@ export class RoleService {
    * Check if a user is a system admin
    */
   static async isSystemAdmin(userId: string): Promise<boolean> {
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
     
     // Get user roles
     const { data: userRoles, error: rolesError } = await supabase

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { FeatureFlagService, FeatureKey, FEATURES } from '@/lib/services/feature-flag-service';
+import { FeatureFlagService } from '@/lib/services/feature-flag-service';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 
@@ -9,7 +9,7 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/route';
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { featureKey: string } }
+  { params }: { params: Promise<{ featureKey: string }> }
 ) {
   try {
     // Get the session to verify authentication
@@ -18,12 +18,7 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const featureKey = params.featureKey as FeatureKey;
-    
-    // Validate feature key
-    if (!Object.keys(FEATURES).includes(featureKey)) {
-      return NextResponse.json({ error: 'Invalid feature key' }, { status: 400 });
-    }
+    const { featureKey } = await params;
 
     // Get organizationId from query params
     const { searchParams } = new URL(request.url);
@@ -37,22 +32,11 @@ export async function GET(
     // In a real implementation, you would verify the user's access to this organization
     
     const featureFlagService = new FeatureFlagService();
-    const enabled = await featureFlagService.isFeatureEnabled(organizationId, featureKey);
-    
-    // If this is a limit-based feature, include the limit
-    let limit: number | undefined;
-    if (typeof FEATURES[featureKey].default === 'number') {
-      limit = await featureFlagService.getFeatureLimit(organizationId, featureKey);
-    }
+    const result = await featureFlagService.hasFeatureAccess(organizationId, featureKey);
 
-    return NextResponse.json({ 
-      featureKey, 
-      enabled,
-      ...(limit !== undefined ? { limit } : {}),
-      description: FEATURES[featureKey].description
-    });
+    return NextResponse.json({ featureKey, enabled: result.hasAccess, plan: result.currentPlan, reason: result.reason, upgradeRequired: result.upgradeRequired });
   } catch (error) {
-    console.error(`Error checking feature flag ${params.featureKey}:`, error);
+    console.error(`Error checking feature flag ${featureKey}:`, error);
     return NextResponse.json(
       { error: 'Failed to check feature flag' },
       { status: 500 }

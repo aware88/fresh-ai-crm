@@ -132,9 +132,13 @@ export class AIMemoryService {
    */
   async generateEmbedding(content: string): Promise<number[]> {
     try {
+      if (!content || content.trim().length === 0) {
+        throw new Error('Content is required for embedding generation');
+      }
+      
       const response = await this.openai.embeddings.create({
         model: "text-embedding-ada-002",
-        input: content,
+        input: content.trim(),
       });
       
       return response.data[0].embedding;
@@ -175,6 +179,11 @@ export class AIMemoryService {
       
       if (error) {
         console.error('Error storing memory:', error);
+        // If the column doesn't exist, just log and continue
+        if (error.code === 'PGRST204' && error.message?.includes('content_embedding')) {
+          console.log('Memory storage disabled - database schema needs ai_memories table with content_embedding column');
+          return null;
+        }
         throw new Error('Failed to store memory');
       }
       

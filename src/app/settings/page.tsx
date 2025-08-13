@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { SettingsForm } from '@/components/settings/settings-form';
 import { useToast } from '@/components/ui/use-toast';
@@ -18,13 +18,12 @@ export default function ProfileSettings() {
   const { toast } = useToast();
   const router = useRouter();
   const user = session?.user;
-  const [isUploading, setIsUploading] = useState(false);
+
 
   const [formData, setFormData] = useState({
     name: '',
     bio: '',
-    company: '',
-    avatar_url: undefined as string | undefined
+    company: ''
   });
 
   // Load saved profile data from localStorage on mount and initialize with session data
@@ -52,8 +51,7 @@ export default function ProfileSettings() {
       const defaultFormData = {
         name: userName,
         bio: '',
-        company: '',
-        avatar_url: user.image || undefined
+        company: ''
       };
 
       // Then check for saved profile data
@@ -64,8 +62,7 @@ export default function ProfileSettings() {
           setFormData({
             name: parsed.name || userName,
             bio: parsed.bio || '',
-            company: parsed.company || '',
-            avatar_url: parsed.avatar_url || user.image || undefined
+            company: parsed.company || ''
           });
         } catch (error) {
           console.warn('Failed to parse saved profile data');
@@ -104,79 +101,7 @@ export default function ProfileSettings() {
 
 
   
-  // Get initials for avatar fallback
-  const getInitials = (name: string) => {
-    return name
-      ?.split(' ')
-      .map(part => part[0])
-      .join('')
-      .toUpperCase() || 'U';
-  };
 
-  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    // Validate file size (1MB max)
-    if (file.size > 1024 * 1024) {
-      toast({
-        title: "File too large",
-        description: "Please choose a file smaller than 1MB.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
-      toast({
-        title: "Invalid file type",
-        description: "Please choose an image file.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsUploading(true);
-
-    try {
-      // Create a FormData object to send the file
-      const formData = new FormData();
-      formData.append('file', file);
-
-      // Upload to a simple file upload endpoint
-      const response = await fetch('/api/upload', {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to upload file');
-      }
-
-      const data = await response.json();
-      
-      // Update the form data with the new avatar URL
-      setFormData(prev => ({
-        ...prev,
-        avatar_url: data.url
-      }));
-
-      toast({
-        title: "Avatar updated",
-        description: "Your profile picture has been updated successfully.",
-      });
-    } catch (error) {
-      console.error('Error uploading avatar:', error);
-      toast({
-        title: "Upload failed",
-        description: "Failed to upload your avatar. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsUploading(false);
-    }
-  };
 
   const handleSaveProfile = async (data: any) => {
     try {
@@ -184,8 +109,7 @@ export default function ProfileSettings() {
       const profileData = {
         name: data.name,
         bio: data.bio,
-        company: data.company,
-        avatar_url: data.avatar_url
+        company: data.company
       };
       
       localStorage.setItem('user-profile', JSON.stringify(profileData));
@@ -200,7 +124,6 @@ export default function ProfileSettings() {
               id: user.id,
               name: data.name,
               bio: data.bio,
-              avatar_url: data.avatar_url,
               updated_at: new Date().toISOString()
             });
             
@@ -219,8 +142,7 @@ export default function ProfileSettings() {
             ...session,
             user: {
               ...session?.user,
-              name: data.name,
-              image: data.avatar_url
+              name: data.name
             }
           });
         } catch (sessionError) {
@@ -338,39 +260,6 @@ export default function ProfileSettings() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div className="flex items-center space-x-4">
-            <Avatar className="h-20 w-20">
-              <AvatarImage src={formData.avatar_url || user?.image || ''} alt={user?.name || 'User'} />
-              <AvatarFallback className="text-xl">
-                {user?.name ? getInitials(user.name) : 'U'}
-              </AvatarFallback>
-            </Avatar>
-            <div>
-              <label htmlFor="avatar-upload">
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="mb-2"
-                  disabled={isUploading}
-                  onClick={() => document.getElementById('avatar-upload')?.click()}
-                >
-                  {isUploading ? 'Uploading...' : 'Change Avatar'}
-                </Button>
-                <input 
-                  id="avatar-upload" 
-                  type="file" 
-                  accept="image/*" 
-                  className="hidden" 
-                  onChange={handleAvatarChange}
-                  disabled={isUploading}
-                />
-              </label>
-              <p className="text-xs text-muted-foreground">
-                JPG, GIF or PNG. 1MB max.
-              </p>
-            </div>
-          </div>
-
           <div className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="name">Display Name</Label>
@@ -378,7 +267,12 @@ export default function ProfileSettings() {
                 id="name"
                 name="name"
                 value={formData.name}
-                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                onChange={(e) => {
+                  const newData = { ...formData, name: e.target.value };
+                  setFormData(newData);
+                  // Emit custom formdata event for SettingsForm
+                  document.dispatchEvent(new CustomEvent('formdata', { detail: newData }));
+                }}
                 placeholder="Enter your display name"
               />
             </div>
@@ -389,7 +283,12 @@ export default function ProfileSettings() {
                 id="bio"
                 name="bio"
                 value={formData.bio}
-                onChange={(e) => setFormData(prev => ({ ...prev, bio: e.target.value }))}
+                onChange={(e) => {
+                  const newData = { ...formData, bio: e.target.value };
+                  setFormData(newData);
+                  // Emit custom formdata event for SettingsForm
+                  document.dispatchEvent(new CustomEvent('formdata', { detail: newData }));
+                }}
                 placeholder="Tell us a little about yourself"
               />
             </div>
@@ -400,7 +299,12 @@ export default function ProfileSettings() {
                 id="company"
                 name="company"
                 value={formData.company}
-                onChange={(e) => setFormData(prev => ({ ...prev, company: e.target.value }))}
+                onChange={(e) => {
+                  const newData = { ...formData, company: e.target.value };
+                  setFormData(newData);
+                  // Emit custom formdata event for SettingsForm
+                  document.dispatchEvent(new CustomEvent('formdata', { detail: newData }));
+                }}
                 placeholder="e.g., Bulk Nutrition"
               />
               <p className="text-xs text-muted-foreground">

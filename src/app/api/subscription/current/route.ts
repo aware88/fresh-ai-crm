@@ -3,6 +3,7 @@ import { SubscriptionService } from '@/lib/services/subscription-service';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { createClient } from '@supabase/supabase-js';
+import { subscriptionPlans, getSubscriptionPlan } from '@/lib/subscription-plans-v2';
 
 /**
  * GET /api/subscription/current
@@ -82,49 +83,49 @@ export async function GET(request: NextRequest) {
         
         console.log('Individual user subscription plan from metadata:', userSubscriptionPlan);
         
-        // Get all subscription plans and find the one that matches
-        const planResult = await subscriptionService.getSubscriptionPlans();
+        // Use code-based subscription plans (v2) to support premium_advanced
+        console.log('Available plans:', subscriptionPlans.map(p => p.id));
         
-        if (planResult.error || !planResult.data) {
-          console.error('Error fetching subscription plans:', planResult.error);
-          // Fallback to a basic plan structure if we can't fetch from database
-          const fallbackPlan = {
-            id: 'fallback-plan',
-            name: userSubscriptionPlan === 'pro' ? 'Pro' : 'Starter',
-            price: userSubscriptionPlan === 'pro' ? 0 : 0, // Free during beta
-            billing_interval: 'monthly' as const,
-            features: {},
-            is_active: true,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          };
-          
-          return NextResponse.json({
-            subscription: null,
-            plan: fallbackPlan,
-            isActive: true
-          });
+        // Find the plan by ID (exact match)
+        let userPlan = subscriptionPlans.find(p => p.id === userSubscriptionPlan);
+        
+        // If not found by ID, try by name (case-insensitive) for backwards compatibility
+        if (!userPlan) {
+          userPlan = subscriptionPlans.find(p => 
+            p.name.toLowerCase() === userSubscriptionPlan.toLowerCase()
+          );
         }
         
-        // Find the plan by name (case-insensitive)
-        const userPlan = planResult.data.find(p => 
-          p.name.toLowerCase() === userSubscriptionPlan.toLowerCase()
-        );
+        // Convert to database-compatible format
+        const convertPlanToDbFormat = (plan: any) => ({
+          id: plan.id,
+          name: plan.name,
+          description: plan.description,
+          price: plan.monthlyPrice,
+          billing_interval: 'monthly' as const,
+          features: plan.features,
+          is_active: true,
+          user_limit: plan.userLimit,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        });
         
         if (!userPlan) {
           console.error(`Plan not found for: ${userSubscriptionPlan}`);
-          // Fallback to Starter plan if specified plan doesn't exist
-          const starterPlan = planResult.data.find(p => p.name.toLowerCase() === 'starter');
+          // Fallback to Starter plan from code-based plans
+          const starterPlan = subscriptionPlans.find(p => p.id === 'starter');
           if (!starterPlan) {
             return NextResponse.json({ error: 'No valid subscription plans found' }, { status: 500 });
           }
+          
+          const starterPlanDb = convertPlanToDbFormat(starterPlan);
           
           // Create default subscription for Starter plan
           const defaultSubscription = {
             id: `individual-${userId}`,
             organization_id: null,
             user_id: userId,
-            subscription_plan_id: starterPlan.id,
+            subscription_plan_id: starterPlanDb.id,
             status: 'active',
             current_period_start: new Date().toISOString(),
             current_period_end: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(), // 1 year from now
@@ -138,17 +139,20 @@ export async function GET(request: NextRequest) {
           };
           
           return NextResponse.json({ 
-            plan: starterPlan, 
+            plan: starterPlanDb, 
             subscription: defaultSubscription 
           });
         }
+        
+        // Convert the found plan to database format
+        const userPlanDb = convertPlanToDbFormat(userPlan);
         
         // Create subscription object for the user's plan
         const userSubscription = {
           id: `individual-${userId}`,
           organization_id: null,
           user_id: userId,
-          subscription_plan_id: userPlan.id,
+          subscription_plan_id: userPlanDb.id,
           status: 'active',
           current_period_start: new Date().toISOString(),
           current_period_end: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(), // 1 year from now
@@ -159,20 +163,21 @@ export async function GET(request: NextRequest) {
           metadata: { 
             beta: true, 
             user_type: 'individual',
-            plan_name: userPlan.name.toLowerCase()
+            plan_name: userPlanDb.name.toLowerCase()
           },
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         };
 
         console.log('Returning subscription for individual user:', {
-          planName: userPlan.name,
-          planId: userPlan.id,
-          userId: userId
+          planName: userPlanDb.name,
+          planId: userPlanDb.id,
+          userId: userId,
+          userLimit: userPlanDb.user_limit
         });
 
         return NextResponse.json({ 
-          plan: userPlan, 
+          plan: userPlanDb, 
           subscription: userSubscription 
         });
         

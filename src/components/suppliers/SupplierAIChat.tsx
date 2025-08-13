@@ -11,7 +11,6 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { badgeVariants } from '@/components/ui/badge';
 import { Loader2, Send, MessageSquare, Copy, ThumbsUp, ThumbsDown } from 'lucide-react';
-// @ts-ignore - ReactMarkdown types may not be available
 import ReactMarkdown from 'react-markdown';
 
 interface Message {

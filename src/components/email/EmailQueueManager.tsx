@@ -450,8 +450,12 @@ export default function EmailQueueManager() {
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => {
-                                  // View email for review
+                                onClick={async () => {
+                                  // Show minimal preview via toast
+                                  toast({
+                                    title: 'Email Preview',
+                                    description: item.emails?.subject || 'No subject'
+                                  });
                                 }}
                               >
                                 Review
@@ -460,8 +464,19 @@ export default function EmailQueueManager() {
                                 variant="ghost"
                                 size="sm"
                                 className="text-green-600"
-                                onClick={() => {
-                                  // Approve email
+                                onClick={async () => {
+                                  try {
+                                    const res = await fetch(`/api/email/queue/${item.id}`, {
+                                      method: 'PUT',
+                                      headers: { 'Content-Type': 'application/json' },
+                                      body: JSON.stringify({ action: 'review', approved: true })
+                                    });
+                                    if (!res.ok) throw new Error('Failed to approve');
+                                    toast({ title: 'Approved', description: 'Email approved for sending.' });
+                                    fetchQueueItems();
+                                  } catch (e) {
+                                    toast({ title: 'Error', description: 'Approval failed', variant: 'destructive' });
+                                  }
                                 }}
                               >
                                 Approve
@@ -470,8 +485,19 @@ export default function EmailQueueManager() {
                                 variant="ghost"
                                 size="sm"
                                 className="text-red-600"
-                                onClick={() => {
-                                  // Reject email
+                                onClick={async () => {
+                                  try {
+                                    const res = await fetch(`/api/email/queue/${item.id}`, {
+                                      method: 'PUT',
+                                      headers: { 'Content-Type': 'application/json' },
+                                      body: JSON.stringify({ action: 'review', approved: false })
+                                    });
+                                    if (!res.ok) throw new Error('Failed to reject');
+                                    toast({ title: 'Rejected', description: 'Email marked as rejected.' });
+                                    fetchQueueItems();
+                                  } catch (e) {
+                                    toast({ title: 'Error', description: 'Rejection failed', variant: 'destructive' });
+                                  }
                                 }}
                               >
                                 Reject

@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import RichTextEditor from './RichTextEditor';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
@@ -20,7 +21,8 @@ import {
   MessageSquare,
   Brain,
   Lightbulb,
-  Clock
+  Clock,
+  Info
 } from 'lucide-react';
 
 interface AIDraftData {
@@ -50,6 +52,7 @@ interface AIDraftWindowProps {
     body: string;
     changes: Change[];
     userNotes?: string;
+    attachments?: { name: string; contentType: string; contentBytes: string }[];
   }) => Promise<void>;
   onRegenerateDraft: () => Promise<void>;
   className?: string;
@@ -88,6 +91,10 @@ export default function AIDraftWindow({
   const [refinementHistory, setRefinementHistory] = useState<string[]>([]);
   const { toast } = useToast();
 
+  const [phase2, setPhase2] = useState<any>(null);
+
+  const [attachments, setAttachments] = useState<{ id: string; name: string; contentType: string; size: number; contentBytes?: string }[]>([]);
+
   const originalSubjectRef = useRef<string>('');
   const originalBodyRef = useRef<string>('');
 
@@ -104,6 +111,51 @@ export default function AIDraftWindow({
       }
     }
   }, []);
+
+  // Fetch Phase 2 insights for this email
+  useEffect(() => {
+    async function loadPhase2() {
+      try {
+        const res = await fetch(`/api/emails/phase2/${emailId}`);
+        if (res.ok) {
+          const data = await res.json();
+          setPhase2(data.phase2 || null);
+        }
+      } catch {
+        // ignore
+      }
+    }
+    if (emailId) loadPhase2();
+  }, [emailId]);
+
+  // Attachment helpers
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result as string;
+        const base64 = result.includes(',') ? result.split(',')[1] : result;
+        resolve(base64);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const addAttachments = async (files: File[]) => {
+    const conversions = await Promise.all(files.map(async (file) => ({
+      id: `att-${Date.now()}-${file.name}`,
+      name: file.name,
+      contentType: file.type || 'application/octet-stream',
+      size: file.size,
+      contentBytes: await fileToBase64(file)
+    })));
+    setAttachments(prev => [...prev, ...conversions]);
+  };
+
+  const removeAttachment = (id: string) => {
+    setAttachments(prev => prev.filter(a => a.id !== id));
+  };
 
   // Generate initial draft
   useEffect(() => {
@@ -243,7 +295,8 @@ export default function AIDraftWindow({
         subject: editedSubject,
         body: editedBody,
         changes,
-        userNotes: showNotes ? userNotes : undefined
+        userNotes: showNotes ? userNotes : undefined,
+        attachments: attachments.map(a => ({ name: a.name, contentType: a.contentType, contentBytes: a.contentBytes! }))
       });
       
       // Save learning data if enabled
@@ -376,6 +429,57 @@ export default function AIDraftWindow({
     setRefinementCommand(command);
   };
 
+  const applyBiasTip = () => {
+    const bias = phase2?.bias?.biasApplied as string | undefined;
+    if (!bias) return;
+
+    let nextSubject = editedSubject || originalSubjectRef.current;
+    let nextBody = editedBody || originalBodyRef.current;
+
+    switch (bias.toLowerCase()) {
+      case 'authority': {
+        if (!nextSubject.toLowerCase().includes('[case study]')) {
+          nextSubject = `[Case Study] ${nextSubject}`;
+        }
+        nextBody += `\n\nWe helped a peer reduce time-to-value by 43%. Here is a brief of the 3 steps that worked.`;
+        break;
+      }
+      case 'socialproof':
+      case 'social_proof': {
+        nextSubject = `What peers in your industry are doing`; 
+        nextBody += `\n\nTeams like yours adopted this approach and saw faster approvals. Here are 2 peer examples.`;
+        break;
+      }
+      case 'scarcity': {
+        nextSubject = `We can lock this in this week (limited window)`;
+        nextBody += `\n\nWe reserved a slot to get you live in ~10 days. Next availability is in ~3 weeks.`;
+        break;
+      }
+      case 'reciprocity': {
+        nextSubject = `Quick free asset tailored for you`;
+        nextBody += `\n\nWe prepared a 1‑page tailored plan based on your context. If helpful, we can fast‑track next steps.`;
+        break;
+      }
+      case 'commitment': {
+        nextSubject = `Shall we keep the momentum?`;
+        nextBody += `\n\nIf we confirm the next step today, we can align the plan and reduce delays by a week.`;
+        break;
+      }
+      case 'anchoring': {
+        nextSubject = `Two options to frame this correctly`;
+        nextBody += `\n\nOption A (faster, higher ROI in 30 days). Option B (slower, phased). Most teams choose A when speed matters.`;
+        break;
+      }
+      default:
+        return;
+    }
+
+    setEditedSubject(nextSubject);
+    setEditedBody(nextBody);
+
+    toast({ title: 'Bias tip applied', description: `Applied: ${bias}` });
+  };
+
   if (!draftData && !isGenerating) {
     return (
       <Card className={`${className} border-dashed border-2 border-gray-200`}>
@@ -461,16 +565,14 @@ export default function AIDraftWindow({
           )}
         </div>
 
-        {/* Body Field */}
+        {/* Body Field (Rich text) */}
         <div className="space-y-2 flex-1 min-h-0">
           <Label htmlFor="draft-body">Email Body</Label>
-          <Textarea
-            id="draft-body"
+          <RichTextEditor
             value={editedBody}
-            onChange={(e) => setEditedBody(e.target.value)}
+            onChange={setEditedBody}
             placeholder="Email body"
-            className="min-h-[300px] h-[400px] resize-none"
-            rows={15}
+            height="400px"
           />
           {changes.some(c => c.section === 'body') && (
             <div className="text-xs text-orange-600 flex items-center space-x-1">
@@ -480,8 +582,60 @@ export default function AIDraftWindow({
           )}
         </div>
 
+        {/* Attachments */}
+        <div className="space-y-2 pt-2">
+          <Label className="text-sm">Attachments</Label>
+          <div className="border rounded p-3">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs text-muted-foreground">Add files to include when sending</span>
+              <label className="text-xs text-blue-600 cursor-pointer">
+                Add files
+                <input
+                  type="file"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => {
+                    if (e.target.files && e.target.files.length > 0) {
+                      addAttachments(Array.from(e.target.files));
+                      e.currentTarget.value = '';
+                    }
+                  }}
+                />
+              </label>
+            </div>
+            {attachments.length > 0 ? (
+              <ul className="space-y-1">
+                {attachments.map(att => (
+                  <li key={att.id} className="flex items-center justify-between text-xs">
+                    <span className="truncate mr-2">{att.name}</span>
+                    <button className="text-red-500" onClick={() => removeAttachment(att.id)}>Remove</button>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className="text-xs text-gray-500">No attachments</div>
+            )}
+          </div>
+        </div>
+
             {/* Action Buttons for Draft */}
-            <div className="flex justify-end space-x-2 pt-4 border-t">
+            <div className="flex justify-between items-center pt-4 border-t">
+              <div className="flex items-center gap-2 text-xs text-gray-500">
+                <span>Quick actions:</span>
+                <button
+                  className="px-2 py-1 rounded bg-gray-100 hover:bg-gray-200"
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(editedBody);
+                      toast({ title: 'Copied', description: 'Draft body copied to clipboard.' });
+                    } catch {
+                      toast({ title: 'Copy failed', description: 'Select and copy manually.' });
+                    }
+                  }}
+                >
+                  Copy body
+                </button>
+              </div>
               <Button
                 variant="outline"
                 onClick={() => {
@@ -519,7 +673,26 @@ export default function AIDraftWindow({
         {/* Right Panel - AI Controls (30%) */}
         <div className="w-[30%] flex flex-col pl-4 space-y-4 overflow-y-auto">
 
-        {/* Natural Language Refinement Section */}
+          {/* Bias Tip (Phase 2) */}
+          {phase2?.bias?.biasApplied && (
+            <div className="rounded-md border p-3 bg-white">
+              <div className="flex items-center gap-2 mb-1 text-sm font-medium">
+                <Info className="h-4 w-4 text-blue-600" />
+                Bias Tip
+              </div>
+              <div className="text-xs text-muted-foreground mb-2">
+                Suggested bias: <strong>{String(phase2.bias.biasApplied)}</strong>
+                {typeof phase2?.prediction?.recommendedTimingHours === 'number' && (
+                  <> · act in ~{phase2.prediction.recommendedTimingHours}h</>
+                )}
+              </div>
+              <Button size="sm" variant="outline" onClick={applyBiasTip}>
+                Apply Tip to Draft
+              </Button>
+            </div>
+          )}
+
+          {/* Natural Language Refinement Section */}
         <div className="space-y-3">
           <div className="flex items-center space-x-2">
             <MessageSquare className="h-4 w-4 text-blue-600" />

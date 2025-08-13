@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -88,6 +88,42 @@ export default function AnalyticsDashboardClient({ initialData, organizationId }
   const [productData, setProductData] = useState(initialData.productData);
   const [priceData, setPriceData] = useState(initialData.priceData);
   const [error, setError] = useState<string | null>(null);
+  const [aiSavings, setAiSavings] = useState<null | {
+    time: { minutes: number; hours: number; workDays: number };
+    cost: { hourlyRateUsd: number; savedUsd: number };
+    breakdown: { minutesByType: Record<string, number> };
+    headline?: string;
+    topContributor?: string | null;
+  }>(null);
+  const [aiQuality, setAiQuality] = useState<null | {
+    acceptanceRate: number;
+    sampleSize: number;
+    avgChanges: number;
+    avgLengthChangePct: number;
+    autoVsSemi: { autoApproved: number; requiresReview: number; completed: number };
+  }>(null);
+
+  useEffect(() => {
+    // Fetch AI metrics for analytics view from production endpoint
+    const fetchAi = async () => {
+      try {
+        const res = await fetch('/api/usage/dashboard-v2');
+        if (res.ok) {
+          const data = await res.json();
+          if (data?.savings) setAiSavings({
+            ...data.savings,
+            headline: data.insights?.savings?.headline,
+            topContributor: data.insights?.savings?.topContributor || data.insights?.efficiency?.mostUsedFeature || null
+          });
+          if (data?.quality) setAiQuality(data.quality);
+        }
+      } catch (e) {
+        // Non-fatal: analytics still loads without AI metrics
+        console.warn('AI metrics fetch failed', e);
+      }
+    };
+    fetchAi();
+  }, []);
 
   const handleRefresh = async () => {
     setIsLoading(true);
@@ -105,6 +141,16 @@ export default function AnalyticsDashboardClient({ initialData, organizationId }
       setSupplierData(supplierDist);
       setProductData(productDist);
       setPriceData(priceTrends);
+
+      // Refresh AI metrics as well
+      try {
+        const aiRes = await fetch('/api/usage/dashboard-demo');
+        if (aiRes.ok) {
+          const ai = await aiRes.json();
+          setAiSavings(ai.savings || null);
+          setAiQuality(ai.quality || null);
+        }
+      } catch {}
     } catch (err: any) {
       console.error('Error refreshing analytics data:', err);
       setError(err.message || 'Failed to refresh analytics data. Please try again.');
@@ -225,12 +271,43 @@ export default function AnalyticsDashboardClient({ initialData, organizationId }
       )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="subscriptions">Subscriptions</TabsTrigger>
-          <TabsTrigger value="suppliers">Suppliers</TabsTrigger>
-          <TabsTrigger value="products">Products</TabsTrigger>
-          <TabsTrigger value="pricing">Pricing</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-6 h-12 bg-gradient-to-r from-slate-50 to-slate-100 border border-slate-200 shadow-sm rounded-md">
+          <TabsTrigger 
+            value="overview" 
+            className="font-semibold text-slate-700 data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-blue-200 transition-all duration-200"
+          >
+            Overview
+          </TabsTrigger>
+          <TabsTrigger 
+            value="ai"
+            className="font-semibold text-slate-700 data-[state=active]:bg-white data-[state=active]:text-purple-600 data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-purple-200 transition-all duration-200"
+          >
+            AI
+          </TabsTrigger>
+          <TabsTrigger 
+            value="subscriptions"
+            className="font-semibold text-slate-700 data-[state=active]:bg-white data-[state=active]:text-amber-600 data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-amber-200 transition-all duration-200"
+          >
+            Subscriptions
+          </TabsTrigger>
+          <TabsTrigger 
+            value="suppliers"
+            className="font-semibold text-slate-700 data-[state=active]:bg-white data-[state=active]:text-green-600 data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-green-200 transition-all duration-200"
+          >
+            Suppliers
+          </TabsTrigger>
+          <TabsTrigger 
+            value="products"
+            className="font-semibold text-slate-700 data-[state=active]:bg-white data-[state=active]:text-pink-600 data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-pink-200 transition-all duration-200"
+          >
+            Products
+          </TabsTrigger>
+          <TabsTrigger 
+            value="pricing"
+            className="font-semibold text-slate-700 data-[state=active]:bg-white data-[state=active]:text-indigo-600 data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-indigo-200 transition-all duration-200"
+          >
+            Pricing
+          </TabsTrigger>
         </TabsList>
         
         <TabsContent value="overview" className="space-y-4">
@@ -244,6 +321,65 @@ export default function AnalyticsDashboardClient({ initialData, organizationId }
                   Your analytics overview shows key business metrics. Use the tabs above to explore specific areas.
                 </p>
               </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="ai" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>AI Impact</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {aiSavings ? (
+                <div className="space-y-6">
+                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                    <div>
+                      <div className="text-sm text-muted-foreground">Time Saved (this month)</div>
+                      <div className="text-2xl font-semibold">~{aiSavings.time.hours}h ({aiSavings.time.minutes} min)</div>
+                    </div>
+                    <div>
+                      <div className="text-sm text-muted-foreground">Cost Saved</div>
+                      <div className="text-2xl font-semibold">${aiSavings.cost.savedUsd.toFixed(2)}</div>
+                    </div>
+                    {aiQuality && (
+                      <>
+                        <div>
+                          <div className="text-sm text-muted-foreground">Acceptance</div>
+                          <div className="text-2xl font-semibold">{aiQuality.acceptanceRate}%</div>
+                        </div>
+                        <div>
+                          <div className="text-sm text-muted-foreground">Auto approvals</div>
+                          <div className="text-2xl font-semibold">{aiQuality.autoVsSemi.autoApproved}</div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+
+                  {aiQuality && (
+                    <div className="grid gap-4 md:grid-cols-3">
+                      <div>
+                        <div className="text-sm text-muted-foreground">Avg changes</div>
+                        <div className="text-xl font-medium">{aiQuality.avgChanges}</div>
+                      </div>
+                      <div>
+                        <div className="text-sm text-muted-foreground">Avg length delta %</div>
+                        <div className="text-xl font-medium">{aiQuality.avgLengthChangePct}</div>
+                      </div>
+                      <div>
+                        <div className="text-sm text-muted-foreground">Samples (30d)</div>
+                        <div className="text-xl font-medium">{aiQuality.sampleSize}</div>
+                      </div>
+                    </div>
+                  )}
+
+                  {aiSavings.topContributor && (
+                    <div className="text-sm text-muted-foreground">Top contributor: {aiSavings.topContributor.replace('_', ' ')}</div>
+                  )}
+                </div>
+              ) : (
+                <div className="text-muted-foreground">No AI usage yet. Connect an email account to start tracking savings.</div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

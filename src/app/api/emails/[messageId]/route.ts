@@ -42,18 +42,15 @@ export async function PATCH(
   try {
     const session = await getServerSession();
     
-    if (!session?.accessToken) {
-      return NextResponse.json({ error: 'Unauthorized or missing Microsoft Graph access token' }, { status: 401 });
-    }
-    
     const { messageId } = params;
     const body = await req.json();
     
-    // Create Microsoft Graph service
-    const graphService = new MicrosoftGraphService(session.accessToken);
+    // Dev-phase: support local-only read/unread update; skip provider update if env flag set
+    const localOnly = process.env.EMAIL_LOCAL_READ_ONLY === 'true' || process.env.NEXT_PUBLIC_EMAIL_LOCAL_READ_ONLY === 'true';
+    const graphService = !localOnly && session?.accessToken ? new MicrosoftGraphService(session.accessToken) : null;
     
     // Handle different update operations
-    if (body.isRead !== undefined) {
+    if (body.isRead !== undefined && graphService) {
       if (body.isRead === true) {
         await graphService.markAsRead(messageId);
       } else {

@@ -64,12 +64,79 @@ function EmailAccountsContent() {
       const supabase = createClientComponentClient();
       
       try {
-        // Try to query the table directly - if it doesn't exist, we'll get an error
-        const { data, error: fetchError } = await supabase
-          .from('email_accounts')
-          .select('*')
+        console.log('🔍 Email Accounts: Fetching for user:', (session.user as any).id);
+        
+        // Try to get user's organization first
+        const { data: preferences } = await supabase
+          .from('user_preferences')
+          .select('current_organization_id')
           .eq('user_id', (session.user as any).id)
-          .order('created_at', { ascending: false });
+          .single();
+        
+        const organizationId = preferences?.current_organization_id;
+        console.log('   User organization:', organizationId);
+        
+        // Query email accounts - try both user_id and organization_id
+        let data, fetchError;
+        
+        // First try direct API call for more permissions
+        try {
+          console.log('   Trying direct API call first...');
+          const response = await fetch('/api/email/accounts');
+          if (response.ok) {
+            const apiResult = await response.json();
+            if (apiResult.accounts && apiResult.accounts.length > 0) {
+              console.log('   Found', apiResult.accounts.length, 'accounts via API');
+              data = apiResult.accounts;
+              fetchError = null;
+            }
+          }
+        } catch (apiError) {
+          console.error('   API call failed:', apiError);
+        }
+        
+        // If API call didn't work, try Supabase directly
+        if (!data || data.length === 0) {
+          if (organizationId) {
+            // For users with organizations, try organization-scoped first
+            console.log('   Trying organization-scoped email accounts...');
+            const orgResult = await supabase
+              .from('email_accounts')
+              .select('*')
+              .eq('organization_id', organizationId)
+              .order('created_at', { ascending: false });
+            
+            if (orgResult.data && orgResult.data.length > 0) {
+              data = orgResult.data;
+              fetchError = orgResult.error;
+              console.log('   Found', data.length, 'organization email accounts');
+            } else {
+              // Fallback to user-scoped
+              console.log('   No org accounts, trying user-scoped...');
+              const userResult = await supabase
+                .from('email_accounts')
+                .select('*')
+                .eq('user_id', (session.user as any).id)
+                .order('created_at', { ascending: false });
+              
+              data = userResult.data;
+              fetchError = userResult.error;
+              console.log('   Found', data?.length || 0, 'user email accounts');
+            }
+          } else {
+            // For users without organizations, use user_id
+            console.log('   No organization, trying user-scoped only...');
+            const userResult = await supabase
+              .from('email_accounts')
+              .select('*')
+              .eq('user_id', (session.user as any).id)
+              .order('created_at', { ascending: false });
+            
+            data = userResult.data;
+            fetchError = userResult.error;
+            console.log('   Found', data?.length || 0, 'user email accounts');
+          }
+        }
         
         if (fetchError) {
           // Check if the error is because the table doesn't exist
@@ -150,11 +217,6 @@ function EmailAccountsContent() {
           </button>
           <button 
             onClick={() => {
-              // Check if Microsoft OAuth is configured
-              if (!process.env.NEXT_PUBLIC_MICROSOFT_CLIENT_ID) {
-                alert('Microsoft OAuth is not configured. Please add MICROSOFT_CLIENT_ID and MICROSOFT_CLIENT_SECRET to your environment variables.');
-                return;
-              }
               window.location.href = '/api/auth/outlook/connect';
             }}
             className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium"
@@ -395,11 +457,11 @@ CREATE INDEX email_accounts_email_idx ON public.email_accounts (email);`}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                        account.is_active 
+                        account.is_active !== false  // Treat undefined/null as active too
                           ? 'bg-green-100 text-green-800' 
                           : 'bg-red-100 text-red-800'
                       }`}>
-                        {account.is_active ? 'Active' : 'Inactive'}
+                        {account.is_active !== false ? 'Active' : 'Inactive'}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">

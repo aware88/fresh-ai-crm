@@ -451,3 +451,31 @@ export const AnalysisResultsModal: React.FC<AnalysisResultsModalProps> = ({
     </Dialog>
   );
 }; 
+
+export function Phase2Insights({ phase2 }: { phase2?: any }) {
+  if (!phase2) return null;
+
+  const action = phase2?.prediction?.nextBestAction;
+  const timing = phase2?.prediction?.recommendedTimingHours;
+  const bias = phase2?.bias?.biasApplied;
+
+  if (!action && !bias) return null;
+
+  return (
+    <div className="mt-3 rounded-md border bg-white p-3 text-sm">
+      <div className="font-medium mb-1">AI Insights</div>
+      {action && (
+        <div className="flex items-center gap-2">
+          <span className="inline-flex h-2 w-2 rounded-full bg-green-500" />
+          <span>Next best action: <strong>{action}</strong>{typeof timing === 'number' ? ` (in ~${timing}h)` : ''}</span>
+        </div>
+      )}
+      {bias && (
+        <div className="mt-1 flex items-center gap-2">
+          <span className="inline-flex h-2 w-2 rounded-full bg-blue-500" />
+          <span>Bias tip: <strong>{String(bias)}</strong></span>
+        </div>
+      )}
+    </div>
+  );
+} 

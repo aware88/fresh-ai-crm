@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '../../auth/[...nextauth]/route';
+import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
 import { v4 as uuidv4 } from 'uuid';
 
 // Bucket name for company assets
@@ -7,6 +11,12 @@ const BUCKET_NAME = 'company_assets';
 
 export async function POST(request: NextRequest) {
   try {
+    // Check authentication
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     // Get form data from the request
     const formData = await request.formData();
     const file = formData.get('file') as File;
@@ -68,9 +78,42 @@ export async function POST(request: NextRequest) {
       });
     }
     
-    // Save logo path to local storage or database
-    // For simplicity, we'll just return the path and handle storage on the client side
+    // Save logo URL to database
     const logoUrl = `${supabaseUrl}/storage/v1/object/public/${BUCKET_NAME}/${filePath}`;
+    
+    // Get user's current organization
+    const supabaseClient = createServerComponentClient({ cookies });
+    const { data: preferences } = await supabaseClient
+      .from('user_preferences')
+      .select('current_organization_id')
+      .eq('user_id', session.user.id)
+      .single();
+
+    if (!preferences?.current_organization_id) {
+      return NextResponse.json({ error: 'No organization selected' }, { status: 400 });
+    }
+
+    // Upsert organization branding record
+    const { error: brandingError } = await supabaseClient
+      .from('organization_branding')
+      .upsert({
+        organization_id: preferences.current_organization_id,
+        logo_url: logoUrl,
+        updated_at: new Date().toISOString(),
+        updated_by: session.user.id
+      }, {
+        onConflict: 'organization_id'
+      });
+
+    if (brandingError) {
+      console.error('Error saving logo to database:', brandingError);
+      // Still return success since the upload worked
+      return NextResponse.json({ 
+        success: true, 
+        logoPath: logoUrl,
+        warning: 'Logo uploaded but not saved to database'
+      });
+    }
     
     return NextResponse.json({ 
       success: true, 

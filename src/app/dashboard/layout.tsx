@@ -10,8 +10,13 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex min-h-screen bg-white">
-      <Sidebar className="w-64 hidden md:block flex-shrink-0 border-r border-gray-100" />
+    <div className="flex h-screen bg-white overflow-hidden">
+      {/* Fixed Sidebar */}
+      <div className="w-64 hidden md:block flex-shrink-0">
+        <Sidebar className="w-64 border-r border-gray-100 fixed left-0 top-0 h-full z-20" />
+      </div>
+      
+      {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Top Navigation Bar */}
         <Navigation className="sticky top-0 z-10" />

@@ -31,7 +31,7 @@ class WithcarProductionSetup {
     // Withcar details
     this.withcarOrgId = '577485fb-50b4-4bb2-a4c6-54b97e1545ad';
     this.withcarEmail = 'negozio@withcar.it';
-    this.withcarPassword = 'Sux94451';
+    this.withcarPassword = process.env.WITHCAR_EMAIL_PASSWORD || 'Sux94451';
     this.userEmail = 'tim.mak88@gmail.com';
   }
 
