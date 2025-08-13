@@ -143,7 +143,7 @@ export async function logAIUsageAfterRequest(
  */
 export async function getUserOrganization(userId: string): Promise<string | null> {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     
     const { data, error } = await supabase
       .from('organization_members')

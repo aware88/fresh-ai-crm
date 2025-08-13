@@ -238,7 +238,25 @@ export async function fetchAnalyticsServer(): Promise<AnalyticsData & { organiza
     
     // Calculate analytics from real data
     const totalContacts = contactsData?.length || 0;
-    const totalSuppliers = suppliersData?.length || 0;
+    // Suppliers: include both organization-scoped and user-owned (admin-backed dedupe)
+    let totalSuppliers = suppliersData?.length || 0;
+    try {
+      const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+      const key = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+      if (url && key) {
+        const direct = createDirectClient(url, key);
+        const [orgSup, userSup] = await Promise.all([
+          direct.from('suppliers').select('id').eq('organization_id', organizationId),
+          direct.from('suppliers').select('id').eq('user_id', uid)
+        ]);
+        const supSet: Record<string, true> = {};
+        (orgSup.data || []).forEach((r: any) => r?.id && (supSet[r.id] = true));
+        (userSup.data || []).forEach((r: any) => r?.id && (supSet[r.id] = true));
+        totalSuppliers = Object.keys(supSet).length;
+      }
+    } catch (_) {
+      // Keep existing value on error
+    }
     const totalProducts = productsData?.length || 0;
     
     // Calculate revenue (placeholder - you can enhance this)

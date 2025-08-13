@@ -6,7 +6,7 @@ import { X, Send, Paperclip, ChevronDown, Maximize2, Minimize2, Phone, Monitor, 
 import EmailAttachments from './EmailAttachments';
 import EmailSignature from './EmailSignature';
 import EmailLanguageDetection from './EmailLanguageDetection';
-import RichTextEditor from '../RichTextEditor';
+// import RichTextEditor from '../RichTextEditor'; // Temporarily disabled due to React 18 compatibility
 
 interface EmailComposeProps {
   mode: 'new' | 'reply' | 'replyAll' | 'forward';
@@ -321,11 +321,12 @@ export default function EmailCompose({ mode, originalEmail, onClose, onSend }: E
             />
           ) : (
             <div className={previewMode === 'mobile' ? 'max-w-sm mx-auto border rounded' : ''}>
-              <RichTextEditor
+              <textarea
                 value={body} 
-                onChange={setBody}
+                onChange={(e) => setBody(e.target.value)}
                 placeholder="Compose your email..."
-                height="300px"
+                className="w-full h-[300px] p-3 border rounded-md resize-none font-mono text-sm"
+                rows={15}
               />
             </div>
           )}

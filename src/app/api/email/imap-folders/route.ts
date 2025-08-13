@@ -134,6 +134,19 @@ export async function GET(request: Request) {
     }
   } catch (error: any) {
     console.error('Error in IMAP folders API:', error);
+    
+    // Handle authentication errors more gracefully
+    if (error.authenticationFailed || error.message?.includes('AUTHENTICATIONFAILED')) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: 'IMAP authentication failed. Please check your email credentials.',
+          needsReauth: true
+        },
+        { status: 401 }
+      );
+    }
+    
     return NextResponse.json(
       { success: false, error: error.message || 'Failed to list folders' },
       { status: 500 }

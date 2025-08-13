@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -105,9 +105,16 @@ export const SalesAgentResultsModal: React.FC<SalesAgentResultsModalProps> = ({
 }) => {
   const [isSaving, setIsSaving] = useState(false);
   const [isGeneratingDraft, setIsGeneratingDraft] = useState(false);
-  const [showDraftWindow, setShowDraftWindow] = useState(true); // Show draft immediately
-  const [showAnalysisDetails, setShowAnalysisDetails] = useState(false); // Collapse analysis by default
+  const [showDraftWindow, setShowDraftWindow] = useState(true); // Start with draft immediately
+  const [showAnalysisDetails, setShowAnalysisDetails] = useState(false); // Hide analysis by default
   const { toast } = useToast();
+  
+  // Auto-store sales context when component loads (analysis data available for draft)
+  useEffect(() => {
+    if (result) {
+      localStorage.setItem('sales-context-temp', JSON.stringify(result));
+    }
+  }, [result]);
   
   if (!result) return null;
 
@@ -152,43 +159,37 @@ export const SalesAgentResultsModal: React.FC<SalesAgentResultsModalProps> = ({
     }
   };
 
-  const handleGenerateDraft = async () => {
-    setIsGeneratingDraft(true);
-    try {
-      // Store sales context in localStorage temporarily for the AI draft to use
-      localStorage.setItem('sales-context-temp', JSON.stringify(result));
-      
-      // Show the AI Draft Window with sales context
-      setShowDraftWindow(true);
-      
-      toast({
-        title: "Sales Draft Loading!",
-        description: `AI is preparing a personalized response based on this ${result.analysis?.lead_qualification?.level || 'sales'} lead analysis.`,
-      });
-      
-    } catch (error) {
-      console.error('Error generating draft:', error);
-      toast({
-        title: "Error",
-        description: 'An error occurred while preparing draft response',
-        variant: "destructive",
-      });
-    } finally {
-      setIsGeneratingDraft(false);
-    }
-  };
-
   const handleSendDraft = async (draftData: {
     subject: string;
     body: string;
     changes: any[];
     userNotes?: string;
+    attachments?: { name: string; contentType: string; contentBytes: string }[];
   }) => {
     try {
-      // Here you would typically integrate with your email sending service
       console.log('Sending sales draft with context:', draftData);
       
-      // For now, just show success
+      // Prepare email payload
+      const emailPayload = {
+        subject: draftData.subject,
+        contentType: 'HTML',
+        content: draftData.body,
+        toRecipients: [emailInfo.from],
+        attachments: draftData.attachments || []
+      };
+
+      // Try to send via the email API
+      const response = await fetch('/api/emails/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(emailPayload)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Failed to send email: ${response.statusText}`);
+      }
+
       toast({
         title: "Sales Email Sent!",
         description: `Your personalized response has been sent to ${emailInfo.from}`,
@@ -199,7 +200,12 @@ export const SalesAgentResultsModal: React.FC<SalesAgentResultsModalProps> = ({
       
     } catch (error) {
       console.error('Error sending draft:', error);
-      throw error; // Let AIDraftWindow handle the error
+      toast({
+        title: "Email Send Failed",
+        description: error instanceof Error ? error.message : 'Failed to send email. Please try again.',
+        variant: "destructive",
+      });
+      throw error; // Let AIDraftWindow handle the error too
     }
   };
 
@@ -273,7 +279,7 @@ export const SalesAgentResultsModal: React.FC<SalesAgentResultsModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className={`${showDraftWindow ? 'max-w-[95vw] h-[95vh]' : 'max-w-4xl h-[90vh]'} flex flex-col overflow-hidden`}>
+      <DialogContent className={`${showAnalysisDetails ? 'max-w-7xl' : 'max-w-5xl'} h-[95vh] flex flex-col overflow-hidden`}>
         <DialogHeader className="flex-shrink-0">
           <div className="flex items-center justify-between">
             <div>
@@ -287,23 +293,25 @@ export const SalesAgentResultsModal: React.FC<SalesAgentResultsModalProps> = ({
               </DialogDescription>
             </div>
             <div className="flex items-center gap-2">
-              <Button
-                onClick={() => setShowAnalysisDetails(!showAnalysisDetails)}
-                variant="outline"
-                size="sm"
-              >
-                {showAnalysisDetails ? (
-                  <>
-                    <ChevronUp className="h-4 w-4 mr-2" />
-                    Hide Analysis
-                  </>
-                ) : (
-                  <>
-                    <TrendingUp className="h-4 w-4 mr-2" />
-                    View Analysis Details
-                  </>
-                )}
-              </Button>
+              {showDraftWindow && (
+                <Button
+                  onClick={() => setShowAnalysisDetails(!showAnalysisDetails)}
+                  variant="outline"
+                  size="sm"
+                >
+                  {showAnalysisDetails ? (
+                    <>
+                      <PenTool className="h-4 w-4 mr-2" />
+                      Hide Analysis
+                    </>
+                  ) : (
+                    <>
+                      <TrendingUp className="h-4 w-4 mr-2" />
+                      View Analysis
+                    </>
+                  )}
+                </Button>
+              )}
 
               <Button
                 onClick={handleSaveToContact}
@@ -327,9 +335,9 @@ export const SalesAgentResultsModal: React.FC<SalesAgentResultsModalProps> = ({
           </div>
         </DialogHeader>
 
-        <div className="flex gap-6 min-h-0 flex-1 flex-col">
+        <div className={`min-h-0 flex-1 ${showAnalysisDetails ? 'flex gap-4' : ''}`}>
           {/* AI Draft Window - Primary Focus */}
-          <div className="flex-1 min-h-0">
+          <div className={`${showAnalysisDetails ? 'flex-1' : 'w-full'} h-full`}>
             <AIDraftWindow
               emailId={`sales-${Date.now()}`}
               originalEmail={{
@@ -345,16 +353,16 @@ export const SalesAgentResultsModal: React.FC<SalesAgentResultsModalProps> = ({
             />
           </div>
           
-          {/* Analysis Section - Collapsible */}
+          {/* Analysis Section - Collapsible Sidebar */}
           {showAnalysisDetails && (
-            <div className="max-h-96 min-h-0 flex flex-col border-t">
-              <div className="px-4 py-2 bg-gray-50 border-b">
+            <div className="w-80 h-full flex flex-col border-l bg-gray-50">
+              <div className="px-4 py-2 bg-gray-100 border-b">
                 <h3 className="font-medium text-gray-800 flex items-center gap-2">
                   <TrendingUp className="h-4 w-4" />
-                  Sales Analysis Details
+                  Sales Analysis
                 </h3>
               </div>
-              <ScrollArea className="flex-1 pr-4">
+              <ScrollArea className="flex-1 pr-2">
                 <div className="space-y-4 p-4">
             {/* Error or Note Display */}
             {result.error && (

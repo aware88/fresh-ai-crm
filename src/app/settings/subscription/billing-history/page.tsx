@@ -13,20 +13,30 @@ export default function BillingHistoryPage() {
   const router = useRouter();
 
   useEffect(() => {
-    // Get organization ID from local storage or context
+    // Get organization ID and user ID from session
     const getOrgId = async () => {
       try {
-        // This is a placeholder - replace with your actual method to get the organization ID
-        const response = await fetch('/api/auth/me');
-        const data = await response.json();
-        if (data.organizationId) {
-          setOrganizationId(data.organizationId);
+        const response = await fetch('/api/auth/session');
+        const session = await response.json();
+        
+        if (session?.user) {
+          const orgId = (session.user as any)?.organizationId;
+          const userId = session.user.id;
+          
+          if (orgId) {
+            setOrganizationId(orgId);
+          } else if (userId) {
+            // For individual users, use userId as identifier
+            setOrganizationId(userId);
+          } else {
+            setError('No organization or user found. Please log in again.');
+          }
         } else {
-          setError('No organization found. Please create or join an organization first.');
+          setError('Please log in to view billing history.');
         }
       } catch (err) {
-        console.error('Error fetching user data:', err);
-        setError('Failed to load user data. Please try again later.');
+        console.error('Error fetching session:', err);
+        setError('Failed to load session. Please try again later.');
       }
     };
 
@@ -41,7 +51,8 @@ export default function BillingHistoryPage() {
       setError(null);
       
       try {
-        const response = await fetch(`/api/subscription/invoices?organizationId=${organizationId}`);
+        // Try both organizationId and userId parameters for compatibility
+        const response = await fetch(`/api/subscription/invoices?organizationId=${organizationId}&userId=${organizationId}&limit=50`);
         if (!response.ok) throw new Error('Failed to load invoices');
         
         const data = await response.json();

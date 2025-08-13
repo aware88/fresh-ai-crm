@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { aiUsageService } from '@/lib/services/ai-usage-service';
 import { topUpService } from '@/lib/services/topup-service';
 import { createClient } from '@/lib/supabase/server';
+import { createClient as createAdminClient } from '@supabase/supabase-js';
 
 export interface AILimitResult {
   allowed: boolean;
@@ -257,20 +258,44 @@ export async function logAIUsageWithTopup(
  */
 export async function getUserOrganization(userId: string): Promise<string | null> {
   try {
-    const supabase = await createClient();
+    // Use admin client to bypass RLS
+    const supabase = createAdminClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
     
-    const { data, error } = await supabase
+    console.log('🔍 getUserOrganization: Checking for user:', userId);
+    
+    // First try organization_members table
+    const { data: memberData, error: memberError } = await supabase
       .from('organization_members')
-      .select('organization_id')
+      .select('organization_id, role, status')
+      .eq('user_id', userId);
+
+    console.log('👥 Organization members query result:', { memberData, memberError });
+
+    if (memberData && memberData.length > 0) {
+      const organizationId = memberData[0].organization_id;
+      console.log('✅ Found organization via members table:', organizationId);
+      return organizationId;
+    }
+
+    // Fallback: Try user_preferences table for current_organization_id
+    const { data: prefsData, error: prefsError } = await supabase
+      .from('user_preferences')
+      .select('current_organization_id')
       .eq('user_id', userId)
       .single();
 
-    if (error || !data) {
-      console.error('Error getting user organization:', error);
-      return null;
+    console.log('📋 User preferences query result:', { prefsData, prefsError });
+
+    if (prefsData?.current_organization_id) {
+      console.log('✅ Found organization via user preferences:', prefsData.current_organization_id);
+      return prefsData.current_organization_id;
     }
 
-    return data.organization_id;
+    console.log('❌ No organization found for user');
+    return null;
   } catch (error) {
     console.error('Exception getting user organization:', error);
     return null;
@@ -314,23 +339,31 @@ export async function withAILimitCheckAndTopup(
     // For individual users, we can bypass organization-based limits
     // and check their personal subscription limits instead
     try {
-      // Check if user has a valid subscription
-      const response = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || ''}/api/subscription/current?userId=${userId}`, {
-        cache: 'no-store'
-      });
+      // Check if user has a valid subscription using admin client
+      const adminClient = createAdminClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!
+      );
+      const { data: userData, error: userError } = await adminClient.auth.admin.getUserById(userId);
       
-      if (response.ok) {
-        const data = await response.json();
-        const planName = data?.plan?.name?.toLowerCase() || '';
+      if (!userError && userData.user) {
+        const userSubscriptionPlan = userData.user.user_metadata?.subscription_plan || 'starter';
+        console.log(`📝 Individual user subscription plan: ${userSubscriptionPlan}`);
         
-        // Allow premium users to use email features
-        if (planName.includes('premium')) {
-          console.log('✅ Premium individual user - allowing AI features');
+        // Allow premium users to use all AI features
+        if (userSubscriptionPlan.includes('premium')) {
+          console.log('✅ Premium individual user - allowing all AI features');
           return handler();
         }
         
-        // For other individual plans, apply basic limits
-        console.log(`📝 Individual user with ${planName} plan - applying basic limits`);
+        // Allow pro users to use email features
+        if (userSubscriptionPlan.includes('pro')) {
+          console.log('✅ Pro individual user - allowing email AI features');
+          return handler();
+        }
+        
+        // For starter users, allow basic email features but with limits
+        console.log(`📝 Individual user with ${userSubscriptionPlan} plan - allowing with basic limits`);
         return handler(); // For now, allow all individual users
       }
     } catch (error) {

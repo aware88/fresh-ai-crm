@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Send, Loader2 } from 'lucide-react';
-import RichTextEditor from './RichTextEditor';
+// import RichTextEditor from './RichTextEditor'; // Temporarily disabled due to React 18 compatibility
 
 export default function EmailComposer() {
   const [to, setTo] = useState('');
@@ -217,11 +217,12 @@ export default function EmailComposer() {
             />
           ) : (
             <div className={previewMode === 'mobile' ? 'max-w-sm mx-auto border rounded' : ''}>
-              <RichTextEditor
+              <textarea
                 value={body}
-                onChange={setBody}
-                placeholder="Compose your email with rich text formatting..."
-                height="400px"
+                onChange={(e) => setBody(e.target.value)}
+                placeholder="Compose your email..."
+                className="w-full h-[400px] p-3 border rounded-md resize-none font-mono text-sm"
+                rows={20}
               />
             </div>
           )}

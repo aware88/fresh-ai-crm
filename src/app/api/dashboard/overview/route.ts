@@ -90,33 +90,42 @@ export async function GET(request: NextRequest) {
     let emailAccounts = 0;
 
     if (organizationId) {
-      // User has an organization - fetch organization-scoped data + orphaned data
+      // User has an organization - fetch organization plus user-owned data
       console.log(`🔍 Fetching data for organization: ${organizationId}`);
-      
-      const [orgContacts, orphanedContacts, suppliers, products, emails] = await Promise.all([
-        // Organization-scoped contacts
-        supabase.from('contacts').select('id', { count: 'exact', head: true }).eq('organization_id', organizationId),
-        // Orphaned contacts (no organization_id and no user_id) - these need to be assigned
-        supabase.from('contacts').select('id', { count: 'exact', head: true }).is('organization_id', null).is('user_id', null),
-        // Organization-scoped suppliers and products
-        supabase.from('suppliers').select('id', { count: 'exact', head: true }).eq('organization_id', organizationId),
-        supabase.from('products').select('id', { count: 'exact', head: true }).eq('organization_id', organizationId),
-        // Email accounts (dummy – we will compute using admin client below to avoid RLS)
-        supabase.from('email_accounts').select('id', { count: 'exact', head: true })
+
+      const [contactsCombined, suppliersCombined, productsCombined, emails] = await Promise.all([
+        // Contacts visible to the user (match RLS): org OR created_by user
+        supabase
+          .from('contacts')
+          .select('id', { count: 'exact', head: true })
+          .or(`organization_id.eq.${organizationId},user_id.eq.${uid}`),
+        // Suppliers visible to the user: org OR user-owned
+        supabase
+          .from('suppliers')
+          .select('id', { count: 'exact', head: true })
+          .or(`organization_id.eq.${organizationId},user_id.eq.${uid}`),
+        // Products visible to the user: org OR user-owned
+        supabase
+          .from('products')
+          .select('id', { count: 'exact', head: true })
+          .or(`organization_id.eq.${organizationId},user_id.eq.${uid}`),
+        // Email accounts (we refine below with admin client)
+        supabase
+          .from('email_accounts')
+          .select('id', { count: 'exact', head: true })
           .eq('user_id', uid)
       ]);
 
-      console.log('📊 Query results:');
-      console.log(`   Organization contacts: ${orgContacts.count || 0} (error: ${orgContacts.error?.message || 'none'})`);
-      console.log(`   Orphaned contacts: ${orphanedContacts.count || 0} (error: ${orphanedContacts.error?.message || 'none'})`);
-      console.log(`   Suppliers: ${suppliers.count || 0} (error: ${suppliers.error?.message || 'none'})`);
-      console.log(`   Products: ${products.count || 0} (error: ${products.error?.message || 'none'})`);
+      console.log('📊 Query results (combined filters):');
+      console.log(`   Contacts: ${contactsCombined.count || 0} (error: ${contactsCombined.error?.message || 'none'})`);
+      console.log(`   Suppliers: ${suppliersCombined.count || 0} (error: ${suppliersCombined.error?.message || 'none'})`);
+      console.log(`   Products: ${productsCombined.count || 0} (error: ${productsCombined.error?.message || 'none'})`);
       console.log(`   Email accounts: ${emails.count || 0} (error: ${emails.error?.message || 'none'})`);
 
-      // For now, include orphaned contacts in the count (they should be assigned to the user's organization)
-      totalContacts = (orgContacts.count || 0) + (orphanedContacts.count || 0);
-      totalSuppliers = suppliers.count || 0;
-      totalProducts = products.count || 0;
+      totalContacts = contactsCombined.count || 0;
+      totalSuppliers = suppliersCombined.count || 0;
+      // Some PostgREST count/OR edge cases can return 0; keep the value but we will correct via admin below
+      totalProducts = productsCombined.count || 0;
       // Compute email account count using admin client (bypass RLS and OR filter reliably)
       try {
         const direct = createDirectClient(
@@ -138,59 +147,31 @@ export async function GET(request: NextRequest) {
         emailAccounts = emails.count || 0;
       }
       
-      // If organization-scoped queries returned 0, try admin fallback for suppliers/products/email, then user-scoped
+      // Use admin counts as source of truth to avoid RLS/count edge cases
       try {
-        if (totalSuppliers === 0 || totalProducts === 0) {
-          const direct = createDirectClient(
-            process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-            process.env.SUPABASE_SERVICE_ROLE_KEY || ''
-          );
-          const [{ data: supplierRows }, { data: productRows }] = await Promise.all([
-            direct.from('suppliers').select('id').eq('organization_id', organizationId),
-            direct.from('products').select('id').eq('organization_id', organizationId)
-          ]);
-          if (totalSuppliers === 0) totalSuppliers = supplierRows?.length || 0;
-          if (totalProducts === 0) totalProducts = productRows?.length || 0;
-        }
-      } catch (e) {
-        console.warn('Admin fallback suppliers/products failed:', e);
-      }
-
-      // If still zero for some, try user-scoped fallback
-      if (totalContacts === 0 || emailAccounts === 0 || totalSuppliers === 0 || totalProducts === 0) {
-        console.log('🔄 Organization queries returned 0, trying user-scoped fallback...');
-        
-        const [userContacts, userSuppliers, userProducts, userEmails] = await Promise.all([
-          supabase.from('contacts').select('id', { count: 'exact', head: true }).eq('created_by', uid),
-          supabase.from('suppliers').select('id', { count: 'exact', head: true }).eq('created_by', uid),
-          supabase.from('products').select('id', { count: 'exact', head: true }).eq('created_by', uid),
-          supabase.from('email_accounts').select('id', { count: 'exact', head: true }).eq('user_id', uid)
+        const direct = createDirectClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+          process.env.SUPABASE_SERVICE_ROLE_KEY || ''
+        );
+        const [suppliersOrg, suppliersUser, productsOrg, productsUser] = await Promise.all([
+          direct.from('suppliers').select('id').eq('organization_id', organizationId),
+          direct.from('suppliers').select('id').eq('user_id', uid),
+          direct.from('products').select('id').eq('organization_id', organizationId),
+          direct.from('products').select('id').eq('user_id', uid)
         ]);
-        
-        console.log('📊 User-scoped fallback results:');
-        console.log(`   User contacts: ${userContacts.count || 0} (error: ${userContacts.error?.message || 'none'})`);
-        console.log(`   User suppliers: ${userSuppliers.count || 0} (error: ${userSuppliers.error?.message || 'none'})`);
-        console.log(`   User products: ${userProducts.count || 0} (error: ${userProducts.error?.message || 'none'})`);
-        console.log(`   User email accounts: ${userEmails.count || 0} (error: ${userEmails.error?.message || 'none'})`);
-        
-        // Use user-scoped data if organization-scoped returned 0
-        if (totalContacts === 0 && (userContacts.count || 0) > 0) {
-          totalContacts = userContacts.count || 0;
-          console.log(`✅ Using user contacts: ${totalContacts}`);
-        }
-        if (totalSuppliers === 0 && (userSuppliers.count || 0) > 0) {
-          totalSuppliers = userSuppliers.count || 0;
-          console.log(`✅ Using user suppliers: ${totalSuppliers}`);
-        }
-        if (totalProducts === 0 && (userProducts.count || 0) > 0) {
-          totalProducts = userProducts.count || 0;
-          console.log(`✅ Using user products: ${totalProducts}`);
-        }
-        if (emailAccounts === 0 && (userEmails.count || 0) > 0) {
-          emailAccounts = userEmails.count || 0;
-          console.log(`✅ Using user email accounts: ${emailAccounts}`);
-        }
+        const supMap: Record<string, true> = {};
+        (suppliersOrg.data || []).forEach((r: any) => r?.id && (supMap[r.id] = true));
+        (suppliersUser.data || []).forEach((r: any) => r?.id && (supMap[r.id] = true));
+        const prodMap: Record<string, true> = {};
+        (productsOrg.data || []).forEach((r: any) => r?.id && (prodMap[r.id] = true));
+        (productsUser.data || []).forEach((r: any) => r?.id && (prodMap[r.id] = true));
+        totalSuppliers = Object.keys(supMap).length;
+        totalProducts = Object.keys(prodMap).length;
+        console.log('📊 Admin override counts:', { totalSuppliers, totalProducts });
+      } catch (e) {
+        console.warn('Admin suppliers/products count failed:', e);
       }
+      // We no longer add orphaned data or separate user fallbacks; the combined filters align with list pages.
     } else {
       // User doesn't have organization - fetch user-scoped data
       console.log(`Fetching data for independent user: ${uid}`);

@@ -87,6 +87,9 @@ export default function AnalyticsDashboardClient({ initialData, organizationId }
   const [supplierData, setSupplierData] = useState(initialData.supplierData);
   const [productData, setProductData] = useState(initialData.productData);
   const [priceData, setPriceData] = useState(initialData.priceData);
+  const orgSlug = initialData?.analyticsData?.organization?.slug?.toLowerCase?.();
+  const orgName = initialData?.analyticsData?.organization?.name?.toLowerCase?.();
+  const hideSuppliers = orgSlug === 'withcar' || orgName === 'withcar' || organizationId === '577485fb-50b4-4bb2-a4c6-54b97e1545ad';
   const [error, setError] = useState<string | null>(null);
   const [aiSavings, setAiSavings] = useState<null | {
     time: { minutes: number; hours: number; workDays: number };
@@ -205,7 +208,7 @@ export default function AnalyticsDashboardClient({ initialData, organizationId }
       ) : (
         <>
           {/* Analytics Stats Cards */}
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <div className={`grid gap-4 md:grid-cols-2 ${ hideSuppliers ? 'lg:grid-cols-3' : 'lg:grid-cols-4' }`}>
             <StatCard
               title="Total Revenue"
               value={`$${analyticsData.counts.revenue?.toLocaleString() || '0'}`}
@@ -230,14 +233,16 @@ export default function AnalyticsDashboardClient({ initialData, organizationId }
               trend={getTrend(analyticsData.customers?.percentChange || 0)}
               trendValue={formatTrend(analyticsData.customers?.percentChange || 0)}
             />
-            <StatCard
-              title="Suppliers"
-              value={analyticsData.counts.suppliers || 0}
-              description="Total active suppliers"
-              icon={<Building2 className="h-4 w-4" />}
-              trend={getTrend(analyticsData.suppliers?.percentChange || 0)}
-              trendValue={formatTrend(analyticsData.suppliers?.percentChange || 0)}
-            />
+            {!hideSuppliers && (
+              <StatCard
+                title="Suppliers"
+                value={analyticsData.counts.suppliers || 0}
+                description="Total active suppliers"
+                icon={<Building2 className="h-4 w-4" />}
+                trend={getTrend(analyticsData.suppliers?.percentChange || 0)}
+                trendValue={formatTrend(analyticsData.suppliers?.percentChange || 0)}
+              />
+            )}
           </div>
 
           {/* Secondary Stats */}
@@ -271,7 +276,7 @@ export default function AnalyticsDashboardClient({ initialData, organizationId }
       )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-6 h-12 bg-gradient-to-r from-slate-50 to-slate-100 border border-slate-200 shadow-sm rounded-md">
+         <TabsList className="grid w-full grid-cols-6 h-12 bg-gradient-to-r from-slate-50 to-slate-100 border border-slate-200 shadow-sm rounded-md">
           <TabsTrigger 
             value="overview" 
             className="font-semibold text-slate-700 data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-blue-200 transition-all duration-200"
@@ -290,12 +295,14 @@ export default function AnalyticsDashboardClient({ initialData, organizationId }
           >
             Subscriptions
           </TabsTrigger>
-          <TabsTrigger 
-            value="suppliers"
-            className="font-semibold text-slate-700 data-[state=active]:bg-white data-[state=active]:text-green-600 data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-green-200 transition-all duration-200"
-          >
-            Suppliers
-          </TabsTrigger>
+          {!hideSuppliers && (
+            <TabsTrigger 
+              value="suppliers"
+              className="font-semibold text-slate-700 data-[state=active]:bg-white data-[state=active]:text-green-600 data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-green-200 transition-all duration-200"
+            >
+              Suppliers
+            </TabsTrigger>
+          )}
           <TabsTrigger 
             value="products"
             className="font-semibold text-slate-700 data-[state=active]:bg-white data-[state=active]:text-pink-600 data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-pink-200 transition-all duration-200"
@@ -396,6 +403,7 @@ export default function AnalyticsDashboardClient({ initialData, organizationId }
           )}
         </TabsContent>
 
+        {!hideSuppliers && (
         <TabsContent value="suppliers" className="space-y-4">
           <Card>
             <CardHeader>
@@ -428,6 +436,7 @@ export default function AnalyticsDashboardClient({ initialData, organizationId }
             </CardContent>
           </Card>
         </TabsContent>
+        )}
 
         <TabsContent value="products" className="space-y-4">
           <Card>

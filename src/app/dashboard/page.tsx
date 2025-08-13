@@ -51,6 +51,7 @@ interface DashboardStats {
 export default function DashboardPage() {
   const { data: session, status } = useSession();
   const { organization } = useOrganization();
+  const isWithcar = (organization?.slug?.toLowerCase?.() === 'withcar') || (organization?.name?.toLowerCase?.() === 'withcar') || (organization?.id === '577485fb-50b4-4bb2-a4c6-54b97e1545ad');
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [aiSavings, setAiSavings] = useState<null | {
@@ -176,7 +177,7 @@ export default function DashboardPage() {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+      <div className={`grid gap-6 md:grid-cols-2 ${isWithcar ? 'lg:grid-cols-3' : 'lg:grid-cols-4'}`}>
         <Card className="border border-gray-200 shadow-sm bg-white">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-blue-800">Total Contacts</CardTitle>
@@ -193,6 +194,8 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
+        {/* Hide Suppliers tile for Withcar only */}
+        {!isWithcar && (
         <Card className="border-0 shadow-lg bg-gradient-to-br from-purple-50 to-purple-100">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-purple-800">Suppliers</CardTitle>
@@ -208,6 +211,7 @@ export default function DashboardPage() {
             </p>
           </CardContent>
         </Card>
+        )}
 
         <Card className="border-0 shadow-lg bg-gradient-to-br from-green-50 to-green-100">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -281,10 +285,12 @@ export default function DashboardPage() {
                     <span className="text-sm text-muted-foreground">Total Contacts</span>
                     <span className="font-semibold">{stats?.totalContacts || 0}</span>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">Active Suppliers</span>
-                    <span className="font-semibold">{stats?.totalSuppliers || 0}</span>
-                  </div>
+                  {!(organization?.slug?.toLowerCase() === 'withcar' || organization?.name?.toLowerCase() === 'withcar') && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-muted-foreground">Active Suppliers</span>
+                      <span className="font-semibold">{stats?.totalSuppliers || 0}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-muted-foreground">Product Catalog</span>
                     <span className="font-semibold">{stats?.totalProducts || 0}</span>

@@ -16,7 +16,11 @@ export function ViewSwitcher({ activeView, onViewChange }: ViewSwitcherProps) {
   useEffect(() => {
     const checkMetakockaEnabled = async () => {
       try {
-        const response = await fetch('/api/feature-flags/METAKOCKA_INTEGRATION');
+        // Skip feature flag check for now to avoid 400 errors
+        // const response = await fetch('/api/feature-flags/METAKOCKA_INTEGRATION');
+        // For now, default to disabled
+        setMetakockaEnabled(false);
+        return;
         if (response.ok) {
           const data = await response.json();
           setMetakockaEnabled(data.enabled);

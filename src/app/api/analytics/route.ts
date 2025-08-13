@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import { supabase } from '@/lib/supabaseClient';
+import { createClient } from '@/lib/supabase/server';
+import { createClient as createDirectClient } from '@supabase/supabase-js';
 
 export async function GET(request: Request) {
   try {
@@ -15,7 +16,27 @@ export async function GET(request: Request) {
     }
 
     const userId = session.user.id;
-    const organizationId = userId; // Use user ID as organization ID for now
+    // Resolve real organization id like other endpoints
+    const serverSupabase = await createClient();
+    let organizationId: string | null = null;
+    try {
+      const { data: prefs } = await serverSupabase
+        .from('user_preferences')
+        .select('current_organization_id')
+        .eq('user_id', userId)
+        .maybeSingle();
+      if (prefs?.current_organization_id) organizationId = prefs.current_organization_id;
+      if (!organizationId) {
+        const { data: member } = await serverSupabase
+          .from('organization_members')
+          .select('organization_id')
+          .eq('user_id', userId)
+          .maybeSingle();
+        if (member?.organization_id) organizationId = member.organization_id;
+      }
+    } catch {}
+    // Fallback: treat as independent user if still null
+    if (!organizationId) organizationId = userId;
 
     // Get current date ranges with proper timezone handling
     const currentDate = new Date();
@@ -51,37 +72,37 @@ export async function GET(request: Request) {
       customersPreviousResult
     ] = await Promise.allSettled([
       // Count suppliers (organization shared data)
-      supabase
+      serverSupabase
         .from('suppliers')
         .select('id', { count: 'exact', head: true })
         .eq('organization_id', organizationId as any),
       
       // Count products (organization shared data)
-      supabase
+      serverSupabase
         .from('products')
         .select('id', { count: 'exact', head: true })
         .eq('organization_id', organizationId as any),
       
       // Count documents (organization shared data)
-      supabase
+      serverSupabase
         .from('supplier_documents')
         .select('id', { count: 'exact', head: true })
         .eq('organization_id', organizationId as any),
       
       // Count supplier emails (organization shared data)
-      supabase
+      serverSupabase
         .from('supplier_emails')
         .select('id', { count: 'exact', head: true })
         .eq('organization_id', organizationId as any),
       
       // Get pricing stats (organization shared data)
-      supabase
+      serverSupabase
         .from('supplier_pricing')
         .select('price')
         .eq('organization_id', organizationId as any),
 
       // Current revenue (last 30 days) - organization shared data
-      supabase
+      serverSupabase
         .from('sales_documents')
         .select('total_amount')
         .eq('organization_id', organizationId as any)
@@ -89,7 +110,7 @@ export async function GET(request: Request) {
         .gte('created_at', thirtyDaysAgo.toISOString()),
 
       // Previous revenue (30-60 days ago) - organization shared data
-      supabase
+      serverSupabase
         .from('sales_documents')
         .select('total_amount')
         .eq('organization_id', organizationId as any)
@@ -98,14 +119,14 @@ export async function GET(request: Request) {
         .lt('created_at', thirtyDaysAgo.toISOString()),
 
       // Current orders (last 30 days) - organization shared data
-      supabase
+      serverSupabase
         .from('sales_documents')
         .select('id', { count: 'exact', head: true })
         .eq('organization_id', organizationId as any)
         .gte('created_at', thirtyDaysAgo.toISOString()),
 
       // Previous orders (30-60 days ago) - organization shared data
-      supabase
+      serverSupabase
         .from('sales_documents')
         .select('id', { count: 'exact', head: true })
         .eq('organization_id', organizationId as any)
@@ -113,14 +134,14 @@ export async function GET(request: Request) {
         .lt('created_at', thirtyDaysAgo.toISOString()),
 
       // Current customers (use suppliers as customers) - organization shared data
-      supabase
+      serverSupabase
         .from('suppliers')
         .select('id', { count: 'exact', head: true })
         .eq('organization_id', organizationId as any)
         .gte('created_at', thirtyDaysAgo.toISOString()),
 
       // Previous customers (30-60 days ago) - organization shared data
-      supabase
+      serverSupabase
         .from('suppliers')
         .select('id', { count: 'exact', head: true })
         .eq('organization_id', organizationId as any)
@@ -192,11 +213,29 @@ export async function GET(request: Request) {
       customerChange
     });
 
-    // Calculate supplier metrics  
-    const totalSuppliers = getCount(suppliersResult);
+    // Calculate supplier metrics
+    let totalSuppliers = getCount(suppliersResult);
     const totalProducts = getCount(productsResult);
     const totalDocuments = getCount(documentsResult);
     const totalSupplierEmails = getCount(supplierEmailsResult);
+
+    // Override supplier count with admin-backed union of org + user-owned (align with dashboard/list pages)
+    try {
+      const direct = createDirectClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+        process.env.SUPABASE_SERVICE_ROLE_KEY || ''
+      );
+      const [orgRows, userRows] = await Promise.all([
+        direct.from('suppliers').select('id').eq('organization_id', organizationId),
+        direct.from('suppliers').select('id').eq('user_id', userId)
+      ]);
+      const uniq: Record<string, true> = {};
+      (orgRows.data || []).forEach((r: any) => r?.id && (uniq[r.id] = true));
+      (userRows.data || []).forEach((r: any) => r?.id && (uniq[r.id] = true));
+      totalSuppliers = Object.keys(uniq).length;
+    } catch (e) {
+      // Keep earlier value on failure
+    }
 
     // For debugging - log what data we found
     console.log('Analytics Data:', {

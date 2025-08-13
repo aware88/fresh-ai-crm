@@ -167,9 +167,11 @@ export default function SubscriptionPage() {
     return currentPlan?.name || currentSubscription?.subscription_plan?.name || '';
   };
 
-  // Check if a plan is currently active
+  // Check if a plan is currently active (reactive to current plan state)
   const isPlanActive = (planName: string) => {
-    const currentPlanName = getCurrentPlanName().toLowerCase();
+    // Use currentPlan state if available, fallback to getCurrentPlanName()
+    const activePlanName = currentPlan?.name || getCurrentPlanName();
+    const currentPlanName = activePlanName.toLowerCase();
     const targetPlan = planName.toLowerCase();
     
     // Handle Premium Advanced as Premium plan
@@ -180,20 +182,32 @@ export default function SubscriptionPage() {
     return currentPlanName === targetPlan;
   };
 
-  // Pricing data based on screenshots
+  // Pricing data from LOVABLE_PRICING_PAGE_PROMPT.md - exact pricing structure
   const getPlanPricing = (planName: string, isAnnual: boolean) => {
     const pricing = {
       starter: {
-        monthly: { original: 19, current: 0, savings: 0 },
-        annual: { original: 15, current: 0, savings: 48 }
+        monthly: { original: 0, current: 0, savings: 0 }, // Always Free
+        annual: { original: 0, current: 0, savings: 0 }   // Always Free
       },
       pro: {
-        monthly: { original: 59, current: 0, savings: 0 },
-        annual: { original: 45, current: 0, savings: 168 }
+        monthly: { original: 29, current: 29, savings: 0 }, // $29/month
+        annual: { original: 29, current: 24, savings: 60 }  // $24/month when billed annually
       },
       premium: {
-        monthly: { original: 197, current: 197, savings: 0 },
-        annual: { original: 157, current: 157, savings: 480 }
+        monthly: { original: 197, current: 197, savings: 0 }, // $197/month (Premium Basic)
+        annual: { original: 197, current: 157, savings: 480 } // $157/month when billed annually
+      },
+      premium_basic: {
+        monthly: { original: 197, current: 197, savings: 0 }, // $197/month
+        annual: { original: 197, current: 157, savings: 480 } // $157/month when billed annually
+      },
+      premium_advanced: {
+        monthly: { original: 297, current: 297, savings: 0 }, // $297/month
+        annual: { original: 297, current: 237, savings: 720 } // $237/month when billed annually
+      },
+      premium_enterprise: {
+        monthly: { original: 497, current: 497, savings: 0 }, // $497/month
+        annual: { original: 497, current: 397, savings: 1200 } // $397/month when billed annually
       }
     };
 
@@ -233,9 +247,89 @@ export default function SubscriptionPage() {
     setShowUpgradeDialog(true);
   };
 
-  const handleChangeBillingCycle = async () => {
-    // Handle billing cycle change
-    console.log('Change billing cycle');
+  const handleConfirmPlanChange = async () => {
+    if (!selectedPlan) return;
+    
+    console.log('🔄 Starting plan change:', {
+      selectedPlan: selectedPlan.id,
+      billingCycle: selectedBillingCycle,
+      organizationId: organizationId || userId,
+      subscriptionId: currentSubscription?.id
+    });
+    
+    setIsProcessing(true);
+    
+    try {
+      const requestBody = {
+        planId: selectedPlan.id,
+        billingCycle: selectedBillingCycle,
+        organizationId: organizationId || userId,
+        subscriptionId: currentSubscription?.id
+      };
+      
+      console.log('📤 Sending request to /api/subscription/change-plan:', requestBody);
+      
+      const response = await fetch('/api/subscription/change-plan', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      const data = await response.json();
+      console.log('📥 API Response:', { status: response.status, data });
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to change subscription plan');
+      }
+
+      toast({
+        title: "Plan Changed Successfully",
+        description: `Your subscription has been updated to ${selectedPlan.name} (${selectedBillingCycle}).`,
+      });
+
+      // Refresh subscription data and reset state
+      console.log('🔄 Refreshing subscription data...');
+      setSelectedPlan(null); // Clear selected plan
+      setShowUpgradeDialog(false);
+      
+      // Refresh all subscription data
+      await Promise.all([
+        fetchSubscriptionData(),
+        // Force re-fetch of current subscription to update the UI
+        fetch(`/api/subscription/current?userId=${userId}`, { 
+          cache: 'no-store',
+          headers: { 'Cache-Control': 'no-cache' }
+        }).then(async (res) => {
+          if (res.ok) {
+            const { plan, subscription } = await res.json();
+            // Ensure billing cycle is preserved in the subscription metadata
+            const updatedSubscription = {
+              ...subscription,
+              subscription_plans: plan,
+              metadata: {
+                ...subscription.metadata,
+                billing_cycle: selectedBillingCycle // Use the billing cycle from the plan change
+              }
+            };
+            setCurrentSubscription(updatedSubscription);
+            setCurrentPlan(plan);
+            console.log('🔄 Updated current plan state:', plan.name, 'with billing cycle:', selectedBillingCycle);
+          }
+        })
+      ]);
+      
+    } catch (error: any) {
+      console.error('❌ Error changing plan:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to change subscription plan. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const handleCancelSubscription = async () => {
@@ -288,7 +382,27 @@ export default function SubscriptionPage() {
                   {getStatusBadge(currentSubscription.status)}
                 </CardTitle>
                 <CardDescription>
-                  {currentPlan.description || 'Your current subscription plan'}
+                  {(() => {
+                    if (!currentPlan) return 'Your current subscription plan';
+                    
+                    // Get billing cycle and show appropriate description
+                    const billingCycle = currentSubscription?.metadata?.billing_cycle || currentPlan.billing_interval || 'monthly';
+                    const isAnnual = billingCycle === 'yearly';
+                    
+                    // Get base description from plan
+                    let baseDescription = currentPlan.description || 'Your current subscription plan';
+                    
+                    // Add billing cycle info for premium plans
+                    if (currentPlan.name.toLowerCase().includes('premium')) {
+                      baseDescription = isAnnual ? 'Perfect for large organizations (Annual billing)' : 'Perfect for large organizations';
+                    } else if (currentPlan.name.toLowerCase().includes('pro')) {
+                      baseDescription = isAnnual ? 'Built for growing teams (Annual billing)' : 'Built for growing teams';
+                    } else if (currentPlan.name.toLowerCase().includes('starter')) {
+                      baseDescription = 'Great to get started';
+                    }
+                    
+                    return baseDescription;
+                  })()}
                 </CardDescription>
               </div>
               <div className="text-right">
@@ -296,8 +410,20 @@ export default function SubscriptionPage() {
                   {currentPlan.name}
                 </div>
                 <div className="text-sm text-muted-foreground">
-                  {formatCurrency(currentPlan.price)}/
-                  {currentPlan.billing_interval}
+                  {(() => {
+                    if (!currentPlan) return '$0.00/monthly';
+                    
+                    // Get billing cycle from subscription metadata or current plan
+                    const billingCycle = currentSubscription?.metadata?.billing_cycle || currentPlan.billing_interval || 'monthly';
+                    const isAnnual = billingCycle === 'yearly';
+                    
+                    // Get the correct price based on plan and billing cycle
+                    const planName = currentPlan.name.toLowerCase().replace(/\s+/g, '_');
+                    const planPricing = getPlanPricing(planName, isAnnual);
+                    const displayPrice = planPricing.current;
+                    
+                    return `${formatCurrency(displayPrice)}/${isAnnual ? 'mo (billed annually)' : 'monthly'}`;
+                  })()}
                 </div>
               </div>
             </div>
@@ -307,14 +433,42 @@ export default function SubscriptionPage() {
               <div>
                 <div className="text-sm text-muted-foreground">Current Period</div>
                 <div className="font-medium">
-                  {format(new Date(currentSubscription.current_period_start), 'MMM dd, yyyy')} - {' '}
-                  {format(new Date(currentSubscription.current_period_end), 'MMM dd, yyyy')}
+                  {(() => {
+                    // Calculate proper period based on billing cycle and metadata
+                    const billingCycle = currentSubscription?.metadata?.billing_cycle || currentPlan?.billing_interval || 'monthly';
+                    const isAnnual = billingCycle === 'yearly';
+                    
+                    // Use metadata plan change date if available, otherwise use current date
+                    const startDate = currentSubscription?.metadata?.plan_change_date 
+                      ? new Date(currentSubscription.metadata.plan_change_date)
+                      : new Date();
+                    
+                    const endDate = isAnnual 
+                      ? addYears(startDate, 1)
+                      : addMonths(startDate, 1);
+                    
+                    return `${format(startDate, 'MMM dd, yyyy')} - ${format(endDate, 'MMM dd, yyyy')}`;
+                  })()}
                 </div>
               </div>
               <div>
                 <div className="text-sm text-muted-foreground">Next Billing Date</div>
                 <div className="font-medium">
-                  {format(new Date(currentSubscription.current_period_end), 'MMM dd, yyyy')}
+                  {(() => {
+                    // Calculate next billing date based on billing cycle
+                    const billingCycle = currentSubscription?.metadata?.billing_cycle || currentPlan?.billing_interval || 'monthly';
+                    const isAnnual = billingCycle === 'yearly';
+                    
+                    const startDate = currentSubscription?.metadata?.plan_change_date 
+                      ? new Date(currentSubscription.metadata.plan_change_date)
+                      : new Date();
+                    
+                    const nextBillingDate = isAnnual 
+                      ? addYears(startDate, 1)
+                      : addMonths(startDate, 1);
+                    
+                    return format(nextBillingDate, 'MMM dd, yyyy');
+                  })()}
                 </div>
               </div>
             </div>
@@ -324,7 +478,20 @@ export default function SubscriptionPage() {
                 <AlertCircle className="w-4 h-4" />
                 <AlertDescription>
                   Your subscription will be canceled at the end of the current billing period on{' '}
-                  {format(new Date(currentSubscription.current_period_end), 'MMM dd, yyyy')}.
+                  {(() => {
+                    const billingCycle = currentSubscription?.metadata?.billing_cycle || currentPlan?.billing_interval || 'monthly';
+                    const isAnnual = billingCycle === 'yearly';
+                    
+                    const startDate = currentSubscription?.metadata?.plan_change_date 
+                      ? new Date(currentSubscription.metadata.plan_change_date)
+                      : new Date();
+                    
+                    const endDate = isAnnual 
+                      ? addYears(startDate, 1)
+                      : addMonths(startDate, 1);
+                    
+                    return format(endDate, 'MMM dd, yyyy');
+                  })()}.
                 </AlertDescription>
               </Alert>
             )}
@@ -401,19 +568,13 @@ export default function SubscriptionPage() {
             <div className={`border rounded-lg p-4 hover:shadow-md transition-shadow ${isPlanActive('Starter') ? 'border-blue-500 bg-blue-50' : ''}`}>
               <div className="text-lg font-semibold">Starter</div>
               <div className="text-2xl font-bold mt-2">
-                <span className="line-through text-gray-400">
-                  ${getPlanPricing('starter', isAnnual).original}.00
-                </span>
-                <span className="ml-2 text-green-600">
-                  ${getPlanPricing('starter', isAnnual).current}.00
+                <span className="text-green-600">
+                  $0.00
                 </span>
                 <span className="text-sm text-muted-foreground">/{isAnnual ? 'mo' : 'monthly'}</span>
               </div>
-              {isAnnual && getPlanPricing('starter', isAnnual).savings > 0 && (
-                <div className="text-xs text-green-600 font-medium">Save ${getPlanPricing('starter', isAnnual).savings}/year</div>
-              )}
-              <div className="text-xs text-green-600 font-medium">Free for Limited Time</div>
-              <div className="text-sm text-muted-foreground mt-1">Perfect for Solo Entrepreneurs</div>
+              <div className="text-xs text-green-600 font-medium">Free</div>
+              <div className="text-sm text-muted-foreground mt-1">Great to get started</div>
               {isPlanActive('Starter') && (
                 <div className="flex items-center gap-2 mt-2">
                   <CheckCircle className="w-4 h-4 text-green-600" />
@@ -429,7 +590,7 @@ export default function SubscriptionPage() {
                     handleUpgradePlan({
                       id: 'starter',
                       name: 'Starter',
-                      description: 'Perfect for Solo Entrepreneurs',
+                      description: 'Great to get started',
                       price: 0,
                       billing_interval: 'monthly',
                       features: {},
@@ -440,7 +601,7 @@ export default function SubscriptionPage() {
                   }
                 }}
               >
-                {isPlanActive('Starter') ? 'Current Plan' : (isAnnual ? 'Join Beta - Free Limited Time' : 'Select Plan')}
+                {isPlanActive('Starter') ? 'Current Plan' : 'Get Started Free'}
               </Button>
             </div>
 
@@ -448,20 +609,16 @@ export default function SubscriptionPage() {
             <div className={`border rounded-lg p-4 hover:shadow-md transition-shadow ${isPlanActive('Pro') ? 'border-blue-500 bg-blue-50' : ''}`}>
               <div className="text-lg font-semibold">Pro</div>
               <div className="text-2xl font-bold mt-2">
-                <span className="line-through text-gray-400">
-                  ${getPlanPricing('pro', isAnnual).original}.00
-                </span>
-                <span className="ml-2 text-green-600">
-                  ${getPlanPricing('pro', isAnnual).current}.00
+                <span className="text-blue-600">
+                  ${isAnnual ? '24' : '29'}.00
                 </span>
                 <span className="text-sm text-muted-foreground">/{isAnnual ? 'mo' : 'monthly'}</span>
               </div>
-              {isAnnual && getPlanPricing('pro', isAnnual).savings > 0 && (
-                <div className="text-xs text-green-600 font-medium">Save ${getPlanPricing('pro', isAnnual).savings}/year</div>
+              {isAnnual && (
+                <div className="text-xs text-green-600 font-medium">Save 25%</div>
               )}
-              <div className="text-xs text-green-600 font-medium">Free for Limited Time</div>
-              <div className="text-sm text-muted-foreground mt-1">Perfect for growing teams</div>
-              <div className="text-xs text-blue-600 font-medium mt-1">Most Popular Choice</div>
+              <div className="text-sm text-muted-foreground mt-1">Built for growing teams</div>
+              <div className="text-xs text-blue-600 font-medium mt-1">Most Popular</div>
               {isPlanActive('Pro') && (
                 <div className="flex items-center gap-2 mt-2">
                   <CheckCircle className="w-4 h-4 text-green-600" />
@@ -477,8 +634,8 @@ export default function SubscriptionPage() {
                     handleUpgradePlan({
                       id: 'pro',
                       name: 'Pro',
-                      description: 'Perfect for growing teams',
-                      price: 0,
+                      description: 'Built for growing teams',
+                      price: isAnnual ? 24 : 29,
                       billing_interval: 'monthly',
                       features: {},
                       is_active: true,
@@ -488,7 +645,7 @@ export default function SubscriptionPage() {
                   }
                 }}
               >
-                {isPlanActive('Pro') ? 'Current Plan' : (isAnnual ? 'Join Beta - Free Limited Time' : 'Select Plan')}
+                {isPlanActive('Pro') ? 'Current Plan' : 'Start Pro'}
               </Button>
             </div>
 
@@ -577,69 +734,222 @@ export default function SubscriptionPage() {
 
       {/* Upgrade/Change Plan Dialog */}
       <Dialog open={showUpgradeDialog} onOpenChange={setShowUpgradeDialog}>
-        <DialogContent>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Change Subscription Plan</DialogTitle>
             <DialogDescription>
               Select a new plan and billing cycle. Changes will be prorated based on your current billing period.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <label className="text-sm font-medium">Select Plan</label>
-              <Select 
-                value={selectedPlan?.id || ''} 
-                onValueChange={(value) => {
-                  const plan = availablePlans.find(p => p.id === value);
-                  setSelectedPlan(plan || null);
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Choose a plan" />
-                </SelectTrigger>
-                <SelectContent>
-                  {availablePlans.map((plan) => (
-                    <SelectItem key={plan.id} value={plan.id}>
-                      {plan.name} - {formatCurrency(plan.price)}/{plan.billing_interval}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+          
+          <div className="space-y-6">
+            {/* Billing Toggle */}
+            <div className="flex items-center justify-center space-x-4">
+              <span className={`text-sm font-medium ${selectedBillingCycle === 'monthly' ? 'text-foreground' : 'text-muted-foreground'}`}>
+                Monthly
+              </span>
+              <Switch 
+                checked={selectedBillingCycle === 'yearly'}
+                onCheckedChange={(checked) => setSelectedBillingCycle(checked ? 'yearly' : 'monthly')}
+              />
+              <span className={`text-sm font-medium ${selectedBillingCycle === 'yearly' ? 'text-foreground' : 'text-muted-foreground'}`}>
+                Yearly <span className="text-green-600">(Save 25%)</span>
+              </span>
             </div>
-            <div>
-              <label className="text-sm font-medium">Billing Cycle</label>
-              <Select 
-                value={selectedBillingCycle} 
-                onValueChange={(value: 'monthly' | 'yearly') => setSelectedBillingCycle(value)}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="monthly">Monthly</SelectItem>
-                  <SelectItem value="yearly">Yearly (Save 20%)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            {selectedPlan && (
-              <div className="p-4 bg-muted rounded-lg">
-                <div className="flex justify-between items-center">
-                  <span>New Plan:</span>
-                  <span className="font-semibold">{selectedPlan.name}</span>
+
+            {/* Available Plans Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {/* Starter Plan - only show if not current */}
+              {!isPlanActive('Starter') && (
+                <div 
+                  className={`border rounded-lg p-4 cursor-pointer transition-all hover:shadow-md ${
+                    selectedPlan?.id === 'starter' ? 'border-blue-500 bg-blue-50' : 'border-gray-200'
+                  }`}
+                  onClick={() => {
+                    setSelectedPlan({ 
+                      id: 'starter', 
+                      name: 'Starter', 
+                      description: 'Great to get started', 
+                      price: 0, 
+                      billing_interval: selectedBillingCycle, 
+                      features: {}, 
+                      is_active: false, 
+                      created_at: '', 
+                      updated_at: '' 
+                    });
+                  }}
+                >
+                  <div className="text-lg font-semibold">Starter</div>
+                  <div className="text-2xl font-bold mt-2 text-green-600">
+                    $0.00
+                    <span className="text-sm text-muted-foreground">/{selectedBillingCycle === 'yearly' ? 'year' : 'month'}</span>
+                  </div>
+                  <div className="text-xs text-green-600 font-medium">Free</div>
+                  <div className="text-sm text-muted-foreground mt-1">Great to get started</div>
                 </div>
-                <div className="flex justify-between items-center">
-                  <span>Billing:</span>
-                  <span>{formatCurrency(selectedPlan.price)}/{selectedBillingCycle}</span>
+              )}
+
+              {/* Pro Plan - only show if not current */}
+              {!isPlanActive('Pro') && (
+                <div 
+                  className={`border rounded-lg p-4 cursor-pointer transition-all hover:shadow-md ${
+                    selectedPlan?.id === 'pro' ? 'border-blue-500 bg-blue-50' : 'border-gray-200'
+                  }`}
+                  onClick={() => {
+                    setSelectedPlan({ 
+                      id: 'pro', 
+                      name: 'Pro', 
+                      description: 'Built for growing teams', 
+                      price: selectedBillingCycle === 'yearly' ? 24 : 29, 
+                      billing_interval: selectedBillingCycle, 
+                      features: {}, 
+                      is_active: false, 
+                      created_at: '', 
+                      updated_at: '' 
+                    });
+                  }}
+                >
+                  <div className="text-lg font-semibold">Pro</div>
+                  <div className="text-2xl font-bold mt-2 text-blue-600">
+                    ${selectedBillingCycle === 'yearly' ? '24' : '29'}.00
+                    <span className="text-sm text-muted-foreground">/{selectedBillingCycle === 'yearly' ? 'mo' : 'month'}</span>
+                  </div>
+                  {selectedBillingCycle === 'yearly' && (
+                    <div className="text-xs text-green-600 font-medium">Save 25%</div>
+                  )}
+                  <div className="text-sm text-muted-foreground mt-1">Built for growing teams</div>
+                  <div className="text-xs text-blue-600 font-medium mt-1">Most Popular</div>
+                </div>
+              )}
+
+              {/* Premium Basic - only show if not current */}
+              {!isPlanActive('Premium') || getCurrentPlanName().toLowerCase() !== 'premium basic' ? (
+                <div 
+                  className={`border rounded-lg p-4 cursor-pointer transition-all hover:shadow-md ${
+                    selectedPlan?.id === 'premium_basic' ? 'border-blue-500 bg-blue-50' : 'border-gray-200'
+                  }`}
+                  onClick={() => {
+                    setSelectedPlan({ 
+                      id: 'premium_basic', 
+                      name: 'Premium Basic', 
+                      description: 'Built for sales-led organizations', 
+                      price: selectedBillingCycle === 'yearly' ? 157 : 197, 
+                      billing_interval: selectedBillingCycle, 
+                      features: {}, 
+                      is_active: false, 
+                      created_at: '', 
+                      updated_at: '' 
+                    });
+                  }}
+                >
+                  <div className="text-lg font-semibold">Premium Basic</div>
+                  <div className="text-2xl font-bold mt-2">
+                    ${selectedBillingCycle === 'yearly' ? '157' : '197'}.00
+                    <span className="text-sm text-muted-foreground">/{selectedBillingCycle === 'yearly' ? 'mo' : 'month'}</span>
+                  </div>
+                  {selectedBillingCycle === 'yearly' && (
+                    <div className="text-xs text-green-600 font-medium">Save 20%</div>
+                  )}
+                  <div className="text-sm text-muted-foreground mt-1">Team Scale</div>
+                </div>
+              ) : null}
+
+              {/* Premium Advanced - only show if not current */}
+              {!isPlanActive('Premium') || getCurrentPlanName().toLowerCase() !== 'premium advanced' ? (
+                <div 
+                  className={`border rounded-lg p-4 cursor-pointer transition-all hover:shadow-md ${
+                    selectedPlan?.id === 'premium_advanced' ? 'border-blue-500 bg-blue-50' : 'border-gray-200'
+                  }`}
+                  onClick={() => {
+                    setSelectedPlan({ 
+                      id: 'premium_advanced', 
+                      name: 'Premium Advanced', 
+                      description: 'Built for sales-led organizations', 
+                      price: selectedBillingCycle === 'yearly' ? 237 : 297, 
+                      billing_interval: selectedBillingCycle, 
+                      features: {}, 
+                      is_active: false, 
+                      created_at: '', 
+                      updated_at: '' 
+                    });
+                  }}
+                >
+                  <div className="text-lg font-semibold">Premium Advanced</div>
+                  <div className="text-2xl font-bold mt-2">
+                    ${selectedBillingCycle === 'yearly' ? '237' : '297'}.00
+                    <span className="text-sm text-muted-foreground">/{selectedBillingCycle === 'yearly' ? 'mo' : 'month'}</span>
+                  </div>
+                  {selectedBillingCycle === 'yearly' && (
+                    <div className="text-xs text-green-600 font-medium">Save 20%</div>
+                  )}
+                  <div className="text-sm text-muted-foreground mt-1">Best Value</div>
+                  <div className="text-xs text-orange-600 font-medium mt-1">Recommended</div>
+            </div>
+              ) : null}
+
+              {/* Premium Enterprise - only show if not current */}
+              {!isPlanActive('Premium') || getCurrentPlanName().toLowerCase() !== 'premium enterprise' ? (
+                <div 
+                  className={`border rounded-lg p-4 cursor-pointer transition-all hover:shadow-md ${
+                    selectedPlan?.id === 'premium_enterprise' ? 'border-blue-500 bg-blue-50' : 'border-gray-200'
+                  }`}
+                  onClick={() => {
+                    setSelectedPlan({ 
+                      id: 'premium_enterprise', 
+                      name: 'Premium Enterprise', 
+                      description: 'Built for sales-led organizations', 
+                      price: selectedBillingCycle === 'yearly' ? 397 : 497, 
+                      billing_interval: selectedBillingCycle, 
+                      features: {}, 
+                      is_active: false, 
+                      created_at: '', 
+                      updated_at: '' 
+                    });
+                  }}
+                >
+                  <div className="text-lg font-semibold">Premium Enterprise</div>
+                  <div className="text-2xl font-bold mt-2">
+                    ${selectedBillingCycle === 'yearly' ? '397' : '497'}.00
+                    <span className="text-sm text-muted-foreground">/{selectedBillingCycle === 'yearly' ? 'mo' : 'month'}</span>
+                  </div>
+                  {selectedBillingCycle === 'yearly' && (
+                    <div className="text-xs text-green-600 font-medium">Save 20%</div>
+                  )}
+                  <div className="text-sm text-muted-foreground mt-1">Everything Unlimited</div>
+                </div>
+              ) : null}
+            </div>
+
+            {/* Selected Plan Summary */}
+            {selectedPlan && (
+              <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <div className="font-semibold text-lg">{selectedPlan.name}</div>
+                    <div className="text-sm text-muted-foreground">{selectedPlan.description}</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="font-bold text-xl">
+                      {selectedPlan.id === 'starter' ? formatCurrency(0) :
+                       selectedPlan.id === 'pro' ? formatCurrency(selectedBillingCycle === 'yearly' ? 24 : 29) :
+                       selectedPlan.id === 'premium_basic' ? formatCurrency(selectedBillingCycle === 'yearly' ? 157 : 197) :
+                       selectedPlan.id === 'premium_advanced' ? formatCurrency(selectedBillingCycle === 'yearly' ? 237 : 297) :
+                       selectedPlan.id === 'premium_enterprise' ? formatCurrency(selectedBillingCycle === 'yearly' ? 397 : 497) :
+                       formatCurrency(selectedPlan.price)}
+                    </div>
+                    <div className="text-sm text-muted-foreground">per {selectedBillingCycle === 'yearly' ? 'month (billed annually)' : 'month'}</div>
+                </div>
                 </div>
               </div>
             )}
           </div>
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowUpgradeDialog(false)}>
               Cancel
             </Button>
             <Button 
-              onClick={handleChangeBillingCycle}
+              onClick={handleConfirmPlanChange}
               disabled={!selectedPlan || isProcessing}
             >
               {isProcessing ? 'Processing...' : 'Confirm Change'}
@@ -665,7 +975,22 @@ export default function SubscriptionPage() {
               </div>
               <div className="flex justify-between items-center">
                 <span>Access until:</span>
-                <span>{format(new Date(currentSubscription.current_period_end), 'MMM dd, yyyy')}</span>
+                <span>
+                  {(() => {
+                    const billingCycle = currentSubscription?.metadata?.billing_cycle || currentPlan?.billing_interval || 'monthly';
+                    const isAnnual = billingCycle === 'yearly';
+                    
+                    const startDate = currentSubscription?.metadata?.plan_change_date 
+                      ? new Date(currentSubscription.metadata.plan_change_date)
+                      : new Date();
+                    
+                    const endDate = isAnnual 
+                      ? addYears(startDate, 1)
+                      : addMonths(startDate, 1);
+                    
+                    return format(endDate, 'MMM dd, yyyy');
+                  })()}
+                </span>
               </div>
             </div>
           )}

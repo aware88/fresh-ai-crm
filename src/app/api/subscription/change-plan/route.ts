@@ -2,7 +2,88 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@supabase/supabase-js';
 import { addMonths, addYears } from 'date-fns';
+import { subscriptionPlans } from '@/lib/subscription-plans-v2';
+
+// Handle individual user plan changes via user metadata
+async function handleIndividualUserPlanChange(userId: string, planId: string, billingCycle: string) {
+  try {
+    console.log('🔄 Updating individual user plan:', { userId, planId, billingCycle });
+
+    // Validate the plan exists
+    const newPlan = subscriptionPlans.find(p => p.id === planId);
+    if (!newPlan) {
+      return NextResponse.json({ 
+        error: `Plan not found: ${planId}` 
+      }, { status: 404 });
+    }
+
+    // Create Supabase admin client
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+    
+    // Get current user data
+    const { data: userData, error: userError } = await supabase.auth.admin.getUserById(userId);
+    
+    if (userError || !userData.user) {
+      console.error('❌ Error fetching user data:', userError);
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    // Update user metadata with new plan
+    const updatedMetadata = {
+      ...userData.user.user_metadata,
+      subscription_plan: planId,
+      billing_cycle: billingCycle,
+      plan_change_date: new Date().toISOString()
+    };
+
+    const { data: updatedUser, error: updateError } = await supabase.auth.admin.updateUserById(
+      userId,
+      { user_metadata: updatedMetadata }
+    );
+
+    if (updateError) {
+      console.error('❌ Error updating user metadata:', updateError);
+      return NextResponse.json({ 
+        error: 'Failed to update user subscription' 
+      }, { status: 500 });
+    }
+
+    console.log('✅ Successfully updated user plan to:', planId);
+
+    // Return success response with updated plan info
+    return NextResponse.json({ 
+      success: true,
+      plan: {
+        id: newPlan.id,
+        name: newPlan.name,
+        description: newPlan.description,
+        price: billingCycle === 'yearly' ? newPlan.yearlyPrice : newPlan.monthlyPrice,
+        billing_interval: billingCycle,
+        features: newPlan.features,
+        user_limit: newPlan.userLimit
+      },
+      subscription: {
+        id: `individual-${userId}`,
+        user_id: userId,
+        subscription_plan_id: planId,
+        status: 'active',
+        billing_cycle: billingCycle,
+        updated_at: new Date().toISOString()
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Error in handleIndividualUserPlanChange:', error);
+    return NextResponse.json({ 
+      error: 'Internal server error' 
+    }, { status: 500 });
+  }
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -14,12 +95,25 @@ export async function POST(request: NextRequest) {
 
     const { organizationId, planId, billingCycle, subscriptionId } = await request.json();
 
-    if (!organizationId || !planId || !billingCycle || !subscriptionId) {
+    console.log('🔄 Change plan request:', { organizationId, planId, billingCycle, subscriptionId, userId: session.user.id });
+
+    if (!planId || !billingCycle) {
       return NextResponse.json({ 
-        error: 'Missing required fields' 
+        error: 'Missing required fields: planId and billingCycle are required' 
       }, { status: 400 });
     }
 
+    // Check if this is an individual user subscription (no organizationId or subscriptionId matches user pattern)
+    const isIndividualUser = !organizationId || subscriptionId?.startsWith('individual-');
+    
+    console.log('🔍 Subscription type:', isIndividualUser ? 'Individual User' : 'Organization');
+
+    if (isIndividualUser) {
+      // Handle individual user subscription change via user metadata
+      return handleIndividualUserPlanChange(session.user.id, planId, billingCycle);
+    }
+
+    // Handle organization subscription change via database
     const supabase = createClientComponentClient();
 
     // Get the current subscription

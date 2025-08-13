@@ -3,6 +3,7 @@
 import { ThemeProvider as NextThemesProvider } from 'next-themes';
 import { useEffect, useMemo, useState } from 'react';
 import { BrandingTheme } from '@/types/branding';
+
 import { useOrganization } from '@/hooks/useOrganization';
 
 interface ThemeProviderProps {
@@ -12,6 +13,7 @@ interface ThemeProviderProps {
 
 export function ThemeProvider({ children, ...props }: ThemeProviderProps) {
   const { organization, loading: orgLoading } = useOrganization();
+
   const [brandingTheme, setBrandingTheme] = useState<BrandingTheme | null>(() => {
     // Initialize with cached theme immediately on first render, but validate organization
     if (typeof window !== 'undefined') {
@@ -215,35 +217,34 @@ export function ThemeProvider({ children, ...props }: ThemeProviderProps) {
   
   // Apply custom CSS variables
   useEffect(() => {
-    if (!brandingTheme) return;
+    if (brandingTheme) {
+      document.documentElement.style.setProperty('--primary-color', brandingTheme.primaryColor);
+      document.documentElement.style.setProperty('--secondary-color', brandingTheme.secondaryColor);
+      document.documentElement.style.setProperty('--accent-color', brandingTheme.accentColor);
+      document.documentElement.style.setProperty('--font-family', brandingTheme.fontFamily);
 
-    document.documentElement.style.setProperty('--primary-color', brandingTheme.primaryColor);
-    document.documentElement.style.setProperty('--secondary-color', brandingTheme.secondaryColor);
-    document.documentElement.style.setProperty('--accent-color', brandingTheme.accentColor);
-    document.documentElement.style.setProperty('--font-family', brandingTheme.fontFamily);
-
-    // Provide gradient stops derived from accent color if not explicitly set
-    // Start/mid/end use same accent by default; can be customized by admin UI later
-    document.documentElement.style.setProperty('--brand-start', brandingTheme.accentColor);
-    document.documentElement.style.setProperty('--brand-mid', brandingTheme.accentColor);
-    document.documentElement.style.setProperty('--brand-end', brandingTheme.accentColor);
-
-    // Update favicon only when branding explicitly provides one
-    if (brandingTheme.faviconUrl) {
-      const links = [
-        ...Array.from(document.querySelectorAll('link[rel="icon"]')),
-        ...Array.from(document.querySelectorAll('link[rel=\"shortcut icon\"]')),
-      ];
-      if (links.length > 0) {
-        links.forEach((link) => link.setAttribute('href', brandingTheme.faviconUrl!));
-      } else {
-        const ico = document.createElement('link');
-        ico.rel = 'icon';
-        ico.href = brandingTheme.faviconUrl;
-        document.head.appendChild(ico);
-      }
+      // Gradient stops
+      document.documentElement.style.setProperty('--brand-start', brandingTheme.accentColor);
+      document.documentElement.style.setProperty('--brand-mid', brandingTheme.accentColor);
+      document.documentElement.style.setProperty('--brand-end', brandingTheme.accentColor);
     }
   }, [brandingTheme]);
+
+  // Simple favicon handling - only for custom branding
+  useEffect(() => {
+    if (brandingTheme?.faviconUrl) {
+      const existingCustom = document.querySelector('link[data-custom-favicon]');
+      if (existingCustom) {
+        existingCustom.remove();
+      }
+      
+      const customIcon = document.createElement('link');
+      customIcon.rel = 'icon';
+      customIcon.href = brandingTheme.faviconUrl;
+      customIcon.setAttribute('data-custom-favicon', 'true');
+      document.head.appendChild(customIcon);
+    }
+  }, [brandingTheme?.faviconUrl]);
   
   return (
     <NextThemesProvider

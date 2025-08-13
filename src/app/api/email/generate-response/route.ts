@@ -5,11 +5,12 @@ import OpenAI from 'openai';
 import { EmailContextAnalyzer } from '../../../../lib/email/context-analyzer';
 import { getPersonalityDataForPrompt } from '../../../../lib/personality/data';
 import { getSupportFacts, stringifySupportFactsForPrompt } from '@/lib/email/support-facts';
-import { getUserOrganization } from '@/lib/middleware/ai-limit-middleware';
+import { getUserOrganization } from '@/lib/middleware/ai-limit-middleware-v2';
 import { loadCsvData } from '../../../../lib/personality/flexible-data';
 import { getMatchingSalesTactics } from '../../../../lib/ai/sales-tactics'; // RE-ENABLED with optimization
 import { withAILimitCheckAndTopup } from '@/lib/middleware/ai-limit-middleware-v2';
 import { featureFlagService } from '@/lib/services/feature-flag-service';
+import { createClient } from '@supabase/supabase-js';
 
 // Ensure this API route runs in Node.js runtime (not Edge)
 export const runtime = 'nodejs';
@@ -65,8 +66,37 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  // Use enhanced AI limit middleware with top-up support and grace
-  return withAILimitCheckAndTopup(request, uid, 'email_response', async () => {
+  // Check if user has premium subscription - if so, bypass limits
+  try {
+    const adminClient = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+    
+    const { data: userData } = await adminClient.auth.admin.getUserById(uid);
+    const userPlan = userData?.user?.user_metadata?.subscription_plan || '';
+    
+    // For Premium users, bypass the middleware entirely
+    if (userPlan.includes('premium')) {
+      console.log('✅ Premium user detected, bypassing AI limits');
+    } else {
+      // Use enhanced AI limit middleware with top-up support and grace for non-premium users
+      return withAILimitCheckAndTopup(request, uid, 'email_response', async () => {
+        return await handleEmailGeneration();
+      });
+    }
+  } catch (error) {
+    console.error('Error checking user plan:', error);
+    // Fallback to middleware if check fails
+    return withAILimitCheckAndTopup(request, uid, 'email_response', async () => {
+      return await handleEmailGeneration();
+    });
+  }
+
+  // Execute email generation directly for premium users  
+  return await handleEmailGeneration();
+
+  async function handleEmailGeneration() {
     try {
 
     // Simple rate limiting - prevent multiple simultaneous requests
@@ -74,11 +104,11 @@ export async function POST(request: NextRequest) {
     const currentTime = Date.now();
     const lastRequest = activeRequests.get(userKey);
     
-    if (lastRequest && (currentTime - lastRequest) < 2000) { // 2 second cooldown
+    if (lastRequest && (currentTime - lastRequest) < 5000) { // 5 second cooldown
       return NextResponse.json(
         { 
           error: 'Please wait a moment before making another request.',
-          details: 'Rate limiting active to prevent API overload.'
+          details: 'Rate limiting active to prevent API overload. Please wait 5 seconds between requests.'
         },
         { status: 429 }
       );
@@ -214,7 +244,7 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       );
     }
-  }); // Close withAILimitCheckAndTopup
+  } // Close handleEmailGeneration function
 }
 
 /**
@@ -716,14 +746,14 @@ RESPONSE FORMAT: Return JSON with {"subject": "...", "body": "...", "tone": "${t
       if (error instanceof Error && error.message.includes('429')) {
         retryCount++;
         if (retryCount < maxRetries) {
-          // Exponential backoff: wait 2^retryCount seconds
-          const waitTime = Math.pow(2, retryCount) * 1000;
+          // Enhanced exponential backoff: wait longer between retries
+          const waitTime = Math.pow(2, retryCount) * 3000; // 3s, 6s, 12s
           console.log(`Rate limit hit, waiting ${waitTime}ms before retry ${retryCount + 1}/${maxRetries}`);
           await new Promise(resolve => setTimeout(resolve, waitTime));
           continue;
         } else {
           console.error('Max retries reached for rate limit');
-          throw new Error('Rate limit exceeded after multiple retries. Please try again later.');
+          throw new Error('OpenAI rate limit exceeded. Please wait a few minutes and try again.');
         }
       }
       

@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import RichTextEditor from './RichTextEditor';
+// import RichTextEditor from './RichTextEditor'; // Temporarily disabled due to React 18 compatibility
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
@@ -112,10 +112,15 @@ export default function AIDraftWindow({
     }
   }, []);
 
-  // Fetch Phase 2 insights for this email
+  // Fetch Phase 2 insights for this email (skip for sales analysis)
   useEffect(() => {
     async function loadPhase2() {
       try {
+        // Skip phase2 for sales analysis emails (they start with 'sales-')
+        if (emailId.startsWith('sales-')) {
+          return;
+        }
+        
         const res = await fetch(`/api/emails/phase2/${emailId}`);
         if (res.ok) {
           const data = await res.json();
@@ -125,7 +130,7 @@ export default function AIDraftWindow({
         // ignore
       }
     }
-    if (emailId) loadPhase2();
+    if (emailId && !emailId.startsWith('sales-')) loadPhase2();
   }, [emailId]);
 
   // Attachment helpers
@@ -157,10 +162,17 @@ export default function AIDraftWindow({
     setAttachments(prev => prev.filter(a => a.id !== id));
   };
 
-  // Generate initial draft
+  // Generate initial draft (controlled - only once per emailId)
   useEffect(() => {
     if (emailId && originalEmail && !draftData) {
-      generateDraft();
+      // Check if we've already generated a draft for this email
+      const generatedKey = `draft-generated-${emailId}`;
+      const alreadyGenerated = localStorage.getItem(generatedKey);
+      
+      if (!alreadyGenerated) {
+        localStorage.setItem(generatedKey, 'true');
+        generateDraft();
+      }
     }
   }, [emailId, originalEmail, draftData]);
 
@@ -195,6 +207,23 @@ export default function AIDraftWindow({
 
   const generateDraft = async () => {
     try {
+      // Prevent multiple simultaneous requests
+      if (isGenerating) {
+        console.log('Draft generation already in progress, skipping...');
+        return;
+      }
+      
+      // Additional check to prevent rapid-fire requests
+      const now = Date.now();
+      const lastRequestKey = `draft-${emailId}`;
+      const lastRequestTime = localStorage.getItem(lastRequestKey);
+      
+      if (lastRequestTime && (now - parseInt(lastRequestTime)) < 3000) {
+        console.log('Preventing duplicate draft request - too soon since last request');
+        return;
+      }
+      
+      localStorage.setItem(lastRequestKey, now.toString());
       setIsGenerating(true);
       
       // Get AI settings for generating draft
@@ -273,7 +302,18 @@ export default function AIDraftWindow({
       
     } catch (error) {
       console.error('Error generating draft:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Failed to generate AI draft. Please try again.';
+      let errorMessage = 'Failed to generate AI draft. Please try again.';
+      
+      if (error instanceof Error) {
+        if (error.message.includes('429') || error.message.includes('Too Many Requests')) {
+          errorMessage = 'AI is currently busy. Please wait 5-10 seconds and try again.';
+        } else if (error.message.includes('rate limit')) {
+          errorMessage = 'Rate limit reached. Please wait a few minutes before trying again.';
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
       setError(errorMessage);
       toast({
         title: "Error generating draft",
@@ -568,11 +608,13 @@ export default function AIDraftWindow({
         {/* Body Field (Rich text) */}
         <div className="space-y-2 flex-1 min-h-0">
           <Label htmlFor="draft-body">Email Body</Label>
-          <RichTextEditor
+          <Textarea
+            id="draft-body"
             value={editedBody}
-            onChange={setEditedBody}
+            onChange={(e) => setEditedBody(e.target.value)}
             placeholder="Email body"
-            height="400px"
+            className="min-h-[400px] resize-none font-mono text-sm"
+            rows={20}
           />
           {changes.some(c => c.section === 'body') && (
             <div className="text-xs text-orange-600 flex items-center space-x-1">

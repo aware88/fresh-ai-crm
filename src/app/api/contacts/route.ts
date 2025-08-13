@@ -5,6 +5,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { EnhancedSubscriptionService } from '@/lib/services/subscription-service-extension';
 import { createLazyServerClient } from '@/lib/supabase/lazy-client';
+import { createServerClient } from '@/lib/supabase/server';
 import { createClient } from '@supabase/supabase-js';
 
 // Create service role client for admin operations
@@ -18,8 +19,75 @@ const supabaseAdmin = createClient(
  */
 export async function GET(request: Request) {
   try {
-    const contacts = await loadContacts();
-    return NextResponse.json({ contacts, usingSupabase: isUsingSupabase() });
+    // Resolve authenticated user and organization
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
+      // Fallback to existing loader (non-auth contexts)
+      const contacts = await loadContacts();
+      return NextResponse.json({ contacts, usingSupabase: isUsingSupabase() });
+    }
+
+    const userId = (session.user as any).id;
+    const supabaseRW = await createServerClient();
+
+    // Determine active organization id
+    let organizationId: string | null = (session.user as any)?.organizationId || null;
+    try {
+      if (!organizationId) {
+        const { data: prefs } = await supabaseRW
+          .from('user_preferences')
+          .select('current_organization_id')
+          .eq('user_id', userId)
+          .maybeSingle();
+        if (prefs?.current_organization_id) organizationId = prefs.current_organization_id;
+        if (!organizationId) {
+          const { data: member } = await supabaseRW
+            .from('organization_members')
+            .select('organization_id')
+            .eq('user_id', userId)
+            .maybeSingle();
+          if (member?.organization_id) organizationId = member.organization_id;
+        }
+      }
+    } catch {}
+
+    // Use service role client for robust filtering and to avoid RLS edge cases
+    const supabaseAdmin = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+
+    const { data, error } = await supabaseAdmin
+      .from('contacts')
+      .select('*')
+      .or(`organization_id.eq.${organizationId || '00000000-0000-0000-0000-000000000000'},user_id.eq.${userId})`);
+
+    if (error) {
+      console.error('Error loading contacts (scoped):', error);
+      return NextResponse.json({ error: 'Failed to load contacts' }, { status: 500 });
+    }
+
+    const rows = Array.isArray(data) ? data : [];
+
+    // Map DB row shape (snake/lowercase) to Contact camelCase the UI expects
+    const contacts = rows.map((item: any) => ({
+      id: item.id,
+      firstName: item.firstname || item.first_name || '',
+      lastName: item.lastname || item.last_name || '',
+      email: item.email || '',
+      phone: item.phone || '',
+      company: item.company || '',
+      position: item.position || '',
+      notes: item.notes || '',
+      personalityType: item.personalitytype || item.personality_type || '',
+      personalityNotes: item.personalitynotes || item.personality_notes || '',
+      status: item.status || 'active',
+      createdAt: item.createdat || item.created_at || new Date().toISOString(),
+      updatedAt: item.updatedat || item.updated_at || new Date().toISOString(),
+      lastContact: item.lastcontact || item.last_contact || null
+    }));
+
+    return NextResponse.json({ contacts, usingSupabase: true });
   } catch (error) {
     console.error('Error loading contacts:', error);
     return NextResponse.json({ error: 'Failed to load contacts' }, { status: 500 });

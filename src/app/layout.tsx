@@ -6,13 +6,15 @@ import { Providers } from './providers';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
+  title: 'ARIS - AI CRM',
+  description: 'Agentic Relationship Intelligence System',
   icons: {
     icon: [
-      { url: '/favicon.svg?v=2', type: 'image/svg+xml' },
-      { url: '/favicon.ico?v=2', sizes: 'any' },
+      { url: '/favicon.svg', type: 'image/svg+xml' },
+      { url: '/favicon.ico', sizes: 'any' },
     ],
-    shortcut: '/favicon.ico?v=2',
-    apple: '/apple-touch-icon.png?v=2',
+    shortcut: '/favicon.ico',
+    apple: '/apple-touch-icon.png',
   },
   manifest: '/site.webmanifest',
 };
@@ -20,6 +22,11 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+        <link rel="icon" href="/favicon.ico" sizes="any" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+      </head>
       <body className={inter.className}>
         <Providers>{children}</Providers>
       </body>

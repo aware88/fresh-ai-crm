@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import RichTextEditor from '@/components/email/RichTextEditor';
+// import RichTextEditor from '@/components/email/RichTextEditor'; // Temporarily disabled due to React 18 compatibility
 import {
   Select,
   SelectContent,
@@ -233,11 +233,12 @@ export default function EmailComposer({ supplier, onSendEmail }: EmailComposerPr
               />
             ) : (
               <div className={previewMode === 'mobile' ? 'max-w-sm mx-auto border rounded' : ''}>
-                <RichTextEditor
+                <Textarea
                   value={body}
-                  onChange={setBody}
+                  onChange={(e) => setBody(e.target.value)}
                   placeholder="Type your message here..."
-                  height="200px"
+                  className="min-h-[200px] resize-none font-mono text-sm"
+                  rows={10}
                 />
               </div>
             )}
