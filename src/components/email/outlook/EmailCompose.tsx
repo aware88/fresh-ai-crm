@@ -6,7 +6,7 @@ import { X, Send, Paperclip, ChevronDown, Maximize2, Minimize2, Phone, Monitor, 
 import EmailAttachments from './EmailAttachments';
 import EmailSignature from './EmailSignature';
 import EmailLanguageDetection from './EmailLanguageDetection';
-// import RichTextEditor from '../RichTextEditor'; // Temporarily disabled due to React 18 compatibility
+import EnhancedEmailComposer from '../EnhancedEmailComposer';
 
 interface EmailComposeProps {
   mode: 'new' | 'reply' | 'replyAll' | 'forward';
@@ -31,6 +31,7 @@ export default function EmailCompose({ mode, originalEmail, onClose, onSend }: E
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const [previewMode, setPreviewMode] = useState<'desktop' | 'mobile' | 'plain'>('desktop');
   const [isRefining, setIsRefining] = useState<boolean>(false);
+  const [useEnhancedComposer, setUseEnhancedComposer] = useState<boolean>(true);
   
   const bodyRef = useRef<HTMLTextAreaElement>(null);
 
@@ -164,6 +165,52 @@ export default function EmailCompose({ mode, originalEmail, onClose, onSend }: E
     
     setShowSignatureSelector(false);
   };
+
+  // Use enhanced composer if enabled
+  if (useEnhancedComposer) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-semibold">
+            {mode === 'new' && 'New Message'}
+            {mode === 'reply' && 'Reply'}
+            {mode === 'replyAll' && 'Reply All'}
+            {mode === 'forward' && 'Forward'}
+          </h2>
+          <button
+            onClick={() => setUseEnhancedComposer(false)}
+            className="text-sm text-blue-600 hover:underline"
+          >
+            Switch to Classic Composer
+          </button>
+        </div>
+        
+        <EnhancedEmailComposer
+          mode={mode}
+          originalEmail={originalEmail ? {
+            subject: originalEmail.subject,
+            body: originalEmail.body?.content || '',
+            from: originalEmail.from?.emailAddress?.address || '',
+            to: originalEmail.toRecipients?.map((r: any) => r.emailAddress.address).join(', ') || '',
+            cc: originalEmail.ccRecipients?.map((r: any) => r.emailAddress.address).join(', '),
+            attachments: originalEmail.attachments
+          } : undefined}
+          onSend={async (emailData) => {
+            await onSend({
+              to: emailData.to.map(r => r.email),
+              cc: emailData.cc.map(r => r.email),
+              bcc: emailData.bcc.map(r => r.email),
+              subject: emailData.subject,
+              body: emailData.body,
+              attachments: emailData.attachments,
+              importance: 'normal'
+            });
+          }}
+          onClose={onClose}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className={`email-compose bg-white rounded-lg shadow-lg border p-4 ${isFullscreen ? 'fixed inset-4 z-50 max-w-none mx-0' : 'max-w-4xl mx-auto'}`}>

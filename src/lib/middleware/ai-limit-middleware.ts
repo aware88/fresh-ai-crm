@@ -138,28 +138,40 @@ export async function logAIUsageAfterRequest(
   }
 }
 
+// Use unified user context service for optimized organization lookup
+import { getUserOrganization as getUnifiedOrganization } from '../context/unified-user-context-service';
+
 /**
  * Get user's organization ID from request
+ * Now uses UnifiedUserContextService for optimized performance
  */
 export async function getUserOrganization(userId: string): Promise<string | null> {
   try {
-    const supabase = await createClient();
+    // Use unified context service for better performance and caching
+    return await getUnifiedOrganization(userId);
+  } catch (error) {
+    console.warn('[AI Limit Middleware] Unified context failed, using fallback:', error);
     
-    const { data, error } = await supabase
-      .from('organization_members')
-      .select('organization_id')
-      .eq('user_id', userId)
-      .single();
+    // Fallback to legacy implementation
+    try {
+      const supabase = await createClient();
+      
+      const { data, error } = await supabase
+        .from('organization_members')
+        .select('organization_id')
+        .eq('user_id', userId)
+        .single();
 
-    if (error || !data) {
-      console.error('Error getting user organization:', error);
+      if (error || !data) {
+        console.error('Error getting user organization (fallback):', error);
+        return null;
+      }
+
+      return data.organization_id;
+    } catch (fallbackError) {
+      console.error('Exception in fallback getUserOrganization:', fallbackError);
       return null;
     }
-
-    return data.organization_id;
-  } catch (error) {
-    console.error('Exception getting user organization:', error);
-    return null;
   }
 }
 

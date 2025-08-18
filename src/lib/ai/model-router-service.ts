@@ -678,20 +678,46 @@ export class ModelRouterService {
     complexity?: TaskComplexity
   ): Promise<string[]> {
     try {
-      const { data: userPreferences } = await this.supabase
+      let query = this.supabase
         .from('ai_model_performance')
         .select('model_id, AVG(user_feedback) as avg_rating, COUNT(*) as usage_count')
         .eq('organization_id', this.organizationId)
         .eq('user_id', this.userId)
-        .gte('user_feedback', 4) // Only consider positive feedback
-        .modify((query) => {
-          if (taskType) query.eq('task_type', taskType);
-          if (complexity) query.eq('complexity', complexity);
-        })
-        .group('model_id')
-        .order('avg_rating', { ascending: false })
-        .order('usage_count', { ascending: false })
-        .limit(3);
+        .gte('user_feedback', 4); // Only consider positive feedback
+      
+      // Add conditional filters
+      if (taskType) {
+        query = query.eq('task_type', taskType);
+      }
+      if (complexity) {
+        query = query.eq('complexity', complexity);
+      }
+      
+      // Get all ratings for the user and aggregate in memory since Supabase client doesn't support .group()
+      const { data: allRatings } = await query
+        .select('model_id, user_feedback')
+        .not('user_feedback', 'is', null)
+        .order('created_at', { ascending: false });
+
+      // Aggregate the data in memory
+      const modelStats = new Map();
+      allRatings?.forEach(rating => {
+        if (!modelStats.has(rating.model_id)) {
+          modelStats.set(rating.model_id, { ratings: [], count: 0 });
+        }
+        modelStats.get(rating.model_id).ratings.push(rating.user_feedback);
+        modelStats.get(rating.model_id).count++;
+      });
+
+      // Calculate averages and sort by preference
+      const userPreferences = Array.from(modelStats.entries())
+        .map(([model_id, stats]) => ({
+          model_id,
+          avg_rating: stats.ratings.reduce((a, b) => a + b, 0) / stats.ratings.length,
+          usage_count: stats.count
+        }))
+        .sort((a, b) => b.avg_rating - a.avg_rating || b.usage_count - a.usage_count)
+        .slice(0, 3);
 
       return userPreferences?.map(p => p.model_id) || [];
     } catch (error) {

@@ -6,6 +6,17 @@ export interface EmailClassification {
   confidence: number;
   keywords: string[];
   reasoning: string;
+  // Agent assignment
+  agentAssignment: EmailAgentAssignment;
+}
+
+export interface EmailAgentAssignment {
+  agentType: 'customer' | 'sales' | 'dispute' | 'billing' | 'auto_reply';
+  highlightColor: string;
+  priority: 'low' | 'medium' | 'high' | 'urgent';
+  reasoning: string;
+  confidence: number;
+  autoReplyRecommended: boolean;
 }
 
 export interface EmailContext {
@@ -135,6 +146,9 @@ export async function classifyEmail(emailContent: EmailContext): Promise<EmailCl
   // Generate reasoning
   const reasoning = generateClassificationReasoning(category, intent, urgency, sentiment, foundKeywords);
 
+  // Determine agent assignment
+  const agentAssignment = determineAgentAssignment(category, intent, urgency, sentiment, confidence);
+
   return {
     category,
     intent,
@@ -142,7 +156,8 @@ export async function classifyEmail(emailContent: EmailContext): Promise<EmailCl
     sentiment,
     confidence,
     keywords: foundKeywords.slice(0, 5), // Top 5 keywords
-    reasoning
+    reasoning,
+    agentAssignment
   };
 }
 
@@ -212,4 +227,92 @@ export function getResponseStrategy(classification: EmailClassification) {
   };
 
   return strategies[classification.category] || strategies.general;
-} 
+}
+
+/**
+ * Determine agent assignment based on email classification
+ */
+function determineAgentAssignment(
+  category: string,
+  intent: string,
+  urgency: string,
+  sentiment: string,
+  confidence: number
+): EmailAgentAssignment {
+  let agentType: EmailAgentAssignment['agentType'] = 'auto_reply';
+  let highlightColor = '#6B7280'; // Default gray
+  let autoReplyRecommended = true;
+  let agentReasoning = '';
+
+  // Determine agent based on category and context
+  switch (category) {
+    case 'sales':
+      agentType = 'sales';
+      highlightColor = '#10B981'; // Green
+      autoReplyRecommended = urgency !== 'urgent';
+      agentReasoning = 'Sales inquiry detected - requires sales expertise';
+      break;
+
+    case 'support':
+    case 'product_inquiry':
+      agentType = 'customer';
+      highlightColor = '#3B82F6'; // Blue
+      autoReplyRecommended = urgency !== 'urgent' && sentiment !== 'frustrated';
+      agentReasoning = 'Customer service request - needs support assistance';
+      break;
+
+    case 'dispute':
+      agentType = 'dispute';
+      highlightColor = '#EF4444'; // Red
+      autoReplyRecommended = false; // Always needs human review
+      agentReasoning = 'Dispute detected - requires immediate human attention';
+      break;
+
+    case 'billing':
+      agentType = 'billing';
+      highlightColor = '#8B5CF6'; // Purple
+      autoReplyRecommended = urgency !== 'urgent' && sentiment !== 'negative';
+      agentReasoning = 'Billing inquiry - needs account review';
+      break;
+
+    default:
+      // For general emails, decide based on intent and sentiment
+      if (intent === 'complaint' || sentiment === 'frustrated' || sentiment === 'negative') {
+        agentType = 'customer';
+        highlightColor = '#3B82F6';
+        autoReplyRecommended = false;
+        agentReasoning = 'General complaint - needs customer service attention';
+      } else if (intent === 'new_lead' || intent === 'request_info') {
+        agentType = 'sales';
+        highlightColor = '#10B981';
+        autoReplyRecommended = true;
+        agentReasoning = 'Potential sales opportunity detected';
+      } else {
+        agentType = 'auto_reply';
+        highlightColor = '#6B7280';
+        autoReplyRecommended = true;
+        agentReasoning = 'Simple inquiry - can be handled automatically';
+      }
+  }
+
+  // Override auto-reply for urgent or high-priority emails
+  if (urgency === 'urgent' || urgency === 'high') {
+    autoReplyRecommended = false;
+    agentReasoning += ' - High priority requires immediate attention';
+  }
+
+  // Override auto-reply for negative sentiment
+  if (sentiment === 'frustrated' || sentiment === 'negative') {
+    autoReplyRecommended = false;
+    agentReasoning += ' - Negative sentiment requires human touch';
+  }
+
+  return {
+    agentType,
+    highlightColor,
+    priority: urgency as EmailAgentAssignment['priority'],
+    reasoning: agentReasoning,
+    confidence: Math.min(0.95, confidence + 0.1), // Slightly higher confidence for agent assignment
+    autoReplyRecommended
+  };
+}

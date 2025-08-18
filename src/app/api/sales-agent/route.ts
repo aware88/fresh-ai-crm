@@ -6,17 +6,29 @@ import { createServiceRoleClient } from '@/lib/supabase/service-role';
 import { classifyEmail, getResponseStrategy, type EmailContext } from '@/lib/email/email-classifier';
 import { createMetakockaClientForUser } from '@/lib/integrations/metakocka';
 import { getLearnedPatterns } from '@/lib/learning/email-pattern-analyzer';
+import { UnifiedAIDraftingService } from '@/lib/ai/unified-drafting-service';
 import OpenAI from 'openai';
+
+// Use unified client manager for optimized OpenAI client handling
+import { getOpenAIClient as getUnifiedOpenAIClient } from '@/lib/clients/unified-client-manager';
 
 // Lazy initialization to avoid build-time errors
 const getOpenAIClient = () => {
-  if (!process.env.OPENAI_API_KEY) {
-    console.warn('OPENAI_API_KEY environment variable is missing. Using mock client.');
-    return null;
+  try {
+    // Use unified client manager for better performance
+    return getUnifiedOpenAIClient();
+  } catch (error) {
+    console.warn('Unified OpenAI client failed, using fallback:', error);
+    
+    // Fallback implementation
+    if (!process.env.OPENAI_API_KEY) {
+      console.warn('OPENAI_API_KEY environment variable is missing. Using mock client.');
+      return null;
+    }
+    return new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
   }
-  return new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
-  });
 };
 
 export async function POST(request: NextRequest) {
@@ -201,102 +213,31 @@ export async function POST(request: NextRequest) {
 
     // Get learned patterns for this category
     const learnedPatterns = await getLearnedPatterns(session.user.id, classification.category);
-    
-    // Generate comprehensive analysis and draft in one call
-    const systemPrompt = `You are an intelligent email assistant for Withcar, a car accessories company. Based on the email classification and context, provide both analysis and a ready-to-send draft response.
 
-CRITICAL: Always respond in the exact same language as the original email. If the email is in Slovenian, respond in Slovenian. If German, respond in German. If Italian, respond in Italian. Match the language perfectly while maintaining natural and professional communication style.
-
-EMAIL CLASSIFICATION:
-- Category: ${classification.category}
-- Intent: ${classification.intent}
-- Urgency: ${classification.urgency}
-- Sentiment: ${classification.sentiment}
-- Keywords: ${classification.keywords.join(', ')}
-
-RESPONSE STRATEGY:
-- Tone: ${responseStrategy.tone}
-- Approach: ${responseStrategy.approach}
-- Priority: ${responseStrategy.priority}
-
-${learnedPatterns.length > 0 ? `LEARNED WITHCAR EMAIL PATTERNS:
-Use these patterns to match the company's established communication style:
-
-GREETINGS: ${learnedPatterns.filter(p => p.patternType === 'greeting').map(p => `"${p.patternText}" (${p.context})`).slice(0, 3).join(', ')}
-
-CLOSINGS: ${learnedPatterns.filter(p => p.patternType === 'closing').map(p => `"${p.patternText}" (${p.context})`).slice(0, 3).join(', ')}
-
-COMMON PHRASES: ${learnedPatterns.filter(p => p.patternType === 'phrase').map(p => `"${p.patternText}"`).slice(0, 5).join(', ')}
-
-TONE PATTERNS: ${learnedPatterns.filter(p => p.patternType === 'tone').map(p => p.patternText).slice(0, 3).join(', ')}
-
-IMPORTANT: Incorporate these learned patterns naturally into your response to maintain consistency with Withcar's established communication style.` : ''}
-
-${customerContext ? `CUSTOMER CONTEXT:
-- Name: ${customerContext.name}
-- Total Orders: ${customerContext.totalOrders}
-- Status: ${customerContext.status}
-- Last Order: ${customerContext.lastOrderDate}` : ''}
-
-${orderContext && orderContext.length > 0 ? `RECENT ORDERS:
-${orderContext.map((order: any) => `- Order #${order.orderNumber}: ${order.items.map((item: any) => item.name).join(', ')} (${order.status})`).join('\n')}` : ''}
-
-INSTRUCTIONS:
-1. For disputes/support: Reference specific orders if available, be apologetic and solution-focused
-2. For sales: Be enthusiastic, highlight value, provide product links
-3. For general inquiries: Be helpful and professional
-4. Always maintain Withcar's friendly but professional tone
-5. Include relevant product links to https://withcar.eu/shop when appropriate
-
-REMEMBER: Write the draft.body in the same language as the original email!
-
-IMPORTANT: Return ONLY valid JSON in this exact format (no additional text before or after):
-{
-  "analysis": {
-    "lead_qualification": {
-      "score": 1-10,
-      "level": "hot/warm/cold",
-      "reasoning": "detailed reasoning"
-    },
-    "opportunity_assessment": {
-      "potential_value": "high/medium/low",
-      "timeline": "immediate/short-term/long-term",
-      "decision_maker": "status assessment",
-      "budget_indicators": ["indicator1", "indicator2"]
-    },
-    "sales_insights": {
-      "pain_points": ["point1", "point2"],
-      "buying_signals": ["signal1", "signal2"],
-      "objection_likelihood": "high/medium/low"
-    },
-    "recommendations": {
-      "next_actions": ["action1", "action2"],
-      "approach": "recommended approach",
-      "urgency": "high/medium/low"
+    // Get organization ID for user using unified context service
+    let organizationId;
+    try {
+      const { getUserOrganization } = await import('@/lib/context/unified-user-context-service');
+      organizationId = await getUserOrganization(session.user.id);
+      if (organizationId) {
+        console.log('[Sales Agent] ✅ Found organization via unified context:', organizationId);
+      } else {
+        console.log('[Sales Agent] ❌ No organization found for user');
+      }
+    } catch (error) {
+      console.warn('[Sales Agent] Unified context failed, using fallback:', error);
+      // Fallback to legacy implementation
+      try {
+        const { data: userOrg } = await supabase
+          .from('user_organizations')
+          .select('organization_id')
+          .eq('user_id', session.user.id)
+          .single();
+        organizationId = userOrg?.organization_id;
+      } catch (fallbackError) {
+        console.log('[Sales Agent] No organization found for user (fallback)');
+      }
     }
-  },
-  "draft": {
-    "subject": "Re: [original subject]",
-    "body": "Complete email response ready to send",
-    "tone": "${responseStrategy.tone}",
-    "confidence": 0.8
-  },
-  "classification": {
-    "category": "${classification.category}",
-    "intent": "${classification.intent}",
-    "urgency": "${classification.urgency}",
-    "sentiment": "${classification.sentiment}"
-  }
-}`;
-
-    const userPrompt = `Please analyze this email and generate both analysis and draft response:
-
-FROM: ${from}
-SUBJECT: ${subject}
-DATE: ${date}
-
-EMAIL CONTENT:
-${body}`;
 
     try {
       const openai = getOpenAIClient();
@@ -307,59 +248,84 @@ ${body}`;
         }, { status: 503 });
       }
 
-      // Debug logging to see the actual prompt being sent
-      console.log('🔍 SYSTEM PROMPT START:');
-      console.log(systemPrompt.substring(0, 300));
-      console.log('🔍 SYSTEM PROMPT END:');
-      console.log(systemPrompt.substring(systemPrompt.length - 300));
-      console.log('🌍 Using natural language detection by AI');
-      console.log('🎯 SLOVENIAN INSTRUCTIONS:', systemPrompt.includes('SLOVENIAN'));
+      // Initialize unified AI drafting service
+      const unifiedService = new UnifiedAIDraftingService(supabase, openai, organizationId || '', session.user.id);
 
-      const completion = await openai.chat.completions.create({
-        model: 'gpt-3.5-turbo',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt }
-        ],
+      // Prepare sales context with all gathered data
+      const salesContext = {
+        analysis: {
+          lead_qualification: { score: 7, level: 'warm', reasoning: 'Email analysis in progress' },
+          opportunity_assessment: { potential_value: 'medium', timeline: 'short-term', decision_maker: 'unknown', budget_indicators: [] },
+          sales_insights: { pain_points: [], buying_signals: [], objection_likelihood: 'medium' },
+          recommendations: { next_actions: ['Follow up'], approach: responseStrategy.approach, urgency: responseStrategy.priority }
+        },
+        classification,
+        responseStrategy,
+        learnedPatterns,
+        customerContext,
+        orderContext
+      };
+
+      // Prepare drafting context for unified service
+      const draftingContext = {
+        emailId: `sales-${Date.now()}`, // Virtual email ID
+        originalEmail: {
+          from,
+          to: '',
+          subject,
+          body,
+          date
+        },
+        userId: session.user.id,
+        organizationId,
+        settings: {
+          responseStyle: responseStrategy.tone,
+          responseLength: 'detailed',
+          includeContext: true
+        },
+        isVirtual: true,
+        salesContext,
+        customInstructions: `Sales analysis context active. Classification: ${classification.category}/${classification.intent}. Customer context: ${customerContext ? 'Available' : 'None'}. Order history: ${orderContext?.length || 0} orders.`
+      };
+
+      // Generate draft using unified service
+      const result = await unifiedService.generateDraft(draftingContext);
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to generate sales draft');
+      }
+
+      // Generate sales analysis separately using existing logic
+      const analysisPrompt = `Analyze this email for sales opportunity:
+FROM: ${from}
+SUBJECT: ${subject}
+EMAIL: ${body}
+
+${customerContext ? `CUSTOMER: ${customerContext.name} - ${customerContext.totalOrders} orders, status: ${customerContext.status}` : ''}
+
+Return JSON with lead_qualification (score 1-10, level hot/warm/cold, reasoning), opportunity_assessment (potential_value, timeline, decision_maker, budget_indicators), sales_insights (pain_points, buying_signals, objection_likelihood), recommendations (next_actions, approach, urgency).`;
+
+      const analysisResponse = await openai.chat.completions.create({
+        model: 'gpt-4o-mini', // Use cheaper model for analysis
+        messages: [{ role: 'user', content: analysisPrompt }],
         temperature: 0.3,
-        max_tokens: 2000
+        max_tokens: 800,
+        response_format: { type: 'json_object' }
       });
 
-      const result = completion.choices[0]?.message?.content;
-      if (!result) {
-        throw new Error('No response from AI');
-      }
-
-      let parsedResult;
+      let parsedAnalysis;
       try {
-        // Clean the result to ensure it's valid JSON
-        let cleanedResult = result.trim();
-        
-        // Remove any text before the first {
-        const jsonStart = cleanedResult.indexOf('{');
-        if (jsonStart > 0) {
-          cleanedResult = cleanedResult.substring(jsonStart);
-        }
-        
-        // Remove any text after the last }
-        const jsonEnd = cleanedResult.lastIndexOf('}');
-        if (jsonEnd !== -1 && jsonEnd < cleanedResult.length - 1) {
-          cleanedResult = cleanedResult.substring(0, jsonEnd + 1);
-        }
-        
-        console.log('🔧 Cleaned AI response for parsing:', cleanedResult.substring(0, 200) + '...');
-        parsedResult = JSON.parse(cleanedResult);
-        console.log('✅ Parsed result structure:', {
-          hasAnalysis: !!parsedResult.analysis,
-          hasLeadQualification: !!parsedResult.analysis?.lead_qualification,
-          hasDraft: !!parsedResult.draft,
-          analysisKeys: parsedResult.analysis ? Object.keys(parsedResult.analysis) : 'none'
-        });
+        parsedAnalysis = JSON.parse(analysisResponse.choices[0]?.message?.content || '{}');
       } catch (parseError) {
-        console.error('Failed to parse AI response:', parseError);
-        console.error('Raw response:', result);
-        throw new Error('Invalid AI response format');
+        parsedAnalysis = {
+          lead_qualification: { score: 5, level: 'warm', reasoning: 'Analysis parsing failed' },
+          opportunity_assessment: { potential_value: 'medium', timeline: 'standard', decision_maker: 'unknown', budget_indicators: [] },
+          sales_insights: { pain_points: [], buying_signals: [], objection_likelihood: 'medium' },
+          recommendations: { next_actions: ['Follow up'], approach: 'Standard approach', urgency: 'medium' }
+        };
       }
+      
+      console.log(`✅ Sales draft generated: ${result.metadata.tokensUsed} tokens, $${result.metadata.costUsd.toFixed(4)} using ${result.metadata.modelUsed}`);
 
       // Store the analysis and draft for learning with versioning
       try {
@@ -376,38 +342,37 @@ ${body}`;
           email_id: emailId,
           user_id: session.user.id,
           classification: classification,
-          analysis_result: parsedResult.analysis,
-          generated_draft: parsedResult.draft,
+          analysis_result: parsedAnalysis,
+          generated_draft: result.draft,
           customer_context: customerContext,
           version_number: versionNumber,
-          detected_language: 'auto', // AI will detect naturally
+          detected_language: result.metadata.languageDetected,
           metadata: {
-            versionInfo: `Sales analysis v${versionNumber} - Generated ${new Date().toISOString()}`,
-            languageDetected: 'auto',
-            responseLanguage: 'auto'
+            versionInfo: `Unified sales analysis v${versionNumber} - Generated ${new Date().toISOString()}`,
+            languageDetected: result.metadata.languageDetected,
+            responseLanguage: result.metadata.languageDetected,
+            modelUsed: result.metadata.modelUsed,
+            tokensUsed: result.metadata.tokensUsed,
+            costUsd: result.metadata.costUsd
           },
           created_at: new Date().toISOString()
         });
         
-        console.log(`💾 Saved sales analysis v${versionNumber} for email ${emailId} with auto language detection`);
+        console.log(`💾 Saved unified sales analysis v${versionNumber} for email ${emailId}`);
       } catch (dbError) {
         console.error('Failed to store analysis for learning:', dbError);
       }
 
       return NextResponse.json({
         success: true,
-        analysis: parsedResult.analysis || {
-          lead_qualification: { score: 0, level: 'unknown', reasoning: 'Analysis parsing failed' },
-          opportunity_assessment: { potential_value: 'unknown', timeline: 'unknown', decision_maker: 'unknown', budget_indicators: [] },
-          sales_insights: { pain_points: [], buying_signals: [], objection_likelihood: 'unknown' },
-          recommendations: { next_actions: ['Review email manually'], approach: 'Standard follow-up', urgency: 'medium' }
-        },
-        generated_response: parsedResult.draft?.body || 'Thank you for your email. We will review and respond shortly.',
-        draft_subject: parsedResult.draft?.subject || 'Re: ' + subject,
-        classification: parsedResult.classification || classification,
+        analysis: parsedAnalysis,
+        generated_response: result.draft!.body,
+        draft_subject: result.draft!.subject,
+        classification: classification,
         customer_context: customerContext,
         order_context: orderContext?.slice(0, 3), // Limit to 3 most recent orders
-        detected_language: 'auto',
+        detected_language: result.metadata.languageDetected,
+        metadata: result.metadata, // Include performance metrics
         email: {
           from: from,
           subject: subject,

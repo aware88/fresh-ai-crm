@@ -84,6 +84,13 @@ export function useOrganization(): UseOrganizationResult {
       const prefs = await prefsResponse.json();
       console.log('🏢 useOrganization: User preferences:', prefs);
       
+      // Cache user preferences in localStorage for immediate theme detection
+      try {
+        localStorage.setItem('user-preferences', JSON.stringify(prefs));
+      } catch (error) {
+        console.warn('Failed to cache user preferences:', error);
+      }
+      
       // If no organization ID, user is independent
       if (!prefs.current_organization_id) {
         console.log('🏢 useOrganization: User is independent (no organization)');

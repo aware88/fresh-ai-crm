@@ -3,6 +3,7 @@ import { createServerClient } from '../../../../lib/supabase/server';
 import { getUID } from '../../../../lib/auth/utils';
 import OpenAI from 'openai';
 import { EmailContextAnalyzer } from '../../../../lib/email/context-analyzer';
+import { UnifiedAIDraftingService } from '../../../../lib/ai/unified-drafting-service';
 import { getPersonalityDataForPrompt } from '../../../../lib/personality/data';
 import { getSupportFacts, stringifySupportFactsForPrompt } from '@/lib/email/support-facts';
 import { getUserOrganization } from '@/lib/middleware/ai-limit-middleware-v2';
@@ -170,25 +171,68 @@ export async function POST(request: NextRequest) {
       ? (await featureFlagService.canUsePsychologicalProfiling(organizationId)).hasAccess
       : false;
 
-    // Generate response; if no profiling, pass empty intelligence
-    const response = await generateComprehensiveResponse(
-      originalEmail, 
-      emailContext, 
-      contextSummary, 
-      allowProfiling ? personalityData : {
-        personalityProfiles: '',
-        flexibleProfiles: [],
-        contactContext: null,
-        aiProfilerData: null,
-        salesTactics: [],
-        analysisHistory: []
-      }, 
-      userContext,
-      tone, 
-      customInstructions,
-      { ...settings, supportFacts: supportFactsText },
-      includeDrafting
-    );
+    // Use unified AI drafting service for response generation
+    if (includeDrafting) {
+      const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+      const unifiedService = new UnifiedAIDraftingService(supabase, openai, organizationId || '', uid);
+
+      const draftingContext = {
+        emailId: emailId || `generate-response-${Date.now()}`,
+        originalEmail: {
+          from: senderEmail || 'Unknown',
+          to: '',
+          subject: 'Response Generation',
+          body: originalEmail
+        },
+        userId: uid,
+        organizationId,
+        settings: {
+          responseStyle: tone as any,
+          responseLength: 'detailed' as const,
+          includeContext: true
+        },
+        isVirtual: true,
+        customInstructions
+      };
+
+      const result = await unifiedService.generateDraft(draftingContext);
+      
+      if (result.success && result.draft) {
+        var response = {
+          subject: result.draft.subject,
+          body: result.draft.body,
+          response: result.draft.body, // Legacy compatibility
+          tone: result.draft.tone,
+          confidence: result.draft.confidence,
+          context: result.draft.context,
+          analysis: contextSummary,
+          personality: allowProfiling ? personalityData.contactContext : null,
+          metadata: result.metadata
+        };
+      } else {
+        throw new Error(result.error || 'Unified service failed');
+      }
+    } else {
+      // Generate response using legacy method for analysis-only mode
+      const response = await generateComprehensiveResponse(
+        originalEmail, 
+        emailContext, 
+        contextSummary, 
+        allowProfiling ? personalityData : {
+          personalityProfiles: '',
+          flexibleProfiles: [],
+          contactContext: null,
+          aiProfilerData: null,
+          salesTactics: [],
+          analysisHistory: []
+        }, 
+        userContext,
+        tone, 
+        customInstructions,
+        { ...settings, supportFacts: supportFactsText },
+        includeDrafting
+      );
+    }
 
     // Background contact personality update (delayed to prevent simultaneous calls)
     if (senderEmail) {
@@ -618,6 +662,8 @@ async function generateComprehensiveResponse(
       // Build COMPREHENSIVE system prompt using ALL available data
       let systemPrompt = `You are an intelligent email assistant that writes natural, human-like responses.
 
+CRITICAL LANGUAGE RULE: You MUST respond in the exact same language as the original email. If the original email is in Slovenian, your response MUST be in Slovenian. If German, respond in German. If Italian, respond in Italian. This is NON-NEGOTIABLE - match the language perfectly.
+
 CONTEXT: ${contextSummary.summary}
 PROVIDED: ${contextSummary.keyPoints.slice(0, 2).join(', ')}`;
 
@@ -662,12 +708,15 @@ PROVIDED: ${contextSummary.keyPoints.slice(0, 2).join(', ')}`;
       }
 
       systemPrompt += `\n\nRULES:
-- Don't repeat what they provided
+- NEVER repeat information the sender already provided in their email
+- Acknowledge what they shared without repeating it back
+- Focus on what's needed next, not what they already told you
 - Match their ${tone} tone and the user's natural writing style
 - Be human, not robotic
 - Keep under 150 words
 - Use personality/approach above
 - Generate both subject and body
+- Write in the SAME LANGUAGE as the original email
 ${customInstructions ? `\nNOTES: ${customInstructions.substring(0, 80)}` : ''}
 
 RESPONSE FORMAT: Return JSON with {"subject": "...", "body": "...", "tone": "${tone}", "confidence": 0.8}`;
@@ -774,19 +823,15 @@ RESPONSE FORMAT: Return JSON with {"subject": "...", "body": "...", "tone": "${t
 
 /**
  * Get user's writing style and draft history for better personalized responses
+ * Now uses UnifiedUserContextService for optimized performance
  */
 async function getUserWritingContext(supabase: any, userId: string) {
   try {
-    // Get user's previous sent emails for writing style analysis
-    const { data: userEmails } = await supabase
-      .from('emails')
-      .select('raw_content, subject')
-      .eq('created_by', userId)
-      .eq('email_type', 'sent')
-      .order('created_at', { ascending: false })
-      .limit(10);
-
-    // Get previous AI drafts for learning context
+    // Use unified context service for optimized writing style analysis
+    const { getUserWritingStyle } = await import('@/lib/context/unified-user-context-service');
+    const writingStyle = await getUserWritingStyle(userId);
+    
+    // Get previous AI drafts for learning context (still fetched directly as it's specific to this function)
     const { data: previousDrafts } = await supabase
       .from('ai_email_drafts')
       .select('draft_body, tone, ai_settings')
@@ -794,24 +839,52 @@ async function getUserWritingContext(supabase: any, userId: string) {
       .order('created_at', { ascending: false })
       .limit(5);
 
-    // Analyze writing style
-    const writingStyle = analyzeUserWritingStyle(userEmails || []);
     const draftHistory = analyzePreviousDrafts(previousDrafts || []);
 
     return {
-      userEmails: userEmails || [],
+      userEmails: [], // This data is now internal to the unified service
       previousDrafts: previousDrafts || [],
-      writingStyle,
+      writingStyle: `User writes ${writingStyle.formality} emails averaging ${writingStyle.avgEmailLength} characters. ${writingStyle.hasGreetings ? 'Often uses greetings.' : 'Tends to be direct.'} Preferred tone: ${writingStyle.preferredTone}. Based on ${writingStyle.previousEmails} previous emails.`,
       draftHistory
     };
   } catch (error) {
-    console.error('Error getting user writing context:', error);
-    return {
-      userEmails: [],
-      previousDrafts: [],
-      writingStyle: 'No previous emails available for style analysis. Use professional, friendly tone.',
-      draftHistory: 'No previous drafts available for learning.'
-    };
+    console.warn('Unified writing style analysis failed, using fallback:', error);
+    
+    // Fallback to legacy implementation
+    try {
+      const { data: userEmails } = await supabase
+        .from('emails')
+        .select('raw_content, subject')
+        .eq('created_by', userId)
+        .eq('email_type', 'sent')
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      const { data: previousDrafts } = await supabase
+        .from('ai_email_drafts')
+        .select('draft_body, tone, ai_settings')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(5);
+
+      const writingStyle = analyzeUserWritingStyle(userEmails || []);
+      const draftHistory = analyzePreviousDrafts(previousDrafts || []);
+
+      return {
+        userEmails: userEmails || [],
+        previousDrafts: previousDrafts || [],
+        writingStyle,
+        draftHistory
+      };
+    } catch (fallbackError) {
+      console.error('Error in fallback getUserWritingContext:', fallbackError);
+      return {
+        userEmails: [],
+        previousDrafts: [],
+        writingStyle: 'No previous emails available for style analysis. Use professional, friendly tone.',
+        draftHistory: 'No previous drafts available for learning.'
+      };
+    }
   }
 }
 

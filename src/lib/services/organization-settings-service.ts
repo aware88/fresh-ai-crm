@@ -108,6 +108,39 @@ export interface UpsellingFrameworkConfig {
   };
   max_suggestions: number;
   min_confidence: number;
+  
+  // Enhanced universal upsell settings
+  discount_strategy: {
+    enabled: boolean;
+    max_discount_percent: number;
+    offer_after_rejection: boolean;
+    escalation_steps: Array<{
+      step: number;
+      discount_percent: number;
+      trigger: 'rejection' | 'hesitation' | 'price_inquiry';
+    }>;
+  };
+  
+  // Product relationship mappings
+  product_relationships: Array<{
+    id: string;
+    source_product_keywords: string[];
+    target_product_id?: string;
+    target_product_keywords: string[];
+    relationship_type: 'complementary' | 'premium' | 'accessory' | 'bundle';
+    confidence_score: number;
+    auto_discovered: boolean; // true if discovered via email learning
+    created_at: string;
+    updated_at: string;
+  }>;
+  
+  // Learning from email patterns
+  email_learning: {
+    enabled: boolean;
+    learn_from_sent_emails: boolean;
+    learn_from_successful_sales: boolean;
+    min_pattern_confidence: number;
+  };
 }
 
 export interface CommunicationPreferences {
@@ -274,6 +307,25 @@ export class OrganizationSettingsService {
   }
 
   /**
+   * Get organization settings (alias for getAllSettings for compatibility)
+   */
+  async getSettings(organizationId: string): Promise<any> {
+    const settings = await this.getAllSettings(organizationId);
+    
+    // Return default AI processing config if no settings exist
+    if (Object.keys(settings).length === 0) {
+      return OrganizationSettingsService.getDefaultAIProcessingConfig();
+    }
+    
+    // Merge with defaults to ensure required properties exist
+    const defaults = OrganizationSettingsService.getDefaultAIProcessingConfig();
+    return {
+      ...defaults,
+      ...settings
+    };
+  }
+
+  /**
    * Update or create a setting for an organization
    */
   async updateSetting(
@@ -329,7 +381,121 @@ export class OrganizationSettingsService {
    * Get upselling framework configuration for an organization
    */
   async getUpsellingFrameworkConfig(organizationId: string): Promise<UpsellingFrameworkConfig | null> {
-    return await this.getSetting<UpsellingFrameworkConfig>(organizationId, 'upselling_framework');
+    const config = await this.getSetting<UpsellingFrameworkConfig>(organizationId, 'upselling_framework');
+    
+    // Return default configuration if none exists
+    if (!config) {
+      return this.getDefaultUpsellingConfig();
+    }
+    
+    return config;
+  }
+
+  /**
+   * Get default upselling framework configuration
+   */
+  private getDefaultUpsellingConfig(): UpsellingFrameworkConfig {
+    return {
+      enabled: true,
+      strategies: {
+        complementary_products: {
+          enabled: true,
+          weight: 0.8,
+          description: 'Products that work well together'
+        },
+        premium_versions: {
+          enabled: true,
+          weight: 0.7,
+          description: 'Higher-end versions of the same product'
+        },
+        seasonal_items: {
+          enabled: false,
+          weight: 0.6,
+          description: 'Seasonal or time-sensitive items'
+        },
+        maintenance_products: {
+          enabled: false,
+          weight: 0.5,
+          description: 'Maintenance or care products'
+        }
+      },
+      max_suggestions: 3,
+      min_confidence: 0.6,
+      discount_strategy: {
+        enabled: true,
+        max_discount_percent: 15,
+        offer_after_rejection: true,
+        escalation_steps: [
+          {
+            step: 1,
+            discount_percent: 5,
+            trigger: 'price_inquiry'
+          },
+          {
+            step: 1,
+            discount_percent: 10,
+            trigger: 'rejection'
+          },
+          {
+            step: 2,
+            discount_percent: 15,
+            trigger: 'rejection'
+          }
+        ]
+      },
+      product_relationships: [],
+      email_learning: {
+        enabled: true,
+        learn_from_sent_emails: true,
+        learn_from_successful_sales: true,
+        min_pattern_confidence: 0.7
+      }
+    };
+  }
+
+  /**
+   * Add a product relationship for upselling
+   */
+  async addProductRelationship(
+    organizationId: string,
+    sourceProductKeywords: string[],
+    targetProductKeywords: string[],
+    relationshipType: 'complementary' | 'premium' | 'accessory' | 'bundle',
+    confidenceScore: number = 0.8,
+    targetProductId?: string
+  ): Promise<void> {
+    const config = await this.getUpsellingFrameworkConfig(organizationId);
+    if (!config) return;
+
+    const newRelationship = {
+      id: `rel-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      source_product_keywords: sourceProductKeywords,
+      target_product_id: targetProductId,
+      target_product_keywords: targetProductKeywords,
+      relationship_type: relationshipType,
+      confidence_score: confidenceScore,
+      auto_discovered: false,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
+    config.product_relationships.push(newRelationship);
+    
+    await this.updateSetting(organizationId, 'upselling_framework', config);
+  }
+
+  /**
+   * Update upselling framework configuration
+   */
+  async updateUpsellingFrameworkConfig(
+    organizationId: string,
+    config: Partial<UpsellingFrameworkConfig>
+  ): Promise<void> {
+    const currentConfig = await this.getUpsellingFrameworkConfig(organizationId);
+    if (!currentConfig) return;
+
+    const updatedConfig = { ...currentConfig, ...config };
+    await this.updateSetting(organizationId, 'upselling_framework', updatedConfig);
   }
 
   /**

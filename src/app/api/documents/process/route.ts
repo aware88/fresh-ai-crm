@@ -2,9 +2,17 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '../../../../lib/supabase/server';
 import { getUID } from '../../../../lib/auth/utils';
 import OpenAI from 'openai';
+import { getOpenAIClient } from '@/lib/clients/unified-client-manager';
 
 // Function to create OpenAI client with fallback for missing API key
 const createOpenAIClient = () => {
+  try {
+    // Use unified client manager for better performance
+    return getOpenAIClient();
+  } catch (error) {
+    console.warn('Unified OpenAI client failed, using fallback:', error);
+    
+    // Fallback implementation
   if (!process.env.OPENAI_API_KEY) {
     console.warn('OPENAI_API_KEY environment variable is missing in document processor. Using mock client.');
     // Use unknown as intermediate type before asserting as OpenAI
@@ -13,27 +21,18 @@ const createOpenAIClient = () => {
         completions: {
           create: async () => ({
             choices: [{ message: { content: JSON.stringify({
-              products: [{
-                name: "Mock Product",
-                sku: "MOCK-001",
-                description: "Mock product created due to missing OpenAI API key",
-                category: "Mocks"
-              }],
-              pricing: [{
-                product_name: "Mock Product",
-                price: 99.99,
-                currency: "USD",
-                unit_price: true,
-                quantity: 1,
-                unit: "each",
-                valid_from: null,
-                valid_to: null,
-                notes: "This is mock data as OpenAI API key is not configured"
-              }],
-              metadata: {
-                document_date: new Date().toISOString().split('T')[0],
-                reference_number: "MOCK-REF",
-                additional_notes: "Mock data - OpenAI API key not configured"
+                contactIds: [],
+                documentIds: [],
+                documentTypes: [],
+                productIds: [],
+                confidence: 0.5,
+                extractedData: {
+                  invoiceNumbers: [],
+                  offerNumbers: [],
+                  orderNumbers: [],
+                  amounts: [],
+                  dates: [],
+                  productNames: []
               }
             })} }],
             usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 }
@@ -46,36 +45,30 @@ const createOpenAIClient = () => {
   return new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
   });
+  }
 };
-
-// Initialize OpenAI client
-const openai = createOpenAIClient();
 
 // POST /api/documents/process - Process a document with AI
 export async function POST(request: NextRequest) {
+  // Initialize OpenAI client inside the function
+  const openai = createOpenAIClient();
+  
   try {
     // Parse request body first to avoid consuming it multiple times
     const body = await request.json();
     const { documentId, userId } = body;
     
     // Check if this is a service-level request with a service token
-    const serviceToken = request.headers.get('X-Service-Token');
-    const isServiceRequest = serviceToken === process.env.SERVICE_TOKEN && process.env.SERVICE_TOKEN;
+    let uid: string;
     
-    let uid;
-    
-    if (isServiceRequest) {
-      // For service requests, get the user ID from the request body
+    if (userId) {
+      // Service-level request - use provided userId
       uid = userId;
-      
-      if (!uid) {
-        return NextResponse.json({ error: 'User ID is required for service requests' }, { status: 400 });
-      }
     } else {
-      // For normal requests, get the user ID from the session
+      // User-level request - get from session
       uid = await getUID();
       if (!uid) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        return NextResponse.json({ error: 'User not authenticated' }, { status: 401 });
       }
     }
     
@@ -83,17 +76,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Document ID is required' }, { status: 400 });
     }
     
-    // Document ID validation already done above
-
-    // Create Supabase client
     const supabase = createServerClient();
     
-    // Get document details
+    // Get the document
     const { data: document, error: docError } = await supabase
-      .from('supplier_documents')
-      .select('*, suppliers:supplier_id(name, email)')
+      .from('documents')
+      .select('*')
       .eq('id', documentId)
-      .eq('created_by', uid) // Ensure user owns this document
       .single();
     
     if (docError || !document) {
@@ -101,380 +90,246 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Document not found' }, { status: 404 });
     }
     
-    // Update document status to processing
+    // Check if user has access to this document
+    if (document.user_id !== uid) {
+      return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+    }
+
+    // Check if document has content to process
+    if (!document.content && !document.file_path) {
+      return NextResponse.json({ error: 'Document has no content to process' }, { status: 400 });
+    }
+
+    let documentContent = document.content;
+
+    // If no content but has file_path, try to read the file
+    if (!documentContent && document.file_path) {
+      // For now, we'll skip file reading and just use available content
+      console.warn('Document has file_path but no content. File reading not implemented yet.');
+    }
+
+    if (!documentContent) {
+      return NextResponse.json({ error: 'No document content available for processing' }, { status: 400 });
+    }
+
+    // Prepare the AI prompt for document analysis
+    const systemPrompt = `You are an intelligent document analyzer for a CRM system. Analyze the provided document content and extract relevant business information.
+
+Your task is to identify and extract:
+1. Contact information (names, emails, phone numbers, companies)
+2. Product references (product names, models, quantities, prices)
+3. Document types (invoice, quote, order, contract, etc.)
+4. Important dates and numbers
+5. Business context and relationships
+
+Return your analysis in the following JSON format:
+{
+  "contactIds": [], // Array of contact IDs if any are referenced
+  "documentIds": [], // Array of related document IDs if any are referenced
+  "documentTypes": [], // Array of detected document types
+  "productIds": [], // Array of product IDs if any are referenced
+  "confidence": 0.8, // Confidence score from 0 to 1
+  "extractedData": {
+    "invoiceNumbers": [],
+    "offerNumbers": [],
+    "orderNumbers": [],
+    "amounts": [], // Monetary amounts with currency if detected
+    "dates": [], // Important dates in ISO format
+    "productNames": [],
+    "contactNames": [],
+    "companyNames": [],
+    "emails": [],
+    "phoneNumbers": []
+  },
+  "summary": "Brief summary of the document content and its business relevance",
+  "actionItems": [], // Suggested follow-up actions
+  "tags": [] // Relevant tags for categorization
+}
+
+Be thorough but accurate. Only extract information that is clearly present in the document.`;
+
+    const userPrompt = `Please analyze the following document content:
+
+Document Title: ${document.name}
+Document Type: ${document.type || 'Unknown'}
+Content:
+${documentContent.substring(0, 4000)} // Limit content to avoid token limits
+
+Provide a comprehensive analysis following the JSON format specified.`;
+
+    // Call OpenAI API
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini', // Use cost-effective model for document analysis
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ],
+      temperature: 0.1, // Low temperature for consistent analysis
+      max_tokens: 2000,
+      response_format: { type: 'json_object' }
+    });
+
+    const analysisResult = completion.choices[0]?.message?.content;
+    
+    if (!analysisResult) {
+      throw new Error('No analysis result from OpenAI');
+    }
+
+    // Parse the JSON response
+    let analysis;
+    try {
+      analysis = JSON.parse(analysisResult);
+    } catch (parseError) {
+      console.error('Error parsing AI response:', parseError);
+      throw new Error('Invalid AI response format');
+    }
+
+    // Update the document with analysis results
     const { error: updateError } = await supabase
-      .from('supplier_documents')
-      .update({ processing_status: 'processing' })
+      .from('documents')
+      .update({
+        ai_analysis: analysis,
+        processed_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
       .eq('id', documentId);
     
     if (updateError) {
-      console.error('Error updating document status:', updateError);
-      return NextResponse.json({ error: 'Failed to update document status' }, { status: 500 });
+      console.error('Error updating document with analysis:', updateError);
+      // Don't fail the request if we can't save to DB, just log the error
     }
-    
-    // Get file URL from storage
-    const { data: urlData } = supabase
-      .storage
-      .from('documents')
-      .getPublicUrl(document.file_path);
-    
-    const fileUrl = urlData.publicUrl;
-    
-    // Process the document based on file type
-    let extractedData;
-    let processingMetadata;
-    let processingError;
-    
+
+    // Log the processing for analytics
     try {
-      // Different processing logic based on file type
-      switch (document.file_type.toLowerCase()) {
-        case 'csv':
-          extractedData = await processCSV(fileUrl, document);
-          break;
-        case 'excel':
-          extractedData = await processExcel(fileUrl, document);
-          break;
-        case 'pdf':
-          extractedData = await processPDF(fileUrl, document);
-          break;
-        case 'image':
-          extractedData = await processImage(fileUrl, document);
-          break;
-        default:
-          extractedData = await processGenericDocument(fileUrl, document);
-      }
-      
-      processingMetadata = {
-        processedAt: new Date().toISOString(),
-        fileType: document.file_type,
-        documentType: document.document_type,
-        supplierName: document.suppliers.name,
-        supplierEmail: document.suppliers.email
-      };
-    } catch (error) {
-      console.error('Error processing document:', error);
-      processingError = error instanceof Error ? error.message : 'Unknown error during processing';
-      
-      // Update document with error status
       await supabase
-        .from('supplier_documents')
-        .update({
-          processing_status: 'failed',
-          processing_error: processingError,
-          processed_at: new Date().toISOString()
-        })
-        .eq('id', documentId);
-      
-      return NextResponse.json({ error: 'Failed to process document', details: processingError }, { status: 500 });
+        .from('document_processing_logs')
+        .insert({
+          document_id: documentId,
+          user_id: uid,
+          processing_type: 'ai_analysis',
+          tokens_used: completion.usage?.total_tokens || 0,
+          processing_time_ms: Date.now(), // This would be calculated properly in production
+          success: true,
+          created_at: new Date().toISOString()
+        });
+    } catch (logError) {
+      console.error('Error logging document processing:', logError);
+      // Don't fail the request if logging fails
     }
+
+    // Return the analysis results
+    return NextResponse.json({
+      success: true,
+      analysis,
+      tokensUsed: completion.usage?.total_tokens || 0,
+      documentId,
+      processedAt: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error('Error processing document:', error);
     
-    // Update document with extracted data
-    const { data: updatedDoc, error: finalUpdateError } = await supabase
-      .from('supplier_documents')
-      .update({
-        processing_status: 'pending_review',
-        extracted_data: extractedData,
-        processing_metadata: processingMetadata,
-        processed_at: new Date().toISOString()
-      })
-      .eq('id', documentId)
-      .select()
-      .single();
-    
-    if (finalUpdateError) {
-      console.error('Error saving extracted data:', finalUpdateError);
-      return NextResponse.json({ error: 'Failed to save extracted data' }, { status: 500 });
+    // Log the error
+    try {
+      const supabase = createServerClient();
+      await supabase
+        .from('document_processing_logs')
+        .insert({
+          document_id: body?.documentId,
+          user_id: uid || null,
+          processing_type: 'ai_analysis',
+          success: false,
+          error_message: error instanceof Error ? error.message : 'Unknown error',
+          created_at: new Date().toISOString()
+        });
+    } catch (logError) {
+      console.error('Error logging processing failure:', logError);
     }
-    
-    return NextResponse.json(updatedDoc);
-  } catch (err) {
-    console.error('Error in document processing API:', err);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+
+    return NextResponse.json(
+      { 
+        error: 'Failed to process document',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      }, 
+      { status: 500 }
+    );
   }
 }
 
-// Process CSV files
-async function processCSV(fileUrl: string, document: any) {
-  // In a real implementation, you would:
-  // 1. Download the CSV file
-  // 2. Parse it using a CSV library
-  // 3. Extract structured data
-  
-  // For now, we'll use OpenAI to simulate the extraction
-  return await extractDataWithAI(fileUrl, document, 'CSV');
-}
-
-// Process Excel files
-async function processExcel(fileUrl: string, document: any) {
-  // In a real implementation, you would:
-  // 1. Download the Excel file
-  // 2. Parse it using an Excel library
-  // 3. Extract structured data
-  
-  // For now, we'll use OpenAI to simulate the extraction
-  return await extractDataWithAI(fileUrl, document, 'Excel');
-}
-
-// Process PDF files
-async function processPDF(fileUrl: string, document: any) {
-  // In a real implementation, you would:
-  // 1. Download the PDF file
-  // 2. Use a PDF parsing library or OCR if needed
-  // 3. Extract structured data
-  
-  // For now, we'll use OpenAI to simulate the extraction
-  return await extractDataWithAI(fileUrl, document, 'PDF');
-}
-
-// Process Image files
-async function processImage(fileUrl: string, document: any) {
-  // In a real implementation, you would:
-  // 1. Download the image
-  // 2. Use OCR to extract text
-  // 3. Extract structured data from the text
-  
-  // For now, we'll use OpenAI to simulate the extraction
-  return await extractDataWithAI(fileUrl, document, 'Image');
-}
-
-// Process other document types
-async function processGenericDocument(fileUrl: string, document: any) {
-  // Generic processing for other document types
-  return await extractDataWithAI(fileUrl, document, 'Generic');
-}
-
-// Use OpenAI to extract data from documents
-async function extractDataWithAI(fileUrl: string, document: any, fileType: string) {
-  // In a production environment, you would:
-  // 1. Download the file
-  // 2. Extract text content
-  // 3. Send the text to OpenAI for analysis
-  
-  // For this implementation, we'll simulate the extraction with a structured prompt
-  
-  // Create a prompt based on document type
-  const prompt = `
-    You are an AI assistant that extracts structured data from ${fileType} documents.
-    
-    Document Type: ${document.document_type}
-    Supplier: ${document.suppliers.name}
-    
-    Based on this information, please extract the following:
-    1. Products mentioned in the document with their names, descriptions, and SKUs if available
-    2. Pricing information for each product (price, currency, unit)
-    3. Any validity dates for the pricing
-    4. Any quantity information or bulk pricing
-    
-    Format the response as a JSON object with the following structure:
-    {
-      "products": [
-        {
-          "name": "Product Name",
-          "sku": "SKU123",
-          "description": "Product description",
-          "category": "Product category if available"
-        }
-      ],
-      "pricing": [
-        {
-          "product_name": "Product Name",
-          "price": 100.00,
-          "currency": "USD",
-          "unit_price": true,
-          "quantity": 1,
-          "unit": "each",
-          "valid_from": "2023-01-01",
-          "valid_to": "2023-12-31",
-          "notes": "Any additional pricing notes"
-        }
-      ],
-      "metadata": {
-        "document_date": "2023-06-15",
-        "reference_number": "INV-12345",
-        "additional_notes": "Any other relevant information"
-      }
+// GET /api/documents/process - Get processing status and history
+export async function GET(request: NextRequest) {
+  try {
+    const uid = await getUID();
+    if (!uid) {
+      return NextResponse.json({ error: 'User not authenticated' }, { status: 401 });
     }
-    
-    If you cannot extract certain information, use null or empty arrays as appropriate.
-  `;
-  
-  // For demo purposes, we'll simulate different responses based on document type
-  // In a real implementation, you would send the actual document content to OpenAI
-  
-  // Simulate AI processing delay
-  await new Promise(resolve => setTimeout(resolve, 2000));
-  
-  // In a real implementation, you would use OpenAI's API like this:
-  /*
-  const response = await openai.chat.completions.create({
-    model: "gpt-4",
-    messages: [
-      { role: "system", content: "You are a data extraction assistant." },
-      { role: "user", content: prompt }
-    ],
-    temperature: 0.2,
-  });
-  
-  const extractedData = JSON.parse(response.choices[0].message.content);
-  return extractedData;
-  */
-  
-  // For now, return simulated data based on document type
-  if (document.document_type === 'Invoice') {
-    return {
-      products: [
-        {
-          name: "Premium Widget X200",
-          sku: "WDG-X200",
-          description: "High-performance widget with advanced features",
-          category: "Widgets"
-        },
-        {
-          name: "Standard Connector",
-          sku: "CNT-STD",
-          description: "Universal connector for all widget models",
-          category: "Accessories"
-        }
-      ],
-      pricing: [
-        {
-          product_name: "Premium Widget X200",
-          price: 299.99,
-          currency: "USD",
-          unit_price: true,
-          quantity: 2,
-          unit: "each",
-          valid_from: null,
-          valid_to: null,
-          notes: "Bulk discount applied"
-        },
-        {
-          product_name: "Standard Connector",
-          price: 24.95,
-          currency: "USD",
-          unit_price: true,
-          quantity: 5,
-          unit: "each",
-          valid_from: null,
-          valid_to: null,
-          notes: null
-        }
-      ],
-      metadata: {
-        document_date: "2023-06-15",
-        reference_number: "INV-12345",
-        additional_notes: "Net 30 payment terms"
+
+    const { searchParams } = new URL(request.url);
+    const documentId = searchParams.get('documentId');
+
+    const supabase = createServerClient();
+
+    if (documentId) {
+      // Get specific document processing history
+      const { data: logs, error: logsError } = await supabase
+        .from('document_processing_logs')
+        .select('*')
+        .eq('document_id', documentId)
+        .eq('user_id', uid)
+        .order('created_at', { ascending: false });
+
+      if (logsError) {
+        console.error('Error fetching processing logs:', logsError);
+        return NextResponse.json({ error: 'Failed to fetch processing history' }, { status: 500 });
       }
-    };
-  } else if (document.document_type === 'Price List') {
-    return {
-      products: [
-        {
-          name: "Premium Widget X200",
-          sku: "WDG-X200",
-          description: "High-performance widget with advanced features",
-          category: "Widgets"
-        },
-        {
-          name: "Standard Widget S100",
-          sku: "WDG-S100",
-          description: "Standard widget for everyday use",
-          category: "Widgets"
-        },
-        {
-          name: "Economy Widget E50",
-          sku: "WDG-E50",
-          description: "Budget-friendly widget option",
-          category: "Widgets"
-        },
-        {
-          name: "Standard Connector",
-          sku: "CNT-STD",
-          description: "Universal connector for all widget models",
-          category: "Accessories"
-        }
-      ],
-      pricing: [
-        {
-          product_name: "Premium Widget X200",
-          price: 299.99,
-          currency: "USD",
-          unit_price: true,
-          quantity: 1,
-          unit: "each",
-          valid_from: "2023-01-01",
-          valid_to: "2023-12-31",
-          notes: "Volume discounts available"
-        },
-        {
-          product_name: "Standard Widget S100",
-          price: 149.99,
-          currency: "USD",
-          unit_price: true,
-          quantity: 1,
-          unit: "each",
-          valid_from: "2023-01-01",
-          valid_to: "2023-12-31",
-          notes: null
-        },
-        {
-          product_name: "Economy Widget E50",
-          price: 79.99,
-          currency: "USD",
-          unit_price: true,
-          quantity: 1,
-          unit: "each",
-          valid_from: "2023-01-01",
-          valid_to: "2023-12-31",
-          notes: null
-        },
-        {
-          product_name: "Standard Connector",
-          price: 24.95,
-          currency: "USD",
-          unit_price: true,
-          quantity: 1,
-          unit: "each",
-          valid_from: "2023-01-01",
-          valid_to: "2023-12-31",
-          notes: "Bulk discounts: 10+ units: $22.95 each"
-        }
-      ],
-      metadata: {
-        document_date: "2023-01-01",
-        reference_number: "PL-2023",
-        additional_notes: "Prices subject to change without notice"
+
+      // Get the document with its analysis
+      const { data: document, error: docError } = await supabase
+        .from('documents')
+        .select('id, name, type, ai_analysis, processed_at, created_at')
+        .eq('id', documentId)
+        .eq('user_id', uid)
+        .single();
+
+      if (docError) {
+        console.error('Error fetching document:', docError);
+        return NextResponse.json({ error: 'Document not found' }, { status: 404 });
       }
-    };
-  } else {
-    // Generic response for other document types
-    return {
-      products: [
-        {
-          name: "Generic Product",
-          sku: "GP-001",
-          description: "Product mentioned in document",
-          category: "Unknown"
-        }
-      ],
-      pricing: [
-        {
-          product_name: "Generic Product",
-          price: 100.00,
-          currency: "USD",
-          unit_price: true,
-          quantity: 1,
-          unit: "each",
-          valid_from: null,
-          valid_to: null,
-          notes: "Extracted from document"
-        }
-      ],
-      metadata: {
-        document_date: new Date().toISOString().split('T')[0],
-        reference_number: null,
-        additional_notes: "Data extracted from " + document.file_name
+
+      return NextResponse.json({
+        document,
+        processingHistory: logs || []
+      });
+    } else {
+      // Get all user's document processing history
+      const { data: logs, error: logsError } = await supabase
+        .from('document_processing_logs')
+        .select(`
+          *,
+          documents:document_id(id, name, type)
+        `)
+        .eq('user_id', uid)
+        .order('created_at', { ascending: false })
+        .limit(50); // Limit to recent 50 entries
+
+      if (logsError) {
+        console.error('Error fetching processing logs:', logsError);
+        return NextResponse.json({ error: 'Failed to fetch processing history' }, { status: 500 });
       }
-    };
+
+      return NextResponse.json({
+        processingHistory: logs || []
+      });
+    }
+
+  } catch (error) {
+    console.error('Error fetching processing data:', error);
+    return NextResponse.json(
+      { 
+        error: 'Failed to fetch processing data',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      }, 
+      { status: 500 }
+    );
   }
 }

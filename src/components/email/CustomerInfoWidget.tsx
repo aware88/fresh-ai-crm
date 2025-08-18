@@ -14,7 +14,14 @@ import {
   Euro,
   ChevronDown,
   ChevronRight,
-  AlertCircle
+  AlertCircle,
+  TrendingUp,
+  Clock,
+  Star,
+  MapPin,
+  ExternalLink,
+  Phone,
+  MessageSquare
 } from 'lucide-react';
 
 interface MetakockaCustomer {
@@ -24,6 +31,9 @@ interface MetakockaCustomer {
   totalOrders: number;
   lastOrderDate: string;
   status: 'active' | 'inactive';
+  totalValue?: number;
+  averageOrderValue?: number;
+  firstOrderDate?: string;
 }
 
 interface MetakockaOrder {
@@ -130,7 +140,7 @@ export default function CustomerInfoWidget({ customerEmail, className }: Custome
           variant="outline"
           size="sm"
           onClick={checkCustomerInMetakocka}
-          className="w-full"
+          className="w-full border-blue-200 text-blue-700 hover:bg-blue-50"
         >
           <User className="h-4 w-4 mr-2" />
           Check Customer in Metakocka
@@ -141,11 +151,14 @@ export default function CustomerInfoWidget({ customerEmail, className }: Custome
 
   if (loading) {
     return (
-      <Card className={`border-blue-200 bg-blue-50 ${className}`}>
+      <Card className={`border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 ${className}`}>
         <CardContent className="pt-4">
-          <div className="flex items-center justify-center space-x-2">
+          <div className="flex items-center space-x-3">
             <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-            <span className="text-sm text-blue-700">Checking Metakocka...</span>
+            <div>
+              <p className="text-sm font-medium text-blue-800">Checking Metakocka</p>
+              <p className="text-xs text-blue-600">Looking up customer information...</p>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -201,75 +214,154 @@ export default function CustomerInfoWidget({ customerEmail, className }: Custome
     return `€${price.toFixed(2)}`;
   };
 
+  // Calculate customer insights
+  const totalValue = orders.reduce((sum, order) => sum + order.total, 0);
+  const averageOrderValue = customer.totalOrders > 0 ? totalValue / customer.totalOrders : 0;
+  const daysSinceLastOrder = customer.lastOrderDate 
+    ? Math.floor((Date.now() - new Date(customer.lastOrderDate).getTime()) / (1000 * 60 * 60 * 24))
+    : null;
+
   return (
-    <Card className={`border-green-200 bg-green-50 ${className}`}>
+    <Card className={`border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 ${className}`}>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm flex items-center space-x-2">
-            <User className="h-4 w-4 text-green-600" />
-            <span className="text-green-800">Existing Customer</span>
-            <Badge className={getStatusColor(customer.status)}>
-              {customer.status}
-            </Badge>
+            <div className="flex items-center space-x-2">
+              <div className="p-1 bg-blue-100 rounded-full">
+                <User className="h-3 w-3 text-blue-600" />
+              </div>
+              <span className="text-blue-800 font-medium">Metakocka Customer</span>
+              <Badge className={getStatusColor(customer.status)}>
+                {customer.status}
+              </Badge>
+            </div>
           </CardTitle>
           <Button
             variant="ghost"
             size="sm"
             onClick={() => setShowDetails(!showDetails)}
-            className="h-6 px-2"
+            className="h-6 px-2 hover:bg-blue-100"
           >
             {showDetails ? (
-              <ChevronDown className="h-3 w-3" />
+              <ChevronDown className="h-3 w-3 text-blue-600" />
             ) : (
-              <ChevronRight className="h-3 w-3" />
+              <ChevronRight className="h-3 w-3 text-blue-600" />
             )}
           </Button>
         </div>
       </CardHeader>
       
       <CardContent className="space-y-3">
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <p className="text-sm font-medium text-green-800">{customer.name}</p>
-            <p className="text-xs text-green-600">{customer.email}</p>
+        {/* Customer Basic Info */}
+        <div className="flex items-center justify-between">
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-blue-900">{customer.name}</p>
+            <p className="text-xs text-blue-600">{customer.email}</p>
           </div>
           <div className="text-right">
-            <div className="flex items-center justify-end space-x-1">
-              <ShoppingBag className="h-3 w-3 text-green-600" />
-              <span className="text-sm font-medium text-green-800">
+            <div className="flex items-center justify-end space-x-1 mb-1">
+              <ShoppingBag className="h-3 w-3 text-blue-600" />
+              <span className="text-sm font-medium text-blue-800">
                 {customer.totalOrders} orders
               </span>
             </div>
-            <div className="flex items-center justify-end space-x-1">
-              <Calendar className="h-3 w-3 text-green-600" />
-              <span className="text-xs text-green-600">
-                Last: {formatDate(customer.lastOrderDate)}
-              </span>
-            </div>
+            {daysSinceLastOrder !== null && (
+              <div className="flex items-center justify-end space-x-1">
+                <Clock className="h-3 w-3 text-blue-600" />
+                <span className="text-xs text-blue-600">
+                  {daysSinceLastOrder === 0 ? 'Today' : 
+                   daysSinceLastOrder === 1 ? 'Yesterday' : 
+                   daysSinceLastOrder < 30 ? `${daysSinceLastOrder} days ago` :
+                   daysSinceLastOrder < 365 ? `${Math.floor(daysSinceLastOrder / 30)} months ago` :
+                   `${Math.floor(daysSinceLastOrder / 365)} years ago`}
+                </span>
+              </div>
+            )}
           </div>
         </div>
+
+        {/* Customer Value Metrics */}
+        {totalValue > 0 && (
+          <div className="grid grid-cols-2 gap-3 p-2 bg-white/50 rounded-lg">
+            <div className="text-center">
+              <div className="flex items-center justify-center space-x-1">
+                <Euro className="h-3 w-3 text-green-600" />
+                <span className="text-sm font-semibold text-green-700">
+                  {formatPrice(totalValue)}
+                </span>
+              </div>
+              <p className="text-xs text-gray-600">Total Value</p>
+            </div>
+            <div className="text-center">
+              <div className="flex items-center justify-center space-x-1">
+                <TrendingUp className="h-3 w-3 text-blue-600" />
+                <span className="text-sm font-semibold text-blue-700">
+                  {formatPrice(averageOrderValue)}
+                </span>
+              </div>
+              <p className="text-xs text-gray-600">Avg Order</p>
+            </div>
+          </div>
+        )}
 
         {showDetails && orders.length > 0 && (
           <>
             <Separator />
             <div>
-              <h4 className="text-sm font-medium text-green-800 mb-2">Recent Orders</h4>
-              <ScrollArea className="h-32">
-                <div className="space-y-2">
-                  {orders.slice(0, 5).map((order) => (
-                    <div key={order.id} className="bg-white p-2 rounded border">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-sm font-medium">#{order.orderNumber}</span>
-                        <Badge className={getOrderStatusColor(order.status)}>
-                          {order.status}
-                        </Badge>
-                      </div>
-                      <div className="text-xs text-gray-600 mb-1">
-                        {formatDate(order.orderDate)} • {formatPrice(order.total)}
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        {order.items.slice(0, 2).map(item => item.name).join(', ')}
-                        {order.items.length > 2 && ` +${order.items.length - 2} more`}
+              <h4 className="text-sm font-medium text-blue-800 mb-3 flex items-center space-x-2">
+                <Package className="h-4 w-4" />
+                <span>Order Timeline</span>
+              </h4>
+              <ScrollArea className="h-40">
+                <div className="space-y-3">
+                  {orders.slice(0, 5).map((order, index) => (
+                    <div key={order.id} className="relative">
+                      {/* Timeline line */}
+                      {index < orders.length - 1 && index < 4 && (
+                        <div className="absolute left-2 top-8 w-0.5 h-6 bg-blue-200"></div>
+                      )}
+                      
+                      <div className="flex items-start space-x-3">
+                        {/* Timeline dot */}
+                        <div className={`w-4 h-4 rounded-full flex-shrink-0 mt-1 ${
+                          order.status === 'delivered' ? 'bg-green-500' :
+                          order.status === 'shipped' ? 'bg-blue-500' :
+                          order.status === 'confirmed' ? 'bg-yellow-500' :
+                          order.status === 'pending' ? 'bg-orange-500' :
+                          'bg-red-500'
+                        }`}></div>
+                        
+                        {/* Order details */}
+                        <div className="flex-1 bg-white p-3 rounded-lg border border-blue-100 shadow-sm">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-sm font-semibold text-gray-900">#{order.orderNumber}</span>
+                            <Badge className={getOrderStatusColor(order.status)}>
+                              {order.status}
+                            </Badge>
+                          </div>
+                          
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center space-x-1 text-xs text-gray-600">
+                              <Calendar className="h-3 w-3" />
+                              <span>{formatDate(order.orderDate)}</span>
+                            </div>
+                            <div className="flex items-center space-x-1 text-xs font-medium text-green-700">
+                              <Euro className="h-3 w-3" />
+                              <span>{formatPrice(order.total)}</span>
+                            </div>
+                          </div>
+                          
+                          <div className="text-xs text-gray-500">
+                            <div className="flex items-center space-x-1 mb-1">
+                              <Package className="h-3 w-3" />
+                              <span>{order.items.length} item{order.items.length !== 1 ? 's' : ''}</span>
+                            </div>
+                            <div className="truncate">
+                              {order.items.slice(0, 2).map(item => item.name).join(', ')}
+                              {order.items.length > 2 && ` +${order.items.length - 2} more`}
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -279,8 +371,52 @@ export default function CustomerInfoWidget({ customerEmail, className }: Custome
           </>
         )}
 
-        <div className="text-xs text-green-600 bg-green-100 p-2 rounded">
-          💡 This customer exists in Metakocka. Consider their order history when responding.
+        {/* Quick Actions */}
+        {showDetails && (
+          <div className="flex space-x-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-1 text-xs h-8"
+              onClick={() => window.open(`https://metakocka.si/customers/${customer.id}`, '_blank')}
+            >
+              <ExternalLink className="h-3 w-3 mr-1" />
+              View in Metakocka
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-1 text-xs h-8"
+              onClick={() => {
+                // This could trigger a new email compose with customer context
+                console.log('Create follow-up email for:', customer.email);
+              }}
+            >
+              <MessageSquare className="h-3 w-3 mr-1" />
+              Follow Up
+            </Button>
+          </div>
+        )}
+
+        {/* Contextual Tips */}
+        <div className="bg-gradient-to-r from-blue-100 to-indigo-100 p-3 rounded-lg border border-blue-200">
+          <div className="flex items-start space-x-2">
+            <Star className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+            <div className="text-xs text-blue-800">
+              <p className="font-medium mb-1">Customer Insights</p>
+              <p>
+                {customer.totalOrders === 0 ? 'New customer - no previous orders' :
+                 customer.totalOrders === 1 ? 'First-time buyer - great opportunity to build loyalty' :
+                 customer.totalOrders < 5 ? 'Regular customer - consider personalized recommendations' :
+                 'Loyal customer - high value relationship'}
+              </p>
+              {daysSinceLastOrder !== null && daysSinceLastOrder > 90 && (
+                <p className="mt-1 text-orange-700">
+                  ⚠️ Haven't ordered in {Math.floor(daysSinceLastOrder / 30)} months - consider re-engagement
+                </p>
+              )}
+            </div>
+          </div>
         </div>
       </CardContent>
     </Card>

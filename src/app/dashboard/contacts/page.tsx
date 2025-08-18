@@ -375,7 +375,7 @@ function ContactsContent() {
                       <TableRow 
                         key={contact.id} 
                         className="cursor-pointer transition-colors hover:bg-gray-50"
-                        onClick={() => router.push(`/dashboard/contacts/${contact.id}`)}
+                        onClick={() => router.push(`/contacts/${contact.id}`)}
                       >
                         <TableCell className="font-medium">
                           <div className="flex items-center gap-3">
@@ -413,7 +413,13 @@ function ContactsContent() {
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <Calendar className="h-4 w-4 text-gray-400" />
-                            <span>{contact.lastInteraction ? formatDate(contact.lastInteraction) : 'Never'}</span>
+                            <span>
+                              {contact.lastInteraction
+                                ? formatDate(contact.lastInteraction)
+                                : contact.lastContact
+                                  ? formatDate(contact.lastContact as unknown as string)
+                                  : 'Never'}
+                            </span>
                           </div>
                         </TableCell>
                         <TableCell className="text-right">
@@ -424,7 +430,7 @@ function ContactsContent() {
                               className="h-8 w-8 rounded-full hover:bg-blue-50 transition-all duration-200" 
                               onClick={(e) => {
                                 e.stopPropagation();
-                                router.push(`/dashboard/contacts/${contact.id}`);
+                                router.push(`/contacts/${contact.id}`);
                               }}
                             >
                               <User className="h-4 w-4 text-blue-600" />

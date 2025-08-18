@@ -39,6 +39,7 @@ export interface BrandingTheme {
   fontFamily: string;
   logoUrl?: string;
   faviconUrl?: string;
+  organizationId?: string;
 }
 
 export const defaultBranding: BrandingTheme = {
@@ -46,6 +47,7 @@ export const defaultBranding: BrandingTheme = {
   secondaryColor: '#64748b', // slate-500
   accentColor: '#2563eb', // blue-600
   fontFamily: 'Inter, system-ui, sans-serif',
+  organizationId: undefined,
 };
 
 export const defaultBrandingFormData: BrandingFormData = {

@@ -11,6 +11,9 @@ import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { generateEmailPreview } from '@/lib/email/utils';
 import EmailRenderer from '../EmailRenderer';
 import CustomerInfoWidget from '../CustomerInfoWidget';
+import AIDraftWindow from '../AIDraftWindow';
+import { EmailViewProvider, useEmailView } from '@/contexts/EmailViewContext';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface Email {
   id: string;
@@ -29,9 +32,22 @@ interface ImapClientProps {
   isSalesProcessing: boolean;
 }
 
-export default function ImapClient({ account, onSalesAgent, isSalesProcessing }: ImapClientProps) {
+function ImapClientContent({ account, onSalesAgent, isSalesProcessing }: ImapClientProps) {
   const { data: session } = useSession();
   const supabase = createClientComponentClient();
+  const {
+    viewMode,
+    selectedEmailId,
+    emailData,
+    showDraftWindow,
+    setSelectedEmailId,
+    setEmailData,
+    setViewMode,
+    startReply,
+    closeDraftWindow,
+    backToList
+  } = useEmailView();
+  
   const [emails, setEmails] = useState<Email[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -312,6 +328,9 @@ export default function ImapClient({ account, onSalesAgent, isSalesProcessing }:
 
   const handleEmailClick = (email: Email) => {
     setSelectedEmail(email);
+    setSelectedEmailId(email.id);
+    setEmailData(email);
+    setViewMode('detail');
     
     // Mark as read locally only (dev-phase)
     if (!email.read) {
@@ -322,6 +341,25 @@ export default function ImapClient({ account, onSalesAgent, isSalesProcessing }:
         e.id === email.id ? { ...e, read: true } : e
       );
       setEmails(updatedEmails);
+    }
+  };
+
+  // Handle reply actions
+  const handleReply = () => {
+    if (selectedEmail) {
+      startReply(selectedEmail.id, selectedEmail, 'reply');
+    }
+  };
+
+  const handleReplyAll = () => {
+    if (selectedEmail) {
+      startReply(selectedEmail.id, selectedEmail, 'replyAll');
+    }
+  };
+
+  const handleForward = () => {
+    if (selectedEmail) {
+      startReply(selectedEmail.id, selectedEmail, 'forward');
     }
   };
 
@@ -502,7 +540,7 @@ export default function ImapClient({ account, onSalesAgent, isSalesProcessing }:
         </div>
         
         <TabsContent value={currentFolder} className="flex-1 min-h-0 mt-0">
-          <div className="flex-1 flex gap-3 p-3 min-h-0" style={{ height: 'calc(100vh - 200px)' }}>
+          <div className="flex-1 flex gap-3 p-3 min-h-0 h-full">
             <div className="email-list-container bg-gray-50 rounded-lg border" style={{ width: '320px', height: '100%', flexShrink: 0 }}>
               <div className="h-full overflow-y-auto" id="email-scroll-container">
                 <div className="p-2">
@@ -598,68 +636,174 @@ export default function ImapClient({ account, onSalesAgent, isSalesProcessing }:
 
             {/* Email Detail View */}
             <div className="flex-1 min-w-0 flex flex-col" style={{ height: '100%' }}>
-              {selectedEmail ? (
-                <>
-                  {/* Email Header - Fixed */}
-                  <Card className="bg-white rounded-lg rounded-b-none border-b-0 shadow-sm flex-shrink-0">
-                    <CardHeader className="border-b bg-gradient-to-r from-gray-50 to-gray-100 py-3">
-                      <CardTitle className="text-lg font-semibold text-gray-800 leading-tight">{selectedEmail.subject}</CardTitle>
-                      <CardDescription className="text-sm text-gray-600">
-                        From: {selectedEmail.from} | On: {new Date(selectedEmail.date).toLocaleString()}
-                      </CardDescription>
-                    </CardHeader>
-                  </Card>
-                  
-                  {/* Email Body - Scrollable */}
-                  <Card className="flex-1 bg-white rounded-none border-t-0 border-b-0 shadow-sm min-h-0 overflow-hidden">
-                    <CardContent className="p-4 h-full overflow-y-auto">
-                      <EmailRenderer content={selectedEmail.body} />
-                    </CardContent>
-                  </Card>
-                  
-                  {/* Email Actions - Fixed at bottom */}
-                  <Card className="bg-white rounded-lg rounded-t-none border-t-0 shadow-sm flex-shrink-0">
-                    <div className="p-3 border-t bg-gray-50">
-                      <div className="space-y-2">
+              <AnimatePresence mode="wait">
+                {viewMode === 'list' && (
+                  <motion.div
+                    key="no-selection"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <Card className="bg-white h-full rounded-lg border shadow-sm flex items-center justify-center">
+                      <CardContent className="h-full flex items-center justify-center">
+                        <div className="text-center py-16">
+                          <div className="w-20 h-20 mx-auto mb-6 bg-gray-100 rounded-full flex items-center justify-center">
+                            <FaInbox className="h-10 w-10 text-gray-400" />
+                          </div>
+                          <p className="text-lg font-medium text-gray-500">Select an email to view</p>
+                          <p className="text-sm text-gray-400">Your selection will be displayed here.</p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                )}
+
+                {viewMode === 'detail' && selectedEmail && (
+                  <motion.div
+                    key="detail"
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 20 }}
+                    transition={{ duration: 0.3, ease: "easeInOut" }}
+                    className="h-full flex flex-col"
+                  >
+                    {/* Email Header - Fixed */}
+                    <Card className="bg-white rounded-lg rounded-b-none border-b-0 shadow-sm flex-shrink-0">
+                      <CardHeader className="border-b bg-gradient-to-r from-gray-50 to-gray-100 py-3">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <CardTitle className="text-lg font-semibold text-gray-800 leading-tight">{selectedEmail.subject}</CardTitle>
+                            <CardDescription className="text-sm text-gray-600">
+                              From: {selectedEmail.from} | On: {new Date(selectedEmail.date).toLocaleString()}
+                            </CardDescription>
+                          </div>
+                          <div className="flex space-x-2">
+                            <Button onClick={handleReply} variant="outline" size="sm">
+                              Reply
+                            </Button>
+                            <Button
+                              onClick={handleSalesAgent}
+                              disabled={isSalesProcessing}
+                              variant="outline"
+                              size="sm"
+                              className="bg-green-50 text-green-700 border-green-200 hover:bg-green-100"
+                            >
+                              {isSalesProcessing ? (
+                                <>
+                                  <FaSpinner className="h-3 w-3 mr-1 animate-spin" />
+                                  AI Working...
+                                </>
+                              ) : (
+                                <>
+                                  <FaRobot className="h-3 w-3 mr-1" />
+                                  AI Analysis & Draft
+                                </>
+                              )}
+                            </Button>
+                            <Button onClick={backToList} variant="outline" size="sm">
+                              Back
+                            </Button>
+                          </div>
+                        </div>
+                      </CardHeader>
+                    </Card>
+                    
+                    {/* Email Body - Scrollable */}
+                    <Card className="flex-1 bg-white rounded-none border-t-0 border-b-0 shadow-sm min-h-0 overflow-hidden">
+                      <CardContent className="p-4 h-full overflow-y-auto">
+                        <EmailRenderer content={selectedEmail.body} />
+                      </CardContent>
+                    </Card>
+                    
+                    {/* Customer Info - Fixed at bottom */}
+                    <Card className="bg-white rounded-lg rounded-t-none border-t-0 shadow-sm flex-shrink-0">
+                      <div className="p-3 border-t bg-gray-50">
                         <CustomerInfoWidget 
                           customerEmail={selectedEmail.from} 
                         />
-                        <Button
-                          onClick={handleSalesAgent}
-                          disabled={isSalesProcessing}
-                          className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
-                          size="sm"
-                        >
-                          {isSalesProcessing ? (
-                            <>
-                              <FaSpinner className="h-4 w-4 mr-2 animate-spin" />
-                              Analyzing & Drafting...
-                            </>
-                          ) : (
-                            'AI Analysis & Draft'
-                          )}
-                        </Button>
                       </div>
-                    </div>
-                  </Card>
-                </>
-              )                 : (
-                  <Card className="bg-white h-full rounded-lg border shadow-sm flex items-center justify-center">
-                    <CardContent className="h-full flex items-center justify-center">
-                      <div className="text-center py-16">
-                        <div className="w-20 h-20 mx-auto mb-6 bg-gray-100 rounded-full flex items-center justify-center">
-                          <FaInbox className="h-10 w-10 text-gray-400" />
-                        </div>
-                        <p className="text-lg font-medium text-gray-500">Select an email to view</p>
-                        <p className="text-sm text-gray-400">Your selection will be displayed here.</p>
-                      </div>
-                    </CardContent>
-                  </Card>
+                    </Card>
+                  </motion.div>
                 )}
+
+                {viewMode === 'split-reply' && selectedEmail && (
+                  <motion.div
+                    key="split-reply"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 20 }}
+                    transition={{ duration: 0.4, ease: "easeInOut" }}
+                    className="flex flex-col h-full"
+                  >
+                    {/* Email Body - Top Half */}
+                    <motion.div
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3, delay: 0.1 }}
+                      className="flex-1 min-h-0 mb-2"
+                    >
+                      <Card className="bg-white rounded-lg shadow-sm h-full flex flex-col">
+                        <CardHeader className="border-b bg-gradient-to-r from-gray-50 to-gray-100 py-2 flex-shrink-0">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <CardTitle className="text-md font-semibold text-gray-800 leading-tight">{selectedEmail.subject}</CardTitle>
+                              <CardDescription className="text-xs text-gray-600">
+                                From: {selectedEmail.from}
+                              </CardDescription>
+                            </div>
+                            <Button onClick={closeDraftWindow} variant="outline" size="sm">
+                              Close Reply
+                            </Button>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="p-3 h-full overflow-y-auto">
+                          <EmailRenderer content={selectedEmail.body} />
+                        </CardContent>
+                      </Card>
+                    </motion.div>
+                    
+                    {/* Draft Window - Bottom Half */}
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3, delay: 0.2 }}
+                      className="flex-1 min-h-0"
+                    >
+                      <AIDraftWindow
+                        emailId={selectedEmail.id}
+                        originalEmail={{
+                          subject: selectedEmail.subject,
+                          body: selectedEmail.body,
+                          from: selectedEmail.from,
+                          to: ''
+                        }}
+                        onSendDraft={async (draftData) => {
+                          console.log('Sending draft:', draftData);
+                          closeDraftWindow();
+                        }}
+                        onRegenerateDraft={async () => {
+                          console.log('Regenerating draft...');
+                        }}
+                        className="h-full"
+                        position="bottom"
+                      />
+                    </motion.div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           </div>
         </TabsContent>
       </Tabs>
     </div>
+  );
+}
+
+export default function ImapClient({ account, onSalesAgent, isSalesProcessing }: ImapClientProps) {
+  return (
+    <EmailViewProvider>
+      <ImapClientContent account={account} onSalesAgent={onSalesAgent} isSalesProcessing={isSalesProcessing} />
+    </EmailViewProvider>
   );
 } 

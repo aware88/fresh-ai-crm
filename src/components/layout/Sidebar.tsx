@@ -14,7 +14,6 @@ import {
   BarChart,
   Brain,
   Package,
-  Search,
   X,
   Menu,
   Package2,
@@ -22,10 +21,11 @@ import {
   MessageSquare,
   Sparkles
 } from 'lucide-react';
-import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useMobileMenu } from '@/hooks/use-mobile-menu';
 import { useOrganization } from '@/hooks/useOrganization';
+import { useOrganizationBranding } from '@/hooks/useOrganizationBranding';
+import { useSidebar } from '@/contexts/SidebarContext';
 
 // Types
 interface SidebarProps {
@@ -143,11 +143,7 @@ const NAVIGATION_CONFIGS = {
       ),
       special: true
     },
-    {
-      title: 'AI Assistant',
-      href: '/dashboard/assistant',
-      icon: <Brain className="h-5 w-5" />
-    },
+
     {
       title: 'Calendar',
       href: '#calendar',
@@ -171,22 +167,28 @@ const NAVIGATION_CONFIGS = {
 const NavItemComponent = memo(({ 
   item, 
   isActive, 
-  onClick 
+  onClick,
+  isCollapsed
 }: { 
   item: NavItem; 
   isActive: boolean; 
   onClick: () => void;
+  isCollapsed: boolean;
 }) => {
   const itemContent = (
     <div className="flex items-center">
       <span className={cn("flex items-center justify-center w-6 h-6 rounded-md", isActive ? "text-primary" : "text-muted-foreground")}>
         {item.icon}
       </span>
-      <span className="ml-3">{item.title}</span>
-      {item.comingSoon && (
-        <span className="ml-auto text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full">
-          Soon
-        </span>
+      {!isCollapsed && (
+        <>
+          <span className="ml-3">{item.title}</span>
+          {item.comingSoon && (
+            <span className="ml-auto text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full">
+              Soon
+            </span>
+          )}
+        </>
       )}
     </div>
   );
@@ -195,11 +197,12 @@ const NavItemComponent = memo(({
     return (
       <div
         className={cn(
-          'px-3 py-2 text-sm font-medium rounded-md transition-colors cursor-not-allowed',
+          'text-sm font-medium rounded-md transition-colors cursor-not-allowed',
           'text-muted-foreground/60 hover:bg-muted/50',
-          isActive && 'bg-muted/50'
+          isActive && 'bg-muted/50',
+          isCollapsed ? 'px-2 py-2 flex justify-center' : 'px-3 py-2'
         )}
-        title="Coming soon"
+        title={isCollapsed ? item.title + " (Coming soon)" : "Coming soon"}
       >
         {itemContent}
       </div>
@@ -210,7 +213,7 @@ const NavItemComponent = memo(({
     <Link
       href={item.href}
       className={cn(
-        'block px-3 py-2 text-sm font-medium rounded-xl transition-all duration-200',
+        'block text-sm font-medium rounded-xl transition-all duration-200',
         item.special && !isActive
           ? 'aris-gradient text-white border border-gray-200 shadow-sm'
           : item.special && isActive
@@ -218,9 +221,11 @@ const NavItemComponent = memo(({
           : isActive
           ? 'bg-gray-50 text-foreground font-medium'
           : 'text-muted-foreground hover:bg-gray-50 hover:text-foreground',
-        'focus:outline-none focus:ring-2 focus:ring-[color:var(--accent-color)]/20 hover:scale-[1.01]'
+        'focus:outline-none focus:ring-2 focus:ring-[color:var(--accent-color)]/20 hover:scale-[1.01]',
+        isCollapsed ? 'px-2 py-2 flex justify-center' : 'px-3 py-2'
       )}
       onClick={onClick}
+      title={isCollapsed ? item.title : undefined}
     >
       {itemContent}
     </Link>
@@ -232,76 +237,17 @@ NavItemComponent.displayName = 'NavItemComponent';
 export function Sidebar({ className }: SidebarProps) {
   const pathname = usePathname() || '';
   const { isOpen: isMobileMenuOpen, toggleMenu, closeMenu } = useMobileMenu();
-  const [searchQuery, setSearchQuery] = useState('');
-  const [logoPath, setLogoPath] = useState<string | null>(null);
-  const [companyName, setCompanyName] = useState('ARIS');
+  const { isCollapsed, toggleSidebar } = useSidebar();
   
-  // Get organization data
+  // Get organization data and branding
   const { organization, loading: orgLoading } = useOrganization();
+  const { branding, loading: brandingLoading } = useOrganizationBranding();
 
-  // Check if we're in a browser environment
-  const isBrowser = typeof window !== 'undefined';
-
-  // Load logo and company name based on organization
-  useEffect(() => {
-    if (!isBrowser) return;
-    
-    const loadLogoAndCompanyName = () => {
-      // Check organization first for specific branding
-      const orgSlug = organization?.slug?.toLowerCase();
-      const orgName = organization?.name?.toLowerCase();
-      
-      if (orgSlug === 'withcar' || orgName === 'withcar') {
-        // For Withcar: First check for uploaded logo, then fallback to default
-        const savedLogo = localStorage.getItem('companyLogo');
-        if (savedLogo) {
-          setLogoPath(savedLogo);
-        } else {
-          setLogoPath('/images/organizations/withcar-logo.png');
-        }
-        setCompanyName('WITHCAR');
-        return;
-      }
-      
-      // Default: Check for logo in localStorage
-      const savedLogo = localStorage.getItem('companyLogo');
-      if (savedLogo) {
-        setLogoPath(savedLogo);
-      } else {
-        setLogoPath(null); // Use default ARIS logo
-      }
-      
-      // Check for company name in localStorage
-      const savedCompanyName = localStorage.getItem('companyName');
-      if (savedCompanyName) {
-        setCompanyName(savedCompanyName);
-      } else {
-        setCompanyName('ARIS'); // Default company name
-      }
-    };
-    
-    // Initial load
-    loadLogoAndCompanyName();
-    
-    // Listen for storage events (when localStorage is updated in another tab)
-    const handleStorageChange = (event: StorageEvent) => {
-      if (event.key === 'companyLogo' || event.key === 'companyName') {
-        loadLogoAndCompanyName();
-      }
-    };
-    
-    // Add event listener for localStorage changes
-    window.addEventListener('storage', handleStorageChange);
-    
-    // Add event listener for our custom event (same-tab updates)
-    window.addEventListener('localStorageUpdated', loadLogoAndCompanyName);
-    
-    // Cleanup
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener('localStorageUpdated', loadLogoAndCompanyName);
-    };
-  }, [isBrowser, organization]);
+  // Get derived values from branding
+  const logoPath = branding?.logo_url || null;
+  const companyName = organization?.slug?.toLowerCase() === 'withcar' || 
+                     organization?.name?.toLowerCase() === 'withcar' ? 'WITHCAR' : 
+                     organization?.name || 'ARIS';
 
   // Close mobile menu when pathname changes
   useEffect(() => {
@@ -313,13 +259,14 @@ export function Sidebar({ className }: SidebarProps) {
     console.log('🔍 Sidebar organization check:', { 
       organization, 
       orgLoading, 
+      brandingLoading,
       orgSlug: organization?.slug, 
       orgName: organization?.name 
     });
 
     // If still loading organization, return empty array to prevent flash
-    if (orgLoading) {
-      console.log('⏳ Organization still loading, showing loading state');
+    if (orgLoading || brandingLoading) {
+      console.log('⏳ Organization or branding still loading, showing loading state');
       return [];
     }
 
@@ -335,15 +282,10 @@ export function Sidebar({ className }: SidebarProps) {
     console.log('📋 Using default navigation configuration');
     // Default navigation for all other organizations
     return NAVIGATION_CONFIGS.default;
-  }, [organization, orgLoading]);
+  }, [organization, orgLoading, brandingLoading]);
 
-  // Filter nav items based on search query
-  const filteredNavItems = searchQuery 
-    ? navItems.filter(item => 
-        item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.href.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-    : navItems;
+  // Use all nav items since search is removed
+  const filteredNavItems = navItems;
 
   // Handle keyboard navigation for menu toggle
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -373,90 +315,35 @@ export function Sidebar({ className }: SidebarProps) {
       {/* Sidebar */}
       <div 
         className={cn(
-          "fixed md:relative z-40 h-screen w-64 flex-shrink-0 transition-all duration-300 ease-in-out",
+          "md:relative z-40 h-screen flex-shrink-0 transition-all duration-300 ease-in-out",
           "bg-white/80 backdrop-blur-lg border-r border-gray-100/50 shadow-lg md:shadow-none",
           "transform md:translate-x-0 focus:outline-none",
+          "fixed md:static",
           isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0',
+          isCollapsed ? 'w-16' : 'w-64',
           className
         )}
         role="navigation"
         aria-label="Main navigation"
       >
-        {/* Logo */}
-        <div className="flex h-16 items-center justify-center border-b border-gray-100">
-          <Link href="/dashboard" className="flex items-center justify-center">
-            <div className="flex items-center">
-              {orgLoading ? (
-                // Loading state for logo
-                <div className="flex items-center">
-                  <div className="h-10 w-10 flex items-center justify-center">
-                    <div className="animate-pulse bg-gray-200 rounded-full w-8 h-8"></div>
-                  </div>
-                  <div className="ml-2 animate-pulse bg-gray-200 rounded w-16 h-4"></div>
-                </div>
-              ) : companyName === 'WITHCAR' ? (
-                // For Withcar, show only the logo (which contains the text)
-                <div className="h-12 w-auto flex items-center justify-center">
-                  <Image 
-                    src={logoPath || '/images/organizations/withcar-logo.png'} 
-                    alt="WITHCAR Logo" 
-                    width={120}
-                    height={48}
-                    className="object-contain"
-                    priority
-                  />
-                </div>
-              ) : (
-                // For other organizations, show logo + text
-                <>
-                  <div className="h-10 w-10 flex items-center justify-center overflow-hidden">
-                    {logoPath ? (
-                      <Image 
-                        src={logoPath} 
-                        alt={`${companyName} Logo`} 
-                        width={40}
-                        height={40}
-                        className="object-contain"
-                        priority
-                      />
-                    ) : (
-                      <Image 
-                        src="/images/aris-logo.svg" 
-                        alt="ARIS Logo" 
-                        width={40}
-                        height={40}
-                        className="object-contain" 
-                        priority
-                      />
-                    )}
-                  </div>
-                  <span className="ml-2 font-semibold text-lg bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-transparent bg-clip-text">
-                    {companyName}
-                  </span>
-                </>
-              )}
-            </div>
-          </Link>
+        {/* Collapse Button - Always at top */}
+        <div className={cn("flex h-16 items-center border-b border-gray-100 px-2", isCollapsed ? "justify-center" : "justify-start pl-4")}>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={toggleSidebar}
+            className="hidden md:flex h-8 w-8 rounded-md hover:bg-gray-100 transition-colors"
+            aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
+            <Menu className="h-4 w-4 text-gray-600" />
+          </Button>
         </div>
 
-        {/* Search */}
-        <div className="px-4 py-3">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              type="search"
-              placeholder="Search..."
-              className="w-full pl-9 bg-white/50 focus-visible:ring-1 focus-visible:ring-ring"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={handleKeyDown}
-            />
-          </div>
-        </div>
+
 
         {/* Navigation */}
-        <nav className="flex-1 px-2 py-4 space-y-1.5 overflow-y-auto">
-          {orgLoading ? (
+        <nav className={`flex-1 py-4 space-y-1.5 overflow-y-auto ${isCollapsed ? 'px-1' : 'px-2'}`}>
+          {(orgLoading || brandingLoading) ? (
             // Loading state
             <div className="flex items-center justify-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-600"></div>
@@ -474,6 +361,7 @@ export function Sidebar({ className }: SidebarProps) {
                   item={item}
                   isActive={isActive}
                   onClick={closeMenu}
+                  isCollapsed={isCollapsed}
                 />
               );
             })

@@ -68,9 +68,18 @@ export class AIHubService {
   private withcarIntegration: WithcarIntegrationService;
 
   constructor() {
-    this.openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
-    });
+    try {
+      // Use unified client manager for optimized OpenAI client handling
+      const { getOpenAIClient } = require('../clients/unified-client-manager');
+      this.openai = getOpenAIClient();
+    } catch (error) {
+      console.warn('[AIHubService] Unified OpenAI client failed, using fallback:', error);
+      // Fallback to direct OpenAI client
+      this.openai = new OpenAI({
+        apiKey: process.env.OPENAI_API_KEY,
+      });
+    }
+    
     this.settingsService = new OrganizationSettingsService();
     this.supabase = createLazyServerClient();
     this.automotiveMatcher = new AutomotiveProductMatcher();
@@ -523,14 +532,19 @@ export class AIHubService {
     const orgSettings = aiContext.organization.settings;
     const commPrefs = orgSettings.communication_preferences || {};
 
-    let systemPrompt = `You are an intelligent email assistant for ${orgSettings.name || 'the organization'}. `;
+    let systemPrompt = `You are an intelligent email assistant for ${orgSettings.name || 'the organization'}. 
+
+CRITICAL LANGUAGE RULE: You MUST respond in the exact same language as the original email. If the original email is in Slovenian, your response MUST be in Slovenian. If German, respond in German. If Italian, respond in Italian. This is NON-NEGOTIABLE - match the language perfectly.
+
+CRITICAL CONTENT RULE: NEVER repeat information that the sender already provided in their email. Write as a human would - acknowledge what they shared without repeating it back. Focus on what's needed next, not what they already told you.
+`;
     
     if (commPrefs.auto_response_tone) {
       systemPrompt += `Your tone should be ${commPrefs.auto_response_tone}. `;
     }
 
     if (commPrefs.default_language) {
-      systemPrompt += `Respond in ${commPrefs.default_language} unless the customer writes in a different language. `;
+      systemPrompt += `Default language preference: ${commPrefs.default_language}, but always match the customer's language. `;
     }
 
     systemPrompt += `
@@ -542,6 +556,8 @@ Your responsibilities:
 4. Identify upselling opportunities
 5. Determine if human review is needed
 6. Maintain conversation context
+7. NEVER ask for information the sender already provided
+8. Write fresh content that moves the conversation forward
 
 Available data sources:
 - Organization settings and preferences
@@ -840,9 +856,120 @@ Classification Categories:
     result: AIProcessingResult,
     context: EmailProcessingContext
   ): Promise<AIProcessingResult> {
-    // TODO: Implement upselling logic based on organization settings
-    // This would suggest complementary products, premium versions, etc.
-    return result;
+    try {
+      const { UniversalUpsellAgent } = await import('../agents/universal-upsell-agent');
+      const upsellAgent = new UniversalUpsellAgent();
+
+      // Create upsell context from email processing context
+      const upsellContext = {
+        email_content: context.emailContent,
+        email_subject: context.emailSubject,
+        customer_id: context.contactId,
+        organization_id: context.organizationId,
+        user_id: context.userId,
+        // TODO: Add conversation history from email thread analysis
+        conversation_history: []
+      };
+
+      // Generate upsell opportunities
+      const opportunities = await upsellAgent.generateUpsellOpportunities(upsellContext);
+
+      if (opportunities.length > 0) {
+        // Get organization settings for discount strategy
+        const config = await this.settingsService.getUpsellingFrameworkConfig(context.organizationId);
+        
+        if (config) {
+          // Apply discount strategy based on context
+          const enhancedOpportunities = await upsellAgent.applyDiscountStrategy(
+            opportunities,
+            upsellContext,
+            config
+          );
+
+          // Add upselling suggestions to the result
+          result.upsellingSuggestions = [
+            ...(result.upsellingSuggestions || []),
+            ...enhancedOpportunities.map(opp => ({
+              type: 'universal_upsell',
+              sourceProduct: opp.source_product.name,
+              targetProduct: opp.target_product.name,
+              relationshipType: opp.relationship_type,
+              confidence: opp.confidence_score,
+              reasoning: opp.reasoning,
+              offerStrategy: opp.offer_strategy,
+              discountPercent: opp.discount_percent,
+              price: opp.target_product.price,
+              discountPrice: opp.target_product.discount_price
+            }))
+          ];
+
+          // Update response to include upselling suggestions naturally
+          if (enhancedOpportunities.length > 0) {
+            result.response = await this.enhanceResponseWithUpsells(
+              result.response,
+              enhancedOpportunities,
+              context
+            );
+          }
+        }
+      }
+
+      console.log(`[AI Hub] Applied upselling framework: ${opportunities.length} opportunities found`);
+      return result;
+
+    } catch (error) {
+      console.error('[AI Hub] Error applying upselling framework:', error);
+      return result; // Return original result if upselling fails
+    }
+  }
+
+  /**
+   * Enhance the AI response to naturally include upsell suggestions
+   */
+  private async enhanceResponseWithUpsells(
+    originalResponse: string,
+    opportunities: any[],
+    context: EmailProcessingContext
+  ): Promise<string> {
+    if (opportunities.length === 0) return originalResponse;
+
+    try {
+      const response = await this.openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'system',
+            content: `You are helping to enhance an email response by naturally incorporating product upselling suggestions. 
+
+            Guidelines:
+            1. Keep the original response intact and helpful
+            2. Add upselling suggestions naturally at the end
+            3. Use appropriate language based on the offer strategy:
+               - full_price: Present as complementary recommendations
+               - discount: Mention special pricing or limited-time offers
+               - bundle: Suggest as package deals
+            4. Be helpful, not pushy
+            5. Match the tone of the original response
+
+            Original response: "${originalResponse}"
+            
+            Upsell opportunities: ${JSON.stringify(opportunities, null, 2)}`
+          },
+          {
+            role: 'user',
+            content: 'Please enhance the email response to naturally include these upselling suggestions while maintaining the helpful and professional tone.'
+          }
+        ],
+        temperature: 0.3,
+        max_tokens: 1000
+      });
+
+      return response.choices[0].message.content || originalResponse;
+
+    } catch (error) {
+      console.error('[AI Hub] Error enhancing response with upsells:', error);
+      return originalResponse;
+    }
   }
 
   /**

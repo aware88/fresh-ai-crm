@@ -19,6 +19,7 @@ import { AnalysisResultsModal } from '@/components/email/AnalysisResultsModal';
 import { SalesAgentResultsModal } from '@/components/email/SalesAgentResultsModal';
 import { AnalysisLoadingModal } from '@/components/email/AnalysisResultsModal';
 import { SalesAgentLoadingModal } from '@/components/email/SalesAgentResultsModal';
+import EmailAIMonitor from '@/components/email/EmailAIMonitor';
 
 
 export default function EmailPage() {
@@ -42,14 +43,39 @@ export default function EmailPage() {
   
   // Loading states
   const [isSalesProcessing, setIsSalesProcessing] = useState(false);
+  const [showAIMonitor, setShowAIMonitor] = useState(false);
+  const [aiTaskId, setAiTaskId] = useState<string | null>(null);
   
 
   
   // Handle sales agent action
   const handleSalesAgent = async (emailId: string, emailData?: any) => {
     setIsSalesProcessing(true);
+    setShowAIMonitor(true);
+    setAiTaskId('sales-' + Date.now());
+    
     try {
       console.log('Processing with sales agent:', emailId, emailData);
+      
+      // First, try to get cached results for instant response
+      const cacheResponse = await fetch(`/api/emails/ai-cache?emailId=${emailId}`);
+      const cacheData = await cacheResponse.json();
+      
+      if (cacheData.cached && cacheData.analysis) {
+        console.log('Using cached sales analysis results');
+        setAnalysisResult(cacheData.analysis);
+        setSalesResult(cacheData.analysis.salesIntelligence || cacheData.analysis);
+        setCurrentEmailInfo({
+          from: emailData?.from || 'Unknown',
+          subject: emailData?.subject || 'No Subject',
+          body: emailData?.body
+        });
+        setSalesModalOpen(true);
+        setIsSalesProcessing(false);
+        setShowAIMonitor(false);
+        setAiTaskId(null);
+        return;
+      }
       
       // Call the sales agent API
       const requestBody: any = { emailId };
@@ -248,7 +274,7 @@ export default function EmailPage() {
               </p>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="p-4 border rounded-lg hover:bg-gray-50 transition-colors">
                   <div className="flex items-center space-x-3 mb-3">
                     <div className="w-8 h-8 bg-blue-500 rounded flex items-center justify-center">
@@ -262,6 +288,23 @@ export default function EmailPage() {
                   <Button asChild className="w-full">
                     <Link href="/settings/email-accounts">
                       Connect Gmail
+                    </Link>
+                  </Button>
+                </div>
+
+                <div className="p-4 border rounded-lg hover:bg-gray-50 transition-colors">
+                  <div className="flex items-center space-x-3 mb-3">
+                    <div className="w-8 h-8 bg-blue-600 rounded flex items-center justify-center">
+                      <FaEnvelope className="text-white text-sm" />
+                    </div>
+                    <h3 className="font-semibold">Microsoft Outlook</h3>
+                  </div>
+                  <p className="text-sm text-gray-600 mb-4">
+                    Connect your Outlook account with secure OAuth authentication
+                  </p>
+                  <Button asChild className="w-full bg-blue-600 hover:bg-blue-700">
+                    <Link href="/settings/email-accounts">
+                      Connect Outlook
                     </Link>
                   </Button>
                 </div>
@@ -300,7 +343,7 @@ export default function EmailPage() {
   }
 
   return (
-    <div className="p-2 space-y-4 h-full">
+    <div className="h-full flex flex-col">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -308,7 +351,7 @@ export default function EmailPage() {
         className="h-full flex flex-col"
       >
         {/* Header */}
-        <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-4 mb-4">
+        <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-4 mb-4 flex-shrink-0">
           <div className="flex justify-between items-center">
             <div className="flex items-center space-x-4">
               <div className="p-3 rounded-lg" style={{ background: 'var(--accent-color)' }}>
@@ -364,8 +407,11 @@ export default function EmailPage() {
         </div>
 
         {/* Email Dashboard */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
-          <TabsList className="grid w-full grid-cols-2 rounded-md border bg-slate-50 border-slate-200 h-12">
+        <div className="flex gap-4 flex-1 min-h-0">
+          {/* Main Email Content */}
+          <div className={`flex-1 transition-all duration-300`}>
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col h-full">
+          <TabsList className="grid w-full grid-cols-2 rounded-md border bg-slate-50 border-slate-200 h-12 flex-shrink-0">
             <TabsTrigger value="inbox" className="flex items-center gap-2 data-[state=active]:bg-[var(--accent-color)] data-[state=active]:text-white">
               <Inbox className="h-4 w-4" />
               Inbox
@@ -376,10 +422,9 @@ export default function EmailPage() {
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="inbox" className="flex-1 min-h-0">
+          <TabsContent value="inbox" className="flex-1 min-h-0 mt-4">
             <div className="bg-white rounded-lg border border-gray-200 shadow-sm h-full">
               <div className="h-full">
-
                 {outlookConnected && (selectedAccount === 'outlook' || !selectedAccount) ? (
                   <OutlookClient />
                 ) : selectedAccount && imapAccounts.find(acc => acc.id === selectedAccount) ? (
@@ -392,27 +437,47 @@ export default function EmailPage() {
                   <div className="text-center py-8 text-gray-500">
                     <Mail className="h-12 w-12 mx-auto mb-4 text-gray-400" />
                     <p>Select an email account to view messages</p>
-
                   </div>
                 )}
               </div>
             </div>
           </TabsContent>
 
-          <TabsContent value="compose" className="mt-4">
-            <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
-              <div className="flex items-center justify-between px-4 py-2 border-b bg-gray-50">
+          <TabsContent value="compose" className="flex-1 min-h-0 mt-4">
+            <div className="bg-white rounded-lg border border-gray-200 shadow-sm h-full flex flex-col">
+              <div className="flex items-center justify-between px-4 py-2 border-b bg-gray-50 flex-shrink-0">
                 <h3 className="font-medium flex items-center gap-2 text-gray-800">
                   <Send className="h-4 w-4 text-green-600" />
                   Compose Email
                 </h3>
               </div>
-              <div className="p-4">
+              <div className="p-4 flex-1 min-h-0">
                 <EmailComposer />
               </div>
             </div>
           </TabsContent>
-        </Tabs>
+            </Tabs>
+          </div>
+
+          {/* AI Monitor Sidebar */}
+          {showAIMonitor && (
+            <div className="w-80 flex-shrink-0">
+              <EmailAIMonitor
+                isActive={!!aiTaskId}
+                currentTask="Analyzing email and generating sales response"
+                onPause={() => console.log('AI paused')}
+                onResume={() => console.log('AI resumed')}
+                onStop={() => {
+                  setAiTaskId(null);
+                  setShowAIMonitor(false);
+                  setIsSalesProcessing(false);
+                }}
+                onIntervene={(step) => console.log('Intervene in step:', step)}
+                className="h-full"
+              />
+            </div>
+          )}
+        </div>
       </motion.div>
       
       {/* Analysis Results Modals */}

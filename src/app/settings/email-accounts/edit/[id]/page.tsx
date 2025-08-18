@@ -4,7 +4,7 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { createServerClient } from '@/lib/supabase/server';
 import EditImapAccountForm from './EditImapAccountForm';
 
-export default async function EditEmailAccountPage({ params }: { params: { id: string } }) {
+export default async function EditEmailAccountPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions);
   
   if (!session?.user) {
@@ -12,12 +12,13 @@ export default async function EditEmailAccountPage({ params }: { params: { id: s
   }
   
   const supabase = await createServerClient();
+  const { id } = await params;
   
   // Fetch the email account
   const { data: account, error } = await supabase
     .from('email_accounts')
     .select('*')
-    .eq('id', params.id)
+    .eq('id', id)
     .eq('user_id', session.user.id)
     .single();
   

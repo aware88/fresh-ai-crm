@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { TrendingUp, Target, DollarSign, Clock, User, AlertTriangle, CheckCircle, Star, Lightbulb, MessageSquare, Save, UserPlus, Mail, PenTool, ExternalLink, ChevronUp } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import AIDraftWindow from './AIDraftWindow';
+import { AIResponseRating } from '@/components/ui/ai-response-rating';
 
 // Loading Modal Component
 export function SalesAgentLoadingModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
@@ -563,6 +564,16 @@ export const SalesAgentResultsModal: React.FC<SalesAgentResultsModalProps> = ({
               </ScrollArea>
             </div>
           )}
+        </div>
+
+        {/* AI Response Rating */}
+        <div className="flex-shrink-0 border-t bg-gray-50 px-6 py-4">
+          <AIResponseRating
+            responseId={`sales-${Date.now()}`}
+            modelUsed="gpt-4o-mini"
+            taskType="sales_analysis"
+            className="justify-center"
+          />
         </div>
       </DialogContent>
     </Dialog>

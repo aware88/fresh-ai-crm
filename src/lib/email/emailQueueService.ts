@@ -189,15 +189,97 @@ export async function processQueuedEmail(queueItemId: string, userId: string) {
       throw new Error('Email not found in queue item');
     }
     
-    // Step 1: Analyze the email with AI
-    const analysis = await analyzeEmailWithAI(email.raw_content, email.subject);
+    // Step 1: Analyze the email with Unified AI Analysis Service
+    const { UnifiedAIAnalysisService } = await import('@/lib/ai/unified-analysis-service');
+    const { getOpenAIClient } = await import('@/lib/openai/client');
+    const { createServerClient } = await import('@/lib/supabase/server');
     
-    // Step 2: Extract metadata (language, intent, etc.)
-    const metadata = {
-      language_detection: extractLanguageFromAnalysis(analysis),
-      intent_classification: extractIntentFromAnalysis(analysis),
-      analyzed_at: new Date().toISOString()
-    };
+    const supabaseClient = await createServerClient();
+    const openai = getOpenAIClient();
+    
+    // Get organization ID for user
+    let organizationId;
+    try {
+      const { data: userOrg } = await supabaseClient
+        .from('user_organizations')
+        .select('organization_id')
+        .eq('user_id', userId)
+        .single();
+      organizationId = userOrg?.organization_id;
+    } catch (error) {
+      console.log('[EmailQueue] No organization found for user');
+    }
+
+    const analysisService = new UnifiedAIAnalysisService(supabaseClient, openai, organizationId || '', userId);
+    
+    const analysisResult = await analysisService.analyzeEmail({
+      emailId: email.id,
+      emailContent: {
+        from: email.sender || email.from_address || 'Unknown',
+        to: email.recipient || email.to_address || '',
+        subject: email.subject || '(No Subject)',
+        body: email.raw_content || email.text_content || '',
+        date: email.received_date || email.created_at
+      },
+      userId,
+      organizationId,
+      options: {
+        includePersonality: true,
+        includeContext: true,
+        includeRecommendations: true,
+        cacheResults: true
+      }
+    });
+    
+    let analysis: string;
+    let metadata: any;
+    
+    if (analysisResult.success && analysisResult.analysis) {
+      // Convert unified analysis to legacy format for compatibility
+      analysis = `Language: ${analysisResult.analysis.language.name}
+Category: ${analysisResult.analysis.classification.category}
+Intent: ${analysisResult.analysis.classification.intent}
+Urgency: ${analysisResult.analysis.classification.urgency}
+Sentiment: ${analysisResult.analysis.classification.sentiment}
+Keywords: ${analysisResult.analysis.classification.keywords.join(', ')}
+Confidence: ${analysisResult.analysis.classification.confidence}
+Response Guidance: ${analysisResult.analysis.context.responseGuidance}`;
+
+      metadata = {
+        language_detection: {
+          language: analysisResult.analysis.language.code,
+          confidence: analysisResult.analysis.language.confidence,
+          detected_at: new Date().toISOString()
+        },
+        intent_classification: {
+          primary_intent: analysisResult.analysis.classification.intent,
+          category: analysisResult.analysis.classification.category,
+          confidence: analysisResult.analysis.classification.confidence,
+          classified_at: new Date().toISOString()
+        },
+        unified_analysis: {
+          version: analysisResult.metadata.analysisVersion,
+          model_used: analysisResult.metadata.modelUsed,
+          tokens_used: analysisResult.metadata.tokensUsed,
+          cost_usd: analysisResult.metadata.costUsd,
+          processing_time_ms: analysisResult.metadata.processingTimeMs
+        },
+        analyzed_at: new Date().toISOString()
+      };
+      
+      console.log(`[EmailQueue] Unified analysis completed - ${analysisResult.metadata.tokensUsed} tokens, $${analysisResult.metadata.costUsd.toFixed(4)} using ${analysisResult.metadata.modelUsed}`);
+    } else {
+      // Fallback analysis
+      analysis = `Analysis failed: ${analysisResult.error || 'Unknown error'}`;
+      metadata = {
+        language_detection: { language: 'en', confidence: 0.5, detected_at: new Date().toISOString() },
+        intent_classification: { primary_intent: 'general_inquiry', confidence: 0.5, classified_at: new Date().toISOString() },
+        analyzed_at: new Date().toISOString(),
+        error: analysisResult.error
+      };
+      
+      console.error('[EmailQueue] Unified analysis failed, using fallback');
+    }
     
     // Step 3: Update the email with analysis and metadata
     const { error: emailUpdateError } = await supabase
@@ -215,34 +297,98 @@ export async function processQueuedEmail(queueItemId: string, userId: string) {
     // Step 4: Build comprehensive context for AI processing
     const context = await buildEmailProcessingContext(email.id);
     
-    // Step 5: Optionally generate an AI draft to obtain confidence for auto-reply decisions
+    // Step 5: Generate background draft using learned patterns (NEW LEARNING SYSTEM)
     let aiDraft: { subject: string; body: string; confidence: number } | null = null;
     try {
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-      const resp = await fetch(`${appUrl}/api/email/generate-response`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          originalEmail: email.raw_content || email.text_content || '',
-          senderEmail: (email.sender || email.from_address || ''),
-          tone: 'professional',
-          customInstructions: '',
-          emailId: email.id,
-          settings: { includeContext: true },
-          includeDrafting: true
-        })
-      });
-      if (resp.ok) {
-        const data = await resp.json();
+      // Use unified AI drafting service for background processing
+      const { UnifiedAIDraftingService } = await import('@/lib/ai/unified-drafting-service');
+      const { getOpenAIClient } = await import('@/lib/openai/client');
+      const { createServerClient } = await import('@/lib/supabase/server');
+      
+      const supabase = await createServerClient();
+      const openai = getOpenAIClient();
+      
+      // Get organization ID for user
+      let organizationId;
+      try {
+        const { data: userOrg } = await supabase
+          .from('user_organizations')
+          .select('organization_id')
+          .eq('user_id', userId)
+          .single();
+        organizationId = userOrg?.organization_id;
+      } catch (error) {
+        console.log('[EmailQueue] No organization found for user');
+      }
+
+      const unifiedService = new UnifiedAIDraftingService(supabase, openai, organizationId || '', userId);
+      
+      const draftingContext = {
+        emailId: email.id,
+        originalEmail: {
+          from: email.sender || email.from_address || 'Unknown',
+          to: email.recipient || email.to_address || '',
+          subject: email.subject || '(No Subject)',
+          body: email.raw_content || email.text_content || '',
+          date: email.received_date || email.created_at
+        },
+        userId,
+        organizationId,
+        settings: {
+          responseStyle: 'professional' as const,
+          responseLength: 'detailed' as const,
+          includeContext: true
+        }
+      };
+
+      const result = await unifiedService.generateDraft(draftingContext);
+      
+      if (result.success && result.draft) {
         aiDraft = {
-          subject: data.subject || `Re: ${email.subject || ''}`,
-          body: data.response || data.body || '',
-          confidence: typeof data.confidence === 'number' ? data.confidence : 0.85
+          subject: result.draft.subject,
+          body: result.draft.body,
+          confidence: result.draft.confidence
         };
+        console.log(`[EmailQueue] Generated unified draft with confidence ${result.draft.confidence} (${result.metadata.modelUsed}, ${result.metadata.tokensUsed} tokens, $${result.metadata.costUsd.toFixed(4)})`);
+      } else {
+        console.log(`[EmailQueue] Unified draft failed: ${result.error}, using fallback`);
+        throw new Error(result.error || 'Unified service failed');
       }
     } catch (e) {
-      // Non-fatal; proceed without draft
-      aiDraft = null;
+      console.error('[EmailQueue] Error in unified draft generation:', e);
+      
+      // Fallback to simple API call
+      try {
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+        const resp = await fetch(`${appUrl}/api/emails/ai-draft`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            emailId: email.id,
+            originalEmail: {
+              from: email.sender || email.from_address || 'Unknown',
+              to: email.recipient || email.to_address || '',
+              subject: email.subject || '(No Subject)',
+              body: email.raw_content || email.text_content || ''
+            },
+            settings: { includeContext: true }
+          })
+        });
+        
+        if (resp.ok) {
+          const data = await resp.json();
+          aiDraft = {
+            subject: data.subject || `Re: ${email.subject || ''}`,
+            body: data.body || '',
+            confidence: data.confidence || 0.85
+          };
+          console.log(`[EmailQueue] Generated fallback draft`);
+        }
+      } catch (fallbackError) {
+        console.error('[EmailQueue] Fallback draft generation also failed:', fallbackError);
+        // Non-fatal; proceed without draft
+        aiDraft = null;
+      }
     }
 
     // Step 6: Determine if manual review is required, factoring in user auto-reply preferences
@@ -405,54 +551,7 @@ export async function reviewEmailResponse(
   return queueItem;
 }
 
-/**
- * Extract language detection from AI analysis
- * @param analysis AI analysis text
- * @returns Language detection object
- */
-function extractLanguageFromAnalysis(analysis: string) {
-  // Simple extraction logic - in production, this would use more sophisticated NLP
-  const languageMatch = analysis.match(/language:\s*([a-zA-Z]+)/i);
-  const language = languageMatch ? languageMatch[1].toLowerCase() : 'en';
-  
-  return {
-    language,
-    confidence: 0.9, // Placeholder - would be determined by actual NLP
-    detected_at: new Date().toISOString()
-  };
-}
-
-/**
- * Extract intent classification from AI analysis
- * @param analysis AI analysis text
- * @returns Intent classification object
- */
-function extractIntentFromAnalysis(analysis: string) {
-  // Simple extraction logic - in production, this would use more sophisticated NLP
-  let primaryIntent = 'general_inquiry'; // Default intent
-  
-  // Check for common intents
-  if (analysis.toLowerCase().includes('product') || 
-      analysis.toLowerCase().includes('purchase') ||
-      analysis.toLowerCase().includes('buy')) {
-    primaryIntent = 'product_inquiry';
-  } else if (analysis.toLowerCase().includes('support') || 
-             analysis.toLowerCase().includes('help') ||
-             analysis.toLowerCase().includes('issue')) {
-    primaryIntent = 'support_request';
-  } else if (analysis.toLowerCase().includes('complaint') || 
-             analysis.toLowerCase().includes('dissatisfied') ||
-             analysis.toLowerCase().includes('unhappy')) {
-    primaryIntent = 'complaint';
-  }
-  
-  return {
-    primary_intent: primaryIntent,
-    confidence: 0.8, // Placeholder - would be determined by actual NLP
-    secondary_intents: [],
-    classified_at: new Date().toISOString()
-  };
-}
+// Legacy analysis functions removed - now handled by UnifiedAIAnalysisService
 
 /**
  * Create a summary of the AI analysis

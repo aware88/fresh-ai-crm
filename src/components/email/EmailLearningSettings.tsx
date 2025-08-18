@@ -1,0 +1,499 @@
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
+import { useToast } from '@/components/ui/use-toast';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { 
+  Brain, 
+  Mail, 
+  Zap, 
+  Settings, 
+  BarChart3,
+  Clock,
+  DollarSign,
+  CheckCircle,
+  AlertCircle,
+  Loader2,
+  RefreshCw,
+  TrendingUp
+} from 'lucide-react';
+
+interface LearningStatus {
+  has_initial_learning: boolean;
+  patterns_count: number;
+  avg_confidence: number;
+  pattern_types: string[];
+  last_learning_session: any;
+  learning_quality: 'high' | 'medium' | 'low';
+}
+
+interface LearningConfig {
+  max_emails_to_analyze: number;
+  learning_email_types: string[];
+  excluded_senders: string[];
+  learning_sensitivity: 'conservative' | 'balanced' | 'aggressive';
+  minimum_pattern_confidence: number;
+  auto_draft_enabled: boolean;
+  auto_draft_confidence_threshold: number;
+}
+
+export default function EmailLearningSettings() {
+  const { data: session } = useSession();
+  const { toast } = useToast();
+  
+  const [loading, setLoading] = useState(true);
+  const [learningStatus, setLearningStatus] = useState<LearningStatus | null>(null);
+  const [learningConfig, setLearningConfig] = useState<LearningConfig>({
+    max_emails_to_analyze: 5000,
+    learning_email_types: ['sent', 'received'],
+    excluded_senders: [],
+    learning_sensitivity: 'balanced',
+    minimum_pattern_confidence: 0.6,
+    auto_draft_enabled: true,
+    auto_draft_confidence_threshold: 0.7
+  });
+  
+  const [isLearning, setIsLearning] = useState(false);
+  const [learningProgress, setLearningProgress] = useState(0);
+  const [newExcludedSender, setNewExcludedSender] = useState('');
+
+  // Load initial data
+  useEffect(() => {
+    if (session?.user?.id) {
+      loadLearningStatus();
+      loadLearningConfig();
+    }
+  }, [session]);
+
+  const loadLearningStatus = async () => {
+    try {
+      const response = await fetch('/api/email/learning/initial');
+      if (response.ok) {
+        const data = await response.json();
+        setLearningStatus(data.status);
+      }
+    } catch (error) {
+      console.error('Error loading learning status:', error);
+    }
+  };
+
+  const loadLearningConfig = async () => {
+    try {
+      // For now, use default config. In Phase 4, we'll load from database
+      setLoading(false);
+    } catch (error) {
+      console.error('Error loading learning config:', error);
+      setLoading(false);
+    }
+  };
+
+  const startInitialLearning = async () => {
+    if (!session?.user?.id) return;
+
+    setIsLearning(true);
+    setLearningProgress(0);
+
+    try {
+      const response = await fetch('/api/email/learning/initial', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          maxEmails: learningConfig.max_emails_to_analyze,
+          organizationId: null // Will be implemented later
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        
+        toast({
+          title: "Learning Complete!",
+          description: `Found ${data.result.patterns_found} patterns with ${Math.round(data.result.quality_score * 100)}% quality score`,
+        });
+
+        // Reload status
+        await loadLearningStatus();
+      } else {
+        const error = await response.json();
+        toast({
+          title: "Learning Failed",
+          description: error.details || "Failed to analyze emails",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error('Error starting learning:', error);
+      toast({
+        title: "Error",
+        description: "Failed to start learning process",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLearning(false);
+      setLearningProgress(0);
+    }
+  };
+
+  const addExcludedSender = () => {
+    if (newExcludedSender.trim() && !learningConfig.excluded_senders.includes(newExcludedSender.trim())) {
+      setLearningConfig(prev => ({
+        ...prev,
+        excluded_senders: [...prev.excluded_senders, newExcludedSender.trim()]
+      }));
+      setNewExcludedSender('');
+    }
+  };
+
+  const removeExcludedSender = (sender: string) => {
+    setLearningConfig(prev => ({
+      ...prev,
+      excluded_senders: prev.excluded_senders.filter(s => s !== sender)
+    }));
+  };
+
+  const getQualityColor = (quality: string) => {
+    switch (quality) {
+      case 'high': return 'bg-green-100 text-green-800';
+      case 'medium': return 'bg-yellow-100 text-yellow-800';
+      case 'low': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Learning Status Card */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Brain className="h-5 w-5 text-blue-600" />
+            <CardTitle>Email Learning Status</CardTitle>
+          </div>
+          <CardDescription>
+            Your AI learns from your email communication patterns to provide better responses
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {learningStatus ? (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="text-center p-4 bg-blue-50 rounded-lg">
+                  <div className="text-2xl font-bold text-blue-600">
+                    {learningStatus.patterns_count}
+                  </div>
+                  <div className="text-sm text-gray-600">Learned Patterns</div>
+                </div>
+                
+                <div className="text-center p-4 bg-green-50 rounded-lg">
+                  <div className="text-2xl font-bold text-green-600">
+                    {Math.round(learningStatus.avg_confidence * 100)}%
+                  </div>
+                  <div className="text-sm text-gray-600">Avg Confidence</div>
+                </div>
+                
+                <div className="text-center p-4 bg-purple-50 rounded-lg">
+                  <Badge className={getQualityColor(learningStatus.learning_quality)}>
+                    {learningStatus.learning_quality.toUpperCase()} Quality
+                  </Badge>
+                  <div className="text-sm text-gray-600 mt-1">Learning Quality</div>
+                </div>
+              </div>
+
+              {learningStatus.pattern_types.length > 0 && (
+                <div>
+                  <Label className="text-sm font-medium">Pattern Types Learned</Label>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {learningStatus.pattern_types.map(type => (
+                      <Badge key={type} variant="outline" className="text-xs">
+                        {type.replace('_', ' ')}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {learningStatus.last_learning_session && (
+                <div className="text-sm text-gray-600">
+                  Last learning session: {new Date(learningStatus.last_learning_session.created_at).toLocaleDateString()}
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="text-center py-8">
+              <Brain className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No Learning Data Yet</h3>
+              <p className="text-gray-600 mb-4">
+                Start the learning process to analyze your email patterns
+              </p>
+            </div>
+          )}
+
+          <div className="flex gap-2">
+            <Button 
+              onClick={startInitialLearning}
+              disabled={isLearning}
+              className="flex items-center gap-2"
+            >
+              {isLearning ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : learningStatus?.has_initial_learning ? (
+                <RefreshCw className="h-4 w-4" />
+              ) : (
+                <Zap className="h-4 w-4" />
+              )}
+              {learningStatus?.has_initial_learning ? 'Refresh Learning' : 'Start Learning'}
+            </Button>
+            
+            {learningStatus?.has_initial_learning && (
+              <Button variant="outline" onClick={loadLearningStatus}>
+                <BarChart3 className="h-4 w-4 mr-2" />
+                View Analytics
+              </Button>
+            )}
+          </div>
+
+          {isLearning && (
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span>Analyzing email patterns...</span>
+                <span>{learningProgress}%</span>
+              </div>
+              <Progress value={learningProgress} className="w-full" />
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Learning Configuration */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Settings className="h-5 w-5 text-gray-600" />
+            <CardTitle>Learning Configuration</CardTitle>
+          </div>
+          <CardDescription>
+            Configure how the AI learns from your emails
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Email Analysis Settings */}
+          <div className="space-y-4">
+            <Label className="text-sm font-medium">Email Analysis Settings</Label>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="max-emails">Maximum Emails to Analyze</Label>
+                <Input
+                  id="max-emails"
+                  type="number"
+                  min="50"
+                  max="10000"
+                  value={learningConfig.max_emails_to_analyze}
+                  onChange={(e) => setLearningConfig(prev => ({
+                    ...prev,
+                    max_emails_to_analyze: parseInt(e.target.value) || 5000
+                  }))}
+                  className="mt-1"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Recommended: 5000 emails for optimal learning
+                </p>
+              </div>
+
+              <div>
+                <Label htmlFor="learning-sensitivity">Learning Sensitivity</Label>
+                <Select
+                  value={learningConfig.learning_sensitivity}
+                  onValueChange={(value: any) => setLearningConfig(prev => ({
+                    ...prev,
+                    learning_sensitivity: value
+                  }))}
+                >
+                  <SelectTrigger className="mt-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="conservative">Conservative - High quality patterns only</SelectItem>
+                    <SelectItem value="balanced">Balanced - Good mix of quality and coverage</SelectItem>
+                    <SelectItem value="aggressive">Aggressive - Learn from all available patterns</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div>
+              <Label>Email Types to Learn From</Label>
+              <div className="flex gap-4 mt-2">
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="learn-sent"
+                    checked={learningConfig.learning_email_types.includes('sent')}
+                    onCheckedChange={(checked) => {
+                      setLearningConfig(prev => ({
+                        ...prev,
+                        learning_email_types: checked 
+                          ? [...prev.learning_email_types.filter(t => t !== 'sent'), 'sent']
+                          : prev.learning_email_types.filter(t => t !== 'sent')
+                      }));
+                    }}
+                  />
+                  <Label htmlFor="learn-sent">Sent Emails</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="learn-received"
+                    checked={learningConfig.learning_email_types.includes('received')}
+                    onCheckedChange={(checked) => {
+                      setLearningConfig(prev => ({
+                        ...prev,
+                        learning_email_types: checked 
+                          ? [...prev.learning_email_types.filter(t => t !== 'received'), 'received']
+                          : prev.learning_email_types.filter(t => t !== 'received')
+                      }));
+                    }}
+                  />
+                  <Label htmlFor="learn-received">Received Emails</Label>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* Excluded Senders */}
+          <div className="space-y-4">
+            <Label className="text-sm font-medium">Excluded Senders</Label>
+            <p className="text-sm text-gray-600">
+              Email addresses to exclude from learning (e.g., newsletters, automated emails)
+            </p>
+            
+            <div className="flex gap-2">
+              <Input
+                placeholder="Enter email address to exclude"
+                value={newExcludedSender}
+                onChange={(e) => setNewExcludedSender(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && addExcludedSender()}
+              />
+              <Button onClick={addExcludedSender} variant="outline">
+                Add
+              </Button>
+            </div>
+
+            {learningConfig.excluded_senders.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {learningConfig.excluded_senders.map(sender => (
+                  <Badge key={sender} variant="secondary" className="flex items-center gap-1">
+                    {sender}
+                    <button
+                      onClick={() => removeExcludedSender(sender)}
+                      className="ml-1 text-gray-500 hover:text-gray-700"
+                    >
+                      ×
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <Separator />
+
+          {/* Auto-Draft Settings */}
+          <div className="space-y-4">
+            <Label className="text-sm font-medium">Auto-Draft Settings</Label>
+            
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="auto-draft"
+                checked={learningConfig.auto_draft_enabled}
+                onCheckedChange={(checked) => setLearningConfig(prev => ({
+                  ...prev,
+                  auto_draft_enabled: checked
+                }))}
+              />
+              <Label htmlFor="auto-draft">Enable automatic draft generation</Label>
+            </div>
+
+            {learningConfig.auto_draft_enabled && (
+              <div>
+                <Label htmlFor="confidence-threshold">
+                  Confidence Threshold ({Math.round(learningConfig.auto_draft_confidence_threshold * 100)}%)
+                </Label>
+                <Input
+                  id="confidence-threshold"
+                  type="range"
+                  min="0.1"
+                  max="1.0"
+                  step="0.1"
+                  value={learningConfig.auto_draft_confidence_threshold}
+                  onChange={(e) => setLearningConfig(prev => ({
+                    ...prev,
+                    auto_draft_confidence_threshold: parseFloat(e.target.value)
+                  }))}
+                  className="mt-2"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Only generate drafts when confidence is above this threshold
+                </p>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Tips and Best Practices */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <TrendingUp className="h-5 w-5 text-green-600" />
+            <CardTitle>Tips for Better Learning</CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <h4 className="font-medium text-green-600">✓ Good Practices</h4>
+              <ul className="text-sm text-gray-600 space-y-1">
+                <li>• Maintain consistent communication style</li>
+                <li>• Include both questions and responses</li>
+                <li>• Use clear subject lines</li>
+                <li>• Respond to emails in a timely manner</li>
+              </ul>
+            </div>
+            <div className="space-y-2">
+              <h4 className="font-medium text-red-600">✗ Avoid</h4>
+              <ul className="text-sm text-gray-600 space-y-1">
+                <li>• Very short or unclear responses</li>
+                <li>• Inconsistent tone across emails</li>
+                <li>• Including automated/newsletter emails</li>
+                <li>• Personal/confidential conversations</li>
+              </ul>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+

@@ -166,8 +166,11 @@ export function LogoUploader() {
           fileInputRef.current.value = '';
         }
         
-        // Dispatch a custom event to notify other components about the localStorage update
+        // Dispatch a custom event to notify other components about the update
         window.dispatchEvent(new Event('localStorageUpdated'));
+        
+        // Also dispatch an event to refresh organization branding
+        window.dispatchEvent(new Event('organizationBrandingUpdated'));
         
         // Emit formdata event for the parent SettingsForm
         document.dispatchEvent(new CustomEvent('formdata', {

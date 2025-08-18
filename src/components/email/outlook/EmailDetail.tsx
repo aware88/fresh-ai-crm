@@ -11,12 +11,19 @@ import EmailLanguageDetection from './EmailLanguageDetection';
 import AIDraftWindow from '../AIDraftWindow';
 import EmailRenderer from '../EmailRenderer';
 import { Phase2Insights } from '@/components/email/AnalysisResultsModal';
+import CustomerInfoWidget from '../CustomerInfoWidget';
+import CustomerSidebar from '../CustomerSidebar';
+import EnhancedEmailViewer from '../EnhancedEmailViewer';
+import { Reply, ReplyAll, Forward, Brain, Zap } from 'lucide-react';
 
 interface EmailDetailProps {
   messageId: string;
   onReply?: () => void;
   onReplyAll?: () => void;
   onForward?: () => void;
+  onAnalyze?: () => void;
+  onSalesAgent?: () => void;
+  compactMode?: boolean;
 }
 
 interface EmailAttachment {
@@ -58,7 +65,7 @@ interface Email {
   importance: 'normal' | 'high' | 'low';
 }
 
-export default function EmailDetail({ messageId, onReply, onReplyAll, onForward }: EmailDetailProps) {
+export default function EmailDetail({ messageId, onReply, onReplyAll, onForward, onAnalyze, onSalesAgent, compactMode = false }: EmailDetailProps) {
   const { data: session } = useSession();
   const [email, setEmail] = useState<Email | null>(null);
   const [loading, setLoading] = useState(true);
@@ -66,6 +73,8 @@ export default function EmailDetail({ messageId, onReply, onReplyAll, onForward 
   const [aiSettings, setAiSettings] = useState<any>(null);
   const [showAIDraft, setShowAIDraft] = useState(false);
   const [phase2, setPhase2] = useState<any>(null);
+  const [showCustomerSidebar, setShowCustomerSidebar] = useState(false);
+  const [useEnhancedViewer, setUseEnhancedViewer] = useState(false);
 
   // Load AI settings on mount
   useEffect(() => {
@@ -189,22 +198,107 @@ export default function EmailDetail({ messageId, onReply, onReplyAll, onForward 
     ? 'flex gap-6' 
     : 'block';
 
+  // Use enhanced viewer if enabled
+  if (useEnhancedViewer && email) {
+    return (
+      <div className={`flex flex-col ${compactMode ? 'gap-2 h-full' : 'gap-4'}`}>
+        <div className="flex items-center justify-between mb-4">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setUseEnhancedViewer(false)}
+          >
+            ← Back to Classic View
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowCustomerSidebar(true)}
+          >
+            Customer Info
+          </Button>
+        </div>
+        
+        <EnhancedEmailViewer
+          email={email}
+          onReply={onReply}
+          onReplyAll={onReplyAll}
+          onForward={onForward}
+          compactMode={compactMode}
+        />
+        
+        <CustomerSidebar
+          customerEmail={email.from.emailAddress.address}
+          isOpen={showCustomerSidebar}
+          onClose={() => setShowCustomerSidebar(false)}
+        />
+      </div>
+    );
+  }
+
   return (
-    <div className="flex flex-col gap-4">
-      <div className={`email-detail bg-white rounded-lg shadow p-6 ${showAIDraft && aiSettings?.aiDraftPosition === 'sidebar' ? 'flex-1' : ''}`}>
-        <div className="email-header border-b pb-4 mb-4">
+    <div className={`flex flex-col ${compactMode ? 'gap-2 h-full' : 'gap-4'}`}>
+      <div className={`email-detail bg-white rounded-lg shadow ${compactMode ? 'p-4 h-full overflow-hidden flex flex-col' : 'p-6'} ${showAIDraft && aiSettings?.aiDraftPosition === 'sidebar' ? 'flex-1' : ''}`}>
+        <div className={`email-header border-b ${compactMode ? 'pb-2 mb-2' : 'pb-4 mb-4'}`}>
           <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-semibold mb-2">{email.subject}</h2>
-            {aiSettings?.aiDraftEnabled && (
+            <h2 className={`font-semibold ${compactMode ? 'text-lg mb-1' : 'text-2xl mb-2'}`}>{email.subject}</h2>
+            <div className="flex items-center space-x-2">
+              {/* Reply Actions */}
+              <Button onClick={onReply} variant="outline" size="sm">
+                <Reply className="h-3 w-3 mr-1" />
+                Reply
+              </Button>
+              <Button onClick={onReplyAll} variant="outline" size="sm">
+                <ReplyAll className="h-3 w-3 mr-1" />
+                Reply All
+              </Button>
+              <Button onClick={onForward} variant="outline" size="sm">
+                <Forward className="h-3 w-3 mr-1" />
+                Forward
+              </Button>
+              
+              {/* AI Actions */}
+              {onAnalyze && (
+                <Button 
+                  onClick={onAnalyze}
+                  variant="outline" 
+                  size="sm"
+                  className="bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
+                >
+                  <Brain className="h-3 w-3 mr-1" />
+                  AI Analysis
+                </Button>
+              )}
+              {onSalesAgent && (
+                <Button 
+                  onClick={onSalesAgent}
+                  variant="outline" 
+                  size="sm"
+                  className="bg-green-50 text-green-700 border-green-200 hover:bg-green-100"
+                >
+                  <Zap className="h-3 w-3 mr-1" />
+                  AI Draft
+                </Button>
+              )}
+              
+              {aiSettings?.aiDraftEnabled && !compactMode && (
+                <Button
+                  onClick={() => setShowAIDraft(!showAIDraft)}
+                  variant="outline"
+                  size="sm"
+                >
+                  {showAIDraft ? 'Hide AI Draft' : 'Show AI Draft'}
+                </Button>
+              )}
               <Button
-                onClick={() => setShowAIDraft(!showAIDraft)}
+                onClick={() => setUseEnhancedViewer(true)}
                 variant="outline"
                 size="sm"
-                className="ml-4"
+                className="text-blue-600"
               >
-                {showAIDraft ? 'Hide AI Draft' : 'Show AI Draft'}
+                Enhanced View
               </Button>
-            )}
+            </div>
           </div>
           <div className="email-meta text-sm space-y-1">
             <div className="flex">
@@ -257,16 +351,32 @@ export default function EmailDetail({ messageId, onReply, onReplyAll, onForward 
               <span>{new Date(email.receivedDateTime).toLocaleString()}</span>
             </div>
           </div>
+          
+          {/* Customer Info Widget */}
+          <div className="mt-3 flex items-center justify-between">
+            <CustomerInfoWidget 
+              customerEmail={email.from.emailAddress.address}
+              className="max-w-md flex-1"
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowCustomerSidebar(true)}
+              className="ml-3 text-xs"
+            >
+              More Info
+            </Button>
+          </div>
         </div>
         
-        <div className="email-content max-w-none mb-6">
+        <div className={`email-content max-w-none ${compactMode ? 'mb-2 flex-1 overflow-y-auto' : 'mb-6'}`}>
           <EmailRenderer 
             content={email.body.content}
             className="text-sm text-gray-800"
           />
         </div>
         
-        {email.hasAttachments && email.attachments && email.attachments.length > 0 && (
+        {email.hasAttachments && email.attachments && email.attachments.length > 0 && !compactMode && (
           <div className="email-attachments border-t pt-4 mb-4">
             <EmailAttachments 
               attachments={email.attachments.map(att => ({
@@ -282,58 +392,73 @@ export default function EmailDetail({ messageId, onReply, onReplyAll, onForward 
           </div>
         )}
         
-        <div className="email-meta-info flex items-center justify-between py-3 border-t">
-          <EmailLanguageDetection content={email.body.content} />
-          <div className="email-importance">
-            {email.importance !== 'normal' && (
-              <span className={`px-2 py-1 text-xs rounded ${email.importance === 'high' ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800'}`}>
-                {email.importance === 'high' ? 'High' : 'Low'} importance
-              </span>
-            )}
-          </div>
-        </div>
-        
-        <div className="email-actions flex space-x-3 pt-4 border-t">
-          <Button onClick={onReply} variant="outline">
-            Reply
-          </Button>
-          <Button onClick={onReplyAll} variant="outline">
-            Reply All
-          </Button>
-          <Button onClick={onForward} variant="outline">
-            Forward
-          </Button>
-        </div>
-        
-        {/* Comments section */}
-        <EmailNotes emailId={email.id} emailSubject={email.subject} emailFrom={email.from.emailAddress.address} />
+        {!compactMode && (
+          <>
+            <div className="email-meta-info flex items-center justify-between py-3 border-t">
+              <EmailLanguageDetection content={email.body.content} />
+              <div className="email-importance">
+                {email.importance !== 'normal' && (
+                  <span className={`px-2 py-1 text-xs rounded ${email.importance === 'high' ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800'}`}>
+                    {email.importance === 'high' ? 'High' : 'Low'} importance
+                  </span>
+                )}
+              </div>
+            </div>
+            
+            <div className="email-actions flex space-x-3 pt-4 border-t">
+              <Button onClick={onReply} variant="outline">
+                Reply
+              </Button>
+              <Button onClick={onReplyAll} variant="outline">
+                Reply All
+              </Button>
+              <Button onClick={onForward} variant="outline">
+                Forward
+              </Button>
+            </div>
+            
+            {/* Comments section */}
+            <EmailNotes emailId={email.id} emailSubject={email.subject} emailFrom={email.from.emailAddress.address} />
+          </>
+        )}
       </div>
 
-      {/* Phase 2 Insights */}
-      <Phase2Insights phase2={phase2} />
+      {!compactMode && (
+        <>
+          {/* Phase 2 Insights */}
+          <Phase2Insights phase2={phase2} />
 
-      {/* AI Draft Window */}
-      {showAIDraft && aiSettings?.aiDraftEnabled && (
-        <div className={`ai-draft-section ${
-          aiSettings?.aiDraftPosition === 'sidebar' 
-            ? 'flex-shrink-0 w-96' 
-            : 'mt-6'
-        }`}>
-          <AIDraftWindow
-            emailId={email.id}
-            originalEmail={{
-              subject: email.subject,
-              body: email.body.content,
-              from: email.from.emailAddress.address,
-              to: email.toRecipients.map(r => r.emailAddress.address).join(', ')
-            }}
-            onSendDraft={handleSendDraft}
-            onRegenerateDraft={handleRegenerateDraft}
-            className="h-fit"
-            position={aiSettings?.aiDraftPosition || 'sidebar'}
-          />
-        </div>
+          {/* AI Draft Window */}
+          {showAIDraft && aiSettings?.aiDraftEnabled && (
+            <div className={`ai-draft-section ${
+              aiSettings?.aiDraftPosition === 'sidebar' 
+                ? 'flex-shrink-0 w-96' 
+                : 'mt-6'
+            }`}>
+              <AIDraftWindow
+                emailId={email.id}
+                originalEmail={{
+                  subject: email.subject,
+                  body: email.body.content,
+                  from: email.from.emailAddress.address,
+                  to: email.toRecipients.map(r => r.emailAddress.address).join(', ')
+                }}
+                onSendDraft={handleSendDraft}
+                onRegenerateDraft={handleRegenerateDraft}
+                className="h-fit"
+                position={aiSettings?.aiDraftPosition || 'sidebar'}
+              />
+            </div>
+          )}
+        </>
       )}
+
+      {/* Customer Sidebar */}
+      <CustomerSidebar
+        customerEmail={email.from.emailAddress.address}
+        isOpen={showCustomerSidebar}
+        onClose={() => setShowCustomerSidebar(false)}
+      />
     </div>
   );
 }

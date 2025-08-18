@@ -6,6 +6,8 @@
  */
 
 import { OpenAI } from 'openai';
+// Use unified client manager for optimized OpenAI client handling
+import { getOpenAIClient } from '@/lib/clients/unified-client-manager';
 
 export interface EmailAnalysis {
   language: string;
@@ -25,9 +27,16 @@ export class EmailAnalyzerService {
   private openai: OpenAI;
   
   constructor() {
-    this.openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY
-    });
+    try {
+      // Use unified client manager for better performance
+      this.openai = getOpenAIClient();
+    } catch (error) {
+      console.warn('[EmailAnalyzerService] Unified OpenAI client failed, using fallback:', error);
+      // Fallback to direct OpenAI client
+      this.openai = new OpenAI({
+        apiKey: process.env.OPENAI_API_KEY
+      });
+    }
   }
   
   /**

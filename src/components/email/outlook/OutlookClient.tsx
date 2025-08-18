@@ -5,20 +5,34 @@ import { useSession } from 'next-auth/react';
 import { EmailList } from './EmailList';
 import EmailDetail from './EmailDetail';
 import EmailCompose from './EmailCompose';
+import AIDraftWindow from '../AIDraftWindow';
 import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { FaEnvelope, FaRobot, FaSync, FaTrash, FaArchive } from 'react-icons/fa';
+import { EmailViewProvider, useEmailView } from '@/contexts/EmailViewContext';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface OutlookClientProps {
   onAnalyzeEmail?: (emailId: string) => void;
   onSalesAgent?: (emailId: string) => void;
 }
 
-export default function OutlookClient({ onAnalyzeEmail, onSalesAgent }: OutlookClientProps) {
+function OutlookClientContent({ onAnalyzeEmail, onSalesAgent }: OutlookClientProps) {
   const { data: session, status } = useSession();
-  const [selectedEmailId, setSelectedEmailId] = useState<string | null>(null);
-  const [view, setView] = useState<'list' | 'detail' | 'compose'>('list');
-  const [emailData, setEmailData] = useState<any>(null); // Store the selected email data
+  const {
+    viewMode,
+    replyMode,
+    selectedEmailId,
+    emailData,
+    showDraftWindow,
+    isGeneratingDraft,
+    setSelectedEmailId,
+    setEmailData,
+    setViewMode,
+    startReply,
+    closeDraftWindow,
+    backToList
+  } = useEmailView();
   
   // Render early states without breaking hooks rules
   const isLoadingAuth = status === 'loading';
@@ -27,43 +41,33 @@ export default function OutlookClient({ onAnalyzeEmail, onSalesAgent }: OutlookC
   // Handle email selection
   const handleEmailSelect = (emailId: string) => {
     setSelectedEmailId(emailId);
-    setView('detail');
-  };
-
-  // Handle back to list
-  const handleBackToList = () => {
-    setView('list');
-    setSelectedEmailId(null);
-    setEmailData(null);
-  };
-
-  // Handle compose new email
-  const handleComposeNew = () => {
-    setView('compose');
-    setSelectedEmailId(null);
-    setEmailData(null);
+    setViewMode('detail');
   };
 
   // Handle reply, reply all, forward
   const handleReply = () => {
-    if (emailData) {
-      setView('compose');
-      // Pass the original email data for reply
+    if (emailData && selectedEmailId) {
+      startReply(selectedEmailId, emailData, 'reply');
     }
   };
 
   const handleReplyAll = () => {
-    if (emailData) {
-      setView('compose');
-      // Pass the original email data for reply all
+    if (emailData && selectedEmailId) {
+      startReply(selectedEmailId, emailData, 'replyAll');
     }
   };
 
   const handleForward = () => {
-    if (emailData) {
-      setView('compose');
-      // Pass the original email data for forward
+    if (emailData && selectedEmailId) {
+      startReply(selectedEmailId, emailData, 'forward');
     }
+  };
+
+  // Handle compose new email
+  const handleComposeNew = () => {
+    setViewMode('split-compose');
+    setSelectedEmailId(null);
+    setEmailData(null);
   };
 
   // Handle email deletion
@@ -81,7 +85,7 @@ export default function OutlookClient({ onAnalyzeEmail, onSalesAgent }: OutlookC
       });
       
       if (response.ok) {
-        handleBackToList();
+        backToList();
       }
     } catch (error) {
       console.error('Error deleting email:', error);
@@ -104,7 +108,7 @@ export default function OutlookClient({ onAnalyzeEmail, onSalesAgent }: OutlookC
 
   // Update email data when an email is selected
   useEffect(() => {
-    if (selectedEmailId && view === 'detail') {
+    if (selectedEmailId && (viewMode === 'detail' || viewMode === 'split-reply')) {
       // Fetch email data
       const fetchEmailData = async () => {
         try {
@@ -125,43 +129,56 @@ export default function OutlookClient({ onAnalyzeEmail, onSalesAgent }: OutlookC
       
       fetchEmailData();
     }
-  }, [selectedEmailId, view]);
+  }, [selectedEmailId, viewMode]);
 
   return (
-    <div className="outlook-client">
-      <div className="flex justify-between items-center mb-4 p-4 bg-white shadow">
+    <div className="outlook-client h-full flex flex-col">
+      <div className="flex justify-between items-center mb-4 p-4 bg-white shadow flex-shrink-0">
         <h1 className="text-xl font-bold flex items-center">
-          <FaEnvelope className="mr-2" /> {view === 'list' ? 'Inbox' : view === 'detail' ? 'Email' : 'Compose'}
+          <FaEnvelope className="mr-2" /> 
+          {viewMode === 'list' ? 'Inbox' : 
+           viewMode === 'detail' ? 'Email' : 
+           viewMode === 'split-reply' ? 'Email & Reply' : 
+           'Compose'}
         </h1>
         <div className="space-x-2">
-          {view === 'list' && (
+          {viewMode === 'list' && (
             <Button onClick={handleComposeNew} variant="default" className="bg-blue-600 hover:bg-blue-700">
               New Email
             </Button>
           )}
           
-          {view === 'detail' && (
+          {(viewMode === 'detail' || viewMode === 'split-reply') && (
             <div className="flex space-x-2">
-              <Button onClick={handleReply} variant="outline" size="sm">
-                Reply
-              </Button>
-              <Button onClick={handleReplyAll} variant="outline" size="sm">
-                Reply All
-              </Button>
-              <Button onClick={handleForward} variant="outline" size="sm">
-                Forward
-              </Button>
+              {viewMode === 'detail' && (
+                <>
+                  <Button onClick={handleReply} variant="outline" size="sm">
+                    Reply
+                  </Button>
+                  <Button onClick={handleReplyAll} variant="outline" size="sm">
+                    Reply All
+                  </Button>
+                  <Button onClick={handleForward} variant="outline" size="sm">
+                    Forward
+                  </Button>
+                </>
+              )}
+              {viewMode === 'split-reply' && (
+                <Button onClick={closeDraftWindow} variant="outline" size="sm">
+                  Close Reply
+                </Button>
+              )}
               <Button onClick={handleDelete} variant="outline" size="sm" className="text-red-600 border-red-200 hover:bg-red-50">
                 <FaTrash className="mr-1" /> Delete
               </Button>
-              <Button onClick={handleBackToList} variant="outline" size="sm">
+              <Button onClick={backToList} variant="outline" size="sm">
                 Back to Inbox
               </Button>
             </div>
           )}
           
-          {view === 'compose' && (
-            <Button onClick={handleBackToList} variant="outline" size="sm">
+          {viewMode === 'split-compose' && (
+            <Button onClick={backToList} variant="outline" size="sm">
               Cancel
             </Button>
           )}
@@ -183,56 +200,131 @@ export default function OutlookClient({ onAnalyzeEmail, onSalesAgent }: OutlookC
             </Button>
           </div>
         )}
+      </div>
 
-        {view === 'list' && (
-          <div className="email-list-container">
-            <EmailList onEmailSelect={handleEmailSelect} />
-          </div>
-        )}
+      <div className="flex-1 min-h-0">
+        <AnimatePresence mode="wait">
+          {viewMode === 'list' && (
+            <motion.div
+              key="list"
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.3, ease: "easeInOut" }}
+              className="email-list-container h-full"
+            >
+              <EmailList onEmailSelect={handleEmailSelect} />
+            </motion.div>
+          )}
 
-        {view === 'detail' && selectedEmailId && (
-          <div className="relative">
-            <EmailDetail 
-              messageId={selectedEmailId} 
-              onReply={handleReply}
-              onReplyAll={handleReplyAll}
-              onForward={handleForward}
-            />
-            
-            {/* AI Action Buttons */}
-            <div className="fixed bottom-6 right-6 flex flex-col space-y-2">
-              <Button 
-                className="rounded-full w-12 h-12 flex items-center justify-center bg-blue-600 hover:bg-blue-700 shadow-lg"
-                title="Re-analyze Email"
-                onClick={handleAnalyze}
+          {viewMode === 'detail' && selectedEmailId && (
+            <motion.div
+              key="detail"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 20 }}
+              transition={{ duration: 0.3, ease: "easeInOut" }}
+              className="relative"
+            >
+              <EmailDetail 
+                messageId={selectedEmailId} 
+                onReply={handleReply}
+                onReplyAll={handleReplyAll}
+                onForward={handleForward}
+                onAnalyze={handleAnalyze}
+                onSalesAgent={handleSalesAgent}
+              />
+            </motion.div>
+          )}
+
+          {viewMode === 'split-reply' && selectedEmailId && (
+            <motion.div
+              key="split-reply"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 20 }}
+              transition={{ duration: 0.4, ease: "easeInOut" }}
+              className="flex flex-col h-full"
+            >
+              {/* Email Body - Top Half */}
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: 0.1 }}
+                className="flex-1 min-h-0 mb-2"
               >
-                <FaSync className="h-5 w-5" />
-              </Button>
-              <Button 
-                className="rounded-full w-12 h-12 flex items-center justify-center bg-green-600 hover:bg-green-700 shadow-lg"
-                title="AI Sales Agent"
-                onClick={handleSalesAgent}
+                <EmailDetail 
+                  messageId={selectedEmailId} 
+                  onReply={handleReply}
+                  onReplyAll={handleReplyAll}
+                  onForward={handleForward}
+                  compactMode={true}
+                />
+              </motion.div>
+              
+              {/* Draft Window - Bottom Half */}
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: 0.2 }}
+                className="flex-1 min-h-0"
               >
-                <FaRobot className="h-5 w-5" />
-              </Button>
-            </div>
-          </div>
-        )}
+                {emailData && (
+                  <AIDraftWindow
+                    emailId={selectedEmailId}
+                    originalEmail={{
+                      subject: emailData.subject,
+                      body: emailData.body?.content || emailData.body,
+                      from: emailData.from?.emailAddress?.address || emailData.from,
+                      to: emailData.toRecipients?.map((r: any) => r.emailAddress?.address || r).join(', ') || ''
+                    }}
+                    onSendDraft={async (draftData) => {
+                      // Handle sending the draft
+                      console.log('Sending draft:', draftData);
+                      closeDraftWindow();
+                    }}
+                    onRegenerateDraft={async () => {
+                      // Handle regenerating draft
+                      console.log('Regenerating draft...');
+                    }}
+                    className="h-full"
+                    position="bottom"
+                  />
+                )}
+              </motion.div>
+            </motion.div>
+          )}
 
-        {view === 'compose' && (
-          <div className="bg-white p-6 rounded shadow">
-            <EmailCompose 
-              mode="new" 
-              originalEmail={emailData} 
-              onClose={handleBackToList} 
-              onSend={async () => {
-                // Handle send email
-                handleBackToList();
-              }} 
-            />
-          </div>
-        )}
+          {viewMode === 'split-compose' && (
+            <motion.div
+              key="split-compose"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ duration: 0.3, ease: "easeInOut" }}
+              className="bg-white p-6 rounded shadow h-full"
+            >
+              <EmailCompose 
+                mode="new" 
+                originalEmail={null} 
+                onClose={backToList} 
+                onSend={async () => {
+                  // Handle send email
+                  backToList();
+                }} 
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
+  );
+}
+
+export default function OutlookClient({ onAnalyzeEmail, onSalesAgent }: OutlookClientProps) {
+  return (
+    <EmailViewProvider>
+      <OutlookClientContent onAnalyzeEmail={onAnalyzeEmail} onSalesAgent={onSalesAgent} />
+    </EmailViewProvider>
   );
 }

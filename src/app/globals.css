@@ -59,7 +59,7 @@
   --brand-start: var(--accent-color);
   --brand-mid: var(--accent-color);
   --brand-end: var(--accent-color);
-
+  
   /* shadcn/ui design tokens mapping to brand variables */
   --primary: var(--accent-color);
   --primary-foreground: #ffffff;
@@ -91,6 +91,16 @@ body {
 /* Brand Utilities */
 .aris-gradient {
   background: linear-gradient(to right, var(--brand-start), var(--brand-mid), var(--brand-end)) !important;
+}
+
+/* Prevent theme flash by setting immediate defaults */
+html {
+  --accent-color: #2563eb; /* Default blue theme */
+  --primary-color: #0f172a;
+  --secondary-color: #64748b;
+  --brand-start: #2563eb;
+  --brand-mid: #2563eb;
+  --brand-end: #2563eb;
 }
 
 .aris-text-gradient {

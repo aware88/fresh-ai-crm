@@ -54,6 +54,11 @@ const sidebarNavItems = [
     group: 'Communication'
   },
   {
+    title: 'Upsell Settings',
+    href: '/settings/upsell',
+    group: 'Communication'
+  },
+  {
     title: 'Notifications',
     href: '/settings/notifications',
     group: 'Preferences'

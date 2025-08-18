@@ -2,6 +2,8 @@ import { createClient } from '@supabase/supabase-js';
 import { ImapFlow } from 'imapflow';
 import { simpleParser } from 'mailparser';
 import * as crypto from 'crypto';
+import { getBackgroundProcessor } from './background-ai-processor';
+import OpenAI from 'openai';
 
 // Database setup
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -337,6 +339,53 @@ async function processAttachments(
 }
 
 /**
+ * Process emails with AI in the background
+ */
+async function processEmailsWithAI(
+  emails: ParsedEmail[],
+  userId: string,
+  organizationId?: string
+): Promise<void> {
+  if (!emails.length) return;
+  
+  console.log(`[EmailFetcher] Starting AI processing for ${emails.length} emails`);
+  
+  try {
+    // Initialize AI processor
+    const openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY
+    });
+
+    if (!openai.apiKey) {
+      console.log('[EmailFetcher] OpenAI API key not available, skipping AI processing');
+      return;
+    }
+
+    const processor = getBackgroundProcessor(supabase, openai);
+    
+    // Create processing contexts for all emails
+    const contexts = emails.map(email => ({
+      emailId: email.id,
+      userId,
+      organizationId,
+      priority: 'normal' as const,
+      skipDraft: false // Generate drafts for all emails
+    }));
+
+    // Process in batch (with concurrency control)
+    const results = await processor.processEmailsBatch(contexts);
+    
+    const successful = results.filter(r => r.success).length;
+    const failed = results.filter(r => !r.success).length;
+    
+    console.log(`[EmailFetcher] AI processing completed: ${successful} successful, ${failed} failed`);
+    
+  } catch (error) {
+    console.error('[EmailFetcher] Error in AI processing:', error);
+  }
+}
+
+/**
  * Main function to fetch emails from all active accounts
  */
 export async function fetchAllEmails(): Promise<{ 
@@ -387,6 +436,10 @@ export async function fetchAllEmails(): Promise<{
         // Process attachments in the background
         processAttachments(emails, account.user_id, account.id)
           .catch(error => console.error(`Error processing attachments for ${account.email}:`, error));
+          
+        // Process emails with AI in the background
+        processEmailsWithAI(emails, account.user_id, account.organization_id)
+          .catch(error => console.error(`Error processing emails with AI for ${account.email}:`, error));
         
         totalEmailsFetched += savedCount;
         accountsFetched++;

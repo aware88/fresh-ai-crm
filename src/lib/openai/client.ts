@@ -14,34 +14,46 @@ import { getLimitedFormattedDataForPrompt, getAllFormattedDataForPrompt } from '
 import axios from 'axios';
 import * as cheerio from 'cheerio';
 
-// Singleton instance of the OpenAI client
+// Import unified client manager for optimized client handling
+import { getOpenAIClient as getUnifiedOpenAIClient } from '../clients/unified-client-manager';
+
+// Legacy singleton instance (kept for backward compatibility during transition)
 let openAIClient: OpenAI | null = null;
 
 /**
  * Gets or creates a singleton instance of the OpenAI client
+ * Now uses UnifiedClientManager for optimized performance and connection pooling
  * @returns {OpenAI} Configured OpenAI client instance
  * @throws {Error} If OPENAI_API_KEY is not set in environment variables
  */
 export const getOpenAIClient = (): OpenAI => {
-  if (!openAIClient) {
-    const apiKey = process.env.OPENAI_API_KEY;
+  try {
+    // Use unified client manager for better performance and connection pooling
+    return getUnifiedOpenAIClient();
+  } catch (error) {
+    console.warn('[OpenAI Client] Unified client manager failed, falling back to legacy client:', error);
     
-    if (!apiKey) {
-      throw new Error('Missing OPENAI_API_KEY environment variable');
+    // Fallback to legacy implementation for backward compatibility
+    if (!openAIClient) {
+      const apiKey = process.env.OPENAI_API_KEY;
+      
+      if (!apiKey) {
+        throw new Error('Missing OPENAI_API_KEY environment variable');
+      }
+      
+      // Validate API key format
+      if (!apiKey.startsWith('sk-') || apiKey.length < 20) {
+        throw new Error('Invalid OPENAI_API_KEY format. API key should start with "sk-" and be properly formatted.');
+      }
+      
+      openAIClient = new OpenAI({
+        apiKey,
+        // Add any default configuration here
+      });
     }
     
-    // Validate API key format
-    if (!apiKey.startsWith('sk-') || apiKey.length < 20) {
-      throw new Error('Invalid OPENAI_API_KEY format. API key should start with "sk-" and be properly formatted.');
-    }
-    
-    openAIClient = new OpenAI({
-      apiKey,
-      // Add any default configuration here
-    });
+    return openAIClient;
   }
-  
-  return openAIClient;
 };
 
 /**

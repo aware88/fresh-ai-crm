@@ -253,52 +253,59 @@ export async function logAIUsageWithTopup(
   }
 }
 
+// Use unified user context service for optimized organization lookup
+import { getUserOrganization as getUnifiedOrganization } from '../context/unified-user-context-service';
+
 /**
  * Get user's organization ID from request
+ * Now uses UnifiedUserContextService for optimized performance
  */
 export async function getUserOrganization(userId: string): Promise<string | null> {
   try {
-    // Use admin client to bypass RLS
-    const supabase = createAdminClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
-    
-    console.log('🔍 getUserOrganization: Checking for user:', userId);
-    
-    // First try organization_members table
-    const { data: memberData, error: memberError } = await supabase
-      .from('organization_members')
-      .select('organization_id, role, status')
-      .eq('user_id', userId);
-
-    console.log('👥 Organization members query result:', { memberData, memberError });
-
-    if (memberData && memberData.length > 0) {
-      const organizationId = memberData[0].organization_id;
-      console.log('✅ Found organization via members table:', organizationId);
-      return organizationId;
-    }
-
-    // Fallback: Try user_preferences table for current_organization_id
-    const { data: prefsData, error: prefsError } = await supabase
-      .from('user_preferences')
-      .select('current_organization_id')
-      .eq('user_id', userId)
-      .single();
-
-    console.log('📋 User preferences query result:', { prefsData, prefsError });
-
-    if (prefsData?.current_organization_id) {
-      console.log('✅ Found organization via user preferences:', prefsData.current_organization_id);
-      return prefsData.current_organization_id;
-    }
-
-    console.log('❌ No organization found for user');
-    return null;
+    // Use unified context service for better performance and caching
+    return await getUnifiedOrganization(userId);
   } catch (error) {
-    console.error('Exception getting user organization:', error);
-    return null;
+    console.warn('[AI Limit Middleware] Unified context failed, using fallback:', error);
+    
+    // Fallback to legacy implementation
+    try {
+      const supabase = createAdminClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!
+      );
+      
+      console.log('🔍 getUserOrganization (fallback): Checking for user:', userId);
+      
+      // First try organization_members table
+      const { data: memberData, error: memberError } = await supabase
+        .from('organization_members')
+        .select('organization_id, role, status')
+        .eq('user_id', userId);
+
+      if (memberData && memberData.length > 0) {
+        const organizationId = memberData[0].organization_id;
+        console.log('✅ Found organization via members table (fallback):', organizationId);
+        return organizationId;
+      }
+
+      // Fallback: Try user_preferences table for current_organization_id
+      const { data: prefsData, error: prefsError } = await supabase
+        .from('user_preferences')
+        .select('current_organization_id')
+        .eq('user_id', userId)
+        .single();
+
+      if (prefsData?.current_organization_id) {
+        console.log('✅ Found organization via user preferences (fallback):', prefsData.current_organization_id);
+        return prefsData.current_organization_id;
+      }
+
+      console.log('❌ No organization found for user (fallback)');
+      return null;
+    } catch (fallbackError) {
+      console.error('Exception in fallback getUserOrganization:', fallbackError);
+      return null;
+    }
   }
 }
 

@@ -5,6 +5,7 @@ import { useOptimizedAuth } from '@/hooks/useOptimizedAuth';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import Link from 'next/link';
+import { useToast } from '@/components/ui/use-toast';
 
 function EmailAccountsContent() {
   const { data: session, status, isLoading } = useOptimizedAuth();
@@ -16,6 +17,15 @@ function EmailAccountsContent() {
   const [tableExists, setTableExists] = useState(true); // Default to true to prevent flash
   const [tableChecked, setTableChecked] = useState(false);
   const [oauthMessage, setOauthMessage] = useState<{ type: 'success' | 'error', message: string } | null>(null);
+  const [syncingAccounts, setSyncingAccounts] = useState<Set<string>>(new Set());
+  const [syncResult, setSyncResult] = useState<{
+    success: boolean;
+    totalSaved: number;
+    breakdown: { inbox: number; sent: number };
+    syncedAt: string;
+    error?: string;
+  } | null>(null);
+  const { toast } = useToast();
   // Handle OAuth callback messages
   useEffect(() => {
     if (searchParams) {
@@ -55,6 +65,59 @@ function EmailAccountsContent() {
       console.log('Email Settings - Session exists but no user ID found');
     }
   }, [status, session]);
+
+  const handleSyncEmails = async (accountId: string) => {
+    setSyncingAccounts(prev => new Set([...prev, accountId]));
+    
+    try {
+      const response = await fetch('/api/email/sync-to-database', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          accountId,
+          maxEmails: 5000
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setSyncResult({
+          success: true,
+          totalSaved: result.totalSaved,
+          breakdown: result.breakdown,
+          syncedAt: result.syncedAt
+        });
+        // Refresh the accounts list to show updated sync time
+        fetchEmailAccounts();
+      } else {
+        setSyncResult({
+          success: false,
+          totalSaved: 0,
+          breakdown: { inbox: 0, sent: 0 },
+          syncedAt: new Date().toISOString(),
+          error: result.error || 'Failed to sync emails'
+        });
+      }
+    } catch (error) {
+      console.error('Error syncing emails:', error);
+      setSyncResult({
+        success: false,
+        totalSaved: 0,
+        breakdown: { inbox: 0, sent: 0 },
+        syncedAt: new Date().toISOString(),
+        error: "An error occurred while syncing emails"
+      });
+    } finally {
+      setSyncingAccounts(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(accountId);
+        return newSet;
+      });
+    }
+  };
   
   const fetchEmailAccounts = async () => {
     if (!session?.user || !('id' in session.user) || !session.user.id) return;
@@ -411,6 +474,27 @@ CREATE INDEX email_accounts_email_idx ON public.email_accounts (email);`}
       {/* Connected Email Accounts */}
       {tableExists && tableChecked && (
         <div className="space-y-4">
+          {/* Sync Information Panel */}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <h3 className="text-lg font-semibold text-blue-800 mb-2">📧 Email Sync</h3>
+            <div className="text-sm text-blue-700 space-y-2">
+              <p><strong>What does sync do?</strong> Downloads your recent emails (up to 5,000) from your email server to our database for AI learning.</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
+                <div className="bg-white p-3 rounded border">
+                  <p><strong>📥 Inbox:</strong> Up to 2,500 received emails</p>
+                  <p><strong>📤 Sent:</strong> Up to 2,500 sent emails</p>
+                </div>
+                <div className="bg-white p-3 rounded border">
+                  <p><strong>🔒 Safe:</strong> Only you can see your emails</p>
+                  <p><strong>⚡ Smart:</strong> Skips already synced emails</p>
+                </div>
+              </div>
+              <p className="text-xs text-blue-600 mt-2">
+                <strong>Tip:</strong> Sync once, then use Email Learning to analyze patterns and improve AI responses.
+              </p>
+            </div>
+          </div>
+          
           <h2 className="text-xl font-semibold">Connected Email Accounts</h2>
           <div className="bg-card rounded-lg border overflow-hidden">
           <table className="min-w-full divide-y divide-border">
@@ -427,6 +511,9 @@ CREATE INDEX email_accounts_email_idx ON public.email_accounts (email);`}
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Added On
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  Last Sync
                 </th>
                 <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Actions
@@ -467,7 +554,33 @@ CREATE INDEX email_accounts_email_idx ON public.email_accounts (email);`}
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {new Date(account.created_at).toLocaleDateString()}
                     </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {account.last_sync_at ? (
+                        <div>
+                          <div className="text-green-600 font-medium">
+                            {new Date(account.last_sync_at).toLocaleDateString()}
+                          </div>
+                          <div className="text-xs text-gray-400">
+                            {new Date(account.last_sync_at).toLocaleTimeString()}
+                          </div>
+                        </div>
+                      ) : (
+                        <span className="text-gray-400 italic">Never synced</span>
+                      )}
+                      {account.sync_error && (
+                        <div className="text-red-500 text-xs mt-1" title={account.sync_error}>
+                          ⚠️ Sync error
+                        </div>
+                      )}
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <button
+                        onClick={() => handleSyncEmails(account.id)}
+                        disabled={syncingAccounts.has(account.id)}
+                        className="text-green-600 hover:text-green-900 mr-4 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {syncingAccounts.has(account.id) ? 'Syncing...' : 'Sync'}
+                      </button>
                       <Link 
                         href={`/settings/email-accounts/test/${account.id}`}
                         className="text-blue-600 hover:text-blue-900 mr-4"
@@ -491,7 +604,7 @@ CREATE INDEX email_accounts_email_idx ON public.email_accounts (email);`}
                 ))
               ) : (
                 <tr>
-                  <td colSpan={5} className="px-6 py-4 text-center text-sm text-muted-foreground">
+                  <td colSpan={6} className="px-6 py-4 text-center text-sm text-muted-foreground">
                     No email accounts connected yet. Add an account to get started.
                   </td>
                 </tr>
@@ -499,6 +612,69 @@ CREATE INDEX email_accounts_email_idx ON public.email_accounts (email);`}
             </tbody>
           </table>
         </div>
+        </div>
+      )}
+
+      {/* Sync Result Modal */}
+      {syncResult && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="text-center">
+              {syncResult.success ? (
+                <>
+                  <div className="text-green-500 text-6xl mb-4">✅</div>
+                  <h3 className="text-xl font-semibold text-green-700 mb-2">
+                    Sync Successful!
+                  </h3>
+                  <div className="space-y-2 text-sm text-gray-600">
+                    <p><strong>{syncResult.totalSaved} total emails</strong> synced to database</p>
+                    <div className="bg-gray-50 p-3 rounded">
+                      <p>📥 Inbox: {syncResult.breakdown.inbox} emails</p>
+                      <p>📤 Sent: {syncResult.breakdown.sent} emails</p>
+                    </div>
+                    <p className="text-xs text-gray-500">
+                      Synced at: {new Date(syncResult.syncedAt).toLocaleString()}
+                    </p>
+                  </div>
+                  <div className="mt-4 p-3 bg-blue-50 rounded text-sm text-blue-800">
+                    <p><strong>💡 Next Step:</strong> Go to Email Learning settings to analyze these emails and improve your AI responses!</p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="text-red-500 text-6xl mb-4">❌</div>
+                  <h3 className="text-xl font-semibold text-red-700 mb-2">
+                    Sync Failed
+                  </h3>
+                  <p className="text-sm text-gray-600 mb-4">
+                    {syncResult.error}
+                  </p>
+                  <div className="mt-4 p-3 bg-yellow-50 rounded text-sm text-yellow-800">
+                    <p><strong>💡 Tip:</strong> Check your email credentials and try again. Some email providers require app-specific passwords.</p>
+                  </div>
+                </>
+              )}
+            </div>
+            <div className="mt-6 flex gap-3">
+              <button
+                onClick={() => setSyncResult(null)}
+                className="flex-1 bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"
+              >
+                Close
+              </button>
+              {syncResult.success && (
+                <button
+                  onClick={() => {
+                    setSyncResult(null);
+                    router.push('/settings/learning');
+                  }}
+                  className="flex-1 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+                >
+                  Go to Learning →
+                </button>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </div>

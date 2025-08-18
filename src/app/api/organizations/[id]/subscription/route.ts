@@ -25,10 +25,23 @@ export async function GET(
     
     const subscriptionInitService = new SubscriptionInitializationService();
     
-    // For your development organization, create premium subscription
+    // For your development organization, check if premium subscription exists first
     if (organizationId === '577485fb-50b4-4bb2-a4c6-54b97e1545ad' && process.env.NODE_ENV === 'development') {
-      console.log('🚧 Development mode: Creating premium subscription...');
+      console.log('🚧 Development mode: Checking for existing premium subscription...');
       
+      // First check if subscription already exists
+      const existingResult = await subscriptionInitService.getOrganizationSubscription(organizationId);
+      
+      if (existingResult.subscription && existingResult.plan) {
+        console.log('✅ Existing development subscription found');
+        return NextResponse.json(
+          { subscription: existingResult.subscription, plan: existingResult.plan },
+          { status: 200 }
+        );
+      }
+      
+      // Only create if doesn't exist
+      console.log('🚧 No existing subscription, creating premium subscription...');
       const result = await subscriptionInitService.createDevelopmentPremiumSubscription(organizationId);
       
       if (result.error) {

@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Send, Loader2 } from 'lucide-react';
-// import RichTextEditor from './RichTextEditor'; // Temporarily disabled due to React 18 compatibility
+import RichTextEditor from './RichTextEditor';
 
 export default function EmailComposer() {
   const [to, setTo] = useState('');
@@ -19,6 +19,7 @@ export default function EmailComposer() {
   const [previewMode, setPreviewMode] = useState<'desktop' | 'mobile' | 'plain'>('desktop');
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isRefining, setIsRefining] = useState(false);
+  const [isRichText, setIsRichText] = useState(true);
 
   const handleRefine = async (command: string) => {
     if (!body.trim()) return;
@@ -186,28 +187,36 @@ export default function EmailComposer() {
             </button>
           </div>
           {/* Quick AI refine */}
-          <div className="flex items-center justify-end gap-2 mb-2 text-xs">
-            <span className="text-gray-500">AI:</span>
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2 text-xs">
+              <span className="text-gray-500">AI:</span>
+              <button
+                disabled={isRefining}
+                className="px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-50"
+                onClick={() => handleRefine('Make this more concise')}
+              >Shorten</button>
+              <button
+                disabled={isRefining}
+                className="px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-50"
+                onClick={() => handleRefine('Expand with more detail where useful')}
+              >Expand</button>
+              <button
+                disabled={isRefining}
+                className="px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-50"
+                onClick={() => handleRefine('Improve clarity and fix grammar without changes')}
+              >Clarity</button>
+              <button
+                disabled={isRefining}
+                className="px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-50"
+                onClick={() => handleRefine('Match a professional tone')}
+              >Tone</button>
+            </div>
             <button
-              disabled={isRefining}
-              className="px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-50"
-              onClick={() => handleRefine('Make this more concise')}
-            >Shorten</button>
-            <button
-              disabled={isRefining}
-              className="px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-50"
-              onClick={() => handleRefine('Expand with more detail where useful')}
-            >Expand</button>
-            <button
-              disabled={isRefining}
-              className="px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-50"
-              onClick={() => handleRefine('Improve clarity and fix grammar without changing meaning')}
-            >Clarity</button>
-            <button
-              disabled={isRefining}
-              className="px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-50"
-              onClick={() => handleRefine('Match a professional tone')}
-            >Tone</button>
+              onClick={() => setIsRichText(!isRichText)}
+              className="px-2 py-1 rounded bg-blue-100 hover:bg-blue-200 text-xs text-blue-700"
+            >
+              {isRichText ? 'Rich Text' : 'Plain Text'}
+            </button>
           </div>
           {previewMode === 'plain' ? (
             <textarea
@@ -217,13 +226,22 @@ export default function EmailComposer() {
             />
           ) : (
             <div className={previewMode === 'mobile' ? 'max-w-sm mx-auto border rounded' : ''}>
-              <textarea
-                value={body}
-                onChange={(e) => setBody(e.target.value)}
-                placeholder="Compose your email..."
-                className="w-full h-[400px] p-3 border rounded-md resize-none font-mono text-sm"
-                rows={20}
-              />
+              {isRichText ? (
+                <RichTextEditor
+                  value={body}
+                  onChange={setBody}
+                  placeholder="Compose your email..."
+                  height="400px"
+                />
+              ) : (
+                <textarea
+                  value={body}
+                  onChange={(e) => setBody(e.target.value)}
+                  placeholder="Compose your email..."
+                  className="w-full h-[400px] p-3 border rounded-md resize-none font-mono text-sm"
+                  rows={20}
+                />
+              )}
             </div>
           )}
         </div>

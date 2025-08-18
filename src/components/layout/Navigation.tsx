@@ -6,89 +6,84 @@ import { useState, useEffect } from 'react';
 import { Bell, User, Brain } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { signOut } from 'next-auth/react';
+import { useOrganization } from '@/hooks/useOrganization';
+import { useOrganizationBranding } from '@/hooks/useOrganizationBranding';
 
 interface NavigationProps {
   className?: string;
 }
 
 export function Navigation({ className = '' }: NavigationProps) {
-  const [logoPath, setLogoPath] = useState<string | null>(null);
-  const [companyName, setCompanyName] = useState('ARIS');
+  const { organization, loading: orgLoading } = useOrganization();
+  const { branding, loading: brandingLoading } = useOrganizationBranding();
   
-  // Check if we're in a browser environment
-  const isBrowser = typeof window !== 'undefined';
+  // Get derived values from branding
+  const logoPath = branding?.logo_url || null;
+  const companyName = organization?.slug?.toLowerCase() === 'withcar' || 
+                     organization?.name?.toLowerCase() === 'withcar' ? 'WITHCAR' : 
+                     organization?.name || 'ARIS';
   
-  // Function to load logo and company name from localStorage or API
-  const loadLogoAndCompanyName = async () => {
-    if (!isBrowser) return;
-    
-    // Check for logo in localStorage
-    const savedLogo = localStorage.getItem('companyLogo');
-    if (savedLogo) {
-      setLogoPath(savedLogo);
-    }
-    
-    // Check for company name in localStorage
-    const savedCompanyName = localStorage.getItem('companyName');
-    if (savedCompanyName) {
-      setCompanyName(savedCompanyName);
-    }
-    
-    // If no logo in localStorage, fetch from API as fallback
-    if (!savedLogo) {
-      const fetchLogo = async () => {
-        try {
-          const response = await fetch('/api/logo/get');
-          if (response.ok) {
-            const data = await response.json();
-            if (data.logoPath) {
-              setLogoPath(data.logoPath);
-              localStorage.setItem('companyLogo', data.logoPath);
-            }
-          }
-        } catch (error) {
-          console.error('Error fetching logo:', error);
-        }
-      };
-      
-      fetchLogo();
-    }
-  };
-  
-  // Listen for storage events (when localStorage is updated in another tab/component)
-  useEffect(() => {
-    if (!isBrowser) return;
-    
-    // Initial load
-    loadLogoAndCompanyName();
-    
-    // Create a custom event for same-tab updates
-    const handleStorageChange = (event: StorageEvent) => {
-      if (event.key === 'companyLogo' || event.key === 'companyName') {
-        loadLogoAndCompanyName();
-      }
-    };
-    
-    // Add event listener for localStorage changes
-    window.addEventListener('storage', handleStorageChange);
-    
-    // Add event listener for our custom event
-    window.addEventListener('localStorageUpdated', loadLogoAndCompanyName as EventListener);
-    
-    // Cleanup
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener('localStorageUpdated', loadLogoAndCompanyName as EventListener);
-    };
-  }, [isBrowser]);
+
   
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   return (
     <nav className={`bg-white shadow-sm border-b h-16 flex items-center px-4 sm:px-6 ${className}`}>
       <div className="flex items-center justify-between w-full">
-        {/* Remove logo and company name from top nav */}
-        <div />
+        {/* Logo on the left side */}
+        <div className="flex items-center">
+          <Link href="/dashboard" className="flex items-center">
+            {(orgLoading || brandingLoading) ? (
+              // Loading state for logo
+              <div className="flex items-center">
+                <div className="h-8 w-8 flex items-center justify-center">
+                  <div className="animate-pulse bg-gray-200 rounded-full w-6 h-6"></div>
+                </div>
+                <div className="ml-2 animate-pulse bg-gray-200 rounded w-16 h-4"></div>
+              </div>
+            ) : companyName === 'WITHCAR' ? (
+              // For Withcar, show only the logo (which contains the text)
+              <div className="h-8 w-auto flex items-center justify-center">
+                <Image 
+                  src={logoPath || '/images/organizations/withcar-logo.png'} 
+                  alt="WITHCAR Logo" 
+                  width={80}
+                  height={32}
+                  className="object-contain"
+                  priority
+                />
+              </div>
+            ) : (
+              // For other organizations, show logo + text
+              <div className="flex items-center">
+                <div className="h-8 w-8 flex items-center justify-center overflow-hidden">
+                  {logoPath ? (
+                    <Image 
+                      src={logoPath} 
+                      alt={`${companyName} Logo`} 
+                      width={32}
+                      height={32}
+                      className="object-contain"
+                      priority
+                    />
+                  ) : (
+                    <Image 
+                      src="/images/aris-logo.svg" 
+                      alt="ARIS Logo" 
+                      width={32}
+                      height={32}
+                      className="object-contain" 
+                      priority
+                    />
+                  )}
+                </div>
+                <span className="ml-2 font-semibold text-md bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-transparent bg-clip-text">
+                  {companyName}
+                </span>
+              </div>
+            )}
+          </Link>
+        </div>
         <div className="flex items-center space-x-4">
           <button 
             type="button" 

@@ -84,7 +84,9 @@ export async function GET(request: Request) {
       status: item.status || 'active',
       createdAt: item.createdat || item.created_at || new Date().toISOString(),
       updatedAt: item.updatedat || item.updated_at || new Date().toISOString(),
-      lastContact: item.lastcontact || item.last_contact || null
+      // Provide both naming variants to keep UI consistent
+      lastContact: item.lastcontact || item.last_contact || item.lastinteraction || item.last_interaction || null,
+      lastInteraction: item.lastinteraction || item.last_interaction || item.lastcontact || item.last_contact || null
     }));
 
     return NextResponse.json({ contacts, usingSupabase: true });

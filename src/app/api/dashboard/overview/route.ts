@@ -49,39 +49,52 @@ export async function GET(request: NextRequest) {
       }
     }
     
-    // Try to get organization ID from user preferences (for individual users) or organization_members (for org users)
+    // Get organization ID using unified context service for better performance
     console.log('🔍 Dashboard Overview: Getting organization for user:', uid);
     
     let organizationId: string | null = null;
     
     try {
-      // First try to get from user preferences (for individual users)
-      const { data: preferences, error: prefsError } = await supabase
-        .from('user_preferences')
-        .select('current_organization_id')
-        .eq('user_id', uid)
-        .single();
+      // Use unified context service for optimized organization lookup
+      const { getUserOrganization } = await import('@/lib/context/unified-user-context-service');
+      organizationId = await getUserOrganization(uid);
       
-      if (preferences?.current_organization_id) {
-        organizationId = preferences.current_organization_id;
-        console.log('   Found organization from user preferences:', organizationId);
+      if (organizationId) {
+        console.log('✅ Found organization via unified context:', organizationId);
       } else {
-        // Fallback: try organization_members table
-        const { data: member, error: memberError } = await supabase
-          .from('organization_members')
-          .select('organization_id')
-          .eq('user_id', uid)
-          .single();
-          
-        if (member?.organization_id) {
-          organizationId = member.organization_id;
-          console.log('   Found organization from organization_members:', organizationId);
-        } else {
-          console.log('   No organization found for user');
-        }
+        console.log('❌ No organization found for user');
       }
     } catch (error) {
-      console.error('   Error getting organization:', error);
+      console.warn('Unified context failed, using fallback:', error);
+      
+      // Fallback to legacy implementation
+      try {
+        const { data: preferences, error: prefsError } = await supabase
+          .from('user_preferences')
+          .select('current_organization_id')
+          .eq('user_id', uid)
+          .single();
+        
+        if (preferences?.current_organization_id) {
+          organizationId = preferences.current_organization_id;
+          console.log('   Found organization from user preferences (fallback):', organizationId);
+        } else {
+          const { data: member, error: memberError } = await supabase
+            .from('organization_members')
+            .select('organization_id')
+            .eq('user_id', uid)
+            .single();
+            
+          if (member?.organization_id) {
+            organizationId = member.organization_id;
+            console.log('   Found organization from organization_members (fallback):', organizationId);
+          } else {
+            console.log('   No organization found for user (fallback)');
+          }
+        }
+      } catch (fallbackError) {
+        console.error('   Error in fallback organization lookup:', fallbackError);
+      }
     }
     
     let totalContacts = 0;
