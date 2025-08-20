@@ -14,7 +14,7 @@ function EmailAccountsContent() {
   const [loading, setLoading] = useState(true);
   const [emailAccounts, setEmailAccounts] = useState<any[]>([]);
   const [error, setError] = useState<any>(null);
-  const [tableExists, setTableExists] = useState(true); // Default to true to prevent flash
+  const [tableExists, setTableExists] = useState(true);
   const [tableChecked, setTableChecked] = useState(false);
   const [oauthMessage, setOauthMessage] = useState<{ type: 'success' | 'error', message: string } | null>(null);
   const [syncingAccounts, setSyncingAccounts] = useState<Set<string>>(new Set());
@@ -26,7 +26,7 @@ function EmailAccountsContent() {
     error?: string;
   } | null>(null);
   const { toast } = useToast();
-  // Handle OAuth callback messages
+
   useEffect(() => {
     if (searchParams) {
       const success = searchParams.get('success');
@@ -37,32 +37,23 @@ function EmailAccountsContent() {
         const providerName = provider === 'google' ? 'Google Gmail' : 
                            provider === 'microsoft' ? 'Microsoft Outlook' : 'Email';
         setOauthMessage({ type: 'success', message: `${providerName} account connected successfully!` });
-        // Clear the URL parameters
         router.replace('/settings/email-accounts');
       } else if (errorParam) {
         setOauthMessage({ type: 'error', message: `OAuth error: ${errorParam}` });
-        // Clear the URL parameters
         router.replace('/settings/email-accounts');
       }
     }
   }, [searchParams, router]);
 
-  // Handle authentication redirect - only for truly unauthenticated users
-  // Use isLoading to prevent premature redirects during auth loading
   useEffect(() => {
     if (status === 'unauthenticated' && !session && !isLoading) {
-      console.log('Redirecting to signin - user not authenticated');
       router.push('/signin');
     }
   }, [status, session, isLoading, router]);
 
-  // Fetch email accounts when authenticated
   useEffect(() => {
     if (status === 'authenticated' && session?.user && 'id' in session.user && session.user.id) {
-      console.log('Email Settings - Authenticated with user ID:', session.user.id);
       fetchEmailAccounts();
-    } else if (status === 'authenticated') {
-      console.log('Email Settings - Session exists but no user ID found');
     }
   }, [status, session]);
 
@@ -90,7 +81,6 @@ function EmailAccountsContent() {
           breakdown: result.breakdown,
           syncedAt: result.syncedAt
         });
-        // Refresh the accounts list to show updated sync time
         fetchEmailAccounts();
       } else {
         setSyncResult({
@@ -127,9 +117,6 @@ function EmailAccountsContent() {
       const supabase = createClientComponentClient();
       
       try {
-        console.log('🔍 Email Accounts: Fetching for user:', (session.user as any).id);
-        
-        // Try to get user's organization first
         const { data: preferences } = await supabase
           .from('user_preferences')
           .select('current_organization_id')
@@ -137,32 +124,23 @@ function EmailAccountsContent() {
           .single();
         
         const organizationId = preferences?.current_organization_id;
-        console.log('   User organization:', organizationId);
-        
-        // Query email accounts - try both user_id and organization_id
         let data, fetchError;
         
-        // First try direct API call for more permissions
         try {
-          console.log('   Trying direct API call first...');
           const response = await fetch('/api/email/accounts');
           if (response.ok) {
             const apiResult = await response.json();
             if (apiResult.accounts && apiResult.accounts.length > 0) {
-              console.log('   Found', apiResult.accounts.length, 'accounts via API');
               data = apiResult.accounts;
               fetchError = null;
             }
           }
         } catch (apiError) {
-          console.error('   API call failed:', apiError);
+          console.error('API call failed:', apiError);
         }
         
-        // If API call didn't work, try Supabase directly
         if (!data || data.length === 0) {
           if (organizationId) {
-            // For users with organizations, try organization-scoped first
-            console.log('   Trying organization-scoped email accounts...');
             const orgResult = await supabase
               .from('email_accounts')
               .select('*')
@@ -172,10 +150,7 @@ function EmailAccountsContent() {
             if (orgResult.data && orgResult.data.length > 0) {
               data = orgResult.data;
               fetchError = orgResult.error;
-              console.log('   Found', data.length, 'organization email accounts');
             } else {
-              // Fallback to user-scoped
-              console.log('   No org accounts, trying user-scoped...');
               const userResult = await supabase
                 .from('email_accounts')
                 .select('*')
@@ -184,11 +159,8 @@ function EmailAccountsContent() {
               
               data = userResult.data;
               fetchError = userResult.error;
-              console.log('   Found', data?.length || 0, 'user email accounts');
             }
           } else {
-            // For users without organizations, use user_id
-            console.log('   No organization, trying user-scoped only...');
             const userResult = await supabase
               .from('email_accounts')
               .select('*')
@@ -197,18 +169,14 @@ function EmailAccountsContent() {
             
             data = userResult.data;
             fetchError = userResult.error;
-            console.log('   Found', data?.length || 0, 'user email accounts');
           }
         }
         
         if (fetchError) {
-          // Check if the error is because the table doesn't exist
-          if (fetchError.code === '42P01') { // PostgreSQL code for undefined_table
-            console.warn('Email accounts table does not exist yet');
+          if (fetchError.code === '42P01') {
             setTableExists(false);
             setTableChecked(true);
           } else {
-            console.error('Error fetching email accounts:', fetchError);
             setError(fetchError);
             setTableChecked(true);
           }
@@ -249,7 +217,7 @@ function EmailAccountsContent() {
   }
 
   if (status === 'unauthenticated' && !session && !isLoading) {
-    return null; // The useEffect will handle the redirect
+    return null;
   }
 
   return (
@@ -367,258 +335,137 @@ function EmailAccountsContent() {
               <p className="text-sm text-yellow-700">
                 <strong>Email accounts table not found.</strong> You need to create the <code>email_accounts</code> table in your Supabase database.
               </p>
-              <div className="mt-2 text-sm text-yellow-700">
-                <p className="font-medium">To create the table:</p>
-                <ol className="list-decimal pl-5 mt-1 space-y-1">
-                  <li>Go to your Supabase dashboard</li>
-                  <li>Navigate to SQL Editor</li>
-                  <li>Run the SQL provided below</li>
-                </ol>
-                <p className="mt-2">After creating the table, refresh this page.</p>
-              </div>
-              <pre className="mt-2 text-xs bg-gray-100 p-2 rounded overflow-auto">
-                {`CREATE TABLE IF NOT EXISTS public.email_accounts (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id UUID NOT NULL,
-  organization_id UUID,
-  provider_type TEXT NOT NULL,
-  email TEXT NOT NULL,
-  display_name TEXT,
-  username TEXT,
-  password TEXT,
-  password_encrypted TEXT,
-  imap_host TEXT,
-  imap_port INTEGER,
-  imap_security TEXT,
-  smtp_host TEXT,
-  smtp_port INTEGER,
-  smtp_security TEXT,
-  access_token TEXT,
-  refresh_token TEXT,
-  token_expires_at TIMESTAMP WITH TIME ZONE,
-  is_active BOOLEAN DEFAULT true,
-  last_sync_at TIMESTAMP WITH TIME ZONE,
-  sync_error TEXT,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
-);
-
-ALTER TABLE public.email_accounts ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Users can view their own email accounts"
-  ON public.email_accounts
-  FOR SELECT
-  USING (auth.uid() = user_id);
-
-CREATE POLICY "Users can insert their own email accounts"
-  ON public.email_accounts
-  FOR INSERT
-  WITH CHECK (auth.uid() = user_id);
-
-CREATE POLICY "Users can update their own email accounts"
-  ON public.email_accounts
-  FOR UPDATE
-  USING (auth.uid() = user_id);
-
-CREATE POLICY "Users can delete their own email accounts"
-  ON public.email_accounts
-  FOR DELETE
-  USING (auth.uid() = user_id);
-
-CREATE INDEX email_accounts_user_id_idx ON public.email_accounts (user_id);
-CREATE INDEX email_accounts_organization_id_idx ON public.email_accounts (organization_id);
-CREATE INDEX email_accounts_email_idx ON public.email_accounts (email);`}
-              </pre>
             </div>
           </div>
         </div>
       )}
       
-      {/* Instructions */}
-      <div className="bg-card rounded-lg border p-6">
-        <h3 className="text-lg font-semibold mb-2">Managing Email Accounts</h3>
-        <p className="text-sm text-muted-foreground mb-4">
-          Connect your email accounts to ARIS to access emails, contacts, and calendar events. You can 
-          connect both Microsoft Outlook accounts (using OAuth) and standard email accounts (using IMAP/SMTP).
-        </p>
-        
-        {/* Gmail IMAP Instructions */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-          <h4 className="font-medium text-blue-900 mb-2">📧 Gmail Setup (IMAP)</h4>
-          <p className="text-sm text-blue-800 mb-3">
-            While our Gmail OAuth is under Google verification, you can connect Gmail using IMAP:
-          </p>
-          <div className="text-sm text-blue-800 space-y-1">
-            <p><strong>1.</strong> Enable 2-Factor Authentication on your Gmail account</p>
-            <p><strong>2.</strong> Generate an App Password: Google Account → Security → App Passwords</p>
-            <p><strong>3.</strong> Use these IMAP settings:</p>
-            <div className="bg-blue-100 rounded p-2 mt-2 font-mono text-xs">
-              <div>Server: imap.gmail.com</div>
-              <div>Port: 993</div>
-              <div>Security: SSL/TLS</div>
-              <div>Username: your-email@gmail.com</div>
-              <div>Password: [App Password - not your regular password]</div>
-            </div>
-          </div>
-        </div>
-        
-        <Link 
-          href="/docs/email-account-setup-guide.md"
-          className="text-blue-600 hover:underline text-sm"
-          target="_blank"
-        >
-          View detailed setup guide
-        </Link>
-      </div>
-      
-      {/* Connected Email Accounts */}
       {tableExists && tableChecked && (
         <div className="space-y-4">
-          {/* Sync Information Panel */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <h3 className="text-lg font-semibold text-blue-800 mb-2">📧 Email Sync</h3>
-            <div className="text-sm text-blue-700 space-y-2">
-              <p><strong>What does sync do?</strong> Downloads your recent emails (up to 5,000) from your email server to our database for AI learning.</p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
-                <div className="bg-white p-3 rounded border">
-                  <p><strong>📥 Inbox:</strong> Up to 2,500 received emails</p>
-                  <p><strong>📤 Sent:</strong> Up to 2,500 sent emails</p>
-                </div>
-                <div className="bg-white p-3 rounded border">
-                  <p><strong>🔒 Safe:</strong> Only you can see your emails</p>
-                  <p><strong>⚡ Smart:</strong> Skips already synced emails</p>
-                </div>
-              </div>
-              <p className="text-xs text-blue-600 mt-2">
-                <strong>Tip:</strong> Sync once, then use Email Learning to analyze patterns and improve AI responses.
-              </p>
-            </div>
-          </div>
-          
           <h2 className="text-xl font-semibold">Connected Email Accounts</h2>
           <div className="bg-card rounded-lg border overflow-hidden">
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-border">
-            <thead className="bg-muted/50">
-              <tr>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                  Email Address
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                  Provider Type
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                  Status
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                  Added On
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                  Last Sync
-                </th>
-                <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider w-48">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-card divide-y divide-border">
-              {emailAccounts && emailAccounts.length > 0 ? (
-                emailAccounts.map((account) => (
-                  <tr key={account.id}>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium">{account.email}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                        account.provider_type === 'outlook' || account.provider_type === 'microsoft'
-                          ? 'bg-blue-100 text-blue-800' 
-                          : account.provider_type === 'google'
-                          ? 'bg-red-100 text-red-800'
-                          : 'bg-green-100 text-green-800'
-                      }`}>
-                        {account.provider_type === 'outlook' || account.provider_type === 'microsoft'
-                          ? 'Microsoft Outlook' 
-                          : account.provider_type === 'google'
-                          ? 'Google Gmail'
-                          : 'IMAP/SMTP'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                        account.is_active !== false  // Treat undefined/null as active too
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-red-100 text-red-800'
-                      }`}>
-                        {account.is_active !== false ? 'Active' : 'Inactive'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {new Date(account.created_at).toLocaleDateString()}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {account.last_sync_at ? (
-                        <div>
-                          <div className="text-green-600 font-medium">
-                            {new Date(account.last_sync_at).toLocaleDateString()}
-                          </div>
-                          <div className="text-xs text-gray-400">
-                            {new Date(account.last_sync_at).toLocaleTimeString()}
-                          </div>
-                        </div>
-                      ) : (
-                        <span className="text-gray-400 italic">Never synced</span>
-                      )}
-                      {account.sync_error && (
-                        <div className="text-red-500 text-xs mt-1" title={account.sync_error}>
-                          ⚠️ Sync error
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium w-48">
-                      <div className="flex justify-end space-x-2">
-                        <button
-                          onClick={() => handleSyncEmails(account.id)}
-                          disabled={syncingAccounts.has(account.id)}
-                          className="text-green-600 hover:text-green-900 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          {syncingAccounts.has(account.id) ? 'Syncing...' : 'Sync'}
-                        </button>
-                        <Link 
-                          href={`/settings/email-accounts/test/${account.id}`}
-                          className="text-blue-600 hover:text-blue-900"
-                        >
-                          Test
-                        </Link>
-                        <Link 
-                          href={`/settings/email-accounts/edit/${account.id}`}
-                          className="text-indigo-600 hover:text-indigo-900"
-                        >
-                          Edit
-                        </Link>
-                        <Link 
-                          href={`/settings/email-accounts/delete/${account.id}`}
-                          className="text-red-600 hover:text-red-900"
-                        >
-                          Remove
-                        </Link>
-                      </div>
-                    </td>
+                <thead className="bg-muted/50">
+                  <tr>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                      Email Address
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                      Provider Type
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                      Status
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                      Added On
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                      Last Sync
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider w-48">
+                      Actions
+                    </th>
                   </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={6} className="px-6 py-4 text-center text-sm text-muted-foreground">
-                    No email accounts connected yet. Add an account to get started.
-                  </td>
-                </tr>
-              )}
-            </tbody>
+                </thead>
+                <tbody className="bg-card divide-y divide-border">
+                  {emailAccounts && emailAccounts.length > 0 ? (
+                    emailAccounts.map((account) => (
+                      <tr key={account.id}>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm font-medium">{account.email}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                            account.provider_type === 'outlook' || account.provider_type === 'microsoft'
+                              ? 'bg-blue-100 text-blue-800' 
+                              : account.provider_type === 'google'
+                              ? 'bg-red-100 text-red-800'
+                              : 'bg-green-100 text-green-800'
+                          }`}>
+                            {account.provider_type === 'outlook' || account.provider_type === 'microsoft'
+                              ? 'Microsoft Outlook' 
+                              : account.provider_type === 'google'
+                              ? 'Google Gmail'
+                              : 'IMAP/SMTP'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                            account.is_active !== false
+                              ? 'bg-green-100 text-green-800' 
+                              : 'bg-red-100 text-red-800'
+                          }`}>
+                            {account.is_active !== false ? 'Active' : 'Inactive'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {new Date(account.created_at).toLocaleDateString()}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {account.last_sync_at ? (
+                            <div>
+                              <div className="text-green-600 font-medium">
+                                {new Date(account.last_sync_at).toLocaleDateString()}
+                              </div>
+                              <div className="text-xs text-gray-400">
+                                {new Date(account.last_sync_at).toLocaleTimeString()}
+                              </div>
+                            </div>
+                          ) : (
+                            <span className="text-gray-400 italic">Never synced</span>
+                          )}
+                          {account.sync_error && (
+                            <div className="text-red-500 text-xs mt-1" title={account.sync_error}>
+                              ⚠️ Sync error
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium w-48">
+                          <div className="flex justify-end space-x-2">
+                            <button
+                              onClick={() => handleSyncEmails(account.id)}
+                              disabled={syncingAccounts.has(account.id)}
+                              className="text-green-600 hover:text-green-900 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {syncingAccounts.has(account.id) ? 'Syncing...' : 'Sync'}
+                            </button>
+                            <Link 
+                              href={`/settings/email-accounts/test/${account.id}`}
+                              className="text-blue-600 hover:text-blue-900"
+                            >
+                              Test
+                            </Link>
+                            <Link 
+                              href={`/settings/email-accounts/edit/${account.id}`}
+                              className="text-indigo-600 hover:text-indigo-900"
+                            >
+                              Edit
+                            </Link>
+                            <Link 
+                              href={`/settings/email-accounts/delete/${account.id}`}
+                              className="text-red-600 hover:text-red-900"
+                            >
+                              Remove
+                            </Link>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={6} className="px-6 py-4 text-center text-sm text-muted-foreground">
+                        No email accounts connected yet. Add an account to get started.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
               </table>
             </div>
           </div>
+        </div>
       )}
 
-      {/* Sync Result Modal */}
       {syncResult && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
@@ -639,9 +486,6 @@ CREATE INDEX email_accounts_email_idx ON public.email_accounts (email);`}
                       Synced at: {new Date(syncResult.syncedAt).toLocaleString()}
                     </p>
                   </div>
-                  <div className="mt-4 p-3 bg-blue-50 rounded text-sm text-blue-800">
-                    <p><strong>💡 Next Step:</strong> Go to Email Learning settings to analyze these emails and improve your AI responses!</p>
-                  </div>
                 </>
               ) : (
                 <>
@@ -652,9 +496,6 @@ CREATE INDEX email_accounts_email_idx ON public.email_accounts (email);`}
                   <p className="text-sm text-gray-600 mb-4">
                     {syncResult.error}
                   </p>
-                  <div className="mt-4 p-3 bg-yellow-50 rounded text-sm text-yellow-800">
-                    <p><strong>💡 Tip:</strong> Check your email credentials and try again. Some email providers require app-specific passwords.</p>
-                  </div>
                 </>
               )}
             </div>
@@ -665,17 +506,6 @@ CREATE INDEX email_accounts_email_idx ON public.email_accounts (email);`}
               >
                 Close
               </button>
-              {syncResult.success && (
-                <button
-                  onClick={() => {
-                    setSyncResult(null);
-                    router.push('/settings/learning');
-                  }}
-                  className="flex-1 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
-                >
-                  Go to Learning →
-                </button>
-              )}
             </div>
           </div>
         </div>
