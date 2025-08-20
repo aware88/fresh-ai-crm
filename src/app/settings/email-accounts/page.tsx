@@ -497,7 +497,8 @@ CREATE INDEX email_accounts_email_idx ON public.email_accounts (email);`}
           
           <h2 className="text-xl font-semibold">Connected Email Accounts</h2>
           <div className="bg-card rounded-lg border overflow-hidden">
-          <table className="min-w-full divide-y divide-border">
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-border">
             <thead className="bg-muted/50">
               <tr>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
@@ -515,7 +516,7 @@ CREATE INDEX email_accounts_email_idx ON public.email_accounts (email);`}
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Last Sync
                 </th>
-                <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider w-48">
                   Actions
                 </th>
               </tr>
@@ -573,32 +574,34 @@ CREATE INDEX email_accounts_email_idx ON public.email_accounts (email);`}
                         </div>
                       )}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <button
-                        onClick={() => handleSyncEmails(account.id)}
-                        disabled={syncingAccounts.has(account.id)}
-                        className="text-green-600 hover:text-green-900 mr-4 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {syncingAccounts.has(account.id) ? 'Syncing...' : 'Sync'}
-                      </button>
-                      <Link 
-                        href={`/settings/email-accounts/test/${account.id}`}
-                        className="text-blue-600 hover:text-blue-900 mr-4"
-                      >
-                        Test
-                      </Link>
-                      <Link 
-                        href={`/settings/email-accounts/edit/${account.id}`}
-                        className="text-indigo-600 hover:text-indigo-900 mr-4"
-                      >
-                        Edit
-                      </Link>
-                      <Link 
-                        href={`/settings/email-accounts/delete/${account.id}`}
-                        className="text-red-600 hover:text-red-900"
-                      >
-                        Remove
-                      </Link>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium w-48">
+                      <div className="flex justify-end space-x-2">
+                        <button
+                          onClick={() => handleSyncEmails(account.id)}
+                          disabled={syncingAccounts.has(account.id)}
+                          className="text-green-600 hover:text-green-900 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {syncingAccounts.has(account.id) ? 'Syncing...' : 'Sync'}
+                        </button>
+                        <Link 
+                          href={`/settings/email-accounts/test/${account.id}`}
+                          className="text-blue-600 hover:text-blue-900"
+                        >
+                          Test
+                        </Link>
+                        <Link 
+                          href={`/settings/email-accounts/edit/${account.id}`}
+                          className="text-indigo-600 hover:text-indigo-900"
+                        >
+                          Edit
+                        </Link>
+                        <Link 
+                          href={`/settings/email-accounts/delete/${account.id}`}
+                          className="text-red-600 hover:text-red-900"
+                        >
+                          Remove
+                        </Link>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -610,9 +613,9 @@ CREATE INDEX email_accounts_email_idx ON public.email_accounts (email);`}
                 </tr>
               )}
             </tbody>
-          </table>
-        </div>
-        </div>
+              </table>
+            </div>
+          </div>
       )}
 
       {/* Sync Result Modal */}

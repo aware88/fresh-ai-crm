@@ -16,6 +16,8 @@ import { UnifiedAIDraftingService } from '@/lib/ai/unified-drafting-service';
 import { UnifiedAIAnalysisService } from '@/lib/ai/unified-analysis-service';
 import { ModelRouterService, TaskComplexity } from '@/lib/ai/model-router-service';
 import { emailAIStreaming } from './email-ai-streaming';
+import { autoReplyService } from './auto-reply-service';
+import { emailFilterService } from './email-filter-service';
 
 export interface BackgroundProcessingResult {
   success: boolean;
@@ -32,7 +34,10 @@ export interface BackgroundProcessingResult {
     confidence: number;
     processingTime: number;
   };
-  cached: boolean;
+  cached?: boolean;
+  skipped?: boolean;
+  reason?: string;
+  category?: string;
   error?: string;
 }
 
@@ -117,11 +122,30 @@ export class BackgroundAIProcessor {
         throw new Error(`Email ${emailId} not found`);
       }
 
-      // 3. Determine task complexity for model selection
+      // 3. Check if email should be filtered (newsletters, auto-replies, etc.)
+      const filterResult = await emailFilterService.shouldProcessEmail({
+        from: emailData.from || '',
+        subject: emailData.subject || '',
+        body: emailData.body || '',
+        headers: emailData.headers
+      });
+
+      if (!filterResult.shouldProcess) {
+        console.log(`[BackgroundAI] Skipping email ${emailId}: ${filterResult.reason}`);
+        return {
+          success: true,
+          emailId,
+          skipped: true,
+          reason: filterResult.reason,
+          category: filterResult.category
+        };
+      }
+
+      // 4. Determine task complexity for model selection
       const complexity = this.determineTaskComplexity(emailData);
       console.log(`[BackgroundAI] Task complexity: ${complexity}`);
 
-      // 4. Run AI Analysis and Draft Generation in PARALLEL
+      // 5. Run AI Analysis and Draft Generation in PARALLEL
       const parallelTasks = [];
 
       // Always run analysis
@@ -138,7 +162,7 @@ export class BackgroundAIProcessor {
       const analysisResult = results[0].status === 'fulfilled' ? results[0].value : null;
       const draftResult = !skipDraft && results[1] && results[1].status === 'fulfilled' ? results[1].value : null;
 
-      // 5. Cache results for instant UI access
+      // 6. Cache results for instant UI access
       await this.cacheResults(emailId, analysisResult, draftResult);
 
       const totalTime = Date.now() - startTime;

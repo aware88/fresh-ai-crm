@@ -308,21 +308,36 @@ export class RoleService {
    * Check if a user is a system admin
    */
   static async isSystemAdmin(userId: string): Promise<boolean> {
-    const supabase = await createServerClient();
-    
-    // Get user roles
-    const { data: userRoles, error: rolesError } = await supabase
-      .from('user_roles')
-      .select('roles(*)')
-      .eq('user_id', userId);
+    try {
+      const supabase = await createServerClient();
+      
+      // Get user roles
+      const { data: userRoles, error: rolesError } = await supabase
+        .from('user_roles')
+        .select('roles(*)')
+        .eq('user_id', userId);
 
-    if (rolesError) {
-      console.error('Error checking if user is system admin:', rolesError);
-      throw new Error('Failed to check if user is system admin');
+      if (rolesError) {
+        console.error('Error checking if user is system admin:', rolesError);
+        // If it's a permission error, assume user is not a system admin
+        if (rolesError.code === '42501') {
+          console.warn('Permission denied accessing user roles, assuming user is not system admin');
+          return false;
+        }
+        throw new Error('Failed to check if user is system admin');
+      }
+
+      if (!userRoles || userRoles.length === 0) {
+        return false;
+      }
+
+      // Check if any role is a system admin role
+      return userRoles.some(ur => (ur.roles as Role).type === RoleType.SYSTEM_ADMIN);
+    } catch (error) {
+      console.error('Exception in isSystemAdmin:', error);
+      // In case of any error, assume user is not a system admin for security
+      return false;
     }
-
-    // Check if any role is a system admin role
-    return userRoles.some(ur => (ur.roles as Role).type === RoleType.SYSTEM_ADMIN);
   }
 
   /**

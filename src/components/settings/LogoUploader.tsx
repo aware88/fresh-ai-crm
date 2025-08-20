@@ -23,45 +23,53 @@ export function LogoUploader() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
-  // Check for logo and company name in localStorage on component mount
+  // Check for logo and company name on component mount - prioritize API over localStorage
   useEffect(() => {
-    // Load logo from localStorage
-    const savedLogo = localStorage.getItem('companyLogo');
-    if (savedLogo) {
-      setCurrentLogo(savedLogo);
-    }
-    
-    // Load company name from localStorage
-    const savedCompanyName = localStorage.getItem('companyName');
-    if (savedCompanyName) {
-      setCompanyName(savedCompanyName);
-    }
-    
-    // If no logo in localStorage, fetch from API as fallback
-    if (!savedLogo) {
-      const fetchLogo = async () => {
-        try {
-          const response = await fetch('/api/logo/get');
-          if (response.ok) {
-            const data = await response.json();
-            if (data.logoPath) {
-              setCurrentLogo(data.logoPath);
-              localStorage.setItem('companyLogo', data.logoPath);
-              
-              // Emit formdata event for the parent SettingsForm
-              document.dispatchEvent(new CustomEvent('formdata', {
-                bubbles: true,
-                detail: { logoUrl: data.logoPath }
-              }));
-            }
+    const loadBrandingData = async () => {
+      try {
+        // Always fetch from API first to ensure organization-specific branding
+        const response = await fetch('/api/logo/get');
+        if (response.ok) {
+          const data = await response.json();
+          if (data.logoUrl) {
+            setCurrentLogo(data.logoUrl);
+            localStorage.setItem('companyLogo', data.logoUrl);
+            
+            // Emit formdata event for the parent SettingsForm
+            document.dispatchEvent(new CustomEvent('formdata', {
+              bubbles: true,
+              detail: { logoUrl: data.logoUrl }
+            }));
+          } else {
+            // If no logo from API, clear localStorage to avoid stale data
+            localStorage.removeItem('companyLogo');
+            setCurrentLogo(null);
           }
-        } catch (error) {
-          console.error('Error fetching logo:', error);
+        } else {
+          // API failed, fallback to localStorage but warn about potential stale data
+          console.warn('Logo API failed, using localStorage fallback (may be stale)');
+          const savedLogo = localStorage.getItem('companyLogo');
+          if (savedLogo) {
+            setCurrentLogo(savedLogo);
+          }
         }
-      };
+      } catch (error) {
+        console.error('Error fetching logo:', error);
+        // Fallback to localStorage on error
+        const savedLogo = localStorage.getItem('companyLogo');
+        if (savedLogo) {
+          setCurrentLogo(savedLogo);
+        }
+      }
       
-      fetchLogo();
-    }
+      // Load company name from localStorage (this is still valid to cache)
+      const savedCompanyName = localStorage.getItem('companyName');
+      if (savedCompanyName) {
+        setCompanyName(savedCompanyName);
+      }
+    };
+    
+    loadBrandingData();
   }, []);
 
   // Set loading to false after initial setup

@@ -111,3 +111,7 @@ If the OAuth approach still has issues:
 ---
 
 **Bottom Line**: All technical barriers removed. Once Zarfin accepts the invitation and connects his Microsoft account, the WithCar email integration will be fully operational with unlimited capacity.
+
+
+
+

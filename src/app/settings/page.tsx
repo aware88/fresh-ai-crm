@@ -25,6 +25,7 @@ export default function ProfileSettings() {
     bio: '',
     company: ''
   });
+  const [saving, setSaving] = useState(false);
 
   // Load saved profile data from localStorage on mount and initialize with session data
   useEffect(() => {
@@ -103,13 +104,14 @@ export default function ProfileSettings() {
   
 
 
-  const handleSaveProfile = async (data: any) => {
+  const handleSaveProfile = async () => {
+    setSaving(true);
     try {
       // Save profile data to localStorage (always works)
       const profileData = {
-        name: data.name,
-        bio: data.bio,
-        company: data.company
+        name: formData.name,
+        bio: formData.bio,
+        company: formData.company
       };
       
       localStorage.setItem('user-profile', JSON.stringify(profileData));
@@ -122,8 +124,8 @@ export default function ProfileSettings() {
             .from('profiles')
             .upsert({
               id: user.id,
-              name: data.name,
-              bio: data.bio,
+              name: profileData.name,
+              bio: profileData.bio,
               updated_at: new Date().toISOString()
             });
             
@@ -136,13 +138,13 @@ export default function ProfileSettings() {
       }
       
       // Update the session with the new name
-      if (data.name !== user?.name) {
+      if (profileData.name !== user?.name) {
         try {
           await updateSession({
             ...session,
             user: {
               ...session?.user,
-              name: data.name
+              name: profileData.name
             }
           });
         } catch (sessionError) {
@@ -175,6 +177,13 @@ export default function ProfileSettings() {
         }
       }
       
+      // Show success toast
+      toast({
+        title: "Profile Saved",
+        description: "Your profile has been updated successfully.",
+        variant: "default",
+      });
+      
     } catch (error) {
       console.error('Error saving profile:', error);
       toast({
@@ -183,6 +192,8 @@ export default function ProfileSettings() {
         variant: "destructive",
       });
       throw error;
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -246,12 +257,25 @@ export default function ProfileSettings() {
   }
 
   return (
-    <SettingsForm
-      title="Profile"
-      description="Manage your personal information and identity details for AI email analysis."
-      onSave={handleSaveProfile}
-      initialData={formData}
-    >
+    <div className="space-y-8">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">Profile</h2>
+          <p className="text-gray-600 mt-1">Manage your personal information and identity details for AI email analysis</p>
+        </div>
+        <Button onClick={handleSaveProfile} disabled={saving} className="gap-2">
+          {saving ? (
+            <>
+              <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
+              Saving...
+            </>
+          ) : (
+            'Save Profile'
+          )}
+        </Button>
+      </div>
+      
       <Card>
         <CardHeader>
           <CardTitle>Your Profile</CardTitle>
@@ -328,6 +352,6 @@ export default function ProfileSettings() {
           </div>
         </CardContent>
       </Card>
-    </SettingsForm>
+    </div>
   );
 }

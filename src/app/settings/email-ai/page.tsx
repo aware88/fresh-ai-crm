@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import AIEmailPreferencesChat from '@/components/email/AIEmailPreferencesChat';
+import AutoReplySettings from '@/components/settings/AutoReplySettings';
 
 interface AIEmailSettings {
   // AI Draft Assistant
@@ -607,6 +608,9 @@ export default function AIEmailSettingsPage() {
           </div>
         </div>
       )}
+
+      {/* Auto-Reply Settings */}
+      <AutoReplySettings />
 
       {/* Save Button */}
       <div className="flex justify-end">

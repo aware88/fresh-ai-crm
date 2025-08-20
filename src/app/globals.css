@@ -517,3 +517,78 @@ html {
 }
 
 /* Remove duplicate - handled above */
+
+/* Custom background colors for email states */
+.bg-blue-25 {
+  background-color: #eff6ff;
+}
+
+.hover\:bg-blue-25:hover {
+  background-color: #eff6ff;
+}
+
+/* Enhanced email selection and unread styles */
+.email-list-item.selected {
+  background-color: #dbeafe !important;
+  border-color: #3b82f6 !important;
+  box-shadow: 0 1px 3px rgba(59, 130, 246, 0.12) !important;
+}
+
+.email-list-item.unread {
+  background-color: #eff6ff !important;
+  border-left: 4px solid #3b82f6 !important;
+}
+
+.email-list-item.unread .email-subject {
+  font-weight: 700 !important;
+  color: #1e40af !important;
+}
+
+/* Global Layout Constraints - Ensure all app windows fit screen */
+.app-container {
+  height: 100vh;
+  overflow: hidden;
+}
+
+.app-main-content {
+  height: calc(100vh - 64px); /* Subtract header height */
+  overflow: hidden;
+}
+
+.dashboard-page {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.dashboard-content {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Scrollable content areas - only for lists and content that should scroll */
+.scrollable-content {
+  overflow-y: auto;
+  height: 100%;
+}
+
+.scrollable-list {
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+/* Tab content height constraints */
+.tab-content-full-height {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.tab-content-scrollable {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}

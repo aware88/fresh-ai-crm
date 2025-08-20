@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import AITokenBalance from '@/components/subscription/AITokenBalance';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { 
@@ -29,6 +30,7 @@ import {
 import { useSession } from 'next-auth/react';
 import { useOrganization } from '@/hooks/useOrganization';
 import { formatPriceEUR } from '@/lib/subscription-plans-v2';
+import AnalyticsSummaryCards from '@/components/dashboard/AnalyticsSummaryCards';
 
 // Types for dashboard statistics
 interface DashboardStats {
@@ -151,7 +153,7 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 min-h-screen pb-8">
       {/* Hero Section */}
       <div className="text-center py-8 rounded-2xl border border-gray-100 bg-white">
         <h1 className="text-4xl font-bold tracking-tight aris-text-gradient mb-2">
@@ -248,12 +250,18 @@ export default function DashboardPage() {
 
       {/* Main Content Tabs */}
       <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3 h-12 bg-gradient-to-r from-slate-50 to-slate-100 border border-slate-200 shadow-sm">
+        <TabsList className="grid w-full grid-cols-4 h-12 bg-gradient-to-r from-slate-50 to-slate-100 border border-slate-200 shadow-sm">
           <TabsTrigger 
             value="overview" 
             className="font-semibold text-slate-700 data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-blue-200 transition-all duration-200"
           >
             📊 Overview
+          </TabsTrigger>
+          <TabsTrigger 
+            value="analytics" 
+            className="font-semibold text-slate-700 data-[state=active]:bg-white data-[state=active]:text-indigo-600 data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-indigo-200 transition-all duration-200"
+          >
+            🧠 AI Analytics
           </TabsTrigger>
           <TabsTrigger 
             value="recent" 
@@ -302,6 +310,9 @@ export default function DashboardPage() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* AI Token Balance */}
+            <AITokenBalance variant="card" className="border-0 shadow-lg" />
 
             <Card className="border-0 shadow-lg">
               <CardHeader>
@@ -376,6 +387,91 @@ export default function DashboardPage() {
                 </div>
               </CardContent>
             </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="analytics" className="space-y-6">
+          {/* Analytics Summary Overview */}
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-bold tracking-tight">Analytics Overview</h2>
+                <p className="text-muted-foreground">
+                  Quick insights into your AI performance, follow-ups, and revenue opportunities
+                </p>
+              </div>
+              <Link href="/dashboard/analytics">
+                <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
+                  <BarChart className="mr-2 h-4 w-4" />
+                  View Full Analytics
+                </Button>
+              </Link>
+            </div>
+            
+            <AnalyticsSummaryCards />
+            
+            {/* Quick Action Cards */}
+            <div className="grid gap-4 md:grid-cols-2">
+              <Card className="border-0 shadow-md">
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center text-base">
+                    <Activity className="mr-2 h-4 w-4 text-orange-600" />
+                    Recent AI Activity
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Email responses generated</span>
+                      <span className="font-medium">12 today</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Follow-ups scheduled</span>
+                      <span className="font-medium">3 pending</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Upsell opportunities</span>
+                      <span className="font-medium">2 identified</span>
+                    </div>
+                  </div>
+                  <Link href="/dashboard/email">
+                    <Button variant="outline" size="sm" className="w-full mt-4">
+                      Manage Email AI
+                    </Button>
+                  </Link>
+                </CardContent>
+              </Card>
+              
+              <Card className="border-0 shadow-md">
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center text-base">
+                    <MessageSquare className="mr-2 h-4 w-4 text-blue-600" />
+                    Action Items
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Pending follow-ups</span>
+                      <span className="font-medium text-orange-600">3 due</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Draft reviews</span>
+                      <span className="font-medium text-blue-600">1 waiting</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">High-value leads</span>
+                      <span className="font-medium text-green-600">2 to contact</span>
+                    </div>
+                  </div>
+                  <Link href="/dashboard/analytics?tab=email-analytics">
+                    <Button variant="outline" size="sm" className="w-full mt-4">
+                      View All Actions
+                    </Button>
+                  </Link>
+                </CardContent>
+              </Card>
+            </div>
           </div>
         </TabsContent>
 

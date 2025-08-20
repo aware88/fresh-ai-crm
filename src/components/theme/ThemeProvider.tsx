@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { BrandingTheme } from '@/types/branding';
 
 import { useOrganization } from '@/hooks/useOrganization';
+import { useOrganizationBranding } from '@/hooks/useOrganizationBranding';
 
 interface ThemeProviderProps {
   children: React.ReactNode;
@@ -146,110 +147,67 @@ export function ThemeProvider({ children, ...props }: ThemeProviderProps) {
     }
   }, [organization, orgLoading, getInitialTheme, initialThemeSet, brandingTheme]);
 
-  // Fetch detailed organization branding (may override initial theme)
+  // Use the useOrganizationBranding hook instead of making direct API calls
+  const { branding: hookBranding, loading: hookBrandingLoading } = useOrganizationBranding();
+
+  // Update theme when branding from hook changes
   useEffect(() => {
-    const fetchBranding = async () => {
-      // Skip if organization is still loading or initial theme not set
-      if (orgLoading || !initialThemeSet) {
-        return;
-      }
+    // Skip if organization is still loading or initial theme not set
+    if (orgLoading || !initialThemeSet || hookBrandingLoading) {
+      setBrandingLoading(hookBrandingLoading);
+      return;
+    }
 
-      // If no organization, use default branding
-      if (!organization) {
-        console.log('🎨 ThemeProvider: No organization, using default branding');
-        setBrandingTheme(null);
-        return;
-      }
+    // If no organization, use default branding
+    if (!organization) {
+      console.log('🎨 ThemeProvider: No organization, using default branding');
+      setBrandingTheme(null);
+      setBrandingLoading(false);
+      return;
+    }
 
+    console.log('🎨 ThemeProvider: Using branding from hook for organization:', organization.name);
+    setBrandingLoading(false);
+
+    if (hookBranding) {
+      // Convert hook branding to theme format
+      const normalized: BrandingTheme = {
+        primaryColor: hookBranding.primary_color || '#0f172a',
+        secondaryColor: hookBranding.secondary_color || '#64748b',
+        accentColor: hookBranding.accent_color || '#2563eb',
+        fontFamily: hookBranding.font_family || 'Inter, system-ui, sans-serif',
+        logoUrl: hookBranding.logo_url || undefined,
+        faviconUrl: undefined,
+        organizationId: organization.id,
+      };
+
+      setBrandingTheme(normalized);
+
+      // Cache the theme in localStorage
       try {
-        setBrandingLoading(true);
-        console.log('🎨 ThemeProvider: Fetching branding for organization:', organization.name);
-        
-        const response = await fetch(`/api/organizations/${organization.id}/branding`);
-        
-        if (!response.ok) {
-          if (response.status === 404) {
-            console.log('🎨 ThemeProvider: No custom branding found, using defaults');
-            // If this is Withcar, apply our default Withcar brand
-            const orgSlug = organization?.slug?.toLowerCase();
-            const orgName = organization?.name?.toLowerCase();
-            const WITHCAR_ORG_ID = '577485fb-50b4-4bb2-a4c6-54b97e1545ad'; // Only the real Withcar ID
-            const isWithcar = organization.id === WITHCAR_ORG_ID ||
-                              orgSlug === 'withcar' || 
-                              orgName === 'withcar';
-            
-            if (isWithcar) {
-              setBrandingTheme(withcarDefaultBrand);
-            } else {
-              setBrandingTheme(null);
-            }
-            return;
-          }
-          throw new Error(`Failed to fetch branding: ${response.status}`);
-        }
-        
-        const json = await response.json();
-        // API may return either the branding object directly or under the `branding` key, and keys may be snake_case
-        const payload = json?.branding ?? json;
-        const normalized: BrandingTheme = {
-          primaryColor: payload.primaryColor ?? payload.primary_color ?? withcarDefaultBrand.primaryColor,
-          secondaryColor: payload.secondaryColor ?? payload.secondary_color ?? withcarDefaultBrand.secondaryColor,
-          accentColor: payload.accentColor ?? payload.accent_color ?? withcarDefaultBrand.accentColor,
-          fontFamily: payload.fontFamily ?? payload.font_family ?? withcarDefaultBrand.fontFamily,
-          faviconUrl: payload.faviconUrl ?? payload.favicon_url,
-        };
-        
-        // Only update theme if colors actually changed to prevent flashing
-        const currentTheme = brandingTheme;
-        const colorsChanged = !currentTheme || 
-          currentTheme.primaryColor !== normalized.primaryColor ||
-          currentTheme.secondaryColor !== normalized.secondaryColor ||
-          currentTheme.accentColor !== normalized.accentColor;
-        
-        if (colorsChanged) {
-          console.log('🎨 ThemeProvider: Colors changed, updating theme');
-          const themeWithOrgId = {
-            ...normalized,
-            organizationId: organization.id
-          };
-          setBrandingTheme(themeWithOrgId);
-          
-          // Cache the theme to prevent flashing on future loads
-          try {
-            localStorage.setItem('organization-branding', JSON.stringify(themeWithOrgId));
-          } catch (error) {
-            console.warn('Failed to cache branding theme:', error);
-          }
-        } else {
-          console.log('🎨 ThemeProvider: Colors unchanged, skipping theme update');
-        }
-        
+        localStorage.setItem('organization-branding', JSON.stringify(normalized));
+        console.log('🎨 ThemeProvider: Cached updated branding theme');
       } catch (error) {
-        console.error('🎨 ThemeProvider: Error fetching branding:', error);
-        // On error, fall back to Withcar default if applicable
-        const orgSlug = organization?.slug?.toLowerCase();
-        const orgName = organization?.name?.toLowerCase();
-        const WITHCAR_ORG_ID = '577485fb-50b4-4bb2-a4c6-54b97e1545ad'; // Only the real Withcar ID
-        const isWithcar = organization.id === WITHCAR_ORG_ID ||
-                          orgSlug === 'withcar' || 
-                          orgName === 'withcar';
-        
-        if (isWithcar) {
-          const themeWithOrgId = {
-            ...withcarDefaultBrand,
-            organizationId: organization.id
-          };
-          setBrandingTheme(themeWithOrgId);
-        } else {
-          setBrandingTheme(null);
-        }
-      } finally {
-        setBrandingLoading(false);
+        console.warn('Failed to cache branding theme:', error);
       }
-    };
+    } else {
+      // No custom branding, check if this is Withcar for default brand
+      const orgSlug = organization?.slug?.toLowerCase();
+      const orgName = organization?.name?.toLowerCase();
+      const WITHCAR_ORG_ID = '577485fb-50b4-4bb2-a4c6-54b97e1545ad';
+      const isWithcar = organization.id === WITHCAR_ORG_ID ||
+                        orgSlug === 'withcar' || 
+                        orgName === 'withcar';
+      
+      if (isWithcar) {
+        setBrandingTheme(withcarDefaultBrand);
+      } else {
+        setBrandingTheme(null);
+      }
+    }
+  }, [organization, orgLoading, initialThemeSet, hookBranding, hookBrandingLoading, withcarDefaultBrand]);
 
-    fetchBranding();
-  }, [organization, orgLoading, withcarDefaultBrand, initialThemeSet]);
+
   
   // Apply custom CSS variables
   useEffect(() => {

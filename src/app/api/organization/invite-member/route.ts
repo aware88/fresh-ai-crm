@@ -101,7 +101,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Invite the user via Supabase Auth (this creates the user and sends invitation email)
-    const { data: newUser, error: inviteError } = await supabase.auth.admin.inviteUserByEmail(email);
+    const { data: newUser, error: inviteError } = await supabase.auth.admin.inviteUserByEmail(email, {
+      redirectTo: 'https://app.helloaris.com/auth/invitation-accept'
+    });
     
     if (inviteError) {
       console.error('Error inviting user:', inviteError);

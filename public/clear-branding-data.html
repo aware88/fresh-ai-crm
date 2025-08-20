@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Clear Branding Data</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 20px;
+      line-height: 1.6;
+    }
+    h1 {
+      color: #2563eb;
+    }
+    button {
+      background-color: #2563eb;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+      margin-top: 20px;
+    }
+    button:hover {
+      background-color: #1d4ed8;
+    }
+    .result {
+      margin-top: 20px;
+      padding: 15px;
+      border-radius: 4px;
+      display: none;
+    }
+    .success {
+      background-color: #d1fae5;
+      border: 1px solid #10b981;
+      color: #065f46;
+    }
+    .error {
+      background-color: #fee2e2;
+      border: 1px solid #ef4444;
+      color: #b91c1c;
+    }
+    pre {
+      background-color: #f3f4f6;
+      padding: 10px;
+      border-radius: 4px;
+      overflow: auto;
+    }
+  </style>
+</head>
+<body>
+  <h1>Clear Branding Data</h1>
+  <p>This utility will clear all branding-related data from your browser's local storage, including:</p>
+  <ul>
+    <li><strong>companyName</strong> - The company name displayed in the navigation bar</li>
+    <li><strong>companyLogo</strong> - The logo URL stored locally</li>
+  </ul>
+  <p>Use this if you're experiencing issues with incorrect branding information being displayed.</p>
+  
+  <button id="clearBtn">Clear Branding Data</button>
+  
+  <div id="result" class="result"></div>
+
+  <script>
+    document.getElementById('clearBtn').addEventListener('click', function() {
+      try {
+        const resultDiv = document.getElementById('result');
+        
+        // Get current values for display
+        const currentValues = {
+          companyName: localStorage.getItem('companyName'),
+          companyLogo: localStorage.getItem('companyLogo')
+        };
+        
+        // Clear branding items
+        localStorage.removeItem('companyName');
+        localStorage.removeItem('companyLogo');
+        
+        // Display success message
+        resultDiv.className = 'result success';
+        resultDiv.style.display = 'block';
+        resultDiv.innerHTML = `
+          <h3>✅ Branding data cleared successfully!</h3>
+          <p>Previous values:</p>
+          <pre>${JSON.stringify(currentValues, null, 2)}</pre>
+          <p>Please refresh your application to see the changes.</p>
+        `;
+        
+        // Dispatch events to notify the app
+        window.dispatchEvent(new Event('localStorageUpdated'));
+        window.dispatchEvent(new Event('organizationBrandingUpdated'));
+      } catch (error) {
+        const resultDiv = document.getElementById('result');
+        resultDiv.className = 'result error';
+        resultDiv.style.display = 'block';
+        resultDiv.innerHTML = `
+          <h3>❌ Error clearing branding data</h3>
+          <p>Error message: ${error.message}</p>
+        `;
+      }
+    });
+  </script>
+</body>
+</html>
+

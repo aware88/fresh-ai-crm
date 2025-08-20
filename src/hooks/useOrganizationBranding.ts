@@ -11,80 +11,142 @@ interface OrganizationBranding {
   font_family?: string | null;
 }
 
+// Global cache for branding to prevent multiple API calls
+let brandingCache: {
+  [orgId: string]: {
+    data: OrganizationBranding | null;
+    loading: boolean;
+    lastFetch: number;
+    subscribers: Set<(data: any) => void>;
+  };
+} = {};
+
+const BRANDING_CACHE_DURATION = 10 * 60 * 1000; // 10 minutes
+
 export function useOrganizationBranding() {
+  const { organization, loading: orgLoading } = useOrganization();
   const [branding, setBranding] = useState<OrganizationBranding | null>(null);
   const [loading, setLoading] = useState(true);
-  const { organization } = useOrganization();
+
+  // Subscribe to cache updates for this organization
+  useEffect(() => {
+    if (!organization?.id) {
+      setBranding(null);
+      setLoading(false);
+      return;
+    }
+
+    const orgId = organization.id;
+    
+    // Initialize cache for this org if it doesn't exist
+    if (!brandingCache[orgId]) {
+      brandingCache[orgId] = {
+        data: null,
+        loading: false,
+        lastFetch: 0,
+        subscribers: new Set()
+      };
+    }
+
+    const updateState = (cacheData: typeof brandingCache[string]) => {
+      setBranding(cacheData.data);
+      setLoading(cacheData.loading);
+    };
+
+    brandingCache[orgId].subscribers.add(updateState);
+    
+    // Set initial state from cache
+    updateState(brandingCache[orgId]);
+
+    return () => {
+      brandingCache[orgId]?.subscribers.delete(updateState);
+    };
+  }, [organization?.id]);
 
   useEffect(() => {
     const loadBranding = async () => {
-      if (!organization?.id) {
-        setLoading(false);
+      // Wait for organization to load
+      if (orgLoading || !organization?.id) {
+        setLoading(orgLoading);
+        return;
+      }
+
+      const orgId = organization.id;
+      const cache = brandingCache[orgId];
+      
+      // Check if we have fresh cached data
+      const now = Date.now();
+      if (cache.data && (now - cache.lastFetch) < BRANDING_CACHE_DURATION) {
+        console.log('🎨 useOrganizationBranding: Using cached branding data');
+        return;
+      }
+
+      // Prevent multiple simultaneous fetches
+      if (cache.loading) {
+        console.log('🎨 useOrganizationBranding: Already fetching branding, waiting...');
         return;
       }
 
       try {
-        setLoading(true);
+        // Update cache loading state
+        cache.loading = true;
+        cache.subscribers.forEach(callback => callback(cache));
         
         // Try to fetch organization branding from API
         const response = await fetch(`/api/organizations/${organization.id}/branding`);
+        
+        let brandingData: OrganizationBranding;
         
         if (response.ok) {
           const data = await response.json();
           
           if (data.branding) {
-            // If there's no logo_url in the database but this is WITHCAR, use the default
-            const isWithcar = organization.slug?.toLowerCase() === 'withcar' || 
-                             organization.name?.toLowerCase() === 'withcar';
-            
-            const brandingData = {
-              ...data.branding,
-              logo_url: data.branding.logo_url || (isWithcar ? '/images/organizations/withcar-logo.png' : null)
-            };
-            
-            setBranding(brandingData);
+            // Use the branding data as-is from the API
+            brandingData = data.branding;
           } else {
-            // Fallback to default branding with WITHCAR logo if applicable
-            const isWithcar = organization.slug?.toLowerCase() === 'withcar' || 
-                             organization.name?.toLowerCase() === 'withcar';
-            
-            setBranding({
-              logo_url: isWithcar ? '/images/organizations/withcar-logo.png' : null,
-              primary_color: isWithcar ? '#111111' : '#0f172a',
-              secondary_color: isWithcar ? '#1f2937' : '#64748b',
-              accent_color: isWithcar ? '#ff6a00' : '#2563eb',
+            // Fallback to default branding - no hardcoded logos
+            brandingData = {
+              logo_url: null, // Let the API handle organization-specific defaults
+              primary_color: '#0f172a',
+              secondary_color: '#64748b',
+              accent_color: '#2563eb',
               font_family: 'Inter, system-ui, sans-serif'
-            });
+            };
           }
         } else {
-          // API failed, use defaults
-          const isWithcar = organization.slug?.toLowerCase() === 'withcar' || 
-                           organization.name?.toLowerCase() === 'withcar';
-          
-          setBranding({
-            logo_url: isWithcar ? '/images/organizations/withcar-logo.png' : null,
-            primary_color: isWithcar ? '#111111' : '#0f172a',
-            secondary_color: isWithcar ? '#1f2937' : '#64748b',
-            accent_color: isWithcar ? '#ff6a00' : '#2563eb',
+          // API failed, use generic defaults
+          brandingData = {
+            logo_url: null,
+            primary_color: '#0f172a',
+            secondary_color: '#64748b',
+            accent_color: '#2563eb',
             font_family: 'Inter, system-ui, sans-serif'
-          });
+          };
         }
+
+        // Update cache with success
+        cache.data = brandingData;
+        cache.loading = false;
+        cache.lastFetch = Date.now();
+        cache.subscribers.forEach(callback => callback(cache));
+        
       } catch (error) {
         console.error('Error loading organization branding:', error);
         
-        // Error fallback - use defaults
-        const isWithcar = organization.slug?.toLowerCase() === 'withcar' || 
-                         organization.name?.toLowerCase() === 'withcar';
-        
-        setBranding({
-          logo_url: isWithcar ? '/images/organizations/withcar-logo.png' : null,
-          primary_color: isWithcar ? '#111111' : '#0f172a',
-          secondary_color: isWithcar ? '#1f2937' : '#64748b',
-          accent_color: isWithcar ? '#ff6a00' : '#2563eb',
+        // Error fallback - use generic defaults
+        const fallbackBranding = {
+          logo_url: null,
+          primary_color: '#0f172a',
+          secondary_color: '#64748b',
+          accent_color: '#2563eb',
           font_family: 'Inter, system-ui, sans-serif'
-        });
-      } finally {
-        setLoading(false);
+        };
+
+        // Update cache with fallback
+        cache.data = fallbackBranding;
+        cache.loading = false;
+        cache.lastFetch = Date.now();
+        cache.subscribers.forEach(callback => callback(cache));
       }
     };
 
@@ -92,6 +154,10 @@ export function useOrganizationBranding() {
     
     // Listen for branding updates (e.g., from logo uploads)
     const handleBrandingUpdate = () => {
+      if (organization?.id && brandingCache[organization.id]) {
+        // Clear cache to force refresh
+        brandingCache[organization.id].lastFetch = 0;
+      }
       loadBranding();
     };
     
@@ -100,7 +166,7 @@ export function useOrganizationBranding() {
     return () => {
       window.removeEventListener('organizationBrandingUpdated', handleBrandingUpdate);
     };
-  }, [organization]);
+  }, [organization?.id, orgLoading]);
 
   return { branding, loading };
 }

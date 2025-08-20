@@ -26,6 +26,8 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { format, addMonths, addYears } from 'date-fns';
+import AITokenBalance from '@/components/subscription/AITokenBalance';
+import TopUpPackages from '@/components/subscription/TopUpPackages';
 
 interface SubscriptionPlan {
   id: string;
@@ -339,7 +341,7 @@ export default function SubscriptionPage() {
 
   if (isLoading) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-4">
         <div className="animate-pulse space-y-4">
           <div className="h-8 bg-gray-200 rounded w-1/4"></div>
           <div className="h-4 bg-gray-200 rounded w-1/2"></div>
@@ -359,7 +361,7 @@ export default function SubscriptionPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Subscription</h1>
@@ -372,6 +374,9 @@ export default function SubscriptionPage() {
       </div>
 
       {/* Current Subscription Status */}
+      {/* AI Token Balance */}
+      <AITokenBalance variant="detailed" className="mb-6" />
+
       {currentSubscription && currentPlan && (
         <Card>
           <CardHeader>
@@ -429,7 +434,7 @@ export default function SubscriptionPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 gap-4 mb-4">
+            <div className="grid grid-cols-2 gap-3 mb-3">
               <div>
                 <div className="text-sm text-muted-foreground">Current Period</div>
                 <div className="font-medium">
@@ -438,10 +443,8 @@ export default function SubscriptionPage() {
                     const billingCycle = currentSubscription?.metadata?.billing_cycle || currentPlan?.billing_interval || 'monthly';
                     const isAnnual = billingCycle === 'yearly';
                     
-                    // Use metadata plan change date if available, otherwise use current date
-                    const startDate = currentSubscription?.metadata?.plan_change_date 
-                      ? new Date(currentSubscription.metadata.plan_change_date)
-                      : new Date();
+                    // Use current_period_start from subscription data as the actual subscription start date
+                    const startDate = new Date(currentSubscription?.current_period_start || currentSubscription?.created_at);
                     
                     const endDate = isAnnual 
                       ? addYears(startDate, 1)
@@ -459,9 +462,7 @@ export default function SubscriptionPage() {
                     const billingCycle = currentSubscription?.metadata?.billing_cycle || currentPlan?.billing_interval || 'monthly';
                     const isAnnual = billingCycle === 'yearly';
                     
-                    const startDate = currentSubscription?.metadata?.plan_change_date 
-                      ? new Date(currentSubscription.metadata.plan_change_date)
-                      : new Date();
+                    const startDate = new Date(currentSubscription?.current_period_start || currentSubscription?.created_at);
                     
                     const nextBillingDate = isAnnual 
                       ? addYears(startDate, 1)
@@ -482,9 +483,7 @@ export default function SubscriptionPage() {
                     const billingCycle = currentSubscription?.metadata?.billing_cycle || currentPlan?.billing_interval || 'monthly';
                     const isAnnual = billingCycle === 'yearly';
                     
-                    const startDate = currentSubscription?.metadata?.plan_change_date 
-                      ? new Date(currentSubscription.metadata.plan_change_date)
-                      : new Date();
+                    const startDate = new Date(currentSubscription?.current_period_start || currentSubscription?.created_at);
                     
                     const endDate = isAnnual 
                       ? addYears(startDate, 1)
@@ -563,9 +562,9 @@ export default function SubscriptionPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* Starter Plan */}
-            <div className={`border rounded-lg p-4 hover:shadow-md transition-shadow ${isPlanActive('Starter') ? 'border-blue-500 bg-blue-50' : ''}`}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                          {/* Starter Plan */}
+            <div className={`border rounded-lg p-3 hover:shadow-md transition-shadow ${isPlanActive('Starter') ? 'border-blue-500 bg-blue-50' : ''}`}>
               <div className="text-lg font-semibold">Starter</div>
               <div className="text-2xl font-bold mt-2">
                 <span className="text-green-600">
@@ -582,11 +581,11 @@ export default function SubscriptionPage() {
                 </div>
               )}
               <Button 
-                className="w-full mt-4" 
+                className="w-full mt-3" 
                 variant={isPlanActive('Starter') ? 'secondary' : 'default'}
-                disabled={isPlanActive('Starter')}
+                disabled={isPlanActive('Starter') || isPlanActive('Premium')}
                 onClick={() => {
-                  if (!isPlanActive('Starter')) {
+                  if (!isPlanActive('Starter') && !isPlanActive('Premium')) {
                     handleUpgradePlan({
                       id: 'starter',
                       name: 'Starter',
@@ -601,12 +600,12 @@ export default function SubscriptionPage() {
                   }
                 }}
               >
-                {isPlanActive('Starter') ? 'Current Plan' : 'Get Started Free'}
+                {isPlanActive('Starter') ? 'Current Plan' : isPlanActive('Premium') ? 'Not Available' : 'Get Started Free'}
               </Button>
             </div>
 
             {/* Pro Plan */}
-            <div className={`border rounded-lg p-4 hover:shadow-md transition-shadow ${isPlanActive('Pro') ? 'border-blue-500 bg-blue-50' : ''}`}>
+            <div className={`border rounded-lg p-3 hover:shadow-md transition-shadow ${isPlanActive('Pro') ? 'border-blue-500 bg-blue-50' : ''}`}>
               <div className="text-lg font-semibold">Pro</div>
               <div className="text-2xl font-bold mt-2">
                 <span className="text-blue-600">
@@ -626,11 +625,11 @@ export default function SubscriptionPage() {
                 </div>
               )}
               <Button 
-                className="w-full mt-4" 
+                className="w-full mt-3" 
                 variant={isPlanActive('Pro') ? 'secondary' : 'default'}
-                disabled={isPlanActive('Pro')}
+                disabled={isPlanActive('Pro') || isPlanActive('Premium')}
                 onClick={() => {
-                  if (!isPlanActive('Pro')) {
+                  if (!isPlanActive('Pro') && !isPlanActive('Premium')) {
                     handleUpgradePlan({
                       id: 'pro',
                       name: 'Pro',
@@ -645,41 +644,11 @@ export default function SubscriptionPage() {
                   }
                 }}
               >
-                {isPlanActive('Pro') ? 'Current Plan' : 'Start Pro'}
+                {isPlanActive('Pro') ? 'Current Plan' : isPlanActive('Premium') ? 'Not Available' : 'Start Pro'}
               </Button>
             </div>
 
-            {/* Premium Plan */}
-            <div className={`border rounded-lg p-4 hover:shadow-md transition-shadow ${isPlanActive('Premium') ? 'border-blue-500 bg-blue-50' : ''}`}>
-              <div className="text-lg font-semibold">Premium</div>
-              <div className="text-2xl font-bold mt-2">
-                ${getPlanPricing('premium', isAnnual).current}.00
-                <span className="text-sm text-muted-foreground">/{isAnnual ? 'mo' : 'monthly'}</span>
-              </div>
-              {isAnnual && getPlanPricing('premium', isAnnual).savings > 0 && (
-                <div className="text-xs text-green-600 font-medium">Save ${getPlanPricing('premium', isAnnual).savings}/year</div>
-              )}
-              <div className="text-sm text-muted-foreground mt-1">Built for sales-led organizations</div>
-              <div className="text-xs text-orange-600 font-medium mt-2">Enterprise Features</div>
-              {isPlanActive('Premium') && (
-                <div className="flex items-center gap-2 mt-2">
-                  <CheckCircle className="w-4 h-4 text-green-600" />
-                  <span className="text-sm text-green-600 font-medium">Active Plan</span>
-                </div>
-              )}
-              <Button 
-                className="w-full mt-4" 
-                variant={isPlanActive('Premium') ? 'secondary' : 'outline'}
-                disabled={isPlanActive('Premium')}
-                onClick={() => {
-                  if (!isPlanActive('Premium')) {
-                    window.location.href = 'mailto:tim@neuroai.agency?subject=Premium Subscription Inquiry&body=Hi, I am interested in the Premium subscription plan for my organization. Please contact me to discuss pricing and features.';
-                  }
-                }}
-              >
-                {isPlanActive('Premium') ? 'Current Plan' : 'Contact Sales'}
-              </Button>
-            </div>
+
           </div>
         </CardContent>
       </Card>
@@ -701,9 +670,9 @@ export default function SubscriptionPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
+            <div className="space-y-2">
               {recentInvoices.map((invoice) => (
-                <div key={invoice.id} className="flex items-center justify-between p-3 border rounded-lg">
+                <div key={invoice.id} className="flex items-center justify-between p-2 border rounded-lg">
                   <div className="flex items-center gap-3">
                     <DollarSign className="w-5 h-5 text-muted-foreground" />
                     <div>
@@ -742,7 +711,7 @@ export default function SubscriptionPage() {
             </DialogDescription>
           </DialogHeader>
           
-          <div className="space-y-6">
+          <div className="space-y-4">
             {/* Billing Toggle */}
             <div className="flex items-center justify-center space-x-4">
               <span className={`text-sm font-medium ${selectedBillingCycle === 'monthly' ? 'text-foreground' : 'text-muted-foreground'}`}>
@@ -758,11 +727,11 @@ export default function SubscriptionPage() {
             </div>
 
             {/* Available Plans Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {/* Starter Plan - only show if not current */}
-              {!isPlanActive('Starter') && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {/* Starter Plan - only show if not current and not on Premium */}
+              {!isPlanActive('Starter') && !isPlanActive('Premium') && (
                 <div 
-                  className={`border rounded-lg p-4 cursor-pointer transition-all hover:shadow-md ${
+                  className={`border rounded-lg p-3 cursor-pointer transition-all hover:shadow-md ${
                     selectedPlan?.id === 'starter' ? 'border-blue-500 bg-blue-50' : 'border-gray-200'
                   }`}
                   onClick={() => {
@@ -789,10 +758,10 @@ export default function SubscriptionPage() {
                 </div>
               )}
 
-              {/* Pro Plan - only show if not current */}
-              {!isPlanActive('Pro') && (
+              {/* Pro Plan - only show if not current and not on Premium */}
+              {!isPlanActive('Pro') && !isPlanActive('Premium') && (
                 <div 
-                  className={`border rounded-lg p-4 cursor-pointer transition-all hover:shadow-md ${
+                  className={`border rounded-lg p-3 cursor-pointer transition-all hover:shadow-md ${
                     selectedPlan?.id === 'pro' ? 'border-blue-500 bg-blue-50' : 'border-gray-200'
                   }`}
                   onClick={() => {
@@ -825,7 +794,7 @@ export default function SubscriptionPage() {
               {/* Premium Basic - only show if not current */}
               {!isPlanActive('Premium') || getCurrentPlanName().toLowerCase() !== 'premium basic' ? (
                 <div 
-                  className={`border rounded-lg p-4 cursor-pointer transition-all hover:shadow-md ${
+                  className={`border rounded-lg p-3 cursor-pointer transition-all hover:shadow-md ${
                     selectedPlan?.id === 'premium_basic' ? 'border-blue-500 bg-blue-50' : 'border-gray-200'
                   }`}
                   onClick={() => {
@@ -857,7 +826,7 @@ export default function SubscriptionPage() {
               {/* Premium Advanced - only show if not current */}
               {!isPlanActive('Premium') || getCurrentPlanName().toLowerCase() !== 'premium advanced' ? (
                 <div 
-                  className={`border rounded-lg p-4 cursor-pointer transition-all hover:shadow-md ${
+                  className={`border rounded-lg p-3 cursor-pointer transition-all hover:shadow-md ${
                     selectedPlan?.id === 'premium_advanced' ? 'border-blue-500 bg-blue-50' : 'border-gray-200'
                   }`}
                   onClick={() => {
@@ -890,7 +859,7 @@ export default function SubscriptionPage() {
               {/* Premium Enterprise - only show if not current */}
               {!isPlanActive('Premium') || getCurrentPlanName().toLowerCase() !== 'premium enterprise' ? (
                 <div 
-                  className={`border rounded-lg p-4 cursor-pointer transition-all hover:shadow-md ${
+                  className={`border rounded-lg p-3 cursor-pointer transition-all hover:shadow-md ${
                     selectedPlan?.id === 'premium_enterprise' ? 'border-blue-500 bg-blue-50' : 'border-gray-200'
                   }`}
                   onClick={() => {
@@ -980,9 +949,7 @@ export default function SubscriptionPage() {
                     const billingCycle = currentSubscription?.metadata?.billing_cycle || currentPlan?.billing_interval || 'monthly';
                     const isAnnual = billingCycle === 'yearly';
                     
-                    const startDate = currentSubscription?.metadata?.plan_change_date 
-                      ? new Date(currentSubscription.metadata.plan_change_date)
-                      : new Date();
+                    const startDate = new Date(currentSubscription?.current_period_start || currentSubscription?.created_at);
                     
                     const endDate = isAnnual 
                       ? addYears(startDate, 1)
@@ -1008,6 +975,24 @@ export default function SubscriptionPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Top-up Packages */}
+      <Card className="mt-8">
+        <CardHeader>
+          <CardTitle>AI Token Top-ups</CardTitle>
+          <CardDescription>
+            Need more AI tokens? Purchase additional tokens for when you exceed your subscription limit.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <TopUpPackages 
+            onPurchaseComplete={() => {
+              // Refresh usage data after purchase
+              window.location.reload();
+            }}
+          />
+        </CardContent>
+      </Card>
     </div>
   );
 }

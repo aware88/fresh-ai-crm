@@ -7,16 +7,24 @@ export const metadata: Metadata = {
 };
 
 const sidebarNavItems = [
+  // Account & Profile
   {
     title: 'Profile',
     href: '/settings',
-    group: 'User'
+    group: 'Account'
   },
   {
-    title: 'Subscription',
-    href: '/settings/subscription',
-    group: 'Billing'
+    title: 'Account & Security',
+    href: '/settings/account',
+    group: 'Account'
   },
+  {
+    title: 'Notifications',
+    href: '/settings/notifications',
+    group: 'Account'
+  },
+  
+  // Organization
   {
     title: 'Team',
     href: '/settings/team',
@@ -26,73 +34,70 @@ const sidebarNavItems = [
   {
     title: 'Company Branding',
     href: '/settings/branding',
-    group: 'Company'
+    group: 'Organization'
   },
   {
-    title: 'Data Management',
-    href: '/settings/data-management',
-    group: 'Company'
+    title: 'Subscription',
+    href: '/settings/subscription',
+    group: 'Organization'
   },
-  {
-    title: 'File Management',
-    href: '/settings/file-management',
-    group: 'Company'
-  },
+  
+  // Email & Communication
   {
     title: 'Email Accounts',
     href: '/settings/email-accounts',
-    group: 'Communication'
+    group: 'Email & AI'
   },
   {
     title: 'AI Email Settings',
     href: '/settings/email-ai',
-    group: 'Communication'
+    group: 'Email & AI'
   },
   {
     title: 'Email Learning',
     href: '/settings/learning',
-    group: 'Communication'
+    group: 'Email & AI'
+  },
+  {
+    title: 'Follow-up Settings',
+    href: '/settings/followup',
+    group: 'Email & AI'
   },
   {
     title: 'Upsell Settings',
     href: '/settings/upsell',
-    group: 'Communication'
+    group: 'Email & AI'
+  },
+  
+  // Data & Files
+  {
+    title: 'Data Management',
+    href: '/settings/data-management',
+    group: 'Data & Files'
   },
   {
-    title: 'Notifications',
-    href: '/settings/notifications',
-    group: 'Preferences'
+    title: 'File Management',
+    href: '/settings/file-management',
+    group: 'Data & Files'
   },
+  
+  // Interface
   {
     title: 'Appearance',
     href: '/settings/appearance',
-    group: 'Preferences'
+    group: 'Interface'
   },
   {
     title: 'Display',
     href: '/settings/display',
-    group: 'Preferences'
+    group: 'Interface'
   },
-  {
-    title: 'Account',
-    href: '/settings/account',
-    group: 'Security'
-  },
-  {
-    title: 'Security',
-    href: '/settings/security',
-    group: 'Security'
-  },
+  
+  // Integrations
   {
     title: 'Integrations',
     href: '/settings/integrations',
-    group: 'Advanced'
-  },
-  {
-    title: 'Metakocka',
-    href: '/settings/integrations/metakocka',
-    group: 'Advanced',
-    icon: 'Database'
+    group: 'Integrations'
   },
 ];
 

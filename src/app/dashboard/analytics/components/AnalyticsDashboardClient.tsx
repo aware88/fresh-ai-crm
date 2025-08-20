@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -26,11 +27,18 @@ import {
   Building2,
   RefreshCw,
   CreditCard,
-  BarChart3
+  BarChart3,
+  Sparkles,
+  Clock,
+  TrendingUp,
+  Mail
 } from 'lucide-react';
 
 import { AnalyticsData } from '@/lib/analytics/types';
 import SubscriptionAnalytics from '@/components/analytics/SubscriptionAnalytics';
+import AIPerformanceDashboard from '@/components/analytics/AIPerformanceDashboard';
+import FollowUpAnalyticsDashboard from '@/components/email/followup/FollowUpAnalyticsDashboard';
+import UpsellAnalytics from '@/components/analytics/UpsellAnalytics';
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
 
@@ -81,8 +89,9 @@ const StatCard = ({ title, value, description, icon, trend, trendValue }: StatCa
 };
 
 export default function AnalyticsDashboardClient({ initialData, organizationId }: AnalyticsDashboardClientProps) {
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState("overview");
   const [analyticsData, setAnalyticsData] = useState(initialData.analyticsData);
   const [supplierData, setSupplierData] = useState(initialData.supplierData);
   const [productData, setProductData] = useState(initialData.productData);
@@ -91,6 +100,16 @@ export default function AnalyticsDashboardClient({ initialData, organizationId }
   const orgName = initialData?.analyticsData?.organization?.name?.toLowerCase?.();
   const hideSuppliers = orgSlug === 'withcar' || orgName === 'withcar' || organizationId === '577485fb-50b4-4bb2-a4c6-54b97e1545ad';
   const [error, setError] = useState<string | null>(null);
+  
+  // Get active tab from URL params, default to 'overview'
+  const activeTab = searchParams?.get('tab') || 'overview';
+  
+  // Function to handle tab changes
+  const handleTabChange = (newTab: string) => {
+    const params = new URLSearchParams(searchParams?.toString());
+    params.set('tab', newTab);
+    router.push(`/dashboard/analytics?${params.toString()}`);
+  };
   const [aiSavings, setAiSavings] = useState<null | {
     time: { minutes: number; hours: number; workDays: number };
     cost: { hourlyRateUsd: number; savedUsd: number };
@@ -275,7 +294,7 @@ export default function AnalyticsDashboardClient({ initialData, organizationId }
         </>
       )}
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
          <TabsList className="grid w-full grid-cols-6 h-12 bg-gradient-to-r from-slate-50 to-slate-100 border border-slate-200 shadow-sm rounded-md">
           <TabsTrigger 
             value="overview" 
@@ -284,36 +303,39 @@ export default function AnalyticsDashboardClient({ initialData, organizationId }
             Overview
           </TabsTrigger>
           <TabsTrigger 
-            value="ai"
+            value="ai-performance"
             className="font-semibold text-slate-700 data-[state=active]:bg-white data-[state=active]:text-purple-600 data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-purple-200 transition-all duration-200"
           >
-            AI
+            <Sparkles className="mr-1 h-3 w-3" />
+            AI Performance
           </TabsTrigger>
           <TabsTrigger 
-            value="subscriptions"
+            value="email-analytics"
+            className="font-semibold text-slate-700 data-[state=active]:bg-white data-[state=active]:text-green-600 data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-green-200 transition-all duration-200"
+          >
+            <Clock className="mr-1 h-3 w-3" />
+            Email Analytics
+          </TabsTrigger>
+          <TabsTrigger 
+            value="revenue-analytics"
+            className="font-semibold text-slate-700 data-[state=active]:bg-white data-[state=active]:text-orange-600 data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-orange-200 transition-all duration-200"
+          >
+            <TrendingUp className="mr-1 h-3 w-3" />
+            Revenue
+          </TabsTrigger>
+          <TabsTrigger 
+            value="subscription"
             className="font-semibold text-slate-700 data-[state=active]:bg-white data-[state=active]:text-amber-600 data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-amber-200 transition-all duration-200"
           >
-            Subscriptions
+            <CreditCard className="mr-1 h-3 w-3" />
+            Subscription
           </TabsTrigger>
-          {!hideSuppliers && (
-            <TabsTrigger 
-              value="suppliers"
-              className="font-semibold text-slate-700 data-[state=active]:bg-white data-[state=active]:text-green-600 data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-green-200 transition-all duration-200"
-            >
-              Suppliers
-            </TabsTrigger>
-          )}
           <TabsTrigger 
-            value="products"
+            value="business"
             className="font-semibold text-slate-700 data-[state=active]:bg-white data-[state=active]:text-pink-600 data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-pink-200 transition-all duration-200"
           >
-            Products
-          </TabsTrigger>
-          <TabsTrigger 
-            value="pricing"
-            className="font-semibold text-slate-700 data-[state=active]:bg-white data-[state=active]:text-indigo-600 data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-indigo-200 transition-all duration-200"
-          >
-            Pricing
+            <Building2 className="mr-1 h-3 w-3" />
+            Business
           </TabsTrigger>
         </TabsList>
         
@@ -328,6 +350,48 @@ export default function AnalyticsDashboardClient({ initialData, organizationId }
                   Your analytics overview shows key business metrics. Use the tabs above to explore specific areas.
                 </p>
               </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="ai-performance" className="space-y-4">
+          <Card className="border-0 shadow-lg">
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <Sparkles className="mr-2 h-5 w-5 text-blue-600" />
+                AI Performance Analytics
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <AIPerformanceDashboard />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="email-analytics" className="space-y-4">
+          <Card className="border-0 shadow-lg">
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <Clock className="mr-2 h-5 w-5 text-green-600" />
+                Follow-up Analytics
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <FollowUpAnalyticsDashboard />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="revenue-analytics" className="space-y-4">
+          <Card className="border-0 shadow-lg">
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <TrendingUp className="mr-2 h-5 w-5 text-purple-600" />
+                Revenue Analytics
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <UpsellAnalytics />
             </CardContent>
           </Card>
         </TabsContent>
@@ -391,7 +455,7 @@ export default function AnalyticsDashboardClient({ initialData, organizationId }
           </Card>
         </TabsContent>
         
-        <TabsContent value="subscriptions" className="space-y-4">
+        <TabsContent value="subscription" className="space-y-4">
           {organizationId ? (
             <SubscriptionAnalytics organizationId={organizationId} />
           ) : (
@@ -401,6 +465,141 @@ export default function AnalyticsDashboardClient({ initialData, organizationId }
               </CardContent>
             </Card>
           )}
+        </TabsContent>
+
+        <TabsContent value="business" className="space-y-4">
+          <div className="grid gap-6">
+            {/* Business Overview Stats */}
+            <div className={`grid gap-4 md:grid-cols-2 ${ hideSuppliers ? 'lg:grid-cols-3' : 'lg:grid-cols-4' }`}>
+              <StatCard
+                title="Total Revenue"
+                value={`$${analyticsData.counts.revenue?.toLocaleString() || '0'}`}
+                description="Revenue generated this month"
+                icon={<DollarSign className="h-4 w-4" />}
+                trend={getTrend(analyticsData.revenue?.percentChange || 0)}
+                trendValue={formatTrend(analyticsData.revenue?.percentChange || 0)}
+              />
+              <StatCard
+                title="Total Orders"
+                value={analyticsData.counts.orders || 0}
+                description="Orders processed this month"
+                icon={<ShoppingBag className="h-4 w-4" />}
+                trend={getTrend(analyticsData.orders?.percentChange || 0)}
+                trendValue={formatTrend(analyticsData.orders?.percentChange || 0)}
+              />
+              <StatCard
+                title="Customers"
+                value={analyticsData.counts.customers || 0}
+                description="Active customers this month"
+                icon={<Users className="h-4 w-4" />}
+                trend={getTrend(analyticsData.customers?.percentChange || 0)}
+                trendValue={formatTrend(analyticsData.customers?.percentChange || 0)}
+              />
+              {!hideSuppliers && (
+                <StatCard
+                  title="Suppliers"
+                  value={analyticsData.counts.suppliers || 0}
+                  description="Active suppliers"
+                  icon={<Building2 className="h-4 w-4" />}
+                  trend={getTrend(analyticsData.suppliers?.percentChange || 0)}
+                  trendValue={formatTrend(analyticsData.suppliers?.percentChange || 0)}
+                />
+              )}
+            </div>
+
+            {/* Business Charts */}
+            <div className="grid gap-6 md:grid-cols-2">
+              {!hideSuppliers && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Supplier Distribution</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {supplierData && supplierData.length > 0 ? (
+                      <div className="h-64">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={supplierData}>
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis dataKey="name" />
+                            <YAxis />
+                            <RechartsTooltip />
+                            <Bar dataKey="count" fill="#3b82f6" />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    ) : (
+                      <div className="text-center py-8">
+                        <Building2 className="h-8 w-8 text-gray-300 mx-auto mb-2" />
+                        <p className="text-sm text-gray-500">No supplier data available</p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Product Categories</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {productData && productData.length > 0 ? (
+                    <div className="h-64">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={productData}
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={40}
+                            outerRadius={80}
+                            dataKey="count"
+                          >
+                            {productData.map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                            ))}
+                          </Pie>
+                          <RechartsTooltip />
+                          <Legend />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <ShoppingBag className="h-8 w-8 text-gray-300 mx-auto mb-2" />
+                      <p className="text-sm text-gray-500">No product data available</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Price Trends */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Price Trends</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {priceData && priceData.length > 0 ? (
+                  <div className="h-64">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={priceData}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="range" />
+                        <YAxis />
+                        <RechartsTooltip />
+                        <Bar dataKey="count" fill="#10b981" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <DollarSign className="h-8 w-8 text-gray-300 mx-auto mb-2" />
+                    <p className="text-sm text-gray-500">No pricing data available</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
 
         {!hideSuppliers && (

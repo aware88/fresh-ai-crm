@@ -104,6 +104,8 @@ export default function EnhancedEmailComposer({
   const [isSending, setIsSending] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isRichText, setIsRichText] = useState(true);
+  const [enableFollowUp, setEnableFollowUp] = useState(true);
+  const [followUpDays, setFollowUpDays] = useState(3);
   const [showPreview, setShowPreview] = useState(false);
   const [priority, setPriority] = useState<'low' | 'normal' | 'high'>('normal');
   const [selectedModel, setSelectedModel] = useState('auto');
@@ -201,6 +203,30 @@ export default function EnhancedEmailComposer({
 
         if (!response.ok) {
           throw new Error('Failed to send email');
+        }
+
+        // Create follow-up if enabled
+        if (enableFollowUp) {
+          try {
+            await fetch('/api/email/followups', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                emailId: `sent-${Date.now()}`, // Temporary ID - should be replaced with actual email ID from send response
+                originalSubject: subject,
+                originalRecipients: emailData.to.map(r => r.email),
+                originalSentAt: new Date().toISOString(),
+                followUpDays: followUpDays,
+                priority: 'medium',
+                followUpType: 'manual',
+                contextSummary: `Follow-up created for sent email: ${subject}`,
+                followUpReason: 'No response received'
+              })
+            });
+          } catch (followUpError) {
+            console.error('Failed to create follow-up:', followUpError);
+            // Don't fail the email send if follow-up creation fails
+          }
         }
       }
 
@@ -570,6 +596,55 @@ export default function EnhancedEmailComposer({
             onAttachmentAdd={handleAttachmentAdd}
             onAttachmentRemove={handleAttachmentRemove}
           />
+        </div>
+
+        <Separator />
+
+        {/* Follow-up Settings */}
+        <div className="space-y-3">
+          <Label className="flex items-center space-x-2">
+            <Clock className="h-4 w-4" />
+            <span>Follow-up Settings</span>
+          </Label>
+          
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="enableFollowUp"
+                checked={enableFollowUp}
+                onChange={(e) => setEnableFollowUp(e.target.checked)}
+                className="rounded border-gray-300"
+              />
+              <label htmlFor="enableFollowUp" className="text-sm text-gray-700">
+                Create follow-up reminder
+              </label>
+            </div>
+            
+            {enableFollowUp && (
+              <div className="flex items-center space-x-2">
+                <span className="text-sm text-gray-600">in</span>
+                <select
+                  value={followUpDays}
+                  onChange={(e) => setFollowUpDays(Number(e.target.value))}
+                  className="px-2 py-1 border rounded text-sm"
+                >
+                  <option value={1}>1 day</option>
+                  <option value={2}>2 days</option>
+                  <option value={3}>3 days</option>
+                  <option value={5}>5 days</option>
+                  <option value={7}>1 week</option>
+                </select>
+                <span className="text-sm text-gray-600">if no response</span>
+              </div>
+            )}
+          </div>
+          
+          {enableFollowUp && (
+            <p className="text-xs text-gray-500">
+              You'll be reminded to follow up if no response is received within {followUpDays} day{followUpDays !== 1 ? 's' : ''}.
+            </p>
+          )}
         </div>
 
         <Separator />

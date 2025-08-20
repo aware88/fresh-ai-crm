@@ -38,53 +38,23 @@ export async function GET(
       return NextResponse.json({ branding: existingBranding });
     }
 
-    // Fallback: preset with special-case for Withcar until admin UI sets branding
-    const WITHCAR_ORG_ID = '577485fb-50b4-4bb2-a4c6-54b97e1545ad'; // Only the real Withcar ID
-    const supabaseLite = await createServerClient();
-    let isWithcar = organizationId === WITHCAR_ORG_ID;
-    
-    if (!isWithcar) {
-      const { data: orgMeta } = await supabaseLite
-        .from('organizations')
-        .select('name, slug')
-        .eq('id', organizationId)
-        .single();
-      const slug = orgMeta?.slug?.toLowerCase();
-      const name = orgMeta?.name?.toLowerCase();
-      // Only detect Withcar by exact name/slug match
-      isWithcar = slug === 'withcar' || name === 'withcar';
-    }
+    // Fallback: use default branding preset
     const now = new Date().toISOString();
-    const branding = isWithcar
-      ? {
-          // Withcar brand preset
-          primary_color: '#111111',
-          secondary_color: '#1f2937',
-          accent_color: '#ff6a00',
-          font_family: 'Inter, system-ui, sans-serif',
-          logo_url: null,
-          favicon_url: null,
-          organization_id: organizationId,
-          created_at: now,
-          updated_at: now,
-          created_by: session.user.id,
-          updated_by: session.user.id,
-        }
-      : {
-          // Default ARIS preset
-          primary_color: '#0f172a',
-          secondary_color: '#64748b',
-          accent_color: '#2563eb',
-          font_family: 'Inter, system-ui, sans-serif',
-          logo_url: null,
-          favicon_url: null,
-          organization_id: organizationId,
-          created_at: now,
-          updated_at: now,
-          created_by: session.user.id,
-          updated_by: session.user.id,
-        };
-    console.log('Returning preset branding for organization:', organizationId, isWithcar ? '(Withcar preset)' : '(Default preset)');
+    const branding = {
+      // Default ARIS preset
+      primary_color: '#0f172a',
+      secondary_color: '#64748b',
+      accent_color: '#2563eb',
+      font_family: 'Inter, system-ui, sans-serif',
+      logo_url: null,
+      favicon_url: null,
+      organization_id: organizationId,
+      created_at: now,
+      updated_at: now,
+      created_by: session.user.id,
+      updated_by: session.user.id,
+    };
+    console.log('Returning preset branding for organization:', organizationId, '(Default preset)');
     return NextResponse.json({ branding });
     
     // Unreachable legacy DB path retained for reference only

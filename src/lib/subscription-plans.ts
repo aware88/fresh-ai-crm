@@ -64,7 +64,8 @@ export const subscriptionPlans: SubscriptionPlanDefinition[] = [
       CRM_ASSISTANT: false, // No CRM Assistant in Starter
       SALES_TACTICS: false, // No sales tactics/psychology in Starter
       PERSONALITY_INSIGHTS: false, // No personality insights in Starter
-      AI_DRAFTING_ASSISTANCE: false // No AI drafting assistance in Starter
+      AI_DRAFTING_ASSISTANCE: false, // No AI drafting assistance in Starter
+      TEAM_COLLABORATION: false // No team collaboration in Starter
     },
     trialDays: 0,
     userLimit: 1,
@@ -74,11 +75,11 @@ export const subscriptionPlans: SubscriptionPlanDefinition[] = [
     id: 'pro',
     name: 'Pro',
     description: 'Perfect for growing teams',
-    monthlyPrice: 0, // Free during beta (will be $49 post-beta)
-    annualPrice: 0, // Free during beta (will be $39 post-beta)
-    annualSavingsPercent: 20,
-    badge: 'FREE BETA',
-    highlight: 'Most Popular Choice',
+    monthlyPrice: 29, // $29 USD monthly
+    annualPrice: 24, // $24 USD monthly when billed annually
+    annualSavingsPercent: 17, // ~17% savings (24*12 vs 29*12)
+    badge: 'MOST POPULAR',
+    highlight: 'Best Value',
     popular: true,
     features: {
       MAX_USERS: 5,
@@ -106,7 +107,8 @@ export const subscriptionPlans: SubscriptionPlanDefinition[] = [
       ADVANCED_ANALYTICS: false,
       WHITE_LABEL: false,
       AI_CUSTOMIZATION: false,
-      MOBILE_APP_ACCESS: true
+      MOBILE_APP_ACCESS: true,
+      TEAM_COLLABORATION: true // Team collaboration available in Pro
     },
     trialDays: 0,
     userLimit: 5,
@@ -149,7 +151,8 @@ export const subscriptionPlans: SubscriptionPlanDefinition[] = [
       ADVANCED_ANALYTICS: true,
       WHITE_LABEL: true,
       AI_CUSTOMIZATION: true,
-      MOBILE_APP_ACCESS: true
+      MOBILE_APP_ACCESS: true,
+      TEAM_COLLABORATION: true // Team collaboration available in Premium
     },
     trialDays: 14,
     userLimit: -1, // Unlimited

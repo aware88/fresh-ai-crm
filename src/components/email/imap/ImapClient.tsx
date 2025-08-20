@@ -4,14 +4,26 @@ import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { FaInbox, FaSpinner } from "react-icons/fa";
+import { FaInbox, FaSpinner, FaReply, FaRobot } from "react-icons/fa";
 import { FiAlertTriangle } from "react-icons/fi";
 import { Send, FileText, RefreshCw } from "lucide-react";
+import { Badge } from '@/components/ui/badge';
+import { 
+  User, 
+  DollarSign, 
+  AlertTriangle, 
+  CreditCard, 
+  Bot,
+  Clock,
+  Zap
+} from 'lucide-react';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { generateEmailPreview } from '@/lib/email/utils';
+import { analyzeEmailForUpsell, sortEmailsByUpsellPriority, EmailWithUpsell } from '@/lib/email/upsellDetection';
 import EmailRenderer from '../EmailRenderer';
 import CustomerInfoWidget from '../CustomerInfoWidget';
 import AIDraftWindow from '../AIDraftWindow';
+import { UpsellBadge } from '../UpsellIndicator';
 import { EmailViewProvider, useEmailView } from '@/contexts/EmailViewContext';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -24,15 +36,23 @@ interface Email {
   read: boolean;
   folder: string;
   attachments: any[];
+  // Agent assignment fields
+  assigned_agent?: 'customer' | 'sales' | 'dispute' | 'billing' | 'auto_reply';
+  highlight_color?: string;
+  agent_priority?: 'low' | 'medium' | 'high' | 'urgent';
+  auto_reply_enabled?: boolean;
+  // Upsell analysis data
+  upsellData?: EmailWithUpsell;
 }
 
 interface ImapClientProps {
   account: any;
+  folder?: string;
   onSalesAgent: (emailId: string, emailData?: any) => void;
   isSalesProcessing: boolean;
 }
 
-function ImapClientContent({ account, onSalesAgent, isSalesProcessing }: ImapClientProps) {
+function ImapClientContent({ account, folder = 'Inbox', onSalesAgent, isSalesProcessing }: ImapClientProps) {
   const { data: session } = useSession();
   const supabase = createClientComponentClient();
   const {
@@ -56,7 +76,7 @@ function ImapClientContent({ account, onSalesAgent, isSalesProcessing }: ImapCli
   const [displayCount, setDisplayCount] = useState(10);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [hasMoreEmails, setHasMoreEmails] = useState(true);
-  const [currentFolder, setCurrentFolder] = useState<string>('Inbox');
+  const [currentFolder, setCurrentFolder] = useState<string>(folder || 'Inbox');
   const [folders, setFolders] = useState<any[]>([]);
   const [nextPageToken, setNextPageToken] = useState<string | null>(null);
 
@@ -75,10 +95,22 @@ function ImapClientContent({ account, onSalesAgent, isSalesProcessing }: ImapCli
         setFolders(data.folders);
         console.log('Set folders:', data.folders);
       } else {
-        console.warn('No folders returned:', data);
+        console.warn('No folders returned, using default folders:', data);
+        // Set default folders if API fails
+        setFolders([
+          { name: 'INBOX', path: 'INBOX', displayName: 'Inbox' },
+          { name: 'Sent', path: 'Sent', displayName: 'Sent' },
+          { name: 'Drafts', path: 'Drafts', displayName: 'Drafts' }
+        ]);
       }
     } catch (error) {
-      console.error('Error loading folders:', error);
+      console.error('Error loading folders, using defaults:', error);
+      // Set default folders if there's an error
+      setFolders([
+        { name: 'INBOX', path: 'INBOX', displayName: 'Inbox' },
+        { name: 'Sent', path: 'Sent', displayName: 'Sent' },
+        { name: 'Drafts', path: 'Drafts', displayName: 'Drafts' }
+      ]);
     }
   };
 
@@ -119,17 +151,31 @@ function ImapClientContent({ account, onSalesAgent, isSalesProcessing }: ImapCli
           if (response.ok && data.success && data.emails) {
             console.log(`Successfully loaded ${data.count || 0} emails from Gmail API`);
             
-            // Transform Gmail API emails to UI format
-            const transformedEmails: Email[] = data.emails.map((email: any) => ({
-              id: email.id,
-              from: email.from || 'Unknown Sender',
-              subject: email.subject || '(No Subject)',
-              body: email.body || '',
-              date: email.date || new Date().toISOString(),
-              read: readEmails.has(email.id) || email.read,
-              folder: email.folder || 'inbox',
-              attachments: email.attachments || []
-            }));
+            // Transform Gmail API emails to UI format with upsell analysis
+            const transformedEmails: Email[] = data.emails.map((email: any) => {
+              const baseEmail = {
+                id: email.id,
+                from: email.from || 'Unknown Sender',
+                subject: email.subject || '(No Subject)',
+                body: email.body || '',
+                date: email.date || new Date().toISOString(),
+                read: readEmails.has(email.id) || email.read,
+                folder: email.folder || 'inbox',
+                attachments: email.attachments || []
+              };
+
+              // Analyze for upsell opportunities
+              const upsellData = analyzeEmailForUpsell({
+                subject: baseEmail.subject,
+                body: baseEmail.body,
+                from: baseEmail.from
+              });
+
+              return {
+                ...baseEmail,
+                upsellData
+              };
+            });
 
             console.log('Setting Gmail emails in state:', transformedEmails.length, 'emails');
             setEmails(transformedEmails);
@@ -159,17 +205,31 @@ function ImapClientContent({ account, onSalesAgent, isSalesProcessing }: ImapCli
           if (response.ok && data.success && data.emails) {
             console.log(`Successfully loaded ${data.count || 0} emails from IMAP for ${data.account}`);
             
-            // Transform IMAP API emails to UI format
-            const transformedEmails: Email[] = data.emails.map((email: any) => ({
-              id: email.id,
-              from: email.from || 'Unknown Sender',
-              subject: email.subject || '(No Subject)',
-              body: email.body || '',
-              date: email.date || new Date().toISOString(),
-              read: readEmails.has(email.id) || email.read,
-              folder: email.folder || 'inbox',
-              attachments: email.attachments || []
-            }));
+            // Transform IMAP API emails to UI format with upsell analysis
+            const transformedEmails: Email[] = data.emails.map((email: any) => {
+              const baseEmail = {
+                id: email.id,
+                from: email.from || 'Unknown Sender',
+                subject: email.subject || '(No Subject)',
+                body: email.body || '',
+                date: email.date || new Date().toISOString(),
+                read: readEmails.has(email.id) || email.read,
+                folder: email.folder || 'inbox',
+                attachments: email.attachments || []
+              };
+
+              // Analyze for upsell opportunities
+              const upsellData = analyzeEmailForUpsell({
+                subject: baseEmail.subject,
+                body: baseEmail.body,
+                from: baseEmail.from
+              });
+
+              return {
+                ...baseEmail,
+                upsellData
+              };
+            });
 
             setEmails(transformedEmails);
             setLoading(false);
@@ -318,6 +378,13 @@ function ImapClientContent({ account, onSalesAgent, isSalesProcessing }: ImapCli
   };
 
   // Initialize component
+  // Update currentFolder when folder prop changes
+  useEffect(() => {
+    if (folder && folder !== currentFolder) {
+      setCurrentFolder(folder);
+    }
+  }, [folder, currentFolder]);
+
   useEffect(() => {
 
     if (session?.user) {
@@ -366,6 +433,39 @@ function ImapClientContent({ account, onSalesAgent, isSalesProcessing }: ImapCli
   const handleSalesAgent = () => {
     if (selectedEmail) {
       onSalesAgent(selectedEmail.id, selectedEmail);
+    }
+  };
+
+  // Helper function to get agent icon
+  const getAgentIcon = (agentType?: string) => {
+    switch (agentType) {
+      case 'sales': return <DollarSign className="h-3 w-3" />;
+      case 'customer': return <User className="h-3 w-3" />;
+      case 'dispute': return <AlertTriangle className="h-3 w-3" />;
+      case 'billing': return <CreditCard className="h-3 w-3" />;
+      case 'auto_reply': return <Bot className="h-3 w-3" />;
+      default: return <Bot className="h-3 w-3" />;
+    }
+  };
+
+  // Helper function to get agent label
+  const getAgentLabel = (agentType?: string) => {
+    switch (agentType) {
+      case 'sales': return 'Sales';
+      case 'customer': return 'Support';
+      case 'dispute': return 'Dispute';
+      case 'billing': return 'Billing';
+      case 'auto_reply': return 'Auto Reply';
+      default: return 'General';
+    }
+  };
+
+  // Helper function to get priority icon
+  const getPriorityIcon = (priority?: string) => {
+    switch (priority) {
+      case 'urgent': return <Zap className="h-3 w-3 text-red-500" />;
+      case 'high': return <Clock className="h-3 w-3 text-orange-500" />;
+      default: return null;
     }
   };
 
@@ -481,7 +581,9 @@ function ImapClientContent({ account, onSalesAgent, isSalesProcessing }: ImapCli
   }, [isLoadingMore, hasMoreEmails, emails.length, loadMoreEmails]);
 
 
-  const displayedEmails = emails.slice(0, displayCount);
+  // Sort emails by upsell priority and then slice for display
+  const sortedEmails = sortEmailsByUpsellPriority(emails);
+  const displayedEmails = sortedEmails.slice(0, displayCount);
 
   if (loading) {
     return (
@@ -541,7 +643,7 @@ function ImapClientContent({ account, onSalesAgent, isSalesProcessing }: ImapCli
         
         <TabsContent value={currentFolder} className="flex-1 min-h-0 mt-0">
           <div className="flex-1 flex gap-3 p-3 min-h-0 h-full">
-            <div className="email-list-container bg-gray-50 rounded-lg border" style={{ width: '320px', height: '100%', flexShrink: 0 }}>
+            <div className="email-list-container bg-gray-50 rounded-lg border" style={{ width: '380px', height: '100%', flexShrink: 0 }}>
               <div className="h-full overflow-y-auto" id="email-scroll-container">
                 <div className="p-2">
 
@@ -558,14 +660,27 @@ function ImapClientContent({ account, onSalesAgent, isSalesProcessing }: ImapCli
                         {displayedEmails.map((email) => (
                           <div
                             key={email.id}
-                            className={`email-list-item cursor-pointer ${
+                            className={`email-list-item cursor-pointer p-3 rounded-lg border transition-all duration-200 ${
                               selectedEmail?.id === email.id
-                                ? 'selected'
+                                ? 'selected bg-blue-50 border-blue-300 shadow-sm'
                                 : email.read
-                                ? ''
-                                : 'unread'
+                                ? 'bg-white border-gray-200 hover:bg-gray-50 hover:border-gray-300'
+                                : 'unread bg-blue-25 border-blue-200 hover:bg-blue-50 hover:border-blue-300'
                             }`}
                             onClick={() => handleEmailClick(email)}
+                            style={{
+                              borderLeft: selectedEmail?.id === email.id 
+                                ? '4px solid #3B82F6' 
+                                : email.upsellData?.hasUpsellOpportunity
+                                ? email.upsellData.highestConfidence === 'high'
+                                  ? '4px solid #10B981' // green for high confidence
+                                  : '4px solid #F59E0B' // amber for medium/low confidence
+                                : email.highlight_color 
+                                ? `4px solid ${email.highlight_color}` 
+                                : !email.read 
+                                ? '4px solid #3B82F6' 
+                                : '4px solid transparent'
+                            }}
                           >
                             <div className="w-full">
                                 <div className="flex items-start justify-between mb-1">
@@ -576,18 +691,18 @@ function ImapClientContent({ account, onSalesAgent, isSalesProcessing }: ImapCli
                                    style={{ maxWidth: 'calc(100% - 70px)' }}>
                                     {email.from}
                                   </p>
-                                  <div className="flex items-center space-x-1 flex-shrink-0 min-w-[70px] justify-end">
+                                  <div className="flex items-center space-x-2 flex-shrink-0 min-w-[70px] justify-end">
                                     {!email.read && (
-                                      <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
+                                      <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
                                     )}
-                                    <span className="text-xs text-gray-400 whitespace-nowrap">
+                                    <span className={`text-xs whitespace-nowrap ${!email.read ? 'text-blue-600 font-medium' : 'text-gray-400'}`}>
                                       {new Date(email.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}{' '}
                                       {new Date(email.date).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
                                     </span>
                                   </div>
                                 </div>
                                 <p className={`email-subject text-sm mb-1 leading-tight ${
-                                  email.read ? 'font-normal text-gray-700' : 'font-semibold text-gray-900'
+                                  email.read ? 'font-normal text-gray-700' : 'font-bold text-blue-900'
                                 }`}
                                    style={{
                                      display: '-webkit-box',
@@ -599,6 +714,34 @@ function ImapClientContent({ account, onSalesAgent, isSalesProcessing }: ImapCli
                                    title={email.subject}>
                                   {email.subject}
                                 </p>
+                                
+                                {/* Agent, Priority, and Upsell Badges */}
+                                <div className="flex items-center flex-wrap gap-1 mb-1">
+                                  {email.assigned_agent && (
+                                    <Badge 
+                                      variant="outline" 
+                                      className="text-xs px-1 py-0 h-4 bg-white border-gray-300"
+                                      style={{ 
+                                        backgroundColor: email.highlight_color ? `${email.highlight_color}20` : undefined,
+                                        borderColor: email.highlight_color || undefined 
+                                      }}
+                                    >
+                                      {getAgentIcon(email.assigned_agent)}
+                                      <span className="ml-1">{getAgentLabel(email.assigned_agent)}</span>
+                                    </Badge>
+                                  )}
+                                  {getPriorityIcon(email.agent_priority)}
+                                  {email.upsellData && (
+                                    <UpsellBadge 
+                                      upsellData={email.upsellData}
+                                      onClick={() => {
+                                        // Optional: Could open upsell details modal
+                                        console.log('Upsell opportunity clicked:', email.upsellData);
+                                      }}
+                                    />
+                                  )}
+                                </div>
+                                
                                 <p className="email-preview text-xs text-gray-500 leading-tight" 
                                    style={{
                                      display: '-webkit-box',
@@ -800,10 +943,10 @@ function ImapClientContent({ account, onSalesAgent, isSalesProcessing }: ImapCli
   );
 }
 
-export default function ImapClient({ account, onSalesAgent, isSalesProcessing }: ImapClientProps) {
+export default function ImapClient({ account, folder, onSalesAgent, isSalesProcessing }: ImapClientProps) {
   return (
     <EmailViewProvider>
-      <ImapClientContent account={account} onSalesAgent={onSalesAgent} isSalesProcessing={isSalesProcessing} />
+      <ImapClientContent account={account} folder={folder} onSalesAgent={onSalesAgent} isSalesProcessing={isSalesProcessing} />
     </EmailViewProvider>
   );
 } 

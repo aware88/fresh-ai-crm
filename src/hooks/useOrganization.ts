@@ -42,11 +42,42 @@ function createDefaultOrganization(userId: string): Organization {
   };
 }
 
+// Global cache to prevent multiple simultaneous API calls
+let organizationCache: {
+  data: Organization | null;
+  loading: boolean;
+  error: string | null;
+  lastFetch: number;
+  subscribers: Set<(data: any) => void>;
+} = {
+  data: null,
+  loading: false,
+  error: null,
+  lastFetch: 0,
+  subscribers: new Set()
+};
+
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
 export function useOrganization(): UseOrganizationResult {
   const { data: session, status } = useSession();
-  const [organization, setOrganizationState] = useState<Organization | null>(null);
-  const [loading, setLoading] = useState(true); // Start with loading=true
-  const [error, setError] = useState<string | null>(null);
+  const [organization, setOrganizationState] = useState<Organization | null>(organizationCache.data);
+  const [loading, setLoading] = useState(organizationCache.loading || true);
+  const [error, setError] = useState<string | null>(organizationCache.error);
+
+  // Subscribe to cache updates
+  useEffect(() => {
+    const updateState = (cacheData: typeof organizationCache) => {
+      setOrganizationState(cacheData.data);
+      setLoading(cacheData.loading);
+      setError(cacheData.error);
+    };
+
+    organizationCache.subscribers.add(updateState);
+    return () => {
+      organizationCache.subscribers.delete(updateState);
+    };
+  }, []);
 
   const fetchOrganization = useCallback(async () => {
     // If session is still loading, keep loading state
@@ -58,14 +89,30 @@ export function useOrganization(): UseOrganizationResult {
     // Don't fetch if not authenticated
     if (status !== 'authenticated' || !session?.user?.id) {
       console.log('🏢 useOrganization: Not authenticated, skipping fetch');
-      setOrganizationState(null);
-      setLoading(false);
+      const newCache = { ...organizationCache, data: null, loading: false, error: null };
+      organizationCache = newCache;
+      organizationCache.subscribers.forEach(callback => callback(newCache));
+      return;
+    }
+
+    // Check if we have fresh cached data
+    const now = Date.now();
+    if (organizationCache.data && (now - organizationCache.lastFetch) < CACHE_DURATION) {
+      console.log('🏢 useOrganization: Using cached data');
+      return;
+    }
+
+    // Prevent multiple simultaneous fetches
+    if (organizationCache.loading) {
+      console.log('🏢 useOrganization: Already fetching, waiting for result...');
       return;
     }
 
     try {
-      setLoading(true);
-      setError(null);
+      // Update cache loading state
+      const loadingCache = { ...organizationCache, loading: true, error: null };
+      organizationCache = loadingCache;
+      organizationCache.subscribers.forEach(callback => callback(loadingCache));
       
       console.log('🏢 useOrganization: Fetching user preferences for user:', session.user.id);
       
@@ -94,7 +141,15 @@ export function useOrganization(): UseOrganizationResult {
       // If no organization ID, user is independent
       if (!prefs.current_organization_id) {
         console.log('🏢 useOrganization: User is independent (no organization)');
-        setOrganizationState(null);
+        const noOrgCache = { 
+          ...organizationCache, 
+          data: null, 
+          loading: false, 
+          error: null, 
+          lastFetch: Date.now() 
+        };
+        organizationCache = noOrgCache;
+        organizationCache.subscribers.forEach(callback => callback(noOrgCache));
         return;
       }
       
@@ -106,7 +161,15 @@ export function useOrganization(): UseOrganizationResult {
       if (!orgResponse.ok) {
         if (orgResponse.status === 404) {
           console.log('🏢 useOrganization: Organization not found, treating as independent user');
-          setOrganizationState(null);
+          const notFoundCache = { 
+            ...organizationCache, 
+            data: null, 
+            loading: false, 
+            error: null, 
+            lastFetch: Date.now() 
+          };
+          organizationCache = notFoundCache;
+          organizationCache.subscribers.forEach(callback => callback(notFoundCache));
           return;
         }
         throw new Error(`Failed to fetch organization: ${orgResponse.status}`);
@@ -114,16 +177,32 @@ export function useOrganization(): UseOrganizationResult {
       
       const orgData = await orgResponse.json();
       console.log('🏢 useOrganization: Successfully loaded organization:', orgData.name);
-      setOrganizationState(orgData);
+      
+      // Update cache with success
+      const successCache = { 
+        ...organizationCache, 
+        data: orgData, 
+        loading: false, 
+        error: null, 
+        lastFetch: Date.now() 
+      };
+      organizationCache = successCache;
+      organizationCache.subscribers.forEach(callback => callback(successCache));
       
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load organization';
       console.error('🏢 useOrganization: Error:', errorMessage);
-      setError(errorMessage);
-      // On error, treat as independent user rather than breaking
-      setOrganizationState(null);
-    } finally {
-      setLoading(false);
+      
+      // Update cache with error
+      const errorCache = { 
+        ...organizationCache, 
+        data: null,
+        loading: false, 
+        error: errorMessage,
+        lastFetch: Date.now()
+      };
+      organizationCache = errorCache;
+      organizationCache.subscribers.forEach(callback => callback(errorCache));
     }
   }, [session?.user?.id, status]);
 

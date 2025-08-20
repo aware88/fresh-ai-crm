@@ -113,7 +113,8 @@ export const subscriptionPlans: SubscriptionPlanDefinition[] = [
       CRM_ASSISTANT: false,
       SALES_TACTICS: false,
       PERSONALITY_INSIGHTS: false,
-      AI_DRAFTING_ASSISTANCE: false
+      AI_DRAFTING_ASSISTANCE: false,
+      TEAM_COLLABORATION: false
     },
     trialDays: 0,
     userLimit: 1,
@@ -123,11 +124,11 @@ export const subscriptionPlans: SubscriptionPlanDefinition[] = [
     id: 'pro',
     name: 'Pro',
     description: 'Perfect for growing teams',
-    monthlyPrice: 0, // Free during beta (will be €29 post-beta)
-    annualPrice: 0, // Free during beta (will be €24 post-beta)
-    annualSavingsPercent: 17, // €29 -> €24 is 17% savings
-    badge: 'FREE BETA',
-    highlight: 'Most Popular Choice',
+    monthlyPrice: 29, // $29 USD monthly
+    annualPrice: 24, // $24 USD monthly when billed annually
+    annualSavingsPercent: 17, // $29 -> $24 is 17% savings
+    badge: 'MOST POPULAR',
+    highlight: 'Best Value',
     popular: true,
     features: {
       MAX_USERS: 5,
@@ -145,6 +146,7 @@ export const subscriptionPlans: SubscriptionPlanDefinition[] = [
       SALES_TACTICS: true,
       PERSONALITY_INSIGHTS: true,
       AI_DRAFTING_ASSISTANCE: true,
+      TEAM_COLLABORATION: true,
       AI_FUTURE_ACCESS: true,
       AI_FUTURE_MESSAGES_LIMIT: 500,
       ADVANCED_PSYCHOLOGICAL_PROFILING: true,
@@ -192,6 +194,7 @@ export const subscriptionPlans: SubscriptionPlanDefinition[] = [
       SALES_TACTICS: true,
       PERSONALITY_INSIGHTS: true,
       AI_DRAFTING_ASSISTANCE: true,
+      TEAM_COLLABORATION: true,
       AI_FUTURE_ACCESS: true,
       AI_FUTURE_MESSAGES_LIMIT: 5000,
       AI_FUTURE_PRIORITY_SUPPORT: true,
@@ -239,6 +242,7 @@ export const subscriptionPlans: SubscriptionPlanDefinition[] = [
       SALES_TACTICS: true,
       PERSONALITY_INSIGHTS: true,
       AI_DRAFTING_ASSISTANCE: true,
+      TEAM_COLLABORATION: true,
       AI_FUTURE_ACCESS: true,
       AI_FUTURE_MESSAGES_LIMIT: 15000,
       AI_FUTURE_PRIORITY_SUPPORT: true,
@@ -285,6 +289,7 @@ export const subscriptionPlans: SubscriptionPlanDefinition[] = [
       SALES_TACTICS: true,
       PERSONALITY_INSIGHTS: true,
       AI_DRAFTING_ASSISTANCE: true,
+      TEAM_COLLABORATION: true,
       AI_FUTURE_ACCESS: true,
       AI_FUTURE_MESSAGES_LIMIT: -1,
       AI_FUTURE_PRIORITY_SUPPORT: true,

@@ -95,8 +95,11 @@ export async function GET() {
       provider_type: account.provider_type,
       name: account.display_name || account.email,
       status: account.is_active ? 'active' : 'inactive',
+      is_active: account.is_active,
       created_at: account.created_at,
       updated_at: account.updated_at,
+      last_sync_at: account.last_sync_at || account.last_sync, // Support both column names
+      sync_error: account.sync_error || account.last_sync_error,
       organization_id: account.organization_id,
       user_id: account.user_id
     })) || [];

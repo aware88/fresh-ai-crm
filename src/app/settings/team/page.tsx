@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useOptimizedAuth } from '@/hooks/useOptimizedAuth';
 import { useOrganization } from '@/hooks/useOrganization';
+import { useSubscriptionFeatures } from '@/hooks/useSubscriptionFeatures';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,7 +21,9 @@ import {
   Crown, 
   MoreHorizontal,
   Trash2,
-  Settings
+  Settings,
+  MessageSquare,
+  ArrowRight
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -70,6 +73,7 @@ interface OrganizationStats {
 export default function TeamSettingsPage() {
   const { data: session } = useOptimizedAuth();
   const { organization, isLoading: orgLoading } = useOrganization();
+  const { hasFeature } = useSubscriptionFeatures(organization?.id || '');
   const { toast } = useToast();
   
   const [members, setMembers] = useState<TeamMember[]>([]);
@@ -393,6 +397,53 @@ export default function TeamSettingsPage() {
               </div>
             </CardContent>
           </Card>
+        )}
+
+        {/* Team Collaboration Features - only show for Pro+ users */}
+        {hasFeature('TEAM_COLLABORATION') && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <MessageSquare className="h-5 w-5" />
+              Team Collaboration
+            </CardTitle>
+            <CardDescription>
+              Access real-time collaboration features for your team
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="flex items-start justify-between p-4 border rounded-lg">
+                <div className="space-y-1">
+                  <h4 className="font-medium">Collaboration Dashboard</h4>
+                  <p className="text-sm text-muted-foreground">
+                    Real-time notes, team presence, activity feeds, and assignment management
+                  </p>
+                </div>
+                <Link href="/dashboard/team">
+                  <Button variant="outline" size="sm" className="flex items-center gap-2">
+                    Open Dashboard
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
+                </Link>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  <span>Real-time collaborative notes</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                  <span>Team presence indicators</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+                  <span>Activity tracking & analytics</span>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
         )}
 
         {/* Team Members */}

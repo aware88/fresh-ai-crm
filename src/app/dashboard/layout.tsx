@@ -4,6 +4,7 @@ import { Sidebar } from "@/components/layout/Sidebar";
 import { Navigation } from "@/components/layout/Navigation";
 import { Toaster } from "@/components/ui/toaster";
 import { SidebarProvider, useSidebar } from "@/contexts/SidebarContext";
+import { TeamCollaborationProvider } from "@/components/collaboration/TeamCollaborationProvider";
 
 function DashboardContent({
   children,
@@ -29,7 +30,7 @@ function DashboardContent({
         <Navigation className="sticky top-0 z-10" />
         
         {/* Main Content */}
-        <main className="flex-1 flex flex-col min-h-0 overflow-hidden">
+        <main className="flex-1 flex flex-col min-h-0 overflow-y-auto">
           <div className="flex-1 flex flex-col min-h-0 p-6 sm:p-8">
             {children}
           </div>
@@ -47,7 +48,9 @@ export default function DashboardLayout({
 }) {
   return (
     <SidebarProvider>
-      <DashboardContent>{children}</DashboardContent>
+      <TeamCollaborationProvider>
+        <DashboardContent>{children}</DashboardContent>
+      </TeamCollaborationProvider>
     </SidebarProvider>
   );
 }

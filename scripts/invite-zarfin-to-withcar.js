@@ -149,10 +149,11 @@ class ZarfinInviter {
       return;
     }
 
-    // Send invitation email
+    // Send invitation email with proper redirect URL
     const { data: newUser, error } = await this.supabase.auth.admin.inviteUserByEmail(
       this.zarfinEmail,
       {
+        redirectTo: 'https://app.helloaris.com/auth/invitation-accept',
         data: {
           first_name: 'Zarfin',
           last_name: 'Jakupovic',
@@ -234,3 +235,7 @@ if (require.main === module) {
 }
 
 module.exports = ZarfinInviter;
+
+
+
+

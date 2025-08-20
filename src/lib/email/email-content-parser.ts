@@ -67,6 +67,18 @@ function sanitizeHTML(html: string): string {
       .replace(/data:text\/html/gi, 'data:text/plain')
       // Remove any DOM clobbering attempts
       .replace(/\s(name|id)=["']?(body|document|window|location|history)["']?/gi, '')
+      // Remove VML behavior code that shows up in some Outlook-generated emails
+      .replace(/v\\\:\*\s*\{behavior:url\(#default#VML\);\}/gi, '')
+      .replace(/o\\\:\*\s*\{behavior:url\(#default#VML\);\}/gi, '')
+      .replace(/v\:\*\s*\{behavior:url\(#default#VML\);\}/gi, '')
+      .replace(/o\:\*\s*\{behavior:url\(#default#VML\);\}/gi, '')
+      // Remove additional VML and Outlook-specific patterns
+      .replace(/w\\\:\*\s*\{behavior:[^}]*\}/gi, '')
+      .replace(/w\:\*\s*\{behavior:[^}]*\}/gi, '')
+      .replace(/\.shape\s*\{[^}]*\}/gi, '')
+      .replace(/\{behavior:[^}]*\}/gi, '')
+      .replace(/mso-[^:]*:[^;]*;/gi, '')
+      .replace(/<!--\[if[^>]*>[\s\S]*?<!\[endif\]-->/gi, '')
       // Ensure safe link handling
       .replace(/<a([^>]*href=["'][^"']*["'][^>]*)>/gi, '<a$1 target="_blank" rel="noopener noreferrer">');
     

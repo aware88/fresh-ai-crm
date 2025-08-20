@@ -17,7 +17,7 @@ export default function BrandingPage() {
 
   useEffect(() => {
     // Load saved branding settings
-    const companyName = localStorage.getItem('companyName') || '';
+    const companyName = localStorage.getItem('companyName') || 'Bulk Nutrition';
     const logoUrl = localStorage.getItem('companyLogo') || '';
     setBrandingSettings({ companyName, logoUrl });
   }, []);

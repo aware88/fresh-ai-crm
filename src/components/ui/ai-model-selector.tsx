@@ -154,3 +154,7 @@ export function AIModelSelector({ selectedModel = 'auto', onModelChange, classNa
   );
 }
 
+
+
+
+

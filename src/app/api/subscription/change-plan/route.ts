@@ -143,8 +143,8 @@ export async function POST(request: NextRequest) {
       }, { status: 404 });
     }
 
-    // Calculate new billing period
-    const currentPeriodStart = new Date();
+    // Calculate new billing period - preserve existing start date if it's the same billing period
+    const currentPeriodStart = new Date(currentSubscription.current_period_start);
     let currentPeriodEnd: Date;
     
     if (billingCycle === 'yearly') {

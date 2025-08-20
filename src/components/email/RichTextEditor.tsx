@@ -4,11 +4,66 @@ import React, { useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import 'react-quill/dist/quill.snow.css';
 
-// Dynamically import ReactQuill to avoid SSR issues
-const ReactQuill = dynamic(() => import('react-quill'), { 
-  ssr: false,
-  loading: () => <div className="h-64 bg-gray-50 animate-pulse rounded border" />
-});
+// Create a completely no-op component for SSR
+const QuillNoSSR = dynamic(
+  () => 
+    import('react-quill').then((mod) => {
+      // Create a wrapper that doesn't use findDOMNode
+      const Quill = mod.default;
+      function QuillWrapper(props: any) {
+        // Use a simple div ref instead of forwarding to ReactQuill directly
+        const containerRef = React.useRef<HTMLDivElement>(null);
+        const [quill, setQuill] = React.useState<any>(null);
+        
+        // Initialize Quill on mount
+        React.useEffect(() => {
+          if (!containerRef.current) return;
+          
+          const editor = new Quill(containerRef.current, {
+            theme: props.theme || 'snow',
+            modules: props.modules || {},
+            formats: props.formats || [],
+            placeholder: props.placeholder || '',
+          });
+          
+          // Set initial value
+          if (props.value) {
+            editor.clipboard.dangerouslyPasteHTML(props.value);
+          }
+          
+          // Handle change events
+          editor.on('text-change', () => {
+            if (props.onChange) {
+              props.onChange(editor.root.innerHTML);
+            }
+          });
+          
+          setQuill(editor);
+          
+          // Cleanup on unmount
+          return () => {
+            editor.off('text-change');
+          };
+        }, []);
+        
+        // Update value when props change
+        React.useEffect(() => {
+          if (quill && props.value !== undefined && quill.root.innerHTML !== props.value) {
+            quill.clipboard.dangerouslyPasteHTML(props.value);
+          }
+        }, [props.value, quill]);
+        
+        return <div ref={containerRef} className="quill-container" />;
+      }
+      
+      QuillWrapper.displayName = 'QuillWrapper';
+      return QuillWrapper;
+    }),
+  {
+    ssr: false,
+    loading: () => <div className="h-64 bg-gray-50 animate-pulse rounded border" />
+  }
+);
 
 interface RichTextEditorProps {
   value: string;
@@ -173,7 +228,7 @@ export default function RichTextEditor({
         }
       `}</style>
       
-      <ReactQuill 
+      <QuillNoSSR 
         theme="snow"
         value={value}
         onChange={onChange}

@@ -5,26 +5,35 @@ import { useSession } from 'next-auth/react';
 import { motion } from 'framer-motion';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Alert } from '@/components/ui/alert';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import OutlookClient from '@/components/email/outlook/OutlookClient';
 import ImapClient from '@/components/email/imap/ImapClient';
 import EmailComposer from '@/components/email/EmailComposer';
-import { FaEnvelope, FaRobot, FaSearch, FaSync, FaCog } from 'react-icons/fa';
-import { Mail, TrendingUp, Inbox, Send, AlertCircle, Database, TestTube, Brain } from 'lucide-react';
-import Link from 'next/link';
+import { FaEnvelope, FaRobot, FaSearch, FaSync } from 'react-icons/fa';
+import { Mail, Inbox, Send, AlertCircle, Database, Clock, Users } from 'lucide-react';
+import TeamPresence from '@/components/collaboration/TeamPresence';
+import TeamActivityFeed from '@/components/collaboration/TeamActivityFeed';
+import TeamCollaborationGate from '@/components/subscription/TeamCollaborationGate';
+import { useOrganization } from '@/hooks/useOrganization';
+import { useSubscriptionFeatures } from '@/hooks/useSubscriptionFeatures';
+
 import { useRouter } from 'next/navigation';
 import { AnalysisResultsModal } from '@/components/email/AnalysisResultsModal';
 import { SalesAgentResultsModal } from '@/components/email/SalesAgentResultsModal';
 import { AnalysisLoadingModal } from '@/components/email/AnalysisResultsModal';
 import { SalesAgentLoadingModal } from '@/components/email/SalesAgentResultsModal';
 import EmailAIMonitor from '@/components/email/EmailAIMonitor';
+import EnhancedFollowUpDashboard from '@/components/email/followup/EnhancedFollowUpDashboard';
 
 
 export default function EmailPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const { organization } = useOrganization();
+  const { hasFeature } = useSubscriptionFeatures(organization?.id || '');
   const [connected, setConnected] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -286,9 +295,9 @@ export default function EmailPage() {
                     Connect your Gmail account for seamless email management
                   </p>
                   <Button asChild className="w-full">
-                    <Link href="/settings/email-accounts">
+                    <a href="/settings/email-accounts">
                       Connect Gmail
-                    </Link>
+                    </a>
                   </Button>
                 </div>
 
@@ -303,9 +312,9 @@ export default function EmailPage() {
                     Connect your Outlook account with secure OAuth authentication
                   </p>
                   <Button asChild className="w-full bg-blue-600 hover:bg-blue-700">
-                    <Link href="/settings/email-accounts">
+                    <a href="/settings/email-accounts">
                       Connect Outlook
-                    </Link>
+                    </a>
                   </Button>
                 </div>
                 
@@ -320,19 +329,19 @@ export default function EmailPage() {
                     Connect any email provider using IMAP/SMTP
                   </p>
                   <Button asChild variant="outline" className="w-full">
-                    <Link href="/settings/email-accounts">
+                    <a href="/settings/email-accounts">
                       Connect IMAP
-                    </Link>
+                    </a>
                   </Button>
                 </div>
               </div>
               
               <div className="text-center">
                 <Button asChild variant="ghost">
-                  <Link href="/settings/email-accounts">
-                    <FaCog className="mr-2" />
+                  <a href="/settings/email-accounts">
+                    <FaRobot className="mr-2" />
                     Email Settings
-                  </Link>
+                  </a>
                 </Button>
               </div>
             </CardContent>
@@ -350,79 +359,76 @@ export default function EmailPage() {
         transition={{ duration: 0.5 }}
         className="h-full flex flex-col"
       >
-        {/* Header */}
-        <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-4 mb-4 flex-shrink-0">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center space-x-4">
-              <div className="p-3 rounded-lg" style={{ background: 'var(--accent-color)' }}>
-                <Mail className="h-6 w-6 text-white" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">
-                  Email Management
-                </h1>
-                <p className="text-gray-600 mt-1">
-                  Manage, analyze, and respond to your emails with AI assistance
-                </p>
-              </div>
-            </div>
-          
-          <div className="flex items-center space-x-4">
-            {/* Account Selector - only show if more than one account or no account selected */}
-            {(outlookConnected && imapAccounts.length > 0) || (!selectedAccount && (outlookConnected || imapAccounts.length > 0)) ? (
-              <Select value={selectedAccount} onValueChange={setSelectedAccount}>
-                <SelectTrigger className="w-48">
-                  <SelectValue placeholder="Select email account" />
-                </SelectTrigger>
-                <SelectContent>
-                  {outlookConnected && (
-                    <SelectItem value="outlook">Outlook</SelectItem>
-                  )}
-                  {imapAccounts.map((account) => (
-                    <SelectItem key={account.id} value={account.id}>
-                      {account.email}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            ) : (
-              // Show current account info instead of dropdown when only one account
-              <div className="flex items-center space-x-3 px-4 py-2 bg-green-50 border border-green-200 rounded-lg">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                <span className="text-sm font-medium text-green-800">
-                  {outlookConnected ? 'Microsoft Outlook' : imapAccounts[0]?.email || 'Email Account'}
-                </span>
-                <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">Active</span>
-              </div>
-            )}
-            
-            <Button asChild variant="outline">
-              <Link href="/settings/email-accounts">
-                <FaCog className="mr-2" />
-                Settings
-              </Link>
-            </Button>
-            </div>
-          </div>
-        </div>
 
-        {/* Email Dashboard */}
+
+        {/* Email Dashboard with Combined Navigation */}
         <div className="flex gap-4 flex-1 min-h-0">
           {/* Main Email Content */}
           <div className={`flex-1 transition-all duration-300`}>
             <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col h-full">
-          <TabsList className="grid w-full grid-cols-2 rounded-md border bg-slate-50 border-slate-200 h-12 flex-shrink-0">
-            <TabsTrigger value="inbox" className="flex items-center gap-2 data-[state=active]:bg-[var(--accent-color)] data-[state=active]:text-white">
-              <Inbox className="h-4 w-4" />
-              Inbox
-            </TabsTrigger>
-            <TabsTrigger value="compose" className="flex items-center gap-2 data-[state=active]:bg-[var(--accent-color)] data-[state=active]:text-white">
-              <Send className="h-4 w-4" />
-              Compose
-            </TabsTrigger>
-          </TabsList>
+              {/* Combined Navigation Header */}
+              <div className="bg-white rounded-lg border border-gray-200 shadow-sm mb-4 flex-shrink-0">
+                <div className="flex justify-between items-center p-3">
+                  {/* Navigation Tabs */}
+                  <TabsList className="grid grid-cols-5 rounded-md border bg-slate-50 border-slate-200 h-10">
+                    <TabsTrigger value="inbox" className="flex items-center gap-2 data-[state=active]:bg-[var(--accent-color)] data-[state=active]:text-white text-sm px-3">
+                      <Inbox className="h-4 w-4" />
+                      Inbox
+                    </TabsTrigger>
+                    <TabsTrigger value="sent" className="flex items-center gap-2 data-[state=active]:bg-[var(--accent-color)] data-[state=active]:text-white text-sm px-3">
+                      <Send className="h-4 w-4" />
+                      Sent
+                    </TabsTrigger>
+                    <TabsTrigger value="drafts" className="flex items-center gap-2 data-[state=active]:bg-[var(--accent-color)] data-[state=active]:text-white text-sm px-3">
+                      <Database className="h-4 w-4" />
+                      Drafts
+                    </TabsTrigger>
+                    <TabsTrigger value="followups" className="flex items-center gap-2 data-[state=active]:bg-[var(--accent-color)] data-[state=active]:text-white text-sm px-3">
+                      <Clock className="h-4 w-4" />
+                      Follow-ups
+                    </TabsTrigger>
+                    <TabsTrigger value="compose" className="flex items-center gap-2 data-[state=active]:bg-[var(--accent-color)] data-[state=active]:text-white text-sm px-3">
+                      <Mail className="h-4 w-4" />
+                      Compose
+                    </TabsTrigger>
+                  </TabsList>
+                  
+                  {/* Right side controls */}
+                  <div className="flex items-center space-x-3">
+                    {/* Account Selector - only show if more than one account or no account selected */}
+                    {(outlookConnected && imapAccounts.length > 0) || (!selectedAccount && (outlookConnected || imapAccounts.length > 0)) ? (
+                      <Select value={selectedAccount} onValueChange={setSelectedAccount}>
+                        <SelectTrigger className="w-44">
+                          <SelectValue placeholder="Select email account" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {outlookConnected && (
+                            <SelectItem value="outlook">Outlook</SelectItem>
+                          )}
+                          {imapAccounts.map((account) => (
+                            <SelectItem key={account.id} value={account.id}>
+                              {account.email}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      // Show current account info instead of dropdown when only one account
+                      <div className="flex items-center space-x-2 px-3 py-1.5 bg-green-50 border border-green-200 rounded-md">
+                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                        <span className="text-xs font-medium text-green-800">
+                          {outlookConnected ? 'Microsoft Outlook' : imapAccounts[0]?.email || 'Email Account'}
+                        </span>
+                        <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full">Active</span>
+                      </div>
+                    )}
+                    
 
-          <TabsContent value="inbox" className="flex-1 min-h-0 mt-4">
+                  </div>
+                </div>
+              </div>
+
+          <TabsContent value="inbox" className="flex-1 min-h-0 mt-0">
             <div className="bg-white rounded-lg border border-gray-200 shadow-sm h-full">
               <div className="h-full">
                 {outlookConnected && (selectedAccount === 'outlook' || !selectedAccount) ? (
@@ -443,7 +449,72 @@ export default function EmailPage() {
             </div>
           </TabsContent>
 
-          <TabsContent value="compose" className="flex-1 min-h-0 mt-4">
+          <TabsContent value="sent" className="flex-1 min-h-0 mt-0">
+            <div className="bg-white rounded-lg border border-gray-200 shadow-sm h-full">
+              <div className="h-full">
+                {outlookConnected && (selectedAccount === 'outlook' || !selectedAccount) ? (
+                  <OutlookClient folder="sent" />
+                ) : selectedAccount && imapAccounts.find(acc => acc.id === selectedAccount) ? (
+                  <ImapClient 
+                    account={imapAccounts.find(acc => acc.id === selectedAccount)} 
+                    folder="Sent"
+                    onSalesAgent={handleSalesAgent}
+                    isSalesProcessing={isSalesProcessing}
+                  />
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    <Send className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                    <p>Select an email account to view sent messages</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="drafts" className="flex-1 min-h-0 mt-0">
+            <div className="bg-white rounded-lg border border-gray-200 shadow-sm h-full">
+              <div className="h-full">
+                {outlookConnected && (selectedAccount === 'outlook' || !selectedAccount) ? (
+                  <OutlookClient folder="drafts" />
+                ) : selectedAccount && imapAccounts.find(acc => acc.id === selectedAccount) ? (
+                  <ImapClient 
+                    account={imapAccounts.find(acc => acc.id === selectedAccount)} 
+                    folder="Drafts"
+                    onSalesAgent={handleSalesAgent}
+                    isSalesProcessing={isSalesProcessing}
+                  />
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    <Database className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                    <p>Select an email account to view draft messages</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="followups" className="flex-1 min-h-0 mt-0">
+            <div className="bg-white rounded-lg border border-gray-200 shadow-sm h-full flex flex-col">
+              <div className="flex items-center justify-between px-4 py-2 border-b bg-gray-50 flex-shrink-0">
+                <h3 className="font-medium flex items-center gap-2 text-gray-800">
+                  <Clock className="h-4 w-4 text-blue-600" />
+                  Email Follow-ups
+                </h3>
+                <div className="flex items-center gap-2">
+                  <Badge variant="secondary" className="text-xs">
+                    Phase 3: AI Automation
+                  </Badge>
+                </div>
+              </div>
+              <div className="flex-1 min-h-0 p-4">
+                <EnhancedFollowUpDashboard />
+              </div>
+            </div>
+          </TabsContent>
+
+
+
+          <TabsContent value="compose" className="flex-1 min-h-0 mt-0">
             <div className="bg-white rounded-lg border border-gray-200 shadow-sm h-full flex flex-col">
               <div className="flex items-center justify-between px-4 py-2 border-b bg-gray-50 flex-shrink-0">
                 <h3 className="font-medium flex items-center gap-2 text-gray-800">
@@ -456,27 +527,64 @@ export default function EmailPage() {
               </div>
             </div>
           </TabsContent>
+
+
             </Tabs>
           </div>
 
-          {/* AI Monitor Sidebar */}
-          {showAIMonitor && (
-            <div className="w-80 flex-shrink-0">
-              <EmailAIMonitor
-                isActive={!!aiTaskId}
-                currentTask="Analyzing email and generating sales response"
-                onPause={() => console.log('AI paused')}
-                onResume={() => console.log('AI resumed')}
-                onStop={() => {
-                  setAiTaskId(null);
-                  setShowAIMonitor(false);
-                  setIsSalesProcessing(false);
-                }}
-                onIntervene={(step) => console.log('Intervene in step:', step)}
-                className="h-full"
-              />
-            </div>
-          )}
+          {/* Team Collaboration Sidebar */}
+          <div className="w-80 flex-shrink-0 space-y-4">
+            {/* Team Collaboration Features - with access control */}
+            <TeamCollaborationGate 
+              feature="sidebar"
+              fallbackMessage="Team collaboration requires Pro plan"
+            >
+              {/* Team Presence */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <div className="flex items-center gap-2">
+                    <Users className="h-4 w-4 text-blue-600" />
+                    <h3 className="font-semibold text-sm">Team Online</h3>
+                  </div>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <TeamPresence compact={true} />
+                </CardContent>
+              </Card>
+
+              {/* Team Activity Feed */}
+              <Card className="flex-1">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="h-4 w-4 text-green-600" />
+                    <h3 className="font-semibold text-sm">Team Activity</h3>
+                  </div>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <TeamActivityFeed maxHeight="300px" />
+                </CardContent>
+              </Card>
+            </TeamCollaborationGate>
+
+            {/* AI Monitor - when active */}
+            {showAIMonitor && (
+              <div className="w-full">
+                <EmailAIMonitor
+                  isActive={!!aiTaskId}
+                  currentTask="Analyzing email and generating sales response"
+                  onPause={() => console.log('AI paused')}
+                  onResume={() => console.log('AI resumed')}
+                  onStop={() => {
+                    setAiTaskId(null);
+                    setShowAIMonitor(false);
+                    setIsSalesProcessing(false);
+                  }}
+                  onIntervene={(step) => console.log('Intervene in step:', step)}
+                  className="h-full"
+                />
+              </div>
+            )}
+          </div>
         </div>
       </motion.div>
       

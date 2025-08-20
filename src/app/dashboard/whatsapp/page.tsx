@@ -129,27 +129,29 @@ export default function WhatsAppPage() {
 
   if (!isAuthorized) return null;
 
-  if (!featuresLoading && !featureEnabled) {
-    return (
-      <div className="max-w-4xl mx-auto">
-        <Card>
-          <CardHeader>
-            <CardTitle>WhatsApp Integration</CardTitle>
-            <CardDescription>Connect your WhatsApp Business to manage chats inside ARIS.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Alert>
-              <AlertTitle>Upgrade required</AlertTitle>
-              <AlertDescription>
-                This feature is available on the Premium plan. Please upgrade your subscription to enable WhatsApp integration.
-              </AlertDescription>
-            </Alert>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
+  // For premium users, we'll show a "Coming Soon" message instead of the full interface
+  // Comment out the original implementation until the feature is ready
+  return (
+    <div className="max-w-4xl mx-auto">
+      <Card>
+        <CardHeader>
+          <CardTitle>WhatsApp Integration</CardTitle>
+          <CardDescription>Connect your WhatsApp Business to manage chats inside ARIS.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Alert>
+            <AlertTitle>Coming Soon</AlertTitle>
+            <AlertDescription>
+              WhatsApp Business integration is currently in development and will be available soon. 
+              Your Premium plan already includes access to this feature when it launches.
+            </AlertDescription>
+          </Alert>
+        </CardContent>
+      </Card>
+    </div>
+  );
+  
+  /* Original implementation - will be enabled when the feature is ready
   return (
     <div className="max-w-6xl mx-auto space-y-8">
       <div className="flex items-start justify-between">
@@ -331,7 +333,6 @@ export default function WhatsAppPage() {
       </div>
     </div>
   );
+  */
 }
-
-
 

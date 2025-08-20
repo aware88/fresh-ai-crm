@@ -13,11 +13,12 @@ import { EmailViewProvider, useEmailView } from '@/contexts/EmailViewContext';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface OutlookClientProps {
+  folder?: string;
   onAnalyzeEmail?: (emailId: string) => void;
   onSalesAgent?: (emailId: string) => void;
 }
 
-function OutlookClientContent({ onAnalyzeEmail, onSalesAgent }: OutlookClientProps) {
+function OutlookClientContent({ folder = 'inbox', onAnalyzeEmail, onSalesAgent }: OutlookClientProps) {
   const { data: session, status } = useSession();
   const {
     viewMode,
@@ -321,10 +322,10 @@ function OutlookClientContent({ onAnalyzeEmail, onSalesAgent }: OutlookClientPro
   );
 }
 
-export default function OutlookClient({ onAnalyzeEmail, onSalesAgent }: OutlookClientProps) {
+export default function OutlookClient({ folder, onAnalyzeEmail, onSalesAgent }: OutlookClientProps) {
   return (
     <EmailViewProvider>
-      <OutlookClientContent onAnalyzeEmail={onAnalyzeEmail} onSalesAgent={onSalesAgent} />
+      <OutlookClientContent folder={folder} onAnalyzeEmail={onAnalyzeEmail} onSalesAgent={onSalesAgent} />
     </EmailViewProvider>
   );
 }

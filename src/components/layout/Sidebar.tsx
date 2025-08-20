@@ -25,6 +25,7 @@ import { Button } from '@/components/ui/button';
 import { useMobileMenu } from '@/hooks/use-mobile-menu';
 import { useOrganization } from '@/hooks/useOrganization';
 import { useOrganizationBranding } from '@/hooks/useOrganizationBranding';
+import { useSubscriptionFeatures } from '@/hooks/useSubscriptionFeatures';
 import { useSidebar } from '@/contexts/SidebarContext';
 
 // Types
@@ -67,6 +68,11 @@ const NAVIGATION_CONFIGS = {
       title: 'Contacts',
       href: '/dashboard/contacts',
       icon: <Users className="h-5 w-5" />,
+    },
+    {
+      title: 'Team Collaboration',
+      href: '/dashboard/team',
+      icon: <MessageSquare className="h-5 w-5" />,
     },
     {
               title: 'CRM Assistant',
@@ -122,18 +128,17 @@ const NAVIGATION_CONFIGS = {
       icon: <Users className="h-5 w-5" />,
     },
     {
+      title: 'Team Collaboration',
+      href: '/dashboard/team',
+      icon: <MessageSquare className="h-5 w-5" />,
+    },
+    {
       title: 'Interactions',
       href: '/dashboard/interactions',
       icon: <MessageSquare className="h-5 w-5" />,
     },
     {
-      title: 'WhatsApp',
-      href: '/dashboard/whatsapp',
-      icon: <MessageSquare className="h-5 w-5" />,
-      comingSoon: false,
-    },
-    {
-              title: 'CRM Assistant',
+      title: 'CRM Assistant',
       href: '/dashboard/ai-future',
       icon: (
         <div className="relative">
@@ -142,13 +147,6 @@ const NAVIGATION_CONFIGS = {
         </div>
       ),
       special: true
-    },
-
-    {
-      title: 'Calendar',
-      href: '#calendar',
-      icon: <Calendar className="h-5 w-5" />,
-      comingSoon: true
     },
     {
       title: 'Analytics',
@@ -159,6 +157,19 @@ const NAVIGATION_CONFIGS = {
       title: 'Settings',
       href: '/settings',
       icon: <Settings className="h-5 w-5" />
+    },
+    // Coming Soon Features at the bottom
+    {
+      title: 'WhatsApp',
+      href: '/dashboard/whatsapp',
+      icon: <MessageSquare className="h-5 w-5" />,
+      comingSoon: true,
+    },
+    {
+      title: 'Calendar',
+      href: '#calendar',
+      icon: <Calendar className="h-5 w-5" />,
+      comingSoon: true
     }
   ]
 };
@@ -242,6 +253,7 @@ export function Sidebar({ className }: SidebarProps) {
   // Get organization data and branding
   const { organization, loading: orgLoading } = useOrganization();
   const { branding, loading: brandingLoading } = useOrganizationBranding();
+  const { hasFeature } = useSubscriptionFeatures(organization?.id || '');
 
   // Get derived values from branding
   const logoPath = branding?.logo_url || null;
@@ -284,8 +296,14 @@ export function Sidebar({ className }: SidebarProps) {
     return NAVIGATION_CONFIGS.default;
   }, [organization, orgLoading, brandingLoading]);
 
-  // Use all nav items since search is removed
-  const filteredNavItems = navItems;
+  // Filter nav items based on subscription features
+  const filteredNavItems = navItems.filter(item => {
+    // Filter out Team Collaboration if user doesn't have access
+    if (item.href === '/dashboard/team') {
+      return hasFeature('TEAM_COLLABORATION');
+    }
+    return true;
+  });
 
   // Handle keyboard navigation for menu toggle
   const handleKeyDown = (e: React.KeyboardEvent) => {

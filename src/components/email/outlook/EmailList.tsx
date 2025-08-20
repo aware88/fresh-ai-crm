@@ -14,6 +14,8 @@ import {
   Clock,
   Zap
 } from 'lucide-react';
+import { analyzeEmailForUpsell, sortEmailsByUpsellPriority, EmailWithUpsell } from '@/lib/email/upsellDetection';
+import { UpsellBadge } from '../UpsellIndicator';
 
 interface Email {
   id: string;
@@ -34,6 +36,8 @@ interface Email {
   highlight_color?: string;
   agent_priority?: 'low' | 'medium' | 'high' | 'urgent';
   auto_reply_enabled?: boolean;
+  // Upsell analysis data
+  upsellData?: EmailWithUpsell;
 }
 
 interface EmailListProps {
@@ -69,7 +73,22 @@ export function EmailList({ onEmailSelect }: EmailListProps = {}) {
         }
         
         const data = await response.json();
-        setEmails(data.data || []);
+        
+        // Analyze emails for upsell opportunities
+        const emailsWithUpsell = (data.data || []).map((email: any) => {
+          const upsellData = analyzeEmailForUpsell({
+            subject: email.subject || '',
+            body: email.bodyPreview || '',
+            from: email.from?.emailAddress?.address || ''
+          });
+
+          return {
+            ...email,
+            upsellData
+          };
+        });
+
+        setEmails(emailsWithUpsell);
         setError(null);
       } catch (err: any) {
         console.error('Failed to fetch emails:', err);
@@ -152,22 +171,31 @@ export function EmailList({ onEmailSelect }: EmailListProps = {}) {
   if (loading) return <Spinner />;
   if (error) return <Alert variant="destructive">{error}</Alert>;
 
+  // Sort emails by upsell priority
+  const sortedEmails = sortEmailsByUpsellPriority(emails);
+
   return (
     <div className="email-list h-full flex flex-col">
       <h2 className="text-xl font-semibold mb-4 flex-shrink-0">Inbox</h2>
-      {emails.length === 0 ? (
+      {sortedEmails.length === 0 ? (
         <p className="text-gray-500">No emails found</p>
       ) : (
         <div className="flex-1 overflow-y-auto">
           <ul className="divide-y divide-gray-200">
-            {emails.map((email) => (
+            {sortedEmails.map((email) => (
             <li 
               key={email.id} 
               className={`py-3 px-4 cursor-pointer hover:bg-gray-50 ${email.isRead ? 'bg-white' : 'bg-blue-50'} relative`}
               onClick={() => handleEmailClick(email.id)}
               data-email-id={email.id}
               style={{
-                borderLeft: email.highlight_color ? `4px solid ${email.highlight_color}` : '4px solid transparent'
+                borderLeft: email.upsellData?.hasUpsellOpportunity
+                  ? email.upsellData.highestConfidence === 'high'
+                    ? '4px solid #10B981' // green for high confidence
+                    : '4px solid #F59E0B' // amber for medium/low confidence
+                  : email.highlight_color 
+                  ? `4px solid ${email.highlight_color}` 
+                  : '4px solid transparent'
               }}
             >
               <div className="flex flex-col space-y-2">
@@ -199,6 +227,16 @@ export function EmailList({ onEmailSelect }: EmailListProps = {}) {
                         <Bot className="h-2 w-2 mr-1" />
                         Auto
                       </Badge>
+                    )}
+
+                    {/* Upsell indicator */}
+                    {email.upsellData && (
+                      <UpsellBadge 
+                        upsellData={email.upsellData}
+                        onClick={() => {
+                          console.log('Upsell opportunity clicked:', email.upsellData);
+                        }}
+                      />
                     )}
                   </div>
                   

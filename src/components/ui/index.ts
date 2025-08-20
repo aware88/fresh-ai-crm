@@ -6,5 +6,6 @@ export { Spinner } from './spinner';
 export { Badge } from './badge';
 export { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './select';
 export { Tabs, TabsContent, TabsList, TabsTrigger } from './tabs';
-export { useToast } from './toast';
+// useToast is imported from use-toast.ts, not toast.tsx
+export { useToast } from './use-toast';
 export { Separator } from './separator';
