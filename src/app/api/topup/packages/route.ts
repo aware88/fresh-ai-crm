@@ -7,7 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getUID } from '@/lib/auth/utils';
 import { topUpService } from '@/lib/services/topup-service';
-import { formatPriceEUR } from '@/lib/subscription-plans-v2';
+import { formatPriceUSD } from '@/lib/subscription-plans-v2';
 
 export async function GET(request: NextRequest) {
   try {
@@ -23,21 +23,21 @@ export async function GET(request: NextRequest) {
       name: pkg.name,
       description: pkg.description,
       messages: pkg.messages,
-      priceEur: pkg.priceEur,
-      priceFormatted: formatPriceEUR(pkg.priceEur),
+      priceUsd: pkg.priceUsd,
+      priceFormatted: formatPriceUSD(pkg.priceUsd),
       pricePerMessage: pkg.pricePerMessage,
       discountPercent: pkg.discountPercent,
       popular: pkg.popular,
       savings: pkg.discountPercent ? {
         percent: pkg.discountPercent,
-        amount: pkg.messages * 0.05 - pkg.priceEur, // Compared to base rate of €0.05
+        amount: pkg.messages * 0.05 - pkg.priceUsd, // Compared to base rate of $0.05
         description: `Save ${pkg.discountPercent}% vs individual message pricing`
       } : null
     }));
 
     return NextResponse.json({
       packages: formattedPackages,
-      currency: 'EUR',
+      currency: 'USD',
       baseMessagePrice: 0.05,
       recommendations: {
         light: 'topup_100',

@@ -129,7 +129,7 @@ export default function TopUpPackages({
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="font-bold text-lg">{formatPrice(pkg.priceEur)}</div>
+                  <div className="font-bold text-lg">{formatPrice(pkg.priceUsd)}</div>
                   <Button 
                     onClick={() => handlePurchase(pkg.id)}
                     disabled={purchasingPackage === pkg.id}
@@ -197,7 +197,7 @@ export default function TopUpPackages({
             <CardContent className="text-center space-y-4">
               <div>
                 <div className="text-3xl font-bold text-gray-900">
-                  {formatPrice(pkg.priceEur)}
+                  {formatPrice(pkg.priceUsd)}
                 </div>
                 <div className="text-sm text-gray-600">
                   {pkg.messages.toLocaleString()} AI tokens

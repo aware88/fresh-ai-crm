@@ -293,7 +293,7 @@ function EmailAccountsContent() {
             Add IMAP Account
           </Link>
         </div>
-              </div>
+      </div>
       
       {oauthMessage && (
         <div className={`border-l-4 p-4 mb-6 ${

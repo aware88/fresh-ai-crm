@@ -12,7 +12,7 @@ import { featureFlagService } from '@/lib/services/feature-flag-service';
 import { topUpService } from '@/lib/services/topup-service';
 import { premiumTierService } from '@/lib/services/premium-tier-service';
 import { getUsageStatus } from '@/lib/middleware/ai-limit-middleware-v2';
-import { formatPriceEUR } from '@/lib/subscription-plans-v2';
+import { formatPriceUSD } from '@/lib/subscription-plans-v2';
 import { proBoostService } from '@/lib/services/pro-boost-service';
 import { OrganizationSettingsService } from '@/lib/services/organization-settings-service';
 
@@ -339,8 +339,8 @@ export async function GET(request: NextRequest) {
         },
         topup: {
           available: topupBalance.totalMessagesAvailable,
-          totalSpent: topupBalance.totalSpentEur,
-          totalSpentFormatted: formatPriceEUR(topupBalance.totalSpentEur),
+          totalSpent: topupBalance.totalSpentUsd,
+          totalSpentFormatted: formatPriceUSD(topupBalance.totalSpentUsd),
           totalPurchases: topupBalance.totalPurchases,
           activeTopups: topupBalance.activeTopups,
           hasBalance: topupBalance.totalMessagesAvailable > 0,
@@ -399,7 +399,7 @@ export async function GET(request: NextRequest) {
         topup: updatedTopupRecommendation ? {
           package: {
             ...updatedTopupRecommendation.recommended,
-            priceFormatted: formatPriceEUR(updatedTopupRecommendation.recommended.priceEur)
+            priceFormatted: formatPriceUSD(updatedTopupRecommendation.recommended.priceUsd)
           },
           reasoning: updatedTopupRecommendation.reasoning,
           urgency: updatedTopupRecommendation.urgency
@@ -408,7 +408,7 @@ export async function GET(request: NextRequest) {
           tier: premiumRecommendation.recommendedTier.premiumTier,
           plan: premiumRecommendation.recommendedTier.name,
           monthlyPrice: premiumRecommendation.recommendedTier.monthlyPrice,
-          monthlyPriceFormatted: formatPriceEUR(premiumRecommendation.recommendedTier.monthlyPrice),
+          monthlyPriceFormatted: formatPriceUSD(premiumRecommendation.recommendedTier.monthlyPrice),
           reasoning: premiumRecommendation.reasoning,
           urgency: premiumRecommendation.urgency,
           benefits: premiumRecommendation.benefits.slice(0, 3) // Top 3 benefits
@@ -436,7 +436,7 @@ export async function GET(request: NextRequest) {
       proBoost: proBoostStatus,
       insights: {
         costOptimization: {
-          currentMonthCost: topupBalance.totalSpentEur,
+          currentMonthCost: topupBalance.totalSpentUsd,
           projectedCost: projectedMonthlyUsage > limitCheck.limitAmount 
             ? (projectedMonthlyUsage - limitCheck.limitAmount) * 0.05 
             : 0,

@@ -8,7 +8,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getUID } from '@/lib/auth/utils';
 import { topUpService } from '@/lib/services/topup-service';
 import { featureFlagService } from '@/lib/services/feature-flag-service';
-import { formatPriceEUR } from '@/lib/subscription-plans-v2';
+import { formatPriceUSD } from '@/lib/subscription-plans-v2';
 
 export async function GET(request: NextRequest) {
   try {
@@ -38,8 +38,8 @@ export async function GET(request: NextRequest) {
       balance: {
         totalMessages: balance.totalMessagesAvailable,
         totalPurchases: balance.totalPurchases,
-        totalSpent: balance.totalSpentEur,
-        totalSpentFormatted: formatPriceEUR(balance.totalSpentEur),
+        totalSpent: balance.totalSpentUsd,
+        totalSpentFormatted: formatPriceUSD(balance.totalSpentUsd),
         activeTopups: balance.activeTopups.map(topup => ({
           id: topup.id,
           packageId: topup.packageId,

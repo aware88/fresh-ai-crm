@@ -29,7 +29,7 @@ import {
 } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { useOrganization } from '@/hooks/useOrganization';
-import { formatPriceEUR } from '@/lib/subscription-plans-v2';
+import { formatPriceUSD } from '@/lib/subscription-plans-v2';
 import AnalyticsSummaryCards from '@/components/dashboard/AnalyticsSummaryCards';
 
 // Types for dashboard statistics

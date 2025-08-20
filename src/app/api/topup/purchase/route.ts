@@ -9,7 +9,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getUID } from '@/lib/auth/utils';
 import { topUpService } from '@/lib/services/topup-service';
 import { featureFlagService } from '@/lib/services/feature-flag-service';
-import { formatPriceEUR } from '@/lib/subscription-plans-v2';
+import { formatPriceUSD } from '@/lib/subscription-plans-v2';
 
 export async function POST(request: NextRequest) {
   try {
@@ -103,8 +103,8 @@ export async function POST(request: NextRequest) {
         name: packageInfo.name,
         description: packageInfo.description,
         messages: packageInfo.messages,
-        priceEur: packageInfo.priceEur,
-        priceFormatted: formatPriceEUR(packageInfo.priceEur)
+        priceUsd: packageInfo.priceUsd,
+        priceFormatted: formatPriceUSD(packageInfo.priceUsd)
       },
       paymentProvider,
       status: 'pending',

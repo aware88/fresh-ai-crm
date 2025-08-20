@@ -33,7 +33,7 @@ export interface TopUpPackage {
   name: string;
   description: string;
   messages: number;
-  priceEur: number;
+  priceUsd: number;
   pricePerMessage: number;
   discountPercent?: number;
   popular?: boolean;
@@ -48,7 +48,7 @@ export const topUpPackages: TopUpPackage[] = [
     name: '100 Messages',
     description: 'Perfect for light usage',
     messages: 100,
-    priceEur: 5,
+    priceUsd: 5,
     pricePerMessage: 0.05,
     popular: false
   },
@@ -57,7 +57,7 @@ export const topUpPackages: TopUpPackage[] = [
     name: '500 Messages',
     description: 'Great for regular usage',
     messages: 500,
-    priceEur: 20,
+    priceUsd: 20,
     pricePerMessage: 0.04,
     discountPercent: 20,
     popular: true
@@ -67,7 +67,7 @@ export const topUpPackages: TopUpPackage[] = [
     name: '1000 Messages',
     description: 'Best value for heavy usage',
     messages: 1000,
-    priceEur: 35,
+    priceUsd: 35,
     pricePerMessage: 0.035,
     discountPercent: 30,
     popular: false
@@ -382,12 +382,12 @@ export function recommendTopUpPackage(neededMessages: number): TopUpPackage {
 }
 
 /**
- * Format price for display in EUR
+ * Format price for display in USD
  */
-export function formatPriceEUR(price: number): string {
-  return new Intl.NumberFormat('de-DE', {
+export function formatPriceUSD(price: number): string {
+  return new Intl.NumberFormat('en-US', {
     style: 'currency',
-    currency: 'EUR',
+    currency: 'USD',
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   }).format(price);

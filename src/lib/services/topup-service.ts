@@ -10,7 +10,7 @@ import { topUpPackages, getTopUpPackage, type TopUpPackage } from '@/lib/subscri
 export interface TopUpBalance {
   totalMessagesAvailable: number;
   totalPurchases: number;
-  totalSpentEur: number;
+  totalSpentUsd: number;
   activeTopups: Array<{
     id: string;
     packageId: string;
@@ -84,7 +84,7 @@ export class TopUpService {
         return {
           totalMessagesAvailable: 0,
           totalPurchases: 0,
-          totalSpentEur: 0,
+          totalSpentUsd: 0,
           activeTopups: []
         };
       }
@@ -93,7 +93,7 @@ export class TopUpService {
       return {
         totalMessagesAvailable: balance.total_messages_available || 0,
         totalPurchases: balance.total_purchases || 0,
-        totalSpentEur: parseFloat(balance.total_spent_eur || '0'),
+        totalSpentUsd: parseFloat(balance.total_spent_usd || '0'),
         activeTopups: balance.active_topups || []
       };
     } catch (error) {

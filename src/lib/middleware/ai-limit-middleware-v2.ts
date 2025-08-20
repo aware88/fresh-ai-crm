@@ -518,7 +518,7 @@ export async function getUsageStatus(organizationId: string): Promise<{
       },
       topup: {
         available: topupBalance.totalMessagesAvailable,
-        totalSpent: topupBalance.totalSpentEur,
+        totalSpent: topupBalance.totalSpentUsd,
         totalPurchases: topupBalance.totalPurchases
       },
       total: {

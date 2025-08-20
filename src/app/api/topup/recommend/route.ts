@@ -9,7 +9,7 @@ import { getUID } from '@/lib/auth/utils';
 import { topUpService } from '@/lib/services/topup-service';
 import { featureFlagService } from '@/lib/services/feature-flag-service';
 import { aiUsageService } from '@/lib/services/ai-usage-service';
-import { formatPriceEUR, recommendTopUpPackage } from '@/lib/subscription-plans-v2';
+import { formatPriceUSD, recommendTopUpPackage } from '@/lib/subscription-plans-v2';
 
 export async function GET(request: NextRequest) {
   try {
@@ -97,11 +97,11 @@ export async function GET(request: NextRequest) {
       .filter(pkg => pkg.id !== recommendedPackage.id)
       .map(pkg => ({
         ...pkg,
-        priceFormatted: formatPriceEUR(pkg.priceEur),
+        priceFormatted: formatPriceUSD(pkg.priceUsd),
         costPerMessage: pkg.pricePerMessage,
         savings: pkg.discountPercent ? {
           percent: pkg.discountPercent,
-          amount: formatPriceEUR(pkg.messages * 0.05 - pkg.priceEur)
+          amount: formatPriceUSD(pkg.messages * 0.05 - pkg.priceUsd)
         } : null,
         suitability: pkg.messages < recommendedPackage.messages ? 'lighter_usage' : 'heavier_usage'
       }));
@@ -131,11 +131,11 @@ export async function GET(request: NextRequest) {
         reasoning,
         package: {
           ...recommendedPackage,
-          priceFormatted: formatPriceEUR(recommendedPackage.priceEur),
+          priceFormatted: formatPriceUSD(recommendedPackage.priceUsd),
           costPerMessage: recommendedPackage.pricePerMessage,
           savings: recommendedPackage.discountPercent ? {
             percent: recommendedPackage.discountPercent,
-            amount: formatPriceEUR(recommendedPackage.messages * 0.05 - recommendedPackage.priceEur),
+            amount: formatPriceUSD(recommendedPackage.messages * 0.05 - recommendedPackage.priceUsd),
             description: `Save ${recommendedPackage.discountPercent}% vs base pricing`
           } : null
         }
