@@ -52,3 +52,6 @@ curl -X PATCH 'https://api.supabase.com/v1/projects/{project-id}/config/auth' \
 - The check happens in real-time during password submission
 - No user data is sent to HaveIBeenPwned - only password hashes are checked
 
+
+
+

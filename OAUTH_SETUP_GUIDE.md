@@ -332,3 +332,6 @@ if (data.user && data.session) {
 
 This setup will give you a professional OAuth implementation with Google and Microsoft sign-in options alongside your existing email authentication!
 
+
+
+

@@ -196,3 +196,6 @@ export default function TeamCollaborationGate({
 
   return getUpgradeContent();
 }
+
+
+
