@@ -7,6 +7,20 @@
  * - Top-up system support
  */
 
+/**
+ * Format price in USD currency
+ */
+export function formatPriceEUR(amount: number): string {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(amount);
+}
+
+
+
 export interface SubscriptionPlanDefinition {
   id: string;
   name: string;

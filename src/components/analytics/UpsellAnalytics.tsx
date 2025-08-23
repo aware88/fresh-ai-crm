@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -12,7 +12,8 @@ import {
   ArrowUpRight,
   ShoppingCart,
   Zap,
-  Star
+  Star,
+  AlertCircle
 } from 'lucide-react';
 
 interface UpsellOpportunity {
@@ -36,63 +37,48 @@ interface UpsellMetrics {
   monthlyGrowth: number;
 }
 
-export default function UpsellAnalytics() {
-  // Mock data - in real app, this would come from API
-  const metrics: UpsellMetrics = {
-    totalRevenue: 45600,
-    upsellRevenue: 12800,
-    conversionRate: 24.5,
-    averageUplift: 67,
-    activeOpportunities: 18,
-    monthlyGrowth: 15.3
-  };
+interface UpsellAnalyticsProps {
+  organizationId?: string;
+  timeRange?: string;
+}
 
-  const opportunities: UpsellOpportunity[] = [
-    {
-      id: '1',
-      customerName: 'Bulk Nutrition Europe',
-      currentValue: 2400,
-      potentialValue: 4200,
-      uplift: 75,
-      confidence: 'high',
-      category: 'Premium Package',
-      lastInteraction: '2 days ago',
-      recommendedAction: 'Schedule premium demo call'
-    },
-    {
-      id: '2',
-      customerName: 'Nordic Supplements',
-      currentValue: 1800,
-      potentialValue: 3100,
-      uplift: 72,
-      confidence: 'high',
-      category: 'Volume Upgrade',
-      lastInteraction: '1 week ago',
-      recommendedAction: 'Send volume pricing proposal'
-    },
-    {
-      id: '3',
-      customerName: 'Fitness Direct Ltd',
-      currentValue: 950,
-      potentialValue: 1450,
-      uplift: 53,
-      confidence: 'medium',
-      category: 'Add-on Services',
-      lastInteraction: '3 days ago',
-      recommendedAction: 'Propose logistics optimization'
-    },
-    {
-      id: '4',
-      customerName: 'HealthTech Solutions',
-      currentValue: 1200,
-      potentialValue: 1800,
-      uplift: 50,
-      confidence: 'medium',
-      category: 'Service Upgrade',
-      lastInteraction: '5 days ago',
-      recommendedAction: 'Introduce AI analytics package'
+export default function UpsellAnalytics({ organizationId, timeRange = '30d' }: UpsellAnalyticsProps) {
+  const [metrics, setMetrics] = useState<UpsellMetrics | null>(null);
+  const [opportunities, setOpportunities] = useState<UpsellOpportunity[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    loadUpsellData();
+  }, [organizationId, timeRange]);
+
+  const loadUpsellData = async () => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const params = new URLSearchParams();
+      if (organizationId) params.append('organizationId', organizationId);
+      params.append('timeRange', timeRange);
+      
+      const response = await fetch(`/api/analytics/upsell?${params}`);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch upsell analytics: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      setMetrics(data.metrics);
+      setOpportunities(data.opportunities || []);
+    } catch (err: any) {
+      console.error('Error loading upsell analytics:', err);
+      setError(err.message || 'Failed to load upsell analytics');
+      setMetrics(null);
+      setOpportunities([]);
+    } finally {
+      setLoading(false);
     }
-  ];
+  };
 
   const getConfidenceColor = (confidence: string) => {
     switch (confidence) {
@@ -108,6 +94,59 @@ export default function UpsellAnalytics() {
     if (uplift >= 50) return 'text-yellow-600';
     return 'text-orange-600';
   };
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {[...Array(6)].map((_, i) => (
+            <Card key={i}>
+              <CardContent className="p-4">
+                <div className="animate-pulse space-y-2">
+                  <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+                  <div className="h-8 bg-gray-200 rounded w-1/3"></div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !metrics) {
+    return (
+      <div className="text-center py-12">
+        <AlertCircle className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+        <div className="space-y-2">
+          <p className="text-gray-500">No upsell analytics data available</p>
+          <p className="text-sm text-gray-400">
+            {error || 'Add customers and sales data to see upsell opportunities'}
+          </p>
+        </div>
+        <Button 
+          variant="outline" 
+          className="mt-4"
+          onClick={loadUpsellData}
+        >
+          Try Again
+        </Button>
+      </div>
+    );
+  }
+
+  // Check if data is empty
+  if (metrics.activeOpportunities === 0) {
+    return (
+      <div className="text-center py-12">
+        <Target className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+        <div className="space-y-2">
+          <p className="text-gray-500">No upsell opportunities found</p>
+          <p className="text-sm text-gray-400">Grow your customer base to identify upsell opportunities</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

@@ -33,6 +33,17 @@ export default function TeamCollaborationGate({
 
   // Show loading state
   if (orgLoading || featuresLoading) {
+    if (feature === 'sidebar') {
+      return (
+        <div className="flex items-center justify-center min-h-[100px] p-4">
+          <div className="text-center">
+            <div className="animate-spin h-6 w-6 border-2 border-blue-500 rounded-full border-t-transparent mx-auto mb-2"></div>
+            <p className="text-sm text-muted-foreground">Loading...</p>
+          </div>
+        </div>
+      );
+    }
+    
     return (
       <div className="flex items-center justify-center min-h-[200px]">
         <div className="text-center">
@@ -45,6 +56,16 @@ export default function TeamCollaborationGate({
 
   // Check if user has access to team collaboration
   const hasTeamCollaboration = hasFeature('TEAM_COLLABORATION');
+  
+  // Debug logging for troubleshooting
+  console.log('🔍 TeamCollaborationGate Debug:', {
+    organizationId: organization?.id,
+    hasTeamCollaboration,
+    planId: plan?.id,
+    planName: plan?.name,
+    isLoading: featuresLoading,
+    orgLoading
+  });
 
   // If has access, render children
   if (hasTeamCollaboration) {
@@ -196,6 +217,9 @@ export default function TeamCollaborationGate({
 
   return getUpgradeContent();
 }
+
+
+
 
 
 

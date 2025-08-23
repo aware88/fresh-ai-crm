@@ -57,7 +57,7 @@ let organizationCache: {
   subscribers: new Set()
 };
 
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+const CACHE_DURATION = 1 * 60 * 1000; // 1 minute (reduced for debugging)
 
 export function useOrganization(): UseOrganizationResult {
   const { data: session, status } = useSession();
@@ -80,6 +80,14 @@ export function useOrganization(): UseOrganizationResult {
   }, []);
 
   const fetchOrganization = useCallback(async () => {
+    console.log('🏢 useOrganization: fetchOrganization called', { 
+      status, 
+      hasSession: !!session, 
+      userId: session?.user?.id,
+      cacheLoading: organizationCache.loading,
+      cacheData: !!organizationCache.data 
+    });
+    
     // If session is still loading, keep loading state
     if (status === 'loading') {
       console.log('🏢 useOrganization: Session still loading, waiting...');
@@ -216,6 +224,14 @@ export function useOrganization(): UseOrganizationResult {
   }, []);
 
   const refreshOrganization = useCallback(async () => {
+    console.log('🏢 useOrganization: Force refreshing organization...');
+    // Force refresh by clearing cache
+    organizationCache = {
+      ...organizationCache,
+      data: null,
+      loading: false,
+      lastFetch: 0
+    };
     await fetchOrganization();
   }, [fetchOrganization]);
 

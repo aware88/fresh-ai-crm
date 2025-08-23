@@ -26,7 +26,7 @@ const nextConfig = {
   
   // Configure images
   images: {
-    domains: ['localhost', 'helloaris.com', 'images.unsplash.com'],
+    domains: ['localhost', 'helloaris.com', 'images.unsplash.com', 'www.withcar.si'],
   },
   
   // Redirect configuration for landing page (only in production)

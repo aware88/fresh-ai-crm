@@ -121,76 +121,19 @@ export default function FollowUpAnalyticsDashboard({ className }: FollowUpAnalyt
   const loadAnalyticsData = async () => {
     setLoading(true);
     try {
-      // Simulate API call - in production, this would fetch real data
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Fetch real data from the API endpoint
+      const response = await fetch(`/api/email/followups/analytics?timeRange=${timeRange}`);
       
-      // Mock data - replace with actual API call
-      const mockData: AnalyticsData = {
-        overview: {
-          total_followups: 1247,
-          response_rate: 68.5,
-          avg_response_time: 18.5,
-          automation_rate: 45.2,
-          cost_savings: 2840.50,
-          time_savings: 156.8,
-          success_rate: 72.3,
-          ml_accuracy: 84.7
-        },
-        trends: Array.from({ length: 30 }, (_, i) => ({
-          date: new Date(Date.now() - (29 - i) * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-          followups_sent: Math.floor(Math.random() * 50) + 20,
-          responses_received: Math.floor(Math.random() * 35) + 10,
-          response_rate: Math.random() * 40 + 50,
-          avg_response_time: Math.random() * 20 + 10
-        })),
-        performance: {
-          by_priority: [
-            { priority: 'urgent', count: 156, response_rate: 85.2, avg_response_time: 8.5 },
-            { priority: 'high', count: 324, response_rate: 74.1, avg_response_time: 12.3 },
-            { priority: 'medium', count: 567, response_rate: 65.8, avg_response_time: 18.7 },
-            { priority: 'low', count: 200, response_rate: 52.5, avg_response_time: 28.4 }
-          ],
-          by_approach: [
-            { approach: 'gentle', count: 445, response_rate: 68.5, success_rate: 72.1 },
-            { approach: 'direct', count: 356, response_rate: 71.2, success_rate: 75.8 },
-            { approach: 'value-add', count: 289, response_rate: 78.9, success_rate: 82.3 },
-            { approach: 'alternative', count: 157, response_rate: 58.6, success_rate: 61.4 }
-          ],
-          by_timing: [
-            { hour: 9, day_name: 'Monday', response_rate: 75.2, count: 89 },
-            { hour: 10, day_name: 'Tuesday', response_rate: 72.8, count: 95 },
-            { hour: 11, day_name: 'Wednesday', response_rate: 68.4, count: 87 },
-            { hour: 14, day_name: 'Thursday', response_rate: 70.1, count: 92 },
-            { hour: 15, day_name: 'Friday', response_rate: 65.7, count: 78 }
-          ]
-        },
-        automation: {
-          rules_active: 12,
-          executions_today: 34,
-          pending_approvals: 7,
-          success_rate: 89.3,
-          cost_per_execution: 0.45,
-          time_saved_hours: 23.5
-        },
-        ml_insights: {
-          prediction_accuracy: 84.7,
-          top_factors: [
-            { factor: 'Historical Response Rate', impact: 0.42, confidence: 0.95 },
-            { factor: 'Time Since Original', impact: 0.28, confidence: 0.87 },
-            { factor: 'Business Hours', impact: 0.18, confidence: 0.82 },
-            { factor: 'Priority Level', impact: 0.12, confidence: 0.79 }
-          ],
-          optimization_suggestions: [
-            { type: 'timing', suggestion: 'Send follow-ups on Tuesday-Thursday for 15% better response rates', potential_impact: 15.2 },
-            { type: 'content', suggestion: 'Value-add approach shows 12% higher success rate', potential_impact: 12.8 },
-            { type: 'automation', suggestion: 'Enable automation for medium priority follow-ups to save 8 hours/week', potential_impact: 8.0 }
-          ]
-        }
-      };
-
-      setAnalyticsData(mockData);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch analytics: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      setAnalyticsData(data.analytics);
     } catch (error) {
       console.error('Error loading analytics data:', error);
+      // Set null to trigger empty state
+      setAnalyticsData(null);
     } finally {
       setLoading(false);
     }
@@ -233,7 +176,30 @@ export default function FollowUpAnalyticsDashboard({ className }: FollowUpAnalyt
     return (
       <div className="text-center py-12">
         <AlertCircle className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-        <p className="text-gray-500">Failed to load analytics data</p>
+        <div className="space-y-2">
+          <p className="text-gray-500">No follow-up analytics data available</p>
+          <p className="text-sm text-gray-400">Start sending follow-up emails to see insights here</p>
+        </div>
+        <Button 
+          variant="outline" 
+          className="mt-4"
+          onClick={loadAnalyticsData}
+        >
+          Try Again
+        </Button>
+      </div>
+    );
+  }
+
+  // Check if data is empty (no follow-ups)
+  if (analyticsData.overview.total_followups === 0) {
+    return (
+      <div className="text-center py-12">
+        <Mail className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+        <div className="space-y-2">
+          <p className="text-gray-500">No follow-up emails yet</p>
+          <p className="text-sm text-gray-400">Your follow-up analytics will appear here once you start sending follow-up emails</p>
+        </div>
       </div>
     );
   }

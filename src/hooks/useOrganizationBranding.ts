@@ -104,9 +104,9 @@ export function useOrganizationBranding() {
             // Use the branding data as-is from the API
             brandingData = data.branding;
           } else {
-            // Fallback to default branding - no hardcoded logos
+            // Fallback to default branding for all organizations
             brandingData = {
-              logo_url: null, // Let the API handle organization-specific defaults
+              logo_url: null, // No logo by default - organizations upload their own
               primary_color: '#0f172a',
               secondary_color: '#64748b',
               accent_color: '#2563eb',
@@ -114,7 +114,7 @@ export function useOrganizationBranding() {
             };
           }
         } else {
-          // API failed, use generic defaults
+          // API failed, use generic defaults for all organizations
           brandingData = {
             logo_url: null,
             primary_color: '#0f172a',

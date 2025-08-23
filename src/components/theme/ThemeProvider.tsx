@@ -43,54 +43,37 @@ export function ThemeProvider({ children, ...props }: ThemeProviderProps) {
   const [brandingLoading, setBrandingLoading] = useState(false);
   const [initialThemeSet, setInitialThemeSet] = useState(false);
 
-  // Provide a sensible default brand for Withcar when branding API is not configured
-  const withcarDefaultBrand: BrandingTheme = useMemo(
+  // Default branding theme for all organizations
+  const defaultBrand: BrandingTheme = useMemo(
     () => ({
-      // Withcar: dark neutral header text + orange accent
-      primaryColor: '#111111',
-      secondaryColor: '#1f2937',
-      accentColor: '#ff6a00',
+      // Default neutral theme that works for any organization
+      primaryColor: '#0f172a',
+      secondaryColor: '#64748b',
+      accentColor: '#2563eb',
       fontFamily: "Inter, system-ui, sans-serif",
+      logoUrl: undefined,
       faviconUrl: undefined,
       organizationId: undefined,
     }),
     []
   );
 
-  // Detect organization type early to prevent theme flashing
+  // No hardcoded organization detection - rely purely on API branding
   const getInitialTheme = useMemo(() => {
     if (orgLoading || !organization) return null;
     
-    const orgSlug = organization?.slug?.toLowerCase();
-    const orgName = organization?.name?.toLowerCase();
-    
-    // Known Withcar organization ID
-    const WITHCAR_ORG_ID = '577485fb-50b4-4bb2-a4c6-54b97e1545ad'; // Only the real Withcar ID
-    
-    // Debug logging
-    console.log('🔍 ThemeProvider: Organization check:', {
+    // Debug logging for any organization
+    console.log('🔍 ThemeProvider: Organization loaded:', {
       id: organization.id,
-      name: orgName,
-      slug: orgSlug,
-      isWithcarById: organization.id === WITHCAR_ORG_ID,
-      isWithcarByName: orgName === 'withcar',
-      isWithcarBySlug: orgSlug === 'withcar'
+      name: organization.name,
+      slug: organization.slug
     });
     
-    // For known organizations, return their theme immediately
-    const isWithcar = organization.id === WITHCAR_ORG_ID ||
-                      orgSlug === 'withcar' || 
-                      orgName === 'withcar';
-    
-    if (isWithcar) {
-      console.log('🎨 ThemeProvider: Detected Withcar organization - applying orange theme');
-      return withcarDefaultBrand;
-    }
-    
-    console.log('🎨 ThemeProvider: Non-Withcar organization - using default theme');
-    // For other organizations, return null (use default)
+    // Return null to let the branding API handle organization-specific themes
+    // This ensures all organizations are treated equally
+    console.log('🎨 ThemeProvider: Using API-based branding for organization:', organization.name);
     return null;
-  }, [organization, orgLoading, withcarDefaultBrand]);
+  }, [organization, orgLoading]);
 
 
 
@@ -142,6 +125,23 @@ export function ThemeProvider({ children, ...props }: ThemeProviderProps) {
             console.warn('Failed to cache initial branding theme:', error);
           }
         }
+      } else {
+        // Use default theme for organizations without specific branding
+        console.log('🎨 ThemeProvider: Using default theme for', organization.name);
+        const themeWithOrgId = {
+          ...defaultBrand,
+          organizationId: organization.id
+        };
+        
+        if (!brandingTheme || brandingTheme.organizationId !== organization.id) {
+          setBrandingTheme(themeWithOrgId);
+          
+          try {
+            localStorage.setItem('organization-branding', JSON.stringify(themeWithOrgId));
+          } catch (error) {
+            console.warn('Failed to cache default branding theme:', error);
+          }
+        }
       }
       setInitialThemeSet(true);
     }
@@ -191,21 +191,15 @@ export function ThemeProvider({ children, ...props }: ThemeProviderProps) {
         console.warn('Failed to cache branding theme:', error);
       }
     } else {
-      // No custom branding, check if this is Withcar for default brand
-      const orgSlug = organization?.slug?.toLowerCase();
-      const orgName = organization?.name?.toLowerCase();
-      const WITHCAR_ORG_ID = '577485fb-50b4-4bb2-a4c6-54b97e1545ad';
-      const isWithcar = organization.id === WITHCAR_ORG_ID ||
-                        orgSlug === 'withcar' || 
-                        orgName === 'withcar';
-      
-      if (isWithcar) {
-        setBrandingTheme(withcarDefaultBrand);
-      } else {
-        setBrandingTheme(null);
-      }
+      // No custom branding, use default theme for all organizations
+      console.log('🎨 No custom branding found, using default theme for:', organization?.name);
+      const defaultTheme = {
+        ...defaultBrand,
+        organizationId: organization?.id
+      };
+      setBrandingTheme(defaultTheme);
     }
-  }, [organization, orgLoading, initialThemeSet, hookBranding, hookBrandingLoading, withcarDefaultBrand]);
+  }, [organization, orgLoading, initialThemeSet, hookBranding, hookBrandingLoading, defaultBrand]);
 
 
   

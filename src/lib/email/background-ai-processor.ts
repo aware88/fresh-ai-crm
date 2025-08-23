@@ -18,6 +18,7 @@ import { ModelRouterService, TaskComplexity } from '@/lib/ai/model-router-servic
 import { emailAIStreaming } from './email-ai-streaming';
 import { autoReplyService } from './auto-reply-service';
 import { emailFilterService } from './email-filter-service';
+import { FollowUpService } from '@/lib/email/follow-up-service';
 
 export interface BackgroundProcessingResult {
   success: boolean;
@@ -164,6 +165,9 @@ export class BackgroundAIProcessor {
 
       // 6. Cache results for instant UI access
       await this.cacheResults(emailId, analysisResult, draftResult);
+
+      // 7. Create follow-up tracking for outbound emails automatically
+      await this.createFollowUpTracking(emailData, userId, organizationId);
 
       const totalTime = Date.now() - startTime;
       console.log(`[BackgroundAI] Completed processing for email ${emailId} in ${totalTime}ms`);
@@ -464,6 +468,88 @@ export class BackgroundAIProcessor {
     }
     
     return results;
+  }
+
+  /**
+   * Create follow-up tracking for emails automatically
+   */
+  private async createFollowUpTracking(
+    emailData: any,
+    userId: string,
+    organizationId?: string
+  ): Promise<void> {
+    try {
+      // Get user's email address to determine if this is outbound
+      const { data: userEmail } = await this.supabase
+        .from('email_accounts')
+        .select('email_address')
+        .eq('user_id', userId)
+        .single();
+
+      if (!userEmail?.email_address) return;
+
+      // Check if this is an outbound email (from user) or inbound (to user)
+      const isOutbound = emailData.from_address?.toLowerCase() === userEmail.email_address.toLowerCase();
+      
+      if (!isOutbound) {
+        // For inbound emails, check if it's a response to existing follow-up
+        await this.handleInboundResponse(emailData, userId, organizationId);
+        return;
+      }
+
+      // For outbound emails, create follow-up tracking
+      const followUpService = new FollowUpService();
+      
+      // Skip replies (Re: subjects)
+      if (emailData.subject?.toLowerCase().startsWith('re:')) {
+        return;
+      }
+
+      await followUpService.trackSentEmail({
+        emailId: emailData.id,
+        userId: userId,
+        organizationId: organizationId,
+        subject: emailData.subject,
+        recipients: emailData.to_address ? [emailData.to_address] : [],
+        sentAt: new Date(emailData.created_at || Date.now()),
+        autoFollowup: true, // Enable automatic follow-up
+        followUpType: 'ai_generated'
+      });
+
+      console.log(`[BackgroundAI] Created follow-up tracking for outbound email ${emailData.id}`);
+      
+    } catch (error) {
+      console.error(`[BackgroundAI] Error creating follow-up tracking:`, error);
+      // Don't throw - this is a background task
+    }
+  }
+
+  /**
+   * Handle inbound email responses to existing follow-ups
+   */
+  private async handleInboundResponse(
+    emailData: any,
+    userId: string,
+    organizationId?: string
+  ): Promise<void> {
+    try {
+      const followUpService = new FollowUpService();
+      
+      // Try to match this response to an existing follow-up
+      await followUpService.recordResponse({
+        originalSubject: emailData.subject?.replace(/^re:\s*/i, ''),
+        respondentEmail: emailData.from_address,
+        responseEmailId: emailData.id,
+        userId: userId,
+        organizationId: organizationId
+      });
+
+      console.log(`[BackgroundAI] Processed inbound response for email ${emailData.id}`);
+      
+    } catch (error) {
+      console.error(`[BackgroundAI] Error handling inbound response:`, error);
+      // Don't throw - this is a background task
+    }
   }
 }
 

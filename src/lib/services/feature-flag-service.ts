@@ -6,6 +6,7 @@
  */
 
 import { createClient } from '@/lib/supabase/server';
+import { createServiceRoleClient } from '@/lib/supabase/service-role';
 import { getSubscriptionPlan } from '@/lib/subscription-plans';
 import { proBoostService } from '@/lib/services/pro-boost-service';
 
@@ -253,19 +254,25 @@ export class FeatureFlagService {
    */
   async getUserOrganization(userId: string): Promise<string | null> {
     try {
-      const supabase = await this.supabasePromise;
+      // Use service role client to bypass RLS for organization lookup
+      const supabase = createServiceRoleClient();
       const { data, error } = await supabase
         .from('organization_members')
         .select('organization_id')
         .eq('user_id', userId)
         .single();
 
-      if (error || !data) {
+      if (error) {
+        if (error.code === 'PGRST116') {
+          // No organization membership found - this is normal for some users
+          console.log('No organization found for user:', userId);
+          return null;
+        }
         console.error('Error getting user organization:', error);
         return null;
       }
 
-      return data.organization_id;
+      return data?.organization_id || null;
     } catch (error) {
       console.error('Exception getting user organization:', error);
       return null;

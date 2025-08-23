@@ -1,15 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createLazyServerClient } from '@/lib/supabase/lazy-client';
-
-const supabase = createLazyServerClient();
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/lib/auth';
+import { createClient } from '@/lib/supabase/client';
 
 export async function GET(request: NextRequest) {
   try {
-    const { data: { session } } = await supabase.auth.getSession();
+    const session = await getServerSession(authOptions);
     
-    if (!session) {
+    if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const supabase = createClient();
 
     const { searchParams } = new URL(request.url);
     const timeRange = searchParams.get('timeRange') || '30d';
@@ -43,7 +45,7 @@ export async function GET(request: NextRequest) {
         *,
         email_followup_drafts (
           id,
-          ai_cost_usd,
+          cost_usd,
           tokens_used,
           is_sent
         )
@@ -99,7 +101,7 @@ export async function GET(request: NextRequest) {
     
     const totalCostSavings = followups?.reduce((sum, f) => {
       const drafts = f.email_followup_drafts || [];
-      return sum + drafts.reduce((draftSum: number, draft: any) => draftSum + (draft.ai_cost_usd || 0), 0);
+      return sum + drafts.reduce((draftSum: number, draft: any) => draftSum + (draft.cost_usd || 0), 0);
     }, 0) || 0;
 
     // Generate trends data (simplified)

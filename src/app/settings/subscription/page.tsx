@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
+import { useOrganization } from '@/hooks/useOrganization';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -90,8 +91,9 @@ export default function SubscriptionPage() {
   const [selectedBillingCycle, setSelectedBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // Determine if user is part of an organization or individual
-  const organizationId = (session?.user as any)?.organizationId;
+  // Get organization from useOrganization hook instead of session
+  const { organization } = useOrganization();
+  const organizationId = organization?.id;
   const userId = session?.user?.id;
   const isIndividualUser = !organizationId && userId;
 

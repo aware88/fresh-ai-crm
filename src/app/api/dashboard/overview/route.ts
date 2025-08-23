@@ -117,11 +117,11 @@ export async function GET(request: NextRequest) {
           .from('suppliers')
           .select('id', { count: 'exact', head: true })
           .or(`organization_id.eq.${organizationId},user_id.eq.${uid}`),
-        // Products visible to the user: org OR user-owned
+        // Products visible to the user: org OR user-created
         supabase
           .from('products')
           .select('id', { count: 'exact', head: true })
-          .or(`organization_id.eq.${organizationId},user_id.eq.${uid}`),
+          .or(`organization_id.eq.${organizationId},created_by.eq.${uid}`),
         // Email accounts (we refine below with admin client)
         supabase
           .from('email_accounts')
@@ -180,7 +180,7 @@ export async function GET(request: NextRequest) {
         (productsUser.data || []).forEach((r: any) => r?.id && (prodMap[r.id] = true));
         totalSuppliers = Object.keys(supMap).length;
         totalProducts = Object.keys(prodMap).length;
-        console.log('📊 Admin override counts:', { totalSuppliers, totalProducts });
+        console.log('📊 Real database counts from admin query:', { totalSuppliers, totalProducts });
       } catch (e) {
         console.warn('Admin suppliers/products count failed:', e);
       }

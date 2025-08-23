@@ -111,26 +111,26 @@ export default function AITokenBalance({
     );
   }
 
-  const subscriptionUsagePercent = usage.subscription.limit > 0 
-    ? (usage.subscription.current / usage.subscription.limit) * 100 
+  const subscriptionUsagePercent = usage.subscription?.limit > 0 
+    ? ((usage.subscription?.current || 0) / usage.subscription.limit) * 100 
     : 0;
 
   const getStatusColor = () => {
-    if (!usage.total.canMakeRequest) return 'text-red-600';
-    if (usage.subscription.exceeded) return 'text-orange-600';
+    if (!usage.total?.canMakeRequest) return 'text-red-600';
+    if (usage.subscription?.exceeded) return 'text-orange-600';
     if (subscriptionUsagePercent > 80) return 'text-yellow-600';
     return 'text-green-600';
   };
 
   const getStatusIcon = () => {
-    if (!usage.total.canMakeRequest) return <AlertCircle className="h-4 w-4 text-red-600" />;
-    if (usage.subscription.exceeded) return <AlertCircle className="h-4 w-4 text-orange-600" />;
+    if (!usage.total?.canMakeRequest) return <AlertCircle className="h-4 w-4 text-red-600" />;
+    if (usage.subscription?.exceeded) return <AlertCircle className="h-4 w-4 text-orange-600" />;
     return <CheckCircle className="h-4 w-4 text-green-600" />;
   };
 
   const getStatusText = () => {
-    if (!usage.total.canMakeRequest) return 'No tokens available';
-    if (usage.subscription.exceeded) return 'Using top-up tokens';
+    if (!usage.total?.canMakeRequest) return 'No tokens available';
+    if (usage.subscription?.exceeded) return 'Using top-up tokens';
     return 'Active';
   };
 
@@ -141,10 +141,10 @@ export default function AITokenBalance({
           <Zap className="h-4 w-4 text-blue-600" />
           <div>
             <div className="font-medium text-sm">
-              {usage.total.available.toLocaleString()} tokens available
+              {usage.total?.available?.toLocaleString() || 0} tokens available
             </div>
             <div className="text-xs text-gray-600">
-              {usage.subscription.remaining} subscription + {usage.topup.available} top-up
+              {usage.subscription?.remaining || 0} subscription + {usage.topup?.available || 0} top-up
             </div>
           </div>
         </div>
@@ -195,8 +195,8 @@ export default function AITokenBalance({
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <h4 className="font-medium">Subscription Tokens</h4>
-              <Badge variant={usage.subscription.exceeded ? 'destructive' : 'secondary'}>
-                {usage.subscription.current} / {usage.subscription.limit} used
+              <Badge variant={usage.subscription?.exceeded ? 'destructive' : 'secondary'}>
+                {usage.subscription?.current || 0} / {usage.subscription?.limit || 0} used
               </Badge>
             </div>
             <Progress 
@@ -204,13 +204,13 @@ export default function AITokenBalance({
               className="h-2"
             />
             <div className="flex justify-between text-sm text-gray-600">
-              <span>{usage.subscription.remaining} remaining</span>
+              <span>{usage.subscription?.remaining || 0} remaining</span>
               <span>{Math.round(subscriptionUsagePercent)}% used</span>
             </div>
           </div>
 
           {/* Top-up Balance */}
-          {usage.topup.available > 0 && (
+          {(usage.topup?.available || 0) > 0 && (
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <h4 className="font-medium flex items-center gap-2">
@@ -218,11 +218,11 @@ export default function AITokenBalance({
                   Top-up Tokens
                 </h4>
                 <Badge variant="outline" className="text-green-700 border-green-300">
-                  {usage.topup.available} available
+                  {usage.topup?.available || 0} available
                 </Badge>
               </div>
               <div className="text-sm text-gray-600">
-                Total spent: ${usage.topup.totalSpent.toFixed(2)} ({usage.topup.totalPurchases} purchases)
+                Total spent: ${(usage.topup?.totalSpent || 0).toFixed(2)} ({usage.topup?.totalPurchases || 0} purchases)
               </div>
             </div>
           )}
@@ -233,7 +233,7 @@ export default function AITokenBalance({
               <div>
                 <h4 className="font-semibold text-blue-900">Total Available</h4>
                 <p className="text-sm text-blue-700">
-                  {usage.total.available.toLocaleString()} tokens ready to use
+                  {usage.total?.available?.toLocaleString() || 0} tokens ready to use
                 </p>
               </div>
               <TrendingUp className="h-6 w-6 text-blue-600" />
@@ -279,7 +279,7 @@ export default function AITokenBalance({
           <div className="flex justify-between text-sm">
             <span>Subscription Usage</span>
             <span className="font-medium">
-              {usage.subscription.current} / {usage.subscription.limit}
+              {usage.subscription?.current || 0} / {usage.subscription?.limit || 0}
             </span>
           </div>
           <Progress 
@@ -288,11 +288,11 @@ export default function AITokenBalance({
           />
         </div>
 
-        {usage.topup.available > 0 && (
+        {(usage.topup?.available || 0) > 0 && (
           <div className="flex items-center justify-between text-sm">
             <span className="text-green-700">Top-up tokens</span>
             <span className="font-medium text-green-700">
-              +{usage.topup.available}
+              +{usage.topup?.available || 0}
             </span>
           </div>
         )}
@@ -300,7 +300,7 @@ export default function AITokenBalance({
         <div className="flex items-center justify-between pt-2 border-t">
           <div>
             <div className="font-semibold">
-              {usage.total.available.toLocaleString()} total
+              {usage.total?.available?.toLocaleString() || 0} total
             </div>
             <div className={`text-sm ${getStatusColor()}`}>
               {getStatusText()}
@@ -319,6 +319,7 @@ export default function AITokenBalance({
     </Card>
   );
 }
+
 
 
 

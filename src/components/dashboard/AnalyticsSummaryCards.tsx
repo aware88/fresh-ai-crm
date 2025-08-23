@@ -51,7 +51,8 @@ export default function AnalyticsSummaryCards() {
         const followUpResponse = await fetch('/api/email/followups/analytics?summary=true');
         let followUpData = null;
         if (followUpResponse.ok) {
-          followUpData = await followUpResponse.json();
+          const result = await followUpResponse.json();
+          followUpData = result.analytics;
         }
 
         // Create summary object
@@ -66,16 +67,22 @@ export default function AnalyticsSummaryCards() {
             topFeature: aiData?.insights?.savings?.topContributor || 'Email Response'
           },
           followUp: {
-            totalFollowUps: followUpData?.summary?.totalFollowUps || 0,
-            conversionRate: followUpData?.summary?.conversionRate 
-              ? `${Math.round(followUpData.summary.conversionRate)}%` 
+            totalFollowUps: followUpData?.overview?.total_followups || 0,
+            conversionRate: followUpData?.overview?.response_rate 
+              ? `${Math.round(followUpData.overview.response_rate)}%` 
               : '0%',
-            avgResponseTime: followUpData?.summary?.avgResponseTime || 'N/A'
+            avgResponseTime: followUpData?.overview?.avg_response_time 
+              ? `${Math.round(followUpData.overview.avg_response_time)}h`
+              : 'N/A'
           },
           revenue: {
-            upsellOpportunities: followUpData?.summary?.upsellOpportunities || 0,
-            potentialRevenue: followUpData?.summary?.potentialRevenue || '$0',
-            conversionRate: followUpData?.summary?.revenueConversionRate || '0%'
+            upsellOpportunities: followUpData?.ml_insights?.optimization_suggestions?.length || 0,
+            potentialRevenue: followUpData?.overview?.cost_savings 
+              ? `$${Math.round(followUpData.overview.cost_savings)}` 
+              : '$0',
+            conversionRate: followUpData?.overview?.success_rate 
+              ? `${Math.round(followUpData.overview.success_rate)}%`
+              : '0%'
           }
         };
 

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { supabase } from '@/lib/supabaseClient';
+import { createServiceRoleClient } from '@/lib/supabase/service-role';
 
 export async function GET(
   request: NextRequest,
@@ -15,6 +15,7 @@ export async function GET(
     }
 
     const { id: organizationId } = await params;
+    const supabase = createServiceRoleClient();
 
     // Fetch organization details
     const { data: organization, error: orgError } = await supabase

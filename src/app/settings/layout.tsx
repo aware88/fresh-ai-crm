@@ -59,8 +59,8 @@ const sidebarNavItems = [
     group: 'Email & AI'
   },
   {
-    title: 'Follow-up Settings',
-    href: '/settings/followup',
+    title: 'Email Follow-ups',
+    href: '/settings/email-followups',
     group: 'Email & AI'
   },
   {

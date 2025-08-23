@@ -85,6 +85,17 @@ export function useSubscriptionFeatures(organizationId: string) {
         // Check if subscription is active
         const isActive = ['active', 'trialing'].includes(data.subscription.status);
         
+        // Debug logging for troubleshooting
+        console.log('🔍 useSubscriptionFeatures Debug:', {
+          organizationId,
+          planId: data.plan?.id,
+          planName: data.plan?.name,
+          subscriptionStatus: data.subscription?.status,
+          isActive,
+          teamCollabFeature: formattedFeatures['TEAM_COLLABORATION'],
+          allFeatures: Object.keys(formattedFeatures).filter(key => formattedFeatures[key].enabled)
+        });
+        
         setFeatureAccess({
           plan: data.plan,
           subscription: data.subscription,
@@ -114,10 +125,23 @@ export function useSubscriptionFeatures(organizationId: string) {
    */
   const hasFeature = (featureKey: string, defaultValue: boolean = false): boolean => {
     if (!featureAccess.isActive || !featureAccess.features) {
+      console.log(`🚫 hasFeature(${featureKey}) - No features or inactive:`, {
+        hasFeatures: !!featureAccess.features,
+        isActive: featureAccess.isActive,
+        isLoading: featureAccess.isLoading
+      });
       return defaultValue;
     }
     
-    return featureAccess.features[featureKey]?.enabled ?? defaultValue;
+    const result = featureAccess.features[featureKey]?.enabled ?? defaultValue;
+    
+    console.log(`🔍 hasFeature(${featureKey}) - Result:`, {
+      feature: featureAccess.features[featureKey],
+      result,
+      defaultValue
+    });
+    
+    return result;
   };
 
   /**

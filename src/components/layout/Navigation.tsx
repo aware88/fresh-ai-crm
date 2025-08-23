@@ -17,11 +17,9 @@ export function Navigation({ className = '' }: NavigationProps) {
   const { organization, loading: orgLoading } = useOrganization();
   const { branding, loading: brandingLoading } = useOrganizationBranding();
   
-  // Get derived values from branding
+  // Get derived values from branding - fully dynamic
   const logoPath = branding?.logo_url || null;
-  const companyName = organization?.slug?.toLowerCase() === 'withcar' || 
-                     organization?.name?.toLowerCase() === 'withcar' ? 'WITHCAR' : 
-                     organization?.name || 'ARIS';
+  const companyName = organization?.name || 'ARIS';
   
 
   
@@ -41,41 +39,39 @@ export function Navigation({ className = '' }: NavigationProps) {
                 </div>
                 <div className="ml-2 animate-pulse bg-gray-200 rounded w-16 h-4"></div>
               </div>
-            ) : companyName === 'WITHCAR' ? (
-              // For Withcar, show only the logo (which contains the text)
+            ) : logoPath ? (
+              // If organization has a logo, show it
               <div className="h-8 w-auto flex items-center justify-center">
                 <Image 
-                  src={logoPath || '/images/organizations/withcar-logo.png'} 
-                  alt="WITHCAR Logo" 
+                  src={logoPath} 
+                  alt={`${companyName} Logo`} 
                   width={80}
                   height={32}
                   className="object-contain"
                   priority
+                  onError={(e) => {
+                    // Fallback to company name if logo fails
+                    const target = e.target as HTMLImageElement;
+                    target.style.display = 'none';
+                    const parent = target.parentElement;
+                    if (parent) {
+                      parent.innerHTML = `<span class="text-xl font-bold text-gray-900">${companyName}</span>`;
+                    }
+                  }}
                 />
               </div>
             ) : (
-              // For other organizations, show logo + text
+              // No logo, show company name with default icon
               <div className="flex items-center">
                 <div className="h-8 w-8 flex items-center justify-center overflow-hidden">
-                  {logoPath ? (
-                    <Image 
-                      src={logoPath} 
-                      alt={`${companyName} Logo`} 
-                      width={32}
-                      height={32}
-                      className="object-contain"
-                      priority
-                    />
-                  ) : (
-                    <Image 
-                      src="/images/aris-logo.svg" 
-                      alt="ARIS Logo" 
-                      width={32}
-                      height={32}
-                      className="object-contain" 
-                      priority
-                    />
-                  )}
+                  <Image 
+                    src="/images/aris-logo.svg" 
+                    alt="Default Logo" 
+                    width={32}
+                    height={32}
+                    className="object-contain" 
+                    priority
+                  />
                 </div>
                 <span className="ml-2 font-semibold text-md bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-transparent bg-clip-text">
                   {companyName}

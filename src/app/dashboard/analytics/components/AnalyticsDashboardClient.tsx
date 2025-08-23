@@ -31,14 +31,18 @@ import {
   Sparkles,
   Clock,
   TrendingUp,
-  Mail
+  Mail,
+  Zap,
+  AlertCircle
 } from 'lucide-react';
 
 import { AnalyticsData } from '@/lib/analytics/types';
 import SubscriptionAnalytics from '@/components/analytics/SubscriptionAnalytics';
 import AIPerformanceDashboard from '@/components/analytics/AIPerformanceDashboard';
 import FollowUpAnalyticsDashboard from '@/components/email/followup/FollowUpAnalyticsDashboard';
+import AITokenBalance from '@/components/subscription/AITokenBalance';
 import UpsellAnalytics from '@/components/analytics/UpsellAnalytics';
+import RevenueAnalytics from '@/components/analytics/RevenueAnalytics';
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
 
@@ -295,7 +299,7 @@ export default function AnalyticsDashboardClient({ initialData, organizationId }
       )}
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-         <TabsList className="grid w-full grid-cols-6 h-12 bg-gradient-to-r from-slate-50 to-slate-100 border border-slate-200 shadow-sm rounded-md">
+         <TabsList className="grid w-full grid-cols-7 h-12 bg-gradient-to-r from-slate-50 to-slate-100 border border-slate-200 shadow-sm rounded-md">
           <TabsTrigger 
             value="overview" 
             className="font-semibold text-slate-700 data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-blue-200 transition-all duration-200"
@@ -324,6 +328,13 @@ export default function AnalyticsDashboardClient({ initialData, organizationId }
             Revenue
           </TabsTrigger>
           <TabsTrigger 
+            value="upsell-analytics"
+            className="font-semibold text-slate-700 data-[state=active]:bg-white data-[state=active]:text-purple-600 data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-purple-200 transition-all duration-200"
+          >
+            <ArrowUpRight className="mr-1 h-3 w-3" />
+            Upsell
+          </TabsTrigger>
+          <TabsTrigger 
             value="subscription"
             className="font-semibold text-slate-700 data-[state=active]:bg-white data-[state=active]:text-amber-600 data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-amber-200 transition-all duration-200"
           >
@@ -331,11 +342,11 @@ export default function AnalyticsDashboardClient({ initialData, organizationId }
             Subscription
           </TabsTrigger>
           <TabsTrigger 
-            value="business"
-            className="font-semibold text-slate-700 data-[state=active]:bg-white data-[state=active]:text-pink-600 data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-pink-200 transition-all duration-200"
+            value="ai-usage"
+            className="font-semibold text-slate-700 data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-blue-200 transition-all duration-200"
           >
-            <Building2 className="mr-1 h-3 w-3" />
-            Business
+            <Zap className="mr-1 h-3 w-3" />
+            AI Usage
           </TabsTrigger>
         </TabsList>
         
@@ -383,17 +394,11 @@ export default function AnalyticsDashboardClient({ initialData, organizationId }
         </TabsContent>
 
         <TabsContent value="revenue-analytics" className="space-y-4">
-          <Card className="border-0 shadow-lg">
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <TrendingUp className="mr-2 h-5 w-5 text-purple-600" />
-                Revenue Analytics
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <UpsellAnalytics />
-            </CardContent>
-          </Card>
+          <RevenueAnalytics organizationId={organizationId} />
+        </TabsContent>
+
+        <TabsContent value="upsell-analytics" className="space-y-4">
+          <UpsellAnalytics organizationId={organizationId} />
         </TabsContent>
 
         <TabsContent value="ai" className="space-y-4">
@@ -467,136 +472,112 @@ export default function AnalyticsDashboardClient({ initialData, organizationId }
           )}
         </TabsContent>
 
-        <TabsContent value="business" className="space-y-4">
-          <div className="grid gap-6">
-            {/* Business Overview Stats */}
-            <div className={`grid gap-4 md:grid-cols-2 ${ hideSuppliers ? 'lg:grid-cols-3' : 'lg:grid-cols-4' }`}>
-              <StatCard
-                title="Total Revenue"
-                value={`$${analyticsData.counts.revenue?.toLocaleString() || '0'}`}
-                description="Revenue generated this month"
-                icon={<DollarSign className="h-4 w-4" />}
-                trend={getTrend(analyticsData.revenue?.percentChange || 0)}
-                trendValue={formatTrend(analyticsData.revenue?.percentChange || 0)}
-              />
-              <StatCard
-                title="Total Orders"
-                value={analyticsData.counts.orders || 0}
-                description="Orders processed this month"
-                icon={<ShoppingBag className="h-4 w-4" />}
-                trend={getTrend(analyticsData.orders?.percentChange || 0)}
-                trendValue={formatTrend(analyticsData.orders?.percentChange || 0)}
-              />
-              <StatCard
-                title="Customers"
-                value={analyticsData.counts.customers || 0}
-                description="Active customers this month"
-                icon={<Users className="h-4 w-4" />}
-                trend={getTrend(analyticsData.customers?.percentChange || 0)}
-                trendValue={formatTrend(analyticsData.customers?.percentChange || 0)}
-              />
-              {!hideSuppliers && (
-                <StatCard
-                  title="Suppliers"
-                  value={analyticsData.counts.suppliers || 0}
-                  description="Active suppliers"
-                  icon={<Building2 className="h-4 w-4" />}
-                  trend={getTrend(analyticsData.suppliers?.percentChange || 0)}
-                  trendValue={formatTrend(analyticsData.suppliers?.percentChange || 0)}
-                />
-              )}
-            </div>
-
-            {/* Business Charts */}
-            <div className="grid gap-6 md:grid-cols-2">
-              {!hideSuppliers && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Supplier Distribution</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {supplierData && supplierData.length > 0 ? (
-                      <div className="h-64">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={supplierData}>
-                            <CartesianGrid strokeDasharray="3 3" />
-                            <XAxis dataKey="name" />
-                            <YAxis />
-                            <RechartsTooltip />
-                            <Bar dataKey="count" fill="#3b82f6" />
-                          </BarChart>
-                        </ResponsiveContainer>
-                      </div>
-                    ) : (
-                      <div className="text-center py-8">
-                        <Building2 className="h-8 w-8 text-gray-300 mx-auto mb-2" />
-                        <p className="text-sm text-gray-500">No supplier data available</p>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              )}
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Product Categories</CardTitle>
+        <TabsContent value="ai-usage" className="space-y-6">
+          <div className="space-y-6">
+            {/* AI Token Balance - Main Feature */}
+            <AITokenBalance variant="card" className="border-0 shadow-lg" />
+            
+            {/* Additional AI Usage Analytics */}
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              <Card className="border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-lg text-blue-900 flex items-center gap-2">
+                    <Zap className="h-5 w-5" />
+                    Usage Efficiency
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {productData && productData.length > 0 ? (
-                    <div className="h-64">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                          <Pie
-                            data={productData}
-                            cx="50%"
-                            cy="50%"
-                            innerRadius={40}
-                            outerRadius={80}
-                            dataKey="count"
-                          >
-                            {productData.map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                            ))}
-                          </Pie>
-                          <RechartsTooltip />
-                          <Legend />
-                        </PieChart>
-                      </ResponsiveContainer>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-blue-700">Cost per Request</span>
+                      <span className="font-semibold text-blue-900">$0.02</span>
                     </div>
-                  ) : (
-                    <div className="text-center py-8">
-                      <ShoppingBag className="h-8 w-8 text-gray-300 mx-auto mb-2" />
-                      <p className="text-sm text-gray-500">No product data available</p>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-blue-700">Avg Response Time</span>
+                      <span className="font-semibold text-blue-900">2.3s</span>
                     </div>
-                  )}
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-blue-700">Success Rate</span>
+                      <span className="font-semibold text-green-600">98.7%</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="border-green-200 bg-gradient-to-br from-green-50 to-emerald-50">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-lg text-green-900 flex items-center gap-2">
+                    <TrendingUp className="h-5 w-5" />
+                    Monthly Trends
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-green-700">Usage Growth</span>
+                      <span className="font-semibold text-green-600">+24%</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-green-700">Cost Savings</span>
+                      <span className="font-semibold text-green-600">$127</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-green-700">Peak Usage</span>
+                      <span className="font-semibold text-green-900">2-4 PM</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="border-purple-200 bg-gradient-to-br from-purple-50 to-violet-50">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-lg text-purple-900 flex items-center gap-2">
+                    <Sparkles className="h-5 w-5" />
+                    AI Features
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-purple-700">Email Responses</span>
+                      <span className="font-semibold text-purple-900">67%</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-purple-700">Profiling</span>
+                      <span className="font-semibold text-purple-900">23%</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-purple-700">Drafting</span>
+                      <span className="font-semibold text-purple-900">10%</span>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
             </div>
 
-            {/* Price Trends */}
-            <Card>
+            {/* Usage Recommendations */}
+            <Card className="border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50">
               <CardHeader>
-                <CardTitle>Price Trends</CardTitle>
+                <CardTitle className="text-lg text-amber-900 flex items-center gap-2">
+                  <AlertCircle className="h-5 w-5" />
+                  Usage Optimization Tips
+                </CardTitle>
               </CardHeader>
               <CardContent>
-                {priceData && priceData.length > 0 ? (
-                  <div className="h-64">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={priceData}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="range" />
-                        <YAxis />
-                        <RechartsTooltip />
-                        <Bar dataKey="count" fill="#10b981" />
-                      </BarChart>
-                    </ResponsiveContainer>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <h4 className="font-semibold text-amber-800">💡 Cost Efficiency</h4>
+                    <p className="text-sm text-amber-700">
+                      Your current usage pattern is optimal. Consider upgrading to Premium for unlimited tokens and advanced features.
+                    </p>
                   </div>
-                ) : (
-                  <div className="text-center py-8">
-                    <DollarSign className="h-8 w-8 text-gray-300 mx-auto mb-2" />
-                    <p className="text-sm text-gray-500">No pricing data available</p>
+                  <div className="space-y-2">
+                    <h4 className="font-semibold text-amber-800">📈 Performance Insights</h4>
+                    <p className="text-sm text-amber-700">
+                      Email responses are your most-used feature. Enable auto-responses to save even more time.
+                    </p>
                   </div>
-                )}
+                </div>
               </CardContent>
             </Card>
           </div>

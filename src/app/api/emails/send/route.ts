@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from '@/lib/auth';
 import { MicrosoftGraphService } from '@/lib/services/microsoft-graph-service';
+import { FollowUpService } from '@/lib/email/follow-up-service';
 
 /**
  * POST handler for sending emails via Microsoft Graph API
@@ -69,9 +70,41 @@ export async function POST(req: NextRequest) {
     }
     
     // Send the email
-    await graphService.sendEmail({ message });
+    const emailResult = await graphService.sendEmail({ message });
     
-    return NextResponse.json({ success: true });
+    // Get user info for follow-up tracking
+    const userId = session.user?.id;
+    const organizationId = session.user?.organizationId;
+    
+    // Automatically create follow-up if this is an outbound email (not a reply)
+    if (userId && !body.subject.toLowerCase().startsWith('re:')) {
+      try {
+        const followUpService = new FollowUpService();
+        
+        await followUpService.trackSentEmail({
+          emailId: `sent-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          userId: userId,
+          organizationId: organizationId,
+          subject: body.subject,
+          recipients: body.toRecipients,
+          sentAt: new Date(),
+          autoFollowup: true, // Enable automatic follow-up tracking
+          followUpDays: 3, // Default to 3 days
+          priority: 'medium'
+        });
+        
+        console.log('✅ Follow-up tracking created for sent email:', body.subject);
+      } catch (followUpError) {
+        console.error('⚠️ Failed to create follow-up tracking:', followUpError);
+        // Don't fail the email send if follow-up creation fails
+      }
+    }
+    
+    return NextResponse.json({ 
+      success: true,
+      emailId: emailResult?.id || `sent-${Date.now()}`,
+      followUpCreated: userId && !body.subject.toLowerCase().startsWith('re:')
+    });
   } catch (error: any) {
     console.error('Error sending email:', error);
     return NextResponse.json(

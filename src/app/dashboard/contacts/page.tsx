@@ -51,6 +51,7 @@ import {
 import { Contact } from '@/lib/contacts/types';
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/components/ui/use-toast';
+import { useOrganization } from '@/hooks/useOrganization';
 import {
   Select,
   SelectContent,
@@ -69,12 +70,15 @@ function ContactsContent() {
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { organization, loading: orgLoading } = useOrganization();
 
   // Load contacts
   useEffect(() => {
-    // Fetch contacts from API
+    // Fetch contacts from API - the API handles organization lookup internally
     const fetchContacts = async () => {
       try {
+        console.log('Contacts: Fetching contacts from API');
+        setLoading(true);
         const response = await fetch('/api/contacts');
         if (!response.ok) {
           throw new Error(`Error: ${response.status}`);
@@ -82,6 +86,7 @@ function ContactsContent() {
         
         const data = await response.json();
         const contactsArray = Array.isArray(data.contacts) ? data.contacts : [];
+        console.log(`Contacts: Loaded ${contactsArray.length} contacts from API`);
         setContacts(contactsArray);
         
         // Display whether we're using Supabase or not
@@ -341,7 +346,7 @@ function ContactsContent() {
                 )}
               </div>
 
-              {loading ? (
+              {loading || orgLoading ? (
                 <div className="flex justify-center items-center py-12">
                   <div className="flex flex-col items-center space-y-4">
                     <Loader2 className="h-8 w-8 animate-spin text-blue-500" />

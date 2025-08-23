@@ -13,7 +13,7 @@ import OutlookClient from '@/components/email/outlook/OutlookClient';
 import ImapClient from '@/components/email/imap/ImapClient';
 import EmailComposer from '@/components/email/EmailComposer';
 import { FaEnvelope, FaRobot, FaSearch, FaSync } from 'react-icons/fa';
-import { Mail, Inbox, Send, AlertCircle, Database, Clock, Users } from 'lucide-react';
+import { Mail, Inbox, Send, AlertCircle, Database, Clock, Users, ChevronLeft, ChevronRight } from 'lucide-react';
 import TeamPresence from '@/components/collaboration/TeamPresence';
 import TeamActivityFeed from '@/components/collaboration/TeamActivityFeed';
 import TeamCollaborationGate from '@/components/subscription/TeamCollaborationGate';
@@ -34,6 +34,7 @@ export default function EmailPage() {
   const router = useRouter();
   const { organization } = useOrganization();
   const { hasFeature } = useSubscriptionFeatures(organization?.id || '');
+  const [isTeamSidebarCollapsed, setIsTeamSidebarCollapsed] = useState(false);
   const [connected, setConnected] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -532,39 +533,59 @@ export default function EmailPage() {
             </Tabs>
           </div>
 
-          {/* Team Collaboration Sidebar */}
-          <div className="w-80 flex-shrink-0 space-y-4">
-            {/* Team Collaboration Features - with access control */}
-            <TeamCollaborationGate 
-              feature="sidebar"
-              fallbackMessage="Team collaboration requires Pro plan"
-            >
-              {/* Team Presence */}
-              <Card>
-                <CardHeader className="pb-3">
-                  <div className="flex items-center gap-2">
-                    <Users className="h-4 w-4 text-blue-600" />
-                    <h3 className="font-semibold text-sm">Team Online</h3>
-                  </div>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <TeamPresence compact={true} />
-                </CardContent>
-              </Card>
+          {/* Team Collaboration Sidebar - Collapsible */}
+          <div className={`${isTeamSidebarCollapsed ? 'w-12' : 'w-80'} flex-shrink-0 transition-all duration-300 ease-in-out`}>
+            {/* Collapse/Expand Button */}
+            <div className="mb-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsTeamSidebarCollapsed(!isTeamSidebarCollapsed)}
+                className="w-full justify-center p-2 h-8 hover:bg-gray-100"
+              >
+                {isTeamSidebarCollapsed ? (
+                  <ChevronLeft className="h-4 w-4" />
+                ) : (
+                  <ChevronRight className="h-4 w-4" />
+                )}
+              </Button>
+            </div>
 
-              {/* Team Activity Feed */}
-              <Card className="flex-1">
-                <CardHeader className="pb-3">
-                  <div className="flex items-center gap-2">
-                    <AlertCircle className="h-4 w-4 text-green-600" />
-                    <h3 className="font-semibold text-sm">Team Activity</h3>
-                  </div>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <TeamActivityFeed maxHeight="300px" />
-                </CardContent>
-              </Card>
-            </TeamCollaborationGate>
+            {/* Team Collaboration Content */}
+            {!isTeamSidebarCollapsed && (
+              <div className="space-y-4">
+                <TeamCollaborationGate 
+                  feature="sidebar"
+                  fallbackMessage="Team collaboration requires Pro plan"
+                >
+                  {/* Team Presence */}
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <div className="flex items-center gap-2">
+                        <Users className="h-4 w-4 text-blue-600" />
+                        <h3 className="font-semibold text-sm">Team Online</h3>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="pt-0">
+                      <TeamPresence compact={true} />
+                    </CardContent>
+                  </Card>
+
+                  {/* Team Activity Feed */}
+                  <Card className="flex-1">
+                    <CardHeader className="pb-3">
+                      <div className="flex items-center gap-2">
+                        <AlertCircle className="h-4 w-4 text-green-600" />
+                        <h3 className="font-semibold text-sm">Team Activity</h3>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="pt-0">
+                      <TeamActivityFeed maxHeight="300px" />
+                    </CardContent>
+                  </Card>
+                </TeamCollaborationGate>
+              </div>
+            )}
 
             {/* AI Monitor - when active */}
             {showAIMonitor && (

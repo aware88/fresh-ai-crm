@@ -21,46 +21,69 @@ export async function GET(request: Request) {
   try {
     // Resolve authenticated user and organization
     const session = await getServerSession(authOptions);
+    console.log('Contacts API: Session check:', session ? 'Session found' : 'No session');
     if (!session?.user) {
       // Fallback to existing loader (non-auth contexts)
+      console.log('Contacts API: No session found, using fallback loadContacts()');
       const contacts = await loadContacts();
+      console.log(`Contacts API: Fallback loaded ${contacts.length} contacts`);
       return NextResponse.json({ contacts, usingSupabase: isUsingSupabase() });
     }
 
     const userId = (session.user as any).id;
-    const supabaseRW = await createServerClient();
 
-    // Determine active organization id
-    let organizationId: string | null = (session.user as any)?.organizationId || null;
-    try {
-      if (!organizationId) {
-        const { data: prefs } = await supabaseRW
-          .from('user_preferences')
-          .select('current_organization_id')
-          .eq('user_id', userId)
-          .maybeSingle();
-        if (prefs?.current_organization_id) organizationId = prefs.current_organization_id;
-        if (!organizationId) {
-          const { data: member } = await supabaseRW
-            .from('organization_members')
-            .select('organization_id')
-            .eq('user_id', userId)
-            .maybeSingle();
-          if (member?.organization_id) organizationId = member.organization_id;
-        }
-      }
-    } catch {}
-
-    // Use service role client for robust filtering and to avoid RLS edge cases
+    // Use service role client for organization lookup to bypass RLS
     const supabaseAdmin = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
+    // Determine active organization id
+    let organizationId: string | null = (session.user as any)?.organizationId || null;
+    console.log(`Contacts API: Initial organizationId from session: ${organizationId}`);
+    
+    try {
+      if (!organizationId) {
+        console.log('Contacts API: Looking up organizationId from user_preferences...');
+        const { data: prefs, error: prefsError } = await supabaseAdmin
+          .from('user_preferences')
+          .select('current_organization_id')
+          .eq('user_id', userId)
+          .maybeSingle();
+        
+        console.log(`Contacts API: Preferences query result:`, { prefs, prefsError });
+        if (prefs?.current_organization_id) {
+          organizationId = prefs.current_organization_id;
+          console.log(`Contacts API: Found organizationId in preferences: ${organizationId}`);
+        }
+        
+        if (!organizationId) {
+          console.log('Contacts API: Looking up organizationId from organization_members...');
+          const { data: member, error: memberError } = await supabaseAdmin
+            .from('organization_members')
+            .select('organization_id')
+            .eq('user_id', userId)
+            .maybeSingle();
+          
+          console.log(`Contacts API: Members query result:`, { member, memberError });
+          if (member?.organization_id) {
+            organizationId = member.organization_id;
+            console.log(`Contacts API: Found organizationId in members: ${organizationId}`);
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Contacts API: Error in organization lookup:', err);
+    }
+
+    console.log(`Contacts API: userId=${userId}, organizationId=${organizationId}`);
+    const filterQuery = `organization_id.eq.${organizationId || '00000000-0000-0000-0000-000000000000'},user_id.eq.${userId})`;
+    console.log(`Contacts API: Using filter query: ${filterQuery}`);
+
     const { data, error } = await supabaseAdmin
       .from('contacts')
       .select('*')
-      .or(`organization_id.eq.${organizationId || '00000000-0000-0000-0000-000000000000'},user_id.eq.${userId})`);
+      .or(filterQuery);
 
     if (error) {
       console.error('Error loading contacts (scoped):', error);
@@ -68,6 +91,7 @@ export async function GET(request: Request) {
     }
 
     const rows = Array.isArray(data) ? data : [];
+    console.log(`Contacts API: Found ${rows.length} contacts in database`);
 
     // Map DB row shape (snake/lowercase) to Contact camelCase the UI expects
     const contacts = rows.map((item: any) => ({

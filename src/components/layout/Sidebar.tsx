@@ -41,62 +41,8 @@ type NavItem = {
   special?: boolean;
 };
 
-// Organization-specific navigation configurations
-const NAVIGATION_CONFIGS = {
-  withcar: [
-    {
-      title: 'Dashboard',
-      href: '/dashboard',
-      icon: <LayoutDashboard className="h-5 w-5" />,
-    },
-    {
-      title: 'Email',
-      href: '/dashboard/email',
-      icon: <Mail className="h-5 w-5" />,
-    },
-    {
-      title: 'Products',
-      href: '/dashboard/products',
-      icon: <Package2 className="h-5 w-5" />,
-    },
-    {
-      title: 'Orders',
-      href: '/dashboard/orders',
-      icon: <ShoppingCart className="h-5 w-5" />,
-    },
-    {
-      title: 'Contacts',
-      href: '/dashboard/contacts',
-      icon: <Users className="h-5 w-5" />,
-    },
-    {
-      title: 'Team Collaboration',
-      href: '/dashboard/team',
-      icon: <MessageSquare className="h-5 w-5" />,
-    },
-    {
-              title: 'CRM Assistant',
-      href: '/dashboard/ai-future',
-      icon: (
-        <div className="relative">
-          <Brain className="h-5 w-5" />
-          <Sparkles className="w-3 h-3 absolute -top-1 -right-1 text-yellow-500" />
-        </div>
-      ),
-      special: true
-    },
-    {
-      title: 'Analytics',
-      href: '/dashboard/analytics',
-      icon: <BarChart className="h-5 w-5" />
-    },
-    {
-      title: 'Settings',
-      href: '/settings',
-      icon: <Settings className="h-5 w-5" />
-    }
-  ],
-  default: [
+// Universal navigation configuration for all organizations
+const NAVIGATION_CONFIG = [
     {
       title: 'Dashboard',
       href: '/dashboard',
@@ -171,8 +117,7 @@ const NAVIGATION_CONFIGS = {
       icon: <Calendar className="h-5 w-5" />,
       comingSoon: true
     }
-  ]
-};
+];
 
 // Memoized NavItem component for better performance
 const NavItemComponent = memo(({ 
@@ -255,18 +200,16 @@ export function Sidebar({ className }: SidebarProps) {
   const { branding, loading: brandingLoading } = useOrganizationBranding();
   const { hasFeature } = useSubscriptionFeatures(organization?.id || '');
 
-  // Get derived values from branding
+  // Get derived values from branding - fully dynamic
   const logoPath = branding?.logo_url || null;
-  const companyName = organization?.slug?.toLowerCase() === 'withcar' || 
-                     organization?.name?.toLowerCase() === 'withcar' ? 'WITHCAR' : 
-                     organization?.name || 'ARIS';
+  const companyName = organization?.name || 'ARIS';
 
   // Close mobile menu when pathname changes
   useEffect(() => {
     closeMenu();
   }, [pathname, closeMenu]);
 
-  // Get navigation items based on organization
+  // Get navigation items - same for all organizations
   const navItems = useMemo<NavItem[]>(() => {
     console.log('🔍 Sidebar organization check:', { 
       organization, 
@@ -282,18 +225,9 @@ export function Sidebar({ className }: SidebarProps) {
       return [];
     }
 
-    // Check organization slug/name for specific configurations
-    const orgSlug = organization?.slug?.toLowerCase();
-    const orgName = organization?.name?.toLowerCase();
-    
-    if (orgSlug === 'withcar' || orgName === 'withcar') {
-      console.log('🚗 Using Withcar navigation configuration');
-      return NAVIGATION_CONFIGS.withcar;
-    }
-    
-    console.log('📋 Using default navigation configuration');
-    // Default navigation for all other organizations
-    return NAVIGATION_CONFIGS.default;
+    console.log('📋 Using universal navigation configuration for:', organization?.name);
+    // Universal navigation for all organizations
+    return NAVIGATION_CONFIG;
   }, [organization, orgLoading, brandingLoading]);
 
   // Filter nav items based on subscription features

@@ -4,6 +4,8 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../../auth/[...nextauth]/route';
 import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
+import { promises as fs } from 'fs';
+import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 
 // Bucket name for company assets
@@ -93,25 +95,47 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No organization selected' }, { status: 400 });
     }
 
-    // Upsert organization branding record
-    const { error: brandingError } = await supabaseClient
-      .from('organization_branding')
-      .upsert({
+    // Save logo to file-based branding system
+    const brandingDir = path.join(process.cwd(), 'data', 'branding');
+    const brandingFile = path.join(brandingDir, `${preferences.current_organization_id}.json`);
+    
+    try {
+      // Ensure branding directory exists
+      await fs.mkdir(brandingDir, { recursive: true });
+      
+      // Read existing branding or create new
+      let existingBranding = {};
+      try {
+        const existingData = await fs.readFile(brandingFile, 'utf8');
+        existingBranding = JSON.parse(existingData);
+      } catch (readError) {
+        // File doesn't exist, create new branding
+        console.log('Creating new branding file for organization:', preferences.current_organization_id);
+      }
+      
+      // Update with new logo URL
+      const updatedBranding = {
+        ...existingBranding,
+        id: existingBranding.id || `branding_${preferences.current_organization_id}`,
         organization_id: preferences.current_organization_id,
         logo_url: logoUrl,
         updated_at: new Date().toISOString(),
-        updated_by: session.user.id
-      }, {
-        onConflict: 'organization_id'
-      });
-
-    if (brandingError) {
-      console.error('Error saving logo to database:', brandingError);
+        updated_by: session.user.id,
+        created_at: existingBranding.created_at || new Date().toISOString(),
+        created_by: existingBranding.created_by || session.user.id
+      };
+      
+      // Save updated branding
+      await fs.writeFile(brandingFile, JSON.stringify(updatedBranding, null, 2), 'utf8');
+      console.log('Successfully saved logo to branding file');
+      
+    } catch (brandingError) {
+      console.error('Error saving logo to branding file:', brandingError);
       // Still return success since the upload worked
       return NextResponse.json({ 
         success: true, 
         logoPath: logoUrl,
-        warning: 'Logo uploaded but not saved to database'
+        warning: 'Logo uploaded but not saved to branding file'
       });
     }
     

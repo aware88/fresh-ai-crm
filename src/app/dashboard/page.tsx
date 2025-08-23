@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import AITokenBalance from '@/components/subscription/AITokenBalance';
+
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { 
@@ -31,6 +31,7 @@ import { useSession } from 'next-auth/react';
 import { useOrganization } from '@/hooks/useOrganization';
 import { formatPriceUSD } from '@/lib/subscription-plans-v2';
 import AnalyticsSummaryCards from '@/components/dashboard/AnalyticsSummaryCards';
+
 
 // Types for dashboard statistics
 interface DashboardStats {
@@ -176,6 +177,8 @@ export default function DashboardPage() {
             </Link>
           </Button>
         </div>
+
+
       </div>
 
       {/* KPI Cards */}
@@ -311,9 +314,6 @@ export default function DashboardPage() {
               </CardContent>
             </Card>
 
-            {/* AI Token Balance */}
-            <AITokenBalance variant="card" className="border-0 shadow-lg" />
-
             <Card className="border-0 shadow-lg">
               <CardHeader>
                 <CardTitle className="flex items-center">
@@ -323,17 +323,17 @@ export default function DashboardPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {aiSavings ? (
+                  {aiSavings && aiSavings.time && aiSavings.cost ? (
                     <div className="space-y-2">
                       <p className="text-sm text-muted-foreground">This month</p>
                       <div className="flex items-center justify-between">
                         <div>
                           <p className="font-medium">Time Saved</p>
-                          <p className="text-sm text-muted-foreground">~{aiSavings.time.hours}h ({aiSavings.time.minutes} min)</p>
+                          <p className="text-sm text-muted-foreground">~{aiSavings.time.hours || 0}h ({aiSavings.time.minutes || 0} min)</p>
                         </div>
                         <div className="text-right">
                           <p className="font-medium">Cost Saved</p>
-                          <p className="text-sm text-muted-foreground">${aiSavings.cost.savedUsd.toFixed(2)}</p>
+                          <p className="text-sm text-muted-foreground">${(aiSavings.cost.savedUsd || 0).toFixed(2)}</p>
                         </div>
                       </div>
                       {aiQuality && (
@@ -352,10 +352,7 @@ export default function DashboardPage() {
                           </div>
                         </div>
                       )}
-                      {!aiSavings && (
-                        <div className="text-sm text-muted-foreground">No AI usage yet. Connect an email account to start tracking savings.</div>
-                      )}
-                      {aiSavings.topContributor && (
+                      {aiSavings?.topContributor && (
                         <p className="text-xs text-muted-foreground">Top contributor: {aiSavings.topContributor.replace('_', ' ')}</p>
                       )}
                       <div className="pt-3 flex items-center gap-2">
@@ -388,6 +385,8 @@ export default function DashboardPage() {
               </CardContent>
             </Card>
           </div>
+
+
         </TabsContent>
 
         <TabsContent value="analytics" className="space-y-6">

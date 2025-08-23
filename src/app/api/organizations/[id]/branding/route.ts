@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
 import { getServerSession } from '@/lib/auth';
 import { OrganizationBranding } from '@/types/branding';
+import { promises as fs } from 'fs';
+import path from 'path';
 
 /**
  * GET /api/organizations/[id]/branding
@@ -28,34 +30,26 @@ export async function GET(
     // Create Supabase client properly with await
     const supabase = await createServerClient();
     
-    // Try DB branding first
-    const { data: existingBranding } = await supabase
-      .from('organization_branding')
-      .select('*')
-      .eq('organization_id', organizationId)
-      .single();
-    if (existingBranding) {
+    // Try file-based branding storage first
+    const brandingDir = path.join(process.cwd(), 'data', 'branding');
+    const brandingFile = path.join(brandingDir, `${organizationId}.json`);
+    
+    try {
+      // Ensure branding directory exists
+      await fs.mkdir(brandingDir, { recursive: true });
+      
+      // Try to read existing branding file
+      const brandingData = await fs.readFile(brandingFile, 'utf8');
+      const existingBranding = JSON.parse(brandingData);
+      
+      console.log('Found existing branding file for organization:', organizationId);
       return NextResponse.json({ branding: existingBranding });
+      
+    } catch (fileError) {
+      // File doesn't exist or is invalid, return null for default branding
+      console.log('No branding file found for organization:', organizationId);
+      return NextResponse.json({ branding: null });
     }
-
-    // Fallback: use default branding preset
-    const now = new Date().toISOString();
-    const branding = {
-      // Default ARIS preset
-      primary_color: '#0f172a',
-      secondary_color: '#64748b',
-      accent_color: '#2563eb',
-      font_family: 'Inter, system-ui, sans-serif',
-      logo_url: null,
-      favicon_url: null,
-      organization_id: organizationId,
-      created_at: now,
-      updated_at: now,
-      created_by: session.user.id,
-      updated_by: session.user.id,
-    };
-    console.log('Returning preset branding for organization:', organizationId, '(Default preset)');
-    return NextResponse.json({ branding });
     
     // Unreachable legacy DB path retained for reference only
     // (Real DB-backed branding can be re-enabled later.)
@@ -97,49 +91,35 @@ export async function PUT(
     // Get request body
     const brandingData = await request.json();
     
-    // Check if branding record exists
-    const { data: existingBranding } = await supabase
-      .from('organization_branding')
-      .select('id')
-      .eq('organization_id', organizationId)
-      .single();
+    // Use file-based storage instead of database
+    const brandingDir = path.join(process.cwd(), 'data', 'branding');
+    const brandingFile = path.join(brandingDir, `${organizationId}.json`);
     
-    let result;
-    
-    if (existingBranding) {
-      // Update existing branding
-      result = await supabase
-        .from('organization_branding')
-        .update({
-          ...brandingData,
-          updated_at: new Date().toISOString(),
-          updated_by: session.user.id
-        })
-        .eq('organization_id', organizationId)
-        .select('*')
-        .single();
-    } else {
-      // Create new branding record
-      result = await supabase
-        .from('organization_branding')
-        .insert({
-          ...brandingData,
-          organization_id: organizationId,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          created_by: session.user.id,
-          updated_by: session.user.id
-        })
-        .select('*')
-        .single();
+    try {
+      // Ensure branding directory exists
+      await fs.mkdir(brandingDir, { recursive: true });
+      
+      // Create complete branding record
+      const brandingRecord = {
+        id: `branding_${organizationId}`,
+        organization_id: organizationId,
+        ...brandingData,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        created_by: session.user.id,
+        updated_by: session.user.id
+      };
+      
+      // Save to file
+      await fs.writeFile(brandingFile, JSON.stringify(brandingRecord, null, 2), 'utf8');
+      
+      console.log('Successfully saved branding for organization:', organizationId);
+      return NextResponse.json({ branding: brandingRecord });
+      
+    } catch (fileError) {
+      console.error('Error saving branding file:', fileError);
+      return NextResponse.json({ error: 'Failed to save organization branding' }, { status: 500 });
     }
-    
-    if (result.error) {
-      console.error('Error updating organization branding:', result.error);
-      return NextResponse.json({ error: 'Failed to update organization branding' }, { status: 500 });
-    }
-    
-    return NextResponse.json({ branding: result.data });
   } catch (error) {
     console.error('Error in organization branding API:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
