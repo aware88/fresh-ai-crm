@@ -28,6 +28,8 @@ services:
         secret: true
       - name: SUPABASE_JWT_SECRET
         secret: true
+      - name: OPENAI_API_KEY
+        secret: true
       - name: NEXTAUTH_URL
         value: https://app.helloaris.com
       - name: NEXTAUTH_SECRET
@@ -36,6 +38,20 @@ services:
         secret: true
       - name: ENCRYPTION_KEY
         secret: true
+      - name: GOOGLE_CLIENT_ID
+        secret: true
+      - name: GOOGLE_CLIENT_SECRET
+        secret: true
+      - name: PASSWORD_ENCRYPTION_KEY
+        secret: true
+      - name: EMAIL_PASS
+        secret: true
+      - name: EMAIL_USER
+        secret: true
+      - name: IMAP_HOST
+        value: "imap.gmail.com"
+      - name: IMAP_PORT
+        value: "993"
       - name: NEXT_PUBLIC_ENABLE_EMAIL_INTEGRATION
         value: "true"
       - name: NEXT_PUBLIC_ENABLE_ANALYTICS
