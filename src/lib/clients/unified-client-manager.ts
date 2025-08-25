@@ -294,6 +294,12 @@ export class UnifiedClientManager {
   }
 
   private loadSupabaseConfig(): SupabaseConfig {
+    // Debug logging to see what environment variables are available
+    console.log('[UnifiedClientManager] 🔍 Loading Supabase config...');
+    console.log('[UnifiedClientManager] 🔍 NEXT_PUBLIC_SUPABASE_URL:', process.env.NEXT_PUBLIC_SUPABASE_URL ? 'SET' : 'NOT SET');
+    console.log('[UnifiedClientManager] 🔍 NEXT_PUBLIC_SUPABASE_ANON_KEY:', process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? 'SET' : 'NOT SET');
+    console.log('[UnifiedClientManager] 🔍 SUPABASE_SERVICE_ROLE_KEY:', process.env.SUPABASE_SERVICE_ROLE_KEY ? 'SET' : 'NOT SET');
+    
     return {
       url: process.env.NEXT_PUBLIC_SUPABASE_URL,
       anonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
@@ -354,6 +360,11 @@ export class UnifiedClientManager {
     if (this.supabaseClients.has(clientKey)) {
       return;
     }
+
+    console.log(`[UnifiedClientManager] 🔍 Initializing ${type} client...`);
+    console.log(`[UnifiedClientManager] 🔍 Config URL:`, this.supabaseConfig.url ? 'SET' : 'NOT SET');
+    console.log(`[UnifiedClientManager] 🔍 Config anonKey:`, this.supabaseConfig.anonKey ? 'SET' : 'NOT SET');
+    console.log(`[UnifiedClientManager] 🔍 Config serviceRoleKey:`, this.supabaseConfig.serviceRoleKey ? 'SET' : 'NOT SET');
 
     const url = this.supabaseConfig.url;
     if (!url) {
