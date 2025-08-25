@@ -37,7 +37,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                     if (cached) {
                       var theme = JSON.parse(cached);
                       if (theme.organizationId && theme.accentColor) {
-                        console.log('🎨 Immediate theme application: Using cached theme');
+                        // console.log('🎨 Immediate theme application: Using cached theme'); // Reduced logging
                         document.documentElement.style.setProperty('--accent-color', theme.accentColor);
                         document.documentElement.style.setProperty('--primary-color', theme.primaryColor);
                         document.documentElement.style.setProperty('--secondary-color', theme.secondaryColor);
@@ -57,7 +57,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                         if (prefs.current_organization_id) {
                           // Check if this is the Withcar organization ID
                           if (prefs.current_organization_id === '577485fb-50b4-4bb2-a4c6-54b97e1545ad') {
-                            console.log('🎨 Immediate theme application: Detected Withcar from user prefs');
+                            // console.log('🎨 Immediate theme application: Detected Withcar from user prefs'); // Reduced logging
                             document.documentElement.style.setProperty('--accent-color', '#ff6a00');
                             document.documentElement.style.setProperty('--primary-color', '#111111');
                             document.documentElement.style.setProperty('--secondary-color', '#1f2937');
@@ -68,7 +68,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                             return;
                           } else {
                             // This is NOT Withcar, apply blue theme immediately
-                            console.log('🎨 Immediate theme application: Non-Withcar org detected, applying blue theme');
+                            // console.log('🎨 Immediate theme application: Non-Withcar org detected, applying blue theme'); // Reduced logging
                             document.documentElement.style.setProperty('--accent-color', '#2563eb');
                             document.documentElement.style.setProperty('--primary-color', '#0f172a');
                             document.documentElement.style.setProperty('--secondary-color', '#64748b');
@@ -87,7 +87,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                     // Fallback: detect Withcar from URL path
                     var pathname = window.location.pathname;
                     if (pathname.includes('/withcar') || pathname.includes('withcar')) {
-                      console.log('🎨 Immediate theme application: Detected Withcar from URL path');
+                      // console.log('🎨 Immediate theme application: Detected Withcar from URL path'); // Reduced logging
                       document.documentElement.style.setProperty('--accent-color', '#ff6a00');
                       document.documentElement.style.setProperty('--primary-color', '#111111');
                       document.documentElement.style.setProperty('--secondary-color', '#1f2937');
@@ -96,7 +96,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                       document.documentElement.style.setProperty('--brand-mid', '#ff6a00');
                       document.documentElement.style.setProperty('--brand-end', '#ff6a00');
                     } else {
-                      console.log('🎨 Immediate theme application: No Withcar detected, using default blue theme');
+                      // console.log('🎨 Immediate theme application: No Withcar detected, using default blue theme'); // Reduced logging
                       // Override the CSS defaults for non-Withcar organizations
                       document.documentElement.style.setProperty('--accent-color', '#2563eb');
                       document.documentElement.style.setProperty('--primary-color', '#0f172a');

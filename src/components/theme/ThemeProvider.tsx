@@ -70,22 +70,27 @@ export function ThemeProvider({ children, ...props }: ThemeProviderProps) {
   const getInitialTheme = useMemo(() => {
     // If user is not authenticated, return null (use default theme)
     if (!shouldFetchOrg) {
-      console.log('🔍 ThemeProvider: User not authenticated, using default theme');
+      // Only log once per session, not on every render during static generation
+      if (typeof window !== 'undefined' && sessionStatus === 'unauthenticated') {
+        console.log('🔍 ThemeProvider: User not authenticated, using default theme');
+      }
       return null;
     }
     
     if (effectiveOrgLoading || !effectiveOrganization) return null;
 
-    // Debug logging for any organization
-    console.log('🔍 ThemeProvider: Organization loaded:', {
-      id: effectiveOrganization.id,
-      name: effectiveOrganization.name,
-      slug: effectiveOrganization.slug
-    });
-
-    // Return null to let the branding API handle organization-specific themes
-    // This ensures all organizations are treated equally
-    console.log('🎨 ThemeProvider: Using API-based branding for organization:', effectiveOrganization.name);
+    // Debug logging for any organization (only in development)
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🔍 ThemeProvider: Organization loaded:', {
+        id: effectiveOrganization.id,
+        name: effectiveOrganization.name,
+        slug: effectiveOrganization.slug
+      });
+      
+      // Return null to let the branding API handle organization-specific themes
+      // This ensures all organizations are treated equally
+      console.log('🎨 ThemeProvider: Using API-based branding for organization:', effectiveOrganization.name);
+    }
     return null;
   }, [effectiveOrganization, effectiveOrgLoading, shouldFetchOrg]);
 
