@@ -38,8 +38,14 @@ export default function ForgotPasswordPage() {
         return;
       }
 
+      // Use current environment for reset redirect
+      const baseUrl = window.location.origin;
+      console.log('🔄 Sending reset email with redirect to:', `${baseUrl}/reset-password`);
+      
       const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `https://app.helloaris.com/reset-password`,
+        redirectTo: `${baseUrl}/reset-password`,
+        // Force fresh request to bypass Supabase caching
+        shouldCreateUser: false,
       });
 
       console.log('Reset password result:', { data, error });

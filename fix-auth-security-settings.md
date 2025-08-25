@@ -59,3 +59,8 @@ curl -X PATCH 'https://api.supabase.com/v1/projects/{project-id}/config/auth' \
 
 
 
+
+
+
+
+

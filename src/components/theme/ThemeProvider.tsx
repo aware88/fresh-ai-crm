@@ -3,7 +3,7 @@
 import { ThemeProvider as NextThemesProvider } from 'next-themes';
 import { useEffect, useMemo, useState } from 'react';
 import { BrandingTheme } from '@/types/branding';
-
+import { useSession } from 'next-auth/react';
 import { useOrganization } from '@/hooks/useOrganization';
 import { useOrganizationBranding } from '@/hooks/useOrganizationBranding';
 
@@ -13,7 +13,15 @@ interface ThemeProviderProps {
 }
 
 export function ThemeProvider({ children, ...props }: ThemeProviderProps) {
+  const { data: session, status: sessionStatus } = useSession();
+  
+  // Only fetch organization if user is authenticated
+  const shouldFetchOrg = sessionStatus === 'authenticated' && !!session;
   const { organization, loading: orgLoading } = useOrganization();
+  
+  // Skip organization loading if user is not authenticated
+  const effectiveOrgLoading = shouldFetchOrg ? orgLoading : false;
+  const effectiveOrganization = shouldFetchOrg ? organization : null;
 
 
 
@@ -58,33 +66,47 @@ export function ThemeProvider({ children, ...props }: ThemeProviderProps) {
     []
   );
 
-  // No hardcoded organization detection - rely purely on API branding
+    // No hardcoded organization detection - rely purely on API branding
   const getInitialTheme = useMemo(() => {
-    if (orgLoading || !organization) return null;
+    // If user is not authenticated, return null (use default theme)
+    if (!shouldFetchOrg) {
+      console.log('🔍 ThemeProvider: User not authenticated, using default theme');
+      return null;
+    }
     
+    if (effectiveOrgLoading || !effectiveOrganization) return null;
+
     // Debug logging for any organization
     console.log('🔍 ThemeProvider: Organization loaded:', {
-      id: organization.id,
-      name: organization.name,
-      slug: organization.slug
+      id: effectiveOrganization.id,
+      name: effectiveOrganization.name,
+      slug: effectiveOrganization.slug
     });
-    
+
     // Return null to let the branding API handle organization-specific themes
     // This ensures all organizations are treated equally
-    console.log('🎨 ThemeProvider: Using API-based branding for organization:', organization.name);
+    console.log('🎨 ThemeProvider: Using API-based branding for organization:', effectiveOrganization.name);
     return null;
-  }, [organization, orgLoading]);
+  }, [effectiveOrganization, effectiveOrgLoading, shouldFetchOrg]);
 
 
 
   // Load cached theme and manage organization changes
   useEffect(() => {
-    if (!orgLoading && organization) {
-      console.log('🔄 ThemeProvider: Organization loaded:', organization.name, organization.id);
+    // Skip if user is not authenticated
+    if (!shouldFetchOrg) {
+      console.log('🔍 ThemeProvider: User not authenticated, clearing theme');
+      setBrandingTheme(null);
+      setInitialThemeSet(true);
+      return;
+    }
+
+    if (!effectiveOrgLoading && effectiveOrganization) {
+      console.log('🔄 ThemeProvider: Organization loaded:', effectiveOrganization.name, effectiveOrganization.id);
       
       // Only clear cache if organization actually changed
       const cachedOrgId = brandingTheme?.organizationId;
-      if (cachedOrgId && cachedOrgId !== organization.id) {
+      if (cachedOrgId && cachedOrgId !== effectiveOrganization.id) {
         console.log('🔄 ThemeProvider: Organization changed, clearing cache');
         localStorage.removeItem('organization-branding');
         setInitialThemeSet(false);
@@ -94,7 +116,7 @@ export function ThemeProvider({ children, ...props }: ThemeProviderProps) {
         setInitialThemeSet(false);
       }
     }
-  }, [organization?.id, orgLoading, brandingTheme?.organizationId]);
+  }, [effectiveOrganization?.id, effectiveOrgLoading, brandingTheme?.organizationId, shouldFetchOrg]);
 
   // Set initial theme immediately when organization is detected
   useEffect(() => {
@@ -149,6 +171,10 @@ export function ThemeProvider({ children, ...props }: ThemeProviderProps) {
 
   // Use the useOrganizationBranding hook instead of making direct API calls
   const { branding: hookBranding, loading: hookBrandingLoading } = useOrganizationBranding();
+  
+  // Skip branding loading if user is not authenticated
+  const effectiveHookBrandingLoading = shouldFetchOrg ? hookBrandingLoading : false;
+  const effectiveHookBranding = shouldFetchOrg ? hookBranding : null;
 
   // Update theme when branding from hook changes
   useEffect(() => {

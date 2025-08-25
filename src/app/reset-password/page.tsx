@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { supabase } from '@/lib/supabaseClient';
+import { supabase, isSupabaseConfigured } from '@/lib/supabaseClient';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
@@ -34,8 +34,16 @@ function ResetPasswordContent() {
       }
 
       try {
+        // Check if Supabase is properly configured
+        if (!isSupabaseConfigured()) {
+          console.error('Supabase not configured - missing environment variables');
+          setError('Invalid API key: Supabase configuration missing');
+          return;
+        }
+
         if (!supabase) {
-          setError('Authentication service unavailable');
+          console.error('Supabase client not available');
+          setError('Invalid API key: Authentication service unavailable');
           return;
         }
 
@@ -49,7 +57,7 @@ function ResetPasswordContent() {
         if (verifyError) {
           console.error('Token verification error:', verifyError);
           setValidToken(false);
-          setError('Invalid or expired password reset token. Please request a new password reset.');
+          setError(`Invalid or expired password reset token: ${verifyError.message}`);
           return;
         }
 
@@ -90,8 +98,15 @@ function ResetPasswordContent() {
     }
 
     try {
+      // Check if Supabase is properly configured
+      if (!isSupabaseConfigured()) {
+        setError('Invalid API key: Supabase configuration missing');
+        setLoading(false);
+        return;
+      }
+
       if (!supabase) {
-        setError('Authentication service unavailable');
+        setError('Invalid API key: Authentication service unavailable');
         setLoading(false);
         return;
       }
@@ -112,7 +127,7 @@ function ResetPasswordContent() {
 
       if (error) {
         console.error('Password update error:', error);
-        setError(error.message || 'Failed to update password');
+        setError(`Failed to update password: ${error.message}`);
       } else {
         console.log('Password updated successfully');
         setSuccess(true);
@@ -127,7 +142,11 @@ function ResetPasswordContent() {
       }
     } catch (error: any) {
       console.error('Password reset error:', error);
-      setError(error.message || 'An error occurred while resetting your password');
+      if (error.message?.includes('API key') || error.message?.includes('Invalid API')) {
+        setError(`Invalid API key: ${error.message}`);
+      } else {
+        setError(error.message || 'An error occurred while resetting your password');
+      }
     } finally {
       setLoading(false);
     }
