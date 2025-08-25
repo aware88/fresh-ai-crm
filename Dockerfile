@@ -66,6 +66,10 @@ EXPOSE 3000
 
 ENV PORT 3000
 
+# Copy startup check script
+COPY --chown=nextjs:nodejs scripts/startup-check.js ./scripts/
+
 # server.js is created by next build from the standalone output
 # https://nextjs.org/docs/pages/api-reference/next-config-js/output
-CMD ["node", "server.js"]
+# Run startup check before starting the server
+CMD ["sh", "-c", "node scripts/startup-check.js && node server.js"]

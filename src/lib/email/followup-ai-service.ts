@@ -8,7 +8,7 @@ import { createLazyServerClient } from '@/lib/supabase/lazy-client';
 import { Database } from '@/types/supabase';
 import { UnifiedAIDraftingService } from '@/lib/ai/unified-drafting-service';
 import { ModelRouterService } from '@/lib/ai/model-router-service';
-import { createOpenAIClient } from '@/lib/openai/client';
+import { getOpenAIClient } from '@/lib/openai/client';
 import { EmailFollowup } from './follow-up-service';
 
 type SupabaseClient = ReturnType<typeof createLazyServerClient>;
@@ -78,11 +78,11 @@ export class FollowUpAIService {
   private supabase: SupabaseClient;
   private draftingService: UnifiedAIDraftingService | null = null;
   private modelRouter: ModelRouterService | null = null;
-  private openai: ReturnType<typeof createOpenAIClient>;
+  private openai: ReturnType<typeof getOpenAIClient>;
 
   constructor() {
     this.supabase = createLazyServerClient();
-    this.openai = createOpenAIClient();
+    this.openai = getOpenAIClient();
   }
 
   /**
