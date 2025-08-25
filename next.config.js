@@ -31,7 +31,8 @@ const nextConfig = {
   
   // Redirect configuration for landing page (only in production)
   async redirects() {
-    if (process.env.NODE_ENV === 'production') {
+    // Only redirect if we're on the main domain, not the app subdomain
+    if (process.env.NODE_ENV === 'production' && process.env.NEXTAUTH_URL === 'https://helloaris.com') {
       return [
         {
           source: '/',

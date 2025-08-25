@@ -9,10 +9,7 @@ let supabaseClient: ReturnType<typeof supabaseCreateClient> | null = null;
 
 // Check if we're in build environment
 const isBuildEnv = () => {
-  return process.env.NODE_ENV === 'production' && 
-         typeof window === 'undefined' && 
-         (process.env.NEXT_PHASE === 'phase-production-build' || 
-          process.env.NEXT_PHASE === 'phase-production-server');
+  return process.env.NEXT_PHASE === 'phase-production-build';
 };
 
 // Create mock client for build-time or missing env vars

@@ -18,18 +18,8 @@ let stripe = null;
 
 // Check if we're in a build environment
 const isBuildEnv = () => {
-  // Enhanced detection for Northflank, Vercel, Netlify and other cloud build environments
-  return (process.env.NODE_ENV === 'production' && 
-         typeof window === 'undefined' && 
-         (process.env.NEXT_PHASE === 'phase-production-build' || 
-          process.env.NEXT_PHASE === 'phase-production-server' ||
-          process.env.VERCEL_ENV === 'production' ||
-          process.env.NETLIFY === 'true' ||
-          process.env.CI === 'true' ||
-          process.env.BUILD_ENV === 'true' ||
-          // Northflank specific environment detection
-          process.env.NORTHFLANK === 'true' ||
-          process.env.KUBERNETES_SERVICE_HOST !== undefined));
+  // Only detect actual build phase, not production server
+  return process.env.NEXT_PHASE === 'phase-production-build' || process.env.CI === 'true';
 };
 
 // Get a mock client for build-time or when env vars are missing

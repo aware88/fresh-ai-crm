@@ -8,19 +8,9 @@ import type { CookieOptions } from '@supabase/ssr';
  * CRITICAL: Uses dynamic imports to prevent build-time execution
  */
 export const createServerClient = async () => {
-  // Check for build environment - more comprehensive detection
+  // Check for build environment - only actual build phase
   const isBuildEnv = () => {
-    return (
-      process.env.NODE_ENV === 'production' && 
-      typeof window === 'undefined' && 
-      (
-        process.env.NEXT_PHASE === 'phase-production-build' ||
-        process.env.NEXT_PHASE === 'phase-production-server' ||
-        process.env.VERCEL_ENV === 'production' ||
-        process.env.NETLIFY === 'true' ||
-        process.env.CI === 'true'
-      )
-    );
+    return process.env.NEXT_PHASE === 'phase-production-build' || process.env.CI === 'true';
   };
   
   // Create mock client for environments with missing variables

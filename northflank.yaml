@@ -29,7 +29,7 @@ services:
       - name: SUPABASE_JWT_SECRET
         secret: true
       - name: NEXTAUTH_URL
-        value: https://helloaris.com
+        value: https://app.helloaris.com
       - name: NEXTAUTH_SECRET
         secret: true
       - name: APP_SECRET
