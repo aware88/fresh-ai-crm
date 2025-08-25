@@ -67,6 +67,15 @@ services:
     build:
       dockerfile: Dockerfile
       context: .
+      buildArguments:
+        - name: NEXT_PUBLIC_SUPABASE_URL
+          secret: true
+        - name: NEXT_PUBLIC_SUPABASE_ANON_KEY
+          secret: true
+        - name: SUPABASE_SERVICE_ROLE_KEY
+          secret: true
+        - name: OPENAI_API_KEY
+          secret: true
 
 addons:
   - name: aris-crm-db

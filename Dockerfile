@@ -25,17 +25,20 @@ COPY . .
 # Uncomment the following line in case you want to disable telemetry during the build.
 ENV NEXT_TELEMETRY_DISABLED 1
 
-# Build arguments for environment variables (optional for build)
+# Build arguments for environment variables (required for Next.js build)
 ARG NEXT_PUBLIC_SUPABASE_URL
-ARG NEXT_PUBLIC_SUPABASE_ANON_KEY
+ARG NEXT_PUBLIC_SUPABASE_ANON_KEY  
 ARG SUPABASE_SERVICE_ROLE_KEY
+ARG OPENAI_API_KEY
 
-# Set environment variables for build (with fallbacks)
-ENV NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL:-} \
-    NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY:-} \
-    SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY:-} \
-    SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL:-} \
-    SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY:-}
+# Set environment variables for build
+# NEXT_PUBLIC_ vars are inlined into the JavaScript bundle at build time
+ENV NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL} \
+    NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY} \
+    SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY} \
+    OPENAI_API_KEY=${OPENAI_API_KEY} \
+    SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL} \
+    SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
 
 # Build the application
 RUN npm run build
@@ -67,7 +70,7 @@ EXPOSE 3000
 ENV PORT 3000
 
 # Copy startup check script
-COPY --chown=nextjs:nodejs scripts/startup-check.js ./scripts/
+COPY --from=builder --chown=nextjs:nodejs /app/scripts/startup-check.js ./scripts/
 
 # server.js is created by next build from the standalone output
 # https://nextjs.org/docs/pages/api-reference/next-config-js/output
