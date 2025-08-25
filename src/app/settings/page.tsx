@@ -329,7 +329,7 @@ export default function ProfileSettings() {
                   // Emit custom formdata event for SettingsForm
                   document.dispatchEvent(new CustomEvent('formdata', { detail: newData }));
                 }}
-                placeholder="e.g., Bulk Nutrition"
+                placeholder="e.g., Your Company Name"
               />
               <p className="text-xs text-muted-foreground">
                 This helps the AI identify your business context in email conversations

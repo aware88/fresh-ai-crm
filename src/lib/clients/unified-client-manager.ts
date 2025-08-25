@@ -317,6 +317,8 @@ export class UnifiedClientManager {
       return;
     }
 
+    // Reload config to ensure we have the latest environment variables
+    this.openAIConfig = this.loadOpenAIConfig();
     const apiKey = this.openAIConfig.apiKey;
     
     if (!apiKey) {
@@ -348,6 +350,9 @@ export class UnifiedClientManager {
   }
 
   private initializeSupabase(): void {
+    // Reload config to ensure we have the latest environment variables
+    this.supabaseConfig = this.loadSupabaseConfig();
+    
     // Initialize different Supabase client types
     this.initializeSupabaseClient('anon');
     this.initializeSupabaseClient('service');

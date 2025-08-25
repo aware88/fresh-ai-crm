@@ -65,23 +65,29 @@ export async function POST(request: NextRequest) {
         upsert: true
       });
     
+    let logoUrl: string;
+    
     if (error) {
       console.error('Error uploading logo:', error);
       
-      // Fall back to local storage for any Supabase storage error
+      // Fall back to local file storage for any Supabase storage error
       // This ensures the app works even without Supabase configuration
       console.log('Falling back to local storage for logo');
       
-      return NextResponse.json({ 
-        success: true,
-        logoPath: `data:${file.type};base64,${buffer.toString('base64')}`,
-        localOnly: true,
-        message: 'Logo saved to local storage only'
-      });
+      // Save to local public directory for serving
+      const publicDir = path.join(process.cwd(), 'public', 'uploads', 'logos');
+      await fs.mkdir(publicDir, { recursive: true });
+      
+      const localFileName = `logo-${uuidv4()}.${fileExtension}`;
+      const localFilePath = path.join(publicDir, localFileName);
+      
+      await fs.writeFile(localFilePath, buffer);
+      
+      logoUrl = `/uploads/logos/${localFileName}`;
+    } else {
+      // Supabase upload successful
+      logoUrl = `${supabaseUrl}/storage/v1/object/public/${BUCKET_NAME}/${filePath}`;
     }
-    
-    // Save logo URL to database
-    const logoUrl = `${supabaseUrl}/storage/v1/object/public/${BUCKET_NAME}/${filePath}`;
     
     // Get user's current organization
     const supabaseClient = createServerComponentClient({ cookies });

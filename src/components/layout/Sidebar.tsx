@@ -209,26 +209,49 @@ export function Sidebar({ className }: SidebarProps) {
     closeMenu();
   }, [pathname, closeMenu]);
 
+  // Add timeout for loading state to prevent infinite loading
+  const [loadingTimeout, setLoadingTimeout] = useState(false);
+  
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setLoadingTimeout(true);
+    }, 3000); // 3 second timeout
+
+    if (!orgLoading && !brandingLoading) {
+      clearTimeout(timer);
+      setLoadingTimeout(false);
+    }
+
+    return () => clearTimeout(timer);
+  }, [orgLoading, brandingLoading]);
+
   // Get navigation items - same for all organizations
   const navItems = useMemo<NavItem[]>(() => {
-    console.log('🔍 Sidebar organization check:', { 
-      organization, 
-      orgLoading, 
-      brandingLoading,
-      orgSlug: organization?.slug, 
-      orgName: organization?.name 
-    });
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🔍 Sidebar organization check:', { 
+        organization, 
+        orgLoading, 
+        brandingLoading,
+        loadingTimeout,
+        orgSlug: organization?.slug, 
+        orgName: organization?.name 
+      });
+    }
 
-    // If still loading organization, return empty array to prevent flash
-    if (orgLoading || brandingLoading) {
-      console.log('⏳ Organization or branding still loading, showing loading state');
+    // If still loading organization and no timeout, return empty array
+    if ((orgLoading || brandingLoading) && !loadingTimeout) {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('⏳ Organization or branding still loading, showing loading state');
+      }
       return [];
     }
 
-    console.log('📋 Using universal navigation configuration for:', organization?.name);
+    if (process.env.NODE_ENV === 'development') {
+      console.log('📋 Using universal navigation configuration for:', organization?.name || 'ARIS');
+    }
     // Universal navigation for all organizations
     return NAVIGATION_CONFIG;
-  }, [organization, orgLoading, brandingLoading]);
+  }, [organization, orgLoading, brandingLoading, loadingTimeout]);
 
   // Filter nav items based on subscription features
   const filteredNavItems = navItems.filter(item => {
@@ -295,8 +318,8 @@ export function Sidebar({ className }: SidebarProps) {
 
         {/* Navigation */}
         <nav className={`flex-1 py-4 space-y-1.5 overflow-y-auto ${isCollapsed ? 'px-1' : 'px-2'}`}>
-          {(orgLoading || brandingLoading) ? (
-            // Loading state
+          {(orgLoading || brandingLoading) && !loadingTimeout ? (
+            // Loading state with timeout
             <div className="flex items-center justify-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-600"></div>
             </div>

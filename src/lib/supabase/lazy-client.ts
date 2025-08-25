@@ -12,13 +12,13 @@ const isBuildEnv = (): boolean => {
     process.env.NODE_ENV === 'production' &&
     (process.env.NEXT_PHASE === 'phase-production-build' ||
      process.env.VERCEL_ENV === 'preview' ||
-     typeof window === 'undefined' && !process.env.SUPABASE_URL)
+     typeof window === 'undefined' && !process.env.NEXT_PUBLIC_SUPABASE_URL)
   );
 };
 
 // Environment configuration check
 const isSupabaseConfigured = (): boolean => {
-  return !!(process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY);
+  return !!(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
 };
 
 // Mock client for build-time and missing environment scenarios
@@ -124,9 +124,9 @@ export const createLazyServerClient = async (): Promise<SupabaseClient> => {
     return createMockClient();
   }
 
-  // Use private env vars first, fall back to public ones
-  const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseKey = process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  // Use public env vars (these are the ones actually set in production)
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!supabaseUrl || !supabaseKey) {
     return createMockClient();
@@ -185,8 +185,8 @@ export const createLazyServiceRoleClient = async (): Promise<SupabaseClient> => 
     return createMockClient();
   }
 
-  // Use private env vars first, fall back to public ones for URL
-  const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+  // Use public env vars (these are the ones actually set in production)
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!supabaseUrl || !serviceRoleKey) {

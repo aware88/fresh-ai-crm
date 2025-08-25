@@ -57,6 +57,18 @@ export default function AIEmailSettingsPage() {
   const [saving, setSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+
+  // Scroll to top when component mounts
+  useEffect(() => {
+    // Find the scrollable container and scroll to top
+    const scrollContainer = document.querySelector('.overflow-y-auto');
+    if (scrollContainer) {
+      scrollContainer.scrollTop = 0;
+    } else {
+      // Fallback to window scroll
+      window.scrollTo(0, 0);
+    }
+  }, []);
   const [settings, setSettings] = useState<AIEmailSettings>({
     aiDraftEnabled: false,
     aiDraftAutoGenerate: true,

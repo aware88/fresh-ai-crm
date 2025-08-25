@@ -19,7 +19,8 @@ export function Navigation({ className = '' }: NavigationProps) {
   
   // Get derived values from branding - fully dynamic
   const logoPath = branding?.logo_url || null;
-  const companyName = organization?.name || 'ARIS';
+  // Default to ARIS if no organization name is set, or if the name is empty/whitespace
+  const companyName = (organization?.name && organization.name.trim()) ? organization.name.trim() : 'ARIS';
   
 
   
@@ -63,19 +64,29 @@ export function Navigation({ className = '' }: NavigationProps) {
             ) : (
               // No logo, show company name with default icon
               <div className="flex items-center">
-                <div className="h-8 w-8 flex items-center justify-center overflow-hidden">
-                  <Image 
-                    src="/images/aris-logo.svg" 
-                    alt="Default Logo" 
-                    width={32}
-                    height={32}
-                    className="object-contain" 
-                    priority
-                  />
-                </div>
-                <span className="ml-2 font-semibold text-md bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-transparent bg-clip-text">
-                  {companyName}
-                </span>
+                {companyName === 'ARIS' ? (
+                  // Show ARIS logo and branding when using default
+                  <>
+                    <div className="h-8 w-8 flex items-center justify-center overflow-hidden">
+                      <Image 
+                        src="/images/aris-logo.svg" 
+                        alt="ARIS Logo" 
+                        width={32}
+                        height={32}
+                        className="object-contain" 
+                        priority
+                      />
+                    </div>
+                    <span className="ml-2 font-semibold text-lg bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-transparent bg-clip-text">
+                      ARIS
+                    </span>
+                  </>
+                ) : (
+                  // Show custom company name with neutral styling
+                  <span className="text-xl font-bold text-gray-900">
+                    {companyName}
+                  </span>
+                )}
               </div>
             )}
           </Link>

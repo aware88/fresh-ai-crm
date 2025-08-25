@@ -254,12 +254,14 @@ export default function SubscriptionPage() {
   const handleConfirmPlanChange = async () => {
     if (!selectedPlan) return;
     
-    console.log('🔄 Starting plan change:', {
-      selectedPlan: selectedPlan.id,
-      billingCycle: selectedBillingCycle,
-      organizationId: organizationId || userId,
-      subscriptionId: currentSubscription?.id
-    });
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🔄 Starting plan change:', {
+        selectedPlan: selectedPlan.id,
+        billingCycle: selectedBillingCycle,
+        organizationId: organizationId || userId,
+        subscriptionId: currentSubscription?.id
+      });
+    }
     
     setIsProcessing(true);
     
@@ -271,7 +273,9 @@ export default function SubscriptionPage() {
         subscriptionId: currentSubscription?.id
       };
       
-      console.log('📤 Sending request to /api/subscription/change-plan:', requestBody);
+      if (process.env.NODE_ENV === 'development') {
+        console.log('📤 Sending request to /api/subscription/change-plan:', requestBody);
+      }
       
       const response = await fetch('/api/subscription/change-plan', {
         method: 'POST',
@@ -282,7 +286,9 @@ export default function SubscriptionPage() {
       });
 
       const data = await response.json();
-      console.log('📥 API Response:', { status: response.status, data });
+      if (process.env.NODE_ENV === 'development') {
+        console.log('📥 API Response:', { status: response.status, data });
+      }
 
       if (!response.ok) {
         throw new Error(data.error || 'Failed to change subscription plan');
@@ -294,7 +300,9 @@ export default function SubscriptionPage() {
       });
 
       // Refresh subscription data and reset state
-      console.log('🔄 Refreshing subscription data...');
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🔄 Refreshing subscription data...');
+      }
       setSelectedPlan(null); // Clear selected plan
       setShowUpgradeDialog(false);
       

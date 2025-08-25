@@ -85,16 +85,16 @@ export function useSubscriptionFeatures(organizationId: string) {
         // Check if subscription is active
         const isActive = ['active', 'trialing'].includes(data.subscription.status);
         
-        // Debug logging for troubleshooting
-        console.log('🔍 useSubscriptionFeatures Debug:', {
-          organizationId,
-          planId: data.plan?.id,
-          planName: data.plan?.name,
-          subscriptionStatus: data.subscription?.status,
-          isActive,
-          teamCollabFeature: formattedFeatures['TEAM_COLLABORATION'],
-          allFeatures: Object.keys(formattedFeatures).filter(key => formattedFeatures[key].enabled)
-        });
+        // Debug logging for troubleshooting (only in development)
+        if (process.env.NODE_ENV === 'development') {
+          console.log('🔍 useSubscriptionFeatures Debug:', {
+            organizationId,
+            planId: data.plan?.id,
+            planName: data.plan?.name,
+            subscriptionStatus: data.subscription?.status,
+            isActive
+          });
+        }
         
         setFeatureAccess({
           plan: data.plan,

@@ -80,7 +80,7 @@ export function UserIdentitySettings() {
         <Input 
           id="company" 
           name="company" 
-          placeholder="e.g., Bulk Nutrition" 
+          placeholder="e.g., Your Company Name" 
           value={identity.company}
           onChange={handleChange}
         />
