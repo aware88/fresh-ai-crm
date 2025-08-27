@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
     const { data: settings, error } = await supabase
       .from('user_preferences')
       .select('auto_reply_settings')
-      .eq('email', session.user.email)
+      .eq('user_id', session.user.id)
       .single();
 
     if (error && error.code !== 'PGRST116') { // PGRST116 = no rows found
@@ -85,11 +85,11 @@ export async function POST(request: NextRequest) {
     const { error } = await supabase
       .from('user_preferences')
       .upsert({
-        email: session.user.email,
+        user_id: session.user.id,
         auto_reply_settings: settings,
         updated_at: new Date().toISOString()
       }, {
-        onConflict: 'email'
+        onConflict: 'user_id'
       });
 
     if (error) {

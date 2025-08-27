@@ -79,6 +79,12 @@ export interface EmailPair {
 export class EmailLearningService {
   private supabase: any;
   private modelRouter: ModelRouterService | null = null;
+  
+  // Performance optimization: Add memory caches
+  private draftCache: Map<string, { draft: any; timestamp: number }> = new Map();
+  private patternCache: Map<string, { patterns: any[]; timestamp: number }> = new Map();
+  private configCache: Map<string, { config: any; timestamp: number }> = new Map();
+  private readonly CACHE_TTL = 5 * 60 * 1000; // 5 minutes
   private openai: OpenAI;
 
   constructor() {
@@ -769,24 +775,40 @@ Focus on patterns that are:
         };
       }
 
-      // 2. Check if draft already exists
-      const existingDraft = await this.getExistingDraft(emailId, userId);
-      if (existingDraft && existingDraft.status === 'ready') {
-        console.log(`[EmailLearning] Using existing draft for email ${emailId}`);
+      // 2. Check memory cache first for speed
+      const cacheKey = `${emailId}_${userId}`;
+      const cachedDraft = this.draftCache.get(cacheKey);
+      if (cachedDraft && Date.now() - cachedDraft.timestamp < this.CACHE_TTL) {
+        console.log(`[EmailLearning] Using cached draft for email ${emailId}`);
         return {
           success: true,
-          draft: {
-            id: existingDraft.id,
-            subject: existingDraft.subject,
-            body: existingDraft.body,
-            confidence: existingDraft.confidence_score,
-            matched_patterns: existingDraft.matched_patterns || []
-          }
+          draft: cachedDraft.draft
         };
       }
 
-      // 3. Get user's learning configuration
-      const learningConfig = await this.getUserLearningConfig(userId);
+      // 3. Check if draft already exists in database
+      const existingDraft = await this.getExistingDraft(emailId, userId);
+      if (existingDraft && existingDraft.status === 'ready') {
+        console.log(`[EmailLearning] Using existing draft for email ${emailId}`);
+        const draft = {
+          id: existingDraft.id,
+          subject: existingDraft.subject,
+          body: existingDraft.body,
+          confidence: existingDraft.confidence_score,
+          matched_patterns: existingDraft.matched_patterns || []
+        };
+        
+        // Cache the result for future use
+        this.draftCache.set(cacheKey, { draft, timestamp: Date.now() });
+        
+        return {
+          success: true,
+          draft
+        };
+      }
+
+      // 4. Get user's learning configuration (with caching)
+      const learningConfig = await this.getUserLearningConfigCached(userId);
       if (!learningConfig.auto_draft_enabled) {
         console.log(`[EmailLearning] Auto-draft disabled for user ${userId}`);
         return {
@@ -1358,6 +1380,127 @@ BODY: [response body]`;
     } catch (error) {
       console.error('[EmailLearning] Error updating pattern usage:', error);
     }
+  }
+
+  /**
+   * Get user learning config with caching for performance
+   */
+  private async getUserLearningConfigCached(userId: string) {
+    const cacheKey = `config_${userId}`;
+    const cached = this.configCache.get(cacheKey);
+    
+    if (cached && Date.now() - cached.timestamp < this.CACHE_TTL) {
+      return cached.config;
+    }
+
+    const config = await this.getUserLearningConfig(userId);
+    this.configCache.set(cacheKey, { config, timestamp: Date.now() });
+    
+    return config;
+  }
+
+  /**
+   * Clear expired cache entries to prevent memory leaks
+   */
+  private cleanupCache(): void {
+    const now = Date.now();
+    
+    // Clean draft cache
+    for (const [key, value] of this.draftCache.entries()) {
+      if (now - value.timestamp > this.CACHE_TTL) {
+        this.draftCache.delete(key);
+      }
+    }
+    
+    // Clean pattern cache
+    for (const [key, value] of this.patternCache.entries()) {
+      if (now - value.timestamp > this.CACHE_TTL) {
+        this.patternCache.delete(key);
+      }
+    }
+    
+    // Clean config cache
+    for (const [key, value] of this.configCache.entries()) {
+      if (now - value.timestamp > this.CACHE_TTL) {
+        this.configCache.delete(key);
+      }
+    }
+  }
+
+  /**
+   * Batch process multiple emails for initial learning (OPTIMIZED)
+   */
+  async processEmailsBatch(emailIds: string[], userId: string, organizationId?: string): Promise<{
+    successful: number;
+    failed: number;
+    results: Array<{ emailId: string; success: boolean; error?: string }>
+  }> {
+    console.log(`[EmailLearning] Starting batch processing of ${emailIds.length} emails`);
+    
+    const results: Array<{ emailId: string; success: boolean; error?: string }> = [];
+    let successful = 0;
+    let failed = 0;
+    
+    // Process in smaller batches to prevent overwhelming the system
+    const batchSize = 3;
+    
+    for (let i = 0; i < emailIds.length; i += batchSize) {
+      const batch = emailIds.slice(i, i + batchSize);
+      
+      // Process batch in parallel
+      const batchPromises = batch.map(async (emailId) => {
+        try {
+          const result = await this.generateBackgroundDraft(emailId, userId, organizationId);
+          if (result.success) {
+            successful++;
+            return { emailId, success: true };
+          } else {
+            failed++;
+            return { emailId, success: false, error: result.error };
+          }
+        } catch (error) {
+          failed++;
+          return { 
+            emailId, 
+            success: false, 
+            error: error instanceof Error ? error.message : 'Unknown error' 
+          };
+        }
+      });
+      
+      const batchResults = await Promise.allSettled(batchPromises);
+      
+      batchResults.forEach((result) => {
+        if (result.status === 'fulfilled') {
+          results.push(result.value);
+        } else {
+          failed++;
+          results.push({ 
+            emailId: 'unknown', 
+            success: false, 
+            error: result.reason?.message || 'Batch processing failed' 
+          });
+        }
+      });
+      
+      // Small delay between batches
+      if (i + batchSize < emailIds.length) {
+        await new Promise(resolve => setTimeout(resolve, 200));
+      }
+      
+      // Clean cache periodically
+      if (i % 10 === 0) {
+        this.cleanupCache();
+      }
+    }
+    
+    console.log(`[EmailLearning] Batch processing completed: ${successful} successful, ${failed} failed`);
+    
+    return {
+      successful,
+      failed,
+      results
+    };
   }
 }
 

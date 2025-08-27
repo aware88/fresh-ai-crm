@@ -43,7 +43,8 @@ export async function GET(request: NextRequest) {
     ]);
 
     // Calculate usage patterns
-    const usagePercentage = usageStatus.subscription.limit > 0 
+    const isUnlimited = usageStatus.subscription.limit === -1;
+    const usagePercentage = !isUnlimited && usageStatus.subscription.limit > 0 
       ? Math.round((usageStatus.subscription.current / usageStatus.subscription.limit) * 100)
       : 0;
 
@@ -59,7 +60,15 @@ export async function GET(request: NextRequest) {
       action?: string;
     }> = [];
 
-    if (!usageStatus.total.canMakeRequest) {
+    if (isUnlimited) {
+      // For unlimited plans, always show healthy status with positive message
+      status = 'healthy';
+      alerts.push({
+        type: 'info',
+        message: `You've used ${usageStatus.subscription.current} AI messages this month with unlimited access. Keep building momentum!`,
+        action: 'Explore Features'
+      });
+    } else if (!usageStatus.total.canMakeRequest) {
       status = 'blocked';
       alerts.push({
         type: 'error',
@@ -95,8 +104,8 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Add growth-based alerts
-    if (projectedMonthlyUsage > usageStatus.subscription.limit * 1.2) {
+    // Add growth-based alerts (only for limited plans)
+    if (!isUnlimited && usageStatus.subscription.limit > 0 && projectedMonthlyUsage > usageStatus.subscription.limit * 1.2) {
       alerts.push({
         type: 'info',
         message: 'Based on current usage, you may exceed your limit this month.',

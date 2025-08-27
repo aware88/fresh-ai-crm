@@ -9,11 +9,13 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Upload, CheckCircle, Loader2, Image as ImageIcon, AlertCircle } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { useOptimizedAuth } from '@/hooks/useOptimizedAuth';
+import { useOrganizationAdmin } from '@/hooks/useOrganizationAdmin';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import Image from 'next/image';
 
 export function LogoUploader() {
   const { data: session } = useOptimizedAuth();
+  const { isAdmin, loading: adminLoading } = useOrganizationAdmin();
   const supabase = createClientComponentClient();
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -131,12 +133,46 @@ export function LogoUploader() {
     }
   };
 
-  const handleCompanyNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCompanyNameChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const newName = e.target.value;
     setCompanyName(newName);
     
-    // Save company name to localStorage
+    // Save company name to localStorage for immediate UI update
     localStorage.setItem('companyName', newName.trim());
+    
+    // Update organization name in database
+    if (session?.user?.id) {
+      try {
+        // Get current organization ID
+        const response = await fetch('/api/user/preferences');
+        const prefsData = await response.json();
+        
+        if (prefsData.preferences?.current_organization_id) {
+          const trimmedName = newName.trim();
+          
+          // Update organization name in database (empty string if cleared)
+          const updateResponse = await fetch(`/api/organizations/${prefsData.preferences.current_organization_id}`, {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              name: trimmedName // This will be empty string if field is cleared
+            }),
+          });
+          
+          if (updateResponse.ok) {
+            console.log('✅ Organization name updated in database:', trimmedName || '(empty - will show ARIS)');
+            // Trigger a refresh of organization data
+            window.dispatchEvent(new Event('organizationUpdated'));
+          } else {
+            console.warn('⚠️ Failed to update organization name in database');
+          }
+        }
+      } catch (error) {
+        console.warn('⚠️ Error updating organization name:', error);
+      }
+    }
     
     // Emit formdata event for the parent SettingsForm
     document.dispatchEvent(new CustomEvent('formdata', {
@@ -222,7 +258,7 @@ export function LogoUploader() {
     });
   };
 
-  if (isLoading) {
+  if (isLoading || adminLoading) {
     return (
       <Card>
         <CardHeader>
@@ -238,6 +274,63 @@ export function LogoUploader() {
           <div className="flex items-center justify-center py-8">
             <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
           </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Show read-only view for non-admin users
+  if (!isAdmin) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <span>🔒</span>
+            Logo & Branding
+          </CardTitle>
+          <CardDescription>
+            Only organization administrators can modify logo and branding settings
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Show current logo (read-only) */}
+          <div className="space-y-4">
+            <div>
+              <Label className="text-sm font-medium text-gray-700">Current Company Name</Label>
+              <div className="mt-1 p-3 bg-gray-50 rounded-md border">
+                {companyName || 'Not set'}
+              </div>
+            </div>
+            
+            <div>
+              <Label className="text-sm font-medium text-gray-700">Current Logo</Label>
+              <div className="mt-1 p-3 bg-gray-50 rounded-md border">
+                {currentLogo ? (
+                  <div className="flex items-center justify-center">
+                    <Image 
+                      src={currentLogo} 
+                      alt="Company Logo" 
+                      width={120}
+                      height={120}
+                      className="object-contain"
+                    />
+                  </div>
+                ) : (
+                  <div className="text-center text-gray-500 py-8">
+                    <ImageIcon className="h-12 w-12 mx-auto mb-2 text-gray-300" />
+                    <p>No logo uploaded</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+          
+          <Alert>
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              Contact your organization administrator to upload or change the company logo.
+            </AlertDescription>
+          </Alert>
         </CardContent>
       </Card>
     );

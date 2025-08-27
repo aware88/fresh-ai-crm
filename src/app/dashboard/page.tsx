@@ -15,7 +15,6 @@ import {
   DollarSign, 
   Mail,
   ShoppingCart,
-  MessageSquare,
   FileText,
   AlertCircle,
   Clock,
@@ -31,6 +30,7 @@ import { useSession } from 'next-auth/react';
 import { useOrganization } from '@/hooks/useOrganization';
 import { formatPriceUSD } from '@/lib/subscription-plans-v2';
 import AnalyticsSummaryCards from '@/components/dashboard/AnalyticsSummaryCards';
+import RecentActivityCards from '@/components/dashboard/RecentActivityCards';
 
 
 // Types for dashboard statistics
@@ -409,68 +409,8 @@ export default function DashboardPage() {
             
             <AnalyticsSummaryCards />
             
-            {/* Quick Action Cards */}
-            <div className="grid gap-4 md:grid-cols-2">
-              <Card className="border-0 shadow-md">
-                <CardHeader className="pb-3">
-                  <CardTitle className="flex items-center text-base">
-                    <Activity className="mr-2 h-4 w-4 text-orange-600" />
-                    Recent AI Activity
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex items-center justify-between">
-                      <span className="text-muted-foreground">Email responses generated</span>
-                      <span className="font-medium">12 today</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-muted-foreground">Follow-ups scheduled</span>
-                      <span className="font-medium">3 pending</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-muted-foreground">Upsell opportunities</span>
-                      <span className="font-medium">2 identified</span>
-                    </div>
-                  </div>
-                  <Link href="/dashboard/email">
-                    <Button variant="outline" size="sm" className="w-full mt-4">
-                      Manage Email AI
-                    </Button>
-                  </Link>
-                </CardContent>
-              </Card>
-              
-              <Card className="border-0 shadow-md">
-                <CardHeader className="pb-3">
-                  <CardTitle className="flex items-center text-base">
-                    <MessageSquare className="mr-2 h-4 w-4 text-blue-600" />
-                    Action Items
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex items-center justify-between">
-                      <span className="text-muted-foreground">Pending follow-ups</span>
-                      <span className="font-medium text-orange-600">3 due</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-muted-foreground">Draft reviews</span>
-                      <span className="font-medium text-blue-600">1 waiting</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-muted-foreground">High-value leads</span>
-                      <span className="font-medium text-green-600">2 to contact</span>
-                    </div>
-                  </div>
-                  <Link href="/dashboard/analytics?tab=email-analytics">
-                    <Button variant="outline" size="sm" className="w-full mt-4">
-                      View All Actions
-                    </Button>
-                  </Link>
-                </CardContent>
-              </Card>
-            </div>
+            {/* Real Activity Data Cards */}
+            <RecentActivityCards />
           </div>
         </TabsContent>
 

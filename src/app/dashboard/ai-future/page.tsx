@@ -204,17 +204,17 @@ export default function AIFuturePage() {
     <div className="space-y-8">
       {/* Hero Section */}
       <div className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 opacity-10 rounded-2xl"></div>
+        <div className="absolute inset-0 bg-gradient-to-r from-[var(--brand-start)] via-[var(--brand-mid)] to-[var(--brand-end)] opacity-10 rounded-2xl"></div>
         <div className="relative p-8 text-center">
           <div className="flex items-center justify-center gap-3 mb-4">
-            <div className="p-3 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full">
+            <div className="p-3 bg-gradient-to-r from-[var(--brand-start)] to-[var(--brand-end)] rounded-full">
               <div className="relative">
                 <Brain className="h-8 w-8 text-white" />
                 <Sparkles className="w-5 h-5 absolute -top-1 -right-1 text-yellow-300 animate-pulse" />
               </div>
             </div>
             <div>
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 bg-clip-text text-transparent">
+              <h1 className="text-4xl font-bold bg-gradient-to-r from-[var(--brand-start)] via-[var(--brand-mid)] to-[var(--brand-end)] bg-clip-text text-transparent">
                 CRM Assistant
               </h1>
               <p className="text-lg text-gray-600 mt-1">Your Intelligent Business Partner</p>
@@ -229,8 +229,8 @@ export default function AIFuturePage() {
           <div className="flex flex-wrap justify-center gap-4 mb-8">
             {stats.map((stat, index) => (
               <div key={index} className="flex items-center gap-2 bg-white rounded-full px-4 py-2 shadow-sm border">
-                <stat.icon className="w-4 h-4 text-blue-600" />
-                <span className="font-bold text-blue-600">{stat.value}</span>
+                <stat.icon className="w-4 h-4" style={{ color: 'var(--accent-color)' }} />
+                <span className="font-bold" style={{ color: 'var(--accent-color)' }}>{stat.value}</span>
                 <span className="text-sm text-gray-600">{stat.label}</span>
               </div>
             ))}
@@ -242,28 +242,28 @@ export default function AIFuturePage() {
 
       {/* Main Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid grid-cols-4 mb-8 p-1 bg-blue-50 rounded-xl shadow-inner border border-blue-100">
+        <TabsList className="grid grid-cols-4 mb-8 p-1 rounded-xl shadow-inner border" style={{ backgroundColor: 'color-mix(in srgb, var(--accent-color) 5%, white)', borderColor: 'color-mix(in srgb, var(--accent-color) 15%, white)' }}>
           <TabsTrigger 
             value="chat" 
-            className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white rounded-lg flex items-center justify-center gap-2 transition-all duration-200 hover:bg-blue-100 data-[state=active]:hover:bg-blue-500"
+            className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-[var(--brand-start)] data-[state=active]:to-[var(--brand-end)] data-[state=active]:text-white rounded-lg flex items-center justify-center gap-2 transition-all duration-200 hover:bg-[color-mix(in_srgb,var(--accent-color)_10%,white)] data-[state=active]:hover:from-[var(--brand-start)] data-[state=active]:hover:to-[var(--brand-end)]"
           >
             <MessageSquare className="h-4 w-4" /> AI Chat
           </TabsTrigger>
           <TabsTrigger 
             value="capabilities" 
-            className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white rounded-lg flex items-center justify-center gap-2 transition-all duration-200 hover:bg-blue-100 data-[state=active]:hover:bg-blue-500"
+            className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-[var(--brand-start)] data-[state=active]:to-[var(--brand-end)] data-[state=active]:text-white rounded-lg flex items-center justify-center gap-2 transition-all duration-200 hover:bg-[color-mix(in_srgb,var(--accent-color)_10%,white)] data-[state=active]:hover:from-[var(--brand-start)] data-[state=active]:hover:to-[var(--brand-end)]"
           >
             <Rocket className="h-4 w-4" /> Capabilities
           </TabsTrigger>
           <TabsTrigger 
             value="features" 
-            className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white rounded-lg flex items-center justify-center gap-2 transition-all duration-200 hover:bg-blue-100 data-[state=active]:hover:bg-blue-500"
+            className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-[var(--brand-start)] data-[state=active]:to-[var(--brand-end)] data-[state=active]:text-white rounded-lg flex items-center justify-center gap-2 transition-all duration-200 hover:bg-[color-mix(in_srgb,var(--accent-color)_10%,white)] data-[state=active]:hover:from-[var(--brand-start)] data-[state=active]:hover:to-[var(--brand-end)]"
           >
             <Sparkles className="h-4 w-4" /> Features
           </TabsTrigger>
           <TabsTrigger 
             value="examples" 
-            className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white rounded-lg flex items-center justify-center gap-2 transition-all duration-200 hover:bg-blue-100 data-[state=active]:hover:bg-blue-500"
+            className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-[var(--brand-start)] data-[state=active]:to-[var(--brand-end)] data-[state=active]:text-white rounded-lg flex items-center justify-center gap-2 transition-all duration-200 hover:bg-[color-mix(in_srgb,var(--accent-color)_10%,white)] data-[state=active]:hover:from-[var(--brand-start)] data-[state=active]:hover:to-[var(--brand-end)]"
           >
             <Target className="h-4 w-4" /> Examples
           </TabsTrigger>
@@ -340,23 +340,23 @@ export default function AIFuturePage() {
                 <CardContent className="space-y-4">
                   <div className="space-y-3">
                     <div className="flex items-center gap-3">
-                      <div className="w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center text-sm font-bold">1</div>
+                      <div className="w-6 h-6 text-white rounded-full flex items-center justify-center text-sm font-bold" style={{ backgroundColor: 'var(--accent-color)' }}>1</div>
                       <span className="text-sm">You type your request in natural language</span>
                     </div>
                     <div className="flex items-center gap-3">
-                      <div className="w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center text-sm font-bold">2</div>
+                      <div className="w-6 h-6 text-white rounded-full flex items-center justify-center text-sm font-bold" style={{ backgroundColor: 'var(--accent-color)' }}>2</div>
                       <span className="text-sm">AI analyzes and shows its thinking process</span>
                     </div>
                     <div className="flex items-center gap-3">
-                      <div className="w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center text-sm font-bold">3</div>
+                      <div className="w-6 h-6 text-white rounded-full flex items-center justify-center text-sm font-bold" style={{ backgroundColor: 'var(--accent-color)' }}>3</div>
                       <span className="text-sm">AI validates data and asks if needed</span>
                     </div>
                     <div className="flex items-center gap-3">
-                      <div className="w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center text-sm font-bold">4</div>
+                      <div className="w-6 h-6 text-white rounded-full flex items-center justify-center text-sm font-bold" style={{ backgroundColor: 'var(--accent-color)' }}>4</div>
                       <span className="text-sm">AI executes action and shows results</span>
                     </div>
                     <div className="flex items-center gap-3">
-                      <div className="w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center text-sm font-bold">5</div>
+                      <div className="w-6 h-6 text-white rounded-full flex items-center justify-center text-sm font-bold" style={{ backgroundColor: 'var(--accent-color)' }}>5</div>
                       <span className="text-sm">AI learns and remembers for next time</span>
                     </div>
                   </div>
@@ -398,8 +398,8 @@ export default function AIFuturePage() {
                   { input: 'Delete old supplier ABC Corp', output: 'Safely removes after confirmation' }
                 ].map((example, index) => (
                   <div key={index} className="space-y-2">
-                    <div className="p-3 bg-blue-50 rounded-lg">
-                      <span className="text-sm font-mono text-blue-800">"{example.input}"</span>
+                    <div className="p-3 rounded-lg" style={{ backgroundColor: 'color-mix(in srgb, var(--accent-color) 5%, white)' }}>
+                      <span className="text-sm font-mono" style={{ color: 'var(--accent-color)' }}>"{example.input}"</span>
                     </div>
                     <div className="flex items-center gap-2 text-sm text-gray-600">
                       <ArrowRight className="w-3 h-3" />
@@ -455,10 +455,10 @@ export default function AIFuturePage() {
           </div>
 
           {/* Call to Action */}
-          <Card className="border-0 shadow-lg bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 text-white mt-8">
+          <Card className="border-0 shadow-lg bg-gradient-to-r from-[var(--brand-start)] via-[var(--brand-mid)] to-[var(--brand-end)] text-white mt-8">
             <CardContent className="p-8 text-center">
               <h3 className="text-2xl font-bold mb-4">Ready to Experience the Future?</h3>
-              <p className="text-blue-100 mb-6 max-w-2xl mx-auto">
+              <p className="text-white/70 mb-6 max-w-2xl mx-auto">
                 Join thousands of businesses already using CRM Assistant to revolutionize their CRM experience. 
                 No training required, no complex interfaces - just natural conversation.
               </p>
@@ -466,7 +466,7 @@ export default function AIFuturePage() {
                 size="lg" 
                 variant="secondary"
                 onClick={() => setActiveTab('chat')}
-                className="bg-white text-blue-600 hover:bg-gray-100"
+                className="bg-white hover:bg-gray-100" style={{ color: 'var(--accent-color)' }}
               >
                 <Rocket className="w-4 h-4 mr-2" />
                 Start Chatting with CRM Assistant

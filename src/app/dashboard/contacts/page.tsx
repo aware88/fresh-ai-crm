@@ -68,9 +68,23 @@ function ContactsContent() {
   const [searchTerm, setSearchTerm] = useState('');
   const [personalityFilter, setPersonalityFilter] = useState<string>('all');
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
+  const [loadingTimeout, setLoadingTimeout] = useState(false);
   const searchParams = useSearchParams();
   const router = useRouter();
   const { organization, loading: orgLoading } = useOrganization();
+
+  // Add timeout to prevent infinite loading
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setLoadingTimeout(true);
+      if (loading) {
+        setLoading(false);
+        setError('Loading timeout - please refresh the page');
+      }
+    }, 5000); // 5 second timeout for contacts
+
+    return () => clearTimeout(timer);
+  }, [loading]);
 
   // Load contacts
   useEffect(() => {

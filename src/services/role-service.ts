@@ -344,23 +344,38 @@ export class RoleService {
    * Check if a user is an organization admin
    */
   static async isOrganizationAdmin(userId: string, organizationId: string): Promise<boolean> {
-    const supabase = createServerClient();
-    
-    // Get user roles for the specific organization
-    const { data: userRoles, error: rolesError } = await supabase
-      .from('user_roles')
-      .select('roles(*)')
-      .eq('user_id', userId);
+    try {
+      const supabase = await createServerClient();
+      
+      // Get user roles for the specific organization
+      const { data: userRoles, error: rolesError } = await supabase
+        .from('user_roles')
+        .select('roles(*)')
+        .eq('user_id', userId);
 
-    if (rolesError) {
-      console.error('Error checking if user is organization admin:', rolesError);
-      throw new Error('Failed to check if user is organization admin');
+      if (rolesError) {
+        console.error('Error checking if user is organization admin:', rolesError);
+        // If it's a permission error, assume user is not an admin
+        if (rolesError.code === '42501') {
+          console.warn('Permission denied accessing user roles, assuming user is not admin');
+          return false;
+        }
+        throw new Error('Failed to check if user is organization admin');
+      }
+
+      if (!userRoles || userRoles.length === 0) {
+        return false;
+      }
+
+      // Check if any role is an organization admin role for this organization
+      return userRoles.some(ur => {
+        const role = ur.roles as Role;
+        return role.type === RoleType.ORGANIZATION_ADMIN && role.organization_id === organizationId;
+      });
+    } catch (error) {
+      console.error('Exception in isOrganizationAdmin:', error);
+      // In case of any error, assume user is not an admin for security
+      return false;
     }
-
-    // Check if any role is an organization admin role for this organization
-    return userRoles.some(ur => {
-      const role = ur.roles as Role;
-      return role.type === RoleType.ORGANIZATION_ADMIN && role.organization_id === organizationId;
-    });
   }
 }

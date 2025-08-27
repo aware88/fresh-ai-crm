@@ -83,7 +83,7 @@ export default function EmailComposer() {
   };
 
   return (
-    <Card className={`w-full ${isFullscreen ? 'fixed inset-4 z-50 max-w-none mx-0' : 'max-w-4xl mx-auto'}`}>
+    <Card className={`w-full ${isFullscreen ? 'fixed inset-4 z-50 max-w-none mx-0' : ''}`}>
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle>Compose New Email</CardTitle>

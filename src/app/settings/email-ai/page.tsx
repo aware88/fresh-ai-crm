@@ -54,20 +54,58 @@ export default function AIEmailSettingsPage() {
   const { data: session } = useSession();
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
+
+  // Scroll to top when component mounts
+  useEffect(() => {
+    setTimeout(() => {
+      const containers = [
+        document.querySelector('main'),
+        document.querySelector('.overflow-y-auto'),
+        document.querySelector('[data-scroll-container]'),
+        document.documentElement,
+        document.body
+      ];
+      
+      let scrolled = false;
+      for (const container of containers) {
+        if (container && !scrolled) {
+          container.scrollTop = 0;
+          scrolled = true;
+          console.log('Scrolled to top using container:', container.tagName || container.className);
+        }
+      }
+      window.scrollTo(0, 0);
+    }, 100);
+  }, []);
   const [saving, setSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
 
   // Scroll to top when component mounts
   useEffect(() => {
-    // Find the scrollable container and scroll to top
-    const scrollContainer = document.querySelector('.overflow-y-auto');
-    if (scrollContainer) {
-      scrollContainer.scrollTop = 0;
-    } else {
-      // Fallback to window scroll
+    // Use setTimeout to ensure DOM is ready
+    setTimeout(() => {
+      // Try multiple possible scroll containers
+      const containers = [
+        document.querySelector('main'),
+        document.querySelector('.overflow-y-auto'),
+        document.querySelector('[data-scroll-container]'),
+        document.documentElement,
+        document.body
+      ];
+      
+      let scrolled = false;
+      for (const container of containers) {
+        if (container && !scrolled) {
+          container.scrollTop = 0;
+          scrolled = true;
+          console.log('Scrolled to top using container:', container.tagName || container.className);
+        }
+      }
+      
+      // Always try window scroll as fallback
       window.scrollTo(0, 0);
-    }
+    }, 100);
   }, []);
   const [settings, setSettings] = useState<AIEmailSettings>({
     aiDraftEnabled: false,
@@ -84,6 +122,10 @@ export default function AIEmailSettingsPage() {
     autoReplyMode: 'semi',
     autoReplyConfidenceThreshold: 0.9
   });
+
+  // Add states for batch processing
+  const [isProcessingAll, setIsProcessingAll] = useState(false);
+  const [processAllResults, setProcessAllResults] = useState<any>(null);
   const [initialSettings, setInitialSettings] = useState<AIEmailSettings>({
     aiDraftEnabled: false,
     aiDraftAutoGenerate: true,
@@ -259,6 +301,49 @@ export default function AIEmailSettingsPage() {
       </div>
     );
   }
+
+  // Handle process all emails
+  const handleProcessAllEmails = async () => {
+    if (!session?.user?.id) return;
+    
+    setIsProcessingAll(true);
+    setProcessAllResults(null);
+    
+    try {
+      const response = await fetch('/api/email/learning/process-all', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          maxEmails: 1000,
+          daysBack: 90
+        }),
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        setProcessAllResults(data.results);
+        toast({
+          title: "Email Processing Complete",
+          description: `Processed ${data.results.successful} emails successfully. AI drafts are now ready!`,
+          variant: "default"
+        });
+      } else {
+        throw new Error(data.error || 'Failed to process emails');
+      }
+    } catch (error) {
+      console.error('Error processing all emails:', error);
+      toast({
+        title: "Processing Failed",
+        description: error instanceof Error ? error.message : 'Failed to process emails',
+        variant: "destructive"
+      });
+    } finally {
+      setIsProcessingAll(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -457,6 +542,93 @@ export default function AIEmailSettingsPage() {
               onCheckedChange={(checked) => updateSetting('includeContext', checked)}
             />
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Email Processing */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center space-x-2">
+            <Zap className="h-4 w-4" />
+            <CardTitle>Email Processing</CardTitle>
+          </div>
+          <CardDescription>
+            Process all your emails to prepare AI analysis and drafts in advance
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <h4 className="font-medium text-blue-800 mb-2">One-Time Email Learning</h4>
+            <p className="text-sm text-blue-700 mb-4">
+              Smart processing that only analyzes emails that haven't been processed yet. 
+              Already analyzed emails are automatically skipped to save time and API calls.
+            </p>
+            
+            <div className="flex items-center justify-between">
+              <div className="text-sm text-blue-600">
+                Will process up to 1,000 emails from the last 90 days
+              </div>
+              <Button
+                onClick={handleProcessAllEmails}
+                disabled={isProcessingAll}
+                size="sm"
+              >
+                {isProcessingAll ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Smart Processing...
+                  </>
+                ) : (
+                  <>
+                    <Zap className="h-4 w-4 mr-2" />
+                    Process All Emails
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+          
+          {processAllResults && (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+              <h4 className="font-medium text-green-800 mb-2">Processing Complete!</h4>
+              
+              {/* Smart Filtering Results */}
+              {processAllResults.alreadyProcessed > 0 && (
+                <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                    <span className="text-sm font-medium text-blue-800">Smart Filtering Applied</span>
+                  </div>
+                  <p className="text-sm text-blue-700">
+                    Skipped {processAllResults.alreadyProcessed} emails that were already processed, saving time and API calls!
+                  </p>
+                </div>
+              )}
+              
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mb-4">
+                <div className="text-center">
+                  <div className="text-lg font-semibold text-green-700">{processAllResults.totalEmails}</div>
+                  <div className="text-green-600">Total Found</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-lg font-semibold text-blue-600">{processAllResults.alreadyProcessed}</div>
+                  <div className="text-blue-600">Already Done</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-lg font-semibold text-green-700">{processAllResults.successful}</div>
+                  <div className="text-green-600">Newly Processed</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-lg font-semibold text-green-700">{Math.round(processAllResults.processingTime / 1000)}s</div>
+                  <div className="text-green-600">Time Taken</div>
+                </div>
+              </div>
+              
+              <p className="text-sm text-green-700 mt-2">
+                🎉 {processAllResults.successful > 0 ? `${processAllResults.successful} new emails` : 'All emails'} now have AI analysis and drafts ready for instant access!
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
 

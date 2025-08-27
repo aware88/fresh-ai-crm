@@ -29,19 +29,21 @@ const nextConfig = {
     domains: ['localhost', 'helloaris.com', 'images.unsplash.com', 'www.withcar.si'],
   },
   
-  // Redirect configuration for landing page (only in production)
+  // Redirect configuration for landing page
   async redirects() {
-    // Only redirect if we're on the main domain, not the app subdomain
-    if (process.env.NODE_ENV === 'production' && process.env.NEXTAUTH_URL === 'https://helloaris.com') {
-      return [
-        {
-          source: '/',
-          destination: 'https://helloaris.com',
-          permanent: false,
-        },
-      ];
-    }
-    return [];
+    return [
+      {
+        source: '/',
+        destination: 'https://helloaris.com',
+        permanent: false,
+        has: [
+          {
+            type: 'host',
+            value: 'app.helloaris.com',
+          },
+        ],
+      },
+    ];
   },
   
   // Output configuration for containerized deployments (Northflank)

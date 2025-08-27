@@ -14,9 +14,8 @@ import ImapClient from '@/components/email/imap/ImapClient';
 import EmailComposer from '@/components/email/EmailComposer';
 import { FaEnvelope, FaRobot, FaSearch, FaSync } from 'react-icons/fa';
 import { Mail, Inbox, Send, AlertCircle, Database, Clock, Users, ChevronLeft, ChevronRight } from 'lucide-react';
-import TeamPresence from '@/components/collaboration/TeamPresence';
-import TeamActivityFeed from '@/components/collaboration/TeamActivityFeed';
-import TeamCollaborationGate from '@/components/subscription/TeamCollaborationGate';
+import TeamPresenceSimple from '@/components/collaboration/TeamPresenceSimple';
+import TeamActivityFeedSimple from '@/components/collaboration/TeamActivityFeedSimple';
 import { useOrganization } from '@/hooks/useOrganization';
 import { useSubscriptionFeatures } from '@/hooks/useSubscriptionFeatures';
 
@@ -56,6 +55,15 @@ export default function EmailPage() {
   const [showAIMonitor, setShowAIMonitor] = useState(false);
   const [aiTaskId, setAiTaskId] = useState<string | null>(null);
   
+  // Email counts for navigation
+  const [inboxCount, setInboxCount] = useState<number>(0);
+  const [sentCount, setSentCount] = useState<number>(0);
+  const [draftsCount, setDraftsCount] = useState<number>(0);
+
+  // Handle email count changes from child components
+  const handleInboxCountChange = (count: number) => setInboxCount(count);
+  const handleSentCountChange = (count: number) => setSentCount(count);
+  const handleDraftsCountChange = (count: number) => setDraftsCount(count);
 
   
   // Handle sales agent action
@@ -85,6 +93,46 @@ export default function EmailPage() {
         setShowAIMonitor(false);
         setAiTaskId(null);
         return;
+      }
+
+      // If no cache, trigger background processing first
+      if (!cacheData.cached) {
+        console.log('No cached results, triggering background processing...');
+        const backgroundResponse = await fetch('/api/emails/ai-cache', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            emailId,
+            forceReprocess: false,
+            skipDraft: false,
+            emailContent: emailData ? {
+              from: emailData.from,
+              subject: emailData.subject,
+              date: emailData.date,
+              body: emailData.body
+            } : undefined
+          }),
+        });
+        
+        const backgroundData = await backgroundResponse.json();
+        
+        if (backgroundData.success && backgroundData.analysis) {
+          console.log('Background processing completed, using results');
+          setAnalysisResult(backgroundData.analysis);
+          setSalesResult(backgroundData.analysis.salesIntelligence || backgroundData.analysis);
+          setCurrentEmailInfo({
+            from: emailData?.from || 'Unknown',
+            subject: emailData?.subject || 'No Subject',
+            body: emailData?.body
+          });
+          setSalesModalOpen(true);
+          setIsSalesProcessing(false);
+          setShowAIMonitor(false);
+          setAiTaskId(null);
+          return;
+        }
       }
       
       // Call the sales agent API
@@ -163,6 +211,8 @@ export default function EmailPage() {
     if (status === 'authenticated' && session?.user) {
       try {
         setLoading(true);
+        setError(''); // Clear any previous errors
+        
         const response = await fetch('/api/email/status');
         const data = await response.json();
         
@@ -171,6 +221,7 @@ export default function EmailPage() {
           
           // Process email accounts from the API response
           const allAccounts = data.emailAccounts || [];
+          
           const microsoftAccounts = allAccounts.filter((acc: any) => acc.provider_type === 'microsoft' || acc.provider_type === 'outlook');
           const nonMicrosoftAccounts = allAccounts.filter((acc: any) => acc.provider_type !== 'microsoft' && acc.provider_type !== 'outlook');
           
@@ -180,31 +231,63 @@ export default function EmailPage() {
           // Set IMAP accounts (includes Google, IMAP, and other non-Microsoft accounts)
           setImapAccounts(nonMicrosoftAccounts);
           
-          // Auto-select primary account if only one exists
-          if (allAccounts.length === 1) {
-            setSelectedAccount(allAccounts[0].id);
+          // Auto-select primary account
+          if (allAccounts.length > 0) {
+            // If there's only one account, select it
+            if (allAccounts.length === 1) {
+              setSelectedAccount(allAccounts[0].id);
+            } else {
+              // If multiple accounts, select the first active one or just the first one
+              const activeAccount = allAccounts.find((acc: any) => acc.is_active !== false) || allAccounts[0];
+              setSelectedAccount(activeAccount.id);
+            }
           }
           
           // Update last refresh timestamp
           setLastRefresh(Date.now());
         } else {
           setError(data.error || 'Failed to check connection');
+          setConnected(false); // Ensure we show the connection UI
         }
       } catch (err) {
         console.error('Error checking connection:', err);
-        setError('Failed to check connection');
+        setError('Failed to check connection. Please try refreshing the page.');
+        setConnected(false); // Ensure we show the connection UI
       } finally {
         setLoading(false);
       }
+    } else if (status === 'unauthenticated') {
+      // User is not authenticated, clear loading state
+      setLoading(false);
+      setConnected(false);
     }
   };
 
-  // Initial connection check - run only once on mount
+  // Initial connection check - run when status or session changes
   useEffect(() => {
     if (status === 'authenticated' && session?.user) {
       checkConnection();
+    } else if (status === 'unauthenticated') {
+      // Clear states when not authenticated
+      setLoading(false);
+      setConnected(false);
+      setError('');
     }
-  }, []); // Remove dependencies to prevent constant re-runs
+  }, [status, session]); // Add dependencies to properly handle auth state changes
+
+  // Add a timeout to prevent infinite loading
+  useEffect(() => {
+    if (loading && status === 'authenticated') {
+      const timeout = setTimeout(() => {
+        console.warn('Loading timeout reached, forcing state reset');
+        setLoading(false);
+        setConnected(false);
+        setError('Loading timeout. Please refresh the page.');
+      }, 10000); // 10 second timeout
+      
+      return () => clearTimeout(timeout);
+    }
+  }, [loading, status]);
 
   // Removed auto-refresh to prevent constant page refreshes
   // useEffect(() => {
@@ -273,77 +356,101 @@ export default function EmailPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
         >
-          <Card className="max-w-2xl mx-auto">
+          <Card className="max-w-6xl mx-auto">
             <CardHeader className="text-center">
-              <div className="mx-auto w-16 h-16 bg-gradient-to-br from-purple-500 to-blue-600 rounded-full flex items-center justify-center mb-4">
-                <FaEnvelope className="text-white text-2xl" />
+              <div className="mx-auto w-20 h-20 bg-gradient-to-br from-purple-500 to-blue-600 rounded-full flex items-center justify-center mb-6">
+                <FaEnvelope className="text-white text-3xl" />
               </div>
-              <h2 className="text-2xl font-bold text-gray-900">Connect Your Email</h2>
-              <p className="text-gray-600 mt-2">
-                Connect your email accounts to start managing and analyzing your emails with AI
+              <h2 className="text-3xl font-bold text-gray-900 mb-3">Connect Your Email</h2>
+              <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+                Connect your email accounts to start managing and analyzing your emails with AI-powered insights and automation
               </p>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="p-4 border rounded-lg hover:bg-gray-50 transition-colors">
-                  <div className="flex items-center space-x-3 mb-3">
-                    <div className="w-8 h-8 bg-blue-500 rounded flex items-center justify-center">
-                      <FaEnvelope className="text-white text-sm" />
+            <CardContent className="space-y-8">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="p-6 border-2 border-gray-100 rounded-xl hover:border-purple-200 hover:shadow-lg transition-all duration-300 bg-gradient-to-br from-white to-purple-50">
+                  <div className="flex items-center space-x-4 mb-4">
+                    <div className="w-12 h-12 bg-gradient-to-br from-red-500 to-red-600 rounded-xl flex items-center justify-center shadow-lg">
+                      <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                        <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                        <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                        <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                      </svg>
                     </div>
-                    <h3 className="font-semibold">Google Gmail</h3>
+                    <div>
+                      <h3 className="text-xl font-bold text-gray-900">Google Gmail</h3>
+                      <p className="text-sm text-gray-500">Most popular choice</p>
+                    </div>
                   </div>
-                  <p className="text-sm text-gray-600 mb-4">
-                    Connect your Gmail account for seamless email management
+                  <p className="text-gray-600 mb-6 leading-relaxed">
+                    Connect your Gmail account for seamless email management with secure OAuth authentication
                   </p>
-                  <Button asChild className="w-full">
-                    <a href="/settings/email-accounts">
-                      Connect Gmail
-                    </a>
+                  <Button 
+                    onClick={() => window.location.href = '/api/auth/google/connect'}
+                    className="w-full bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-semibold py-3 text-lg rounded-lg shadow-lg hover:shadow-xl transition-all duration-300"
+                  >
+                    Connect Gmail
                   </Button>
                 </div>
 
-                <div className="p-4 border rounded-lg hover:bg-gray-50 transition-colors">
-                  <div className="flex items-center space-x-3 mb-3">
-                    <div className="w-8 h-8 bg-blue-600 rounded flex items-center justify-center">
-                      <FaEnvelope className="text-white text-sm" />
+                <div className="p-6 border-2 border-gray-100 rounded-xl hover:border-blue-200 hover:shadow-lg transition-all duration-300 bg-gradient-to-br from-white to-blue-50">
+                  <div className="flex items-center space-x-4 mb-4">
+                    <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg">
+                      <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M11.4 24H0V12.6h11.4V24zM24 24H12.6V12.6H24V24zM11.4 11.4H0V0h11.4v11.4zm12.6 0H12.6V0H24v11.4z"/>
+                      </svg>
                     </div>
-                    <h3 className="font-semibold">Microsoft Outlook</h3>
+                    <div>
+                      <h3 className="text-xl font-bold text-gray-900">Microsoft Outlook</h3>
+                      <p className="text-sm text-gray-500">Enterprise ready</p>
+                    </div>
                   </div>
-                  <p className="text-sm text-gray-600 mb-4">
-                    Connect your Outlook account with secure OAuth authentication
+                  <p className="text-gray-600 mb-6 leading-relaxed">
+                    Connect your Outlook account with secure OAuth authentication and enterprise-grade security
                   </p>
-                  <Button asChild className="w-full bg-blue-600 hover:bg-blue-700">
-                    <a href="/settings/email-accounts">
-                      Connect Outlook
-                    </a>
+                  <Button 
+                    onClick={() => window.location.href = '/api/auth/outlook/connect'}
+                    className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold py-3 text-lg rounded-lg shadow-lg hover:shadow-xl transition-all duration-300"
+                  >
+                    Connect Outlook
                   </Button>
                 </div>
                 
-                <div className="p-4 border rounded-lg hover:bg-gray-50 transition-colors">
-                  <div className="flex items-center space-x-3 mb-3">
-                    <div className="w-8 h-8 bg-orange-500 rounded flex items-center justify-center">
-                      <FaEnvelope className="text-white text-sm" />
+                <div className="p-6 border-2 border-gray-100 rounded-xl hover:border-orange-200 hover:shadow-lg transition-all duration-300 bg-gradient-to-br from-white to-orange-50">
+                  <div className="flex items-center space-x-4 mb-4">
+                    <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl flex items-center justify-center shadow-lg">
+                      <FaEnvelope className="text-white text-xl" />
                     </div>
-                    <h3 className="font-semibold">IMAP/SMTP</h3>
+                    <div>
+                      <h3 className="text-xl font-bold text-gray-900">IMAP/SMTP</h3>
+                      <p className="text-sm text-gray-500">Universal support</p>
+                    </div>
                   </div>
-                  <p className="text-sm text-gray-600 mb-4">
-                    Connect any email provider using IMAP/SMTP
+                  <p className="text-gray-600 mb-6 leading-relaxed">
+                    Connect any email provider using IMAP/SMTP protocols for maximum compatibility
                   </p>
-                  <Button asChild variant="outline" className="w-full">
-                    <a href="/settings/email-accounts">
-                      Connect IMAP
-                    </a>
+                  <Button 
+                    onClick={() => window.location.href = '/settings/email-accounts/add-imap'}
+                    variant="outline" 
+                    className="w-full border-2 border-orange-500 text-orange-600 hover:bg-orange-500 hover:text-white font-semibold py-3 text-lg rounded-lg shadow-lg hover:shadow-xl transition-all duration-300"
+                  >
+                    Connect IMAP
                   </Button>
                 </div>
               </div>
               
-              <div className="text-center">
-                <Button asChild variant="ghost">
-                  <a href="/settings/email-accounts">
-                    <FaRobot className="mr-2" />
-                    Email Settings
-                  </a>
-                </Button>
+              <div className="text-center pt-4">
+                <div className="inline-flex items-center space-x-2 text-gray-500 hover:text-gray-700 transition-colors">
+                  <FaRobot className="text-lg" />
+                  <span className="text-sm">Need help? Check our</span>
+                  <Button asChild variant="link" className="p-0 h-auto text-sm text-purple-600 hover:text-purple-700">
+                    <a href="/settings/email-accounts">
+                      Email Settings
+                    </a>
+                  </Button>
+                  <span className="text-sm">for advanced configuration</span>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -374,16 +481,17 @@ export default function EmailPage() {
                   <TabsList className="grid grid-cols-5 rounded-md border bg-slate-50 border-slate-200 h-10">
                     <TabsTrigger value="inbox" className="flex items-center gap-2 data-[state=active]:bg-[var(--accent-color)] data-[state=active]:text-white text-sm px-3">
                       <Inbox className="h-4 w-4" />
-                      Inbox
+                      Inbox {inboxCount > 0 && `(${inboxCount})`}
                     </TabsTrigger>
                     <TabsTrigger value="sent" className="flex items-center gap-2 data-[state=active]:bg-[var(--accent-color)] data-[state=active]:text-white text-sm px-3">
                       <Send className="h-4 w-4" />
-                      Sent
+                      Sent {sentCount > 0 && `(${sentCount})`}
                     </TabsTrigger>
                     <TabsTrigger value="drafts" className="flex items-center gap-2 data-[state=active]:bg-[var(--accent-color)] data-[state=active]:text-white text-sm px-3">
                       <Database className="h-4 w-4" />
-                      Drafts
+                      Drafts {draftsCount > 0 && `(${draftsCount})`}
                     </TabsTrigger>
+
                     <TabsTrigger value="followups" className="flex items-center gap-2 data-[state=active]:bg-[var(--accent-color)] data-[state=active]:text-white text-sm px-3">
                       <Clock className="h-4 w-4" />
                       Follow-ups
@@ -396,8 +504,8 @@ export default function EmailPage() {
                   
                   {/* Right side controls */}
                   <div className="flex items-center space-x-3">
-                    {/* Account Selector - only show if more than one account or no account selected */}
-                    {(outlookConnected && imapAccounts.length > 0) || (!selectedAccount && (outlookConnected || imapAccounts.length > 0)) ? (
+                    {/* Account Selector - only show if more than one account */}
+                    {(outlookConnected && imapAccounts.length > 0) ? (
                       <Select value={selectedAccount} onValueChange={setSelectedAccount}>
                         <SelectTrigger className="w-44">
                           <SelectValue placeholder="Select email account" />
@@ -413,17 +521,18 @@ export default function EmailPage() {
                           ))}
                         </SelectContent>
                       </Select>
-                    ) : (
-                      // Show current account info instead of dropdown when only one account
-                      <div className="flex items-center space-x-2 px-3 py-1.5 bg-green-50 border border-green-200 rounded-md">
-                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                        <span className="text-xs font-medium text-green-800">
-                          {outlookConnected ? 'Microsoft Outlook' : imapAccounts[0]?.email || 'Email Account'}
-                        </span>
-                        <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full">Active</span>
-                      </div>
-                    )}
+                    ) : null}
                     
+                    {/* Refresh Button */}
+                    <Button 
+                      onClick={() => window.location.reload()} 
+                      variant="outline" 
+                      size="sm"
+                      className="flex items-center gap-2"
+                    >
+                      <FaSync className="h-4 w-4" />
+                      Refresh
+                    </Button>
 
                   </div>
                 </div>
@@ -439,6 +548,7 @@ export default function EmailPage() {
                     account={imapAccounts.find(acc => acc.id === selectedAccount)} 
                     onSalesAgent={handleSalesAgent}
                     isSalesProcessing={isSalesProcessing}
+                    onEmailCountChange={handleInboxCountChange}
                   />
                 ) : (
                   <div className="text-center py-8 text-gray-500">
@@ -461,6 +571,7 @@ export default function EmailPage() {
                     folder="Sent"
                     onSalesAgent={handleSalesAgent}
                     isSalesProcessing={isSalesProcessing}
+                    onEmailCountChange={handleSentCountChange}
                   />
                 ) : (
                   <div className="text-center py-8 text-gray-500">
@@ -483,6 +594,7 @@ export default function EmailPage() {
                     folder="Drafts"
                     onSalesAgent={handleSalesAgent}
                     isSalesProcessing={isSalesProcessing}
+                    onEmailCountChange={handleDraftsCountChange}
                   />
                 ) : (
                   <div className="text-center py-8 text-gray-500">
@@ -493,6 +605,8 @@ export default function EmailPage() {
               </div>
             </div>
           </TabsContent>
+
+
 
           <TabsContent value="followups" className="flex-1 min-h-0 mt-0">
             <div className="bg-white rounded-lg border border-gray-200 shadow-sm h-full flex flex-col">
@@ -554,36 +668,31 @@ export default function EmailPage() {
             {/* Team Collaboration Content */}
             {!isTeamSidebarCollapsed && (
               <div className="space-y-4">
-                <TeamCollaborationGate 
-                  feature="sidebar"
-                  fallbackMessage="Team collaboration requires Pro plan"
-                >
-                  {/* Team Presence */}
-                  <Card>
-                    <CardHeader className="pb-3">
-                      <div className="flex items-center gap-2">
-                        <Users className="h-4 w-4 text-blue-600" />
-                        <h3 className="font-semibold text-sm">Team Online</h3>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="pt-0">
-                      <TeamPresence compact={true} />
-                    </CardContent>
-                  </Card>
+                {/* Team Presence */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center gap-2">
+                      <Users className="h-4 w-4 text-blue-600" />
+                      <h3 className="font-semibold text-sm">Team Online</h3>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    <TeamPresenceSimple compact={true} />
+                  </CardContent>
+                </Card>
 
-                  {/* Team Activity Feed */}
-                  <Card className="flex-1">
-                    <CardHeader className="pb-3">
-                      <div className="flex items-center gap-2">
-                        <AlertCircle className="h-4 w-4 text-green-600" />
-                        <h3 className="font-semibold text-sm">Team Activity</h3>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="pt-0">
-                      <TeamActivityFeed maxHeight="300px" />
-                    </CardContent>
-                  </Card>
-                </TeamCollaborationGate>
+                {/* Team Activity Feed */}
+                <Card className="flex-1">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center gap-2">
+                      <AlertCircle className="h-4 w-4 text-green-600" />
+                      <h3 className="font-semibold text-sm">Team Activity</h3>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    <TeamActivityFeedSimple maxHeight="300px" />
+                  </CardContent>
+                </Card>
               </div>
             )}
 

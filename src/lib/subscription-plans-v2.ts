@@ -105,7 +105,7 @@ export const subscriptionPlans: SubscriptionPlanDefinition[] = [
     features: {
       MAX_USERS: 1,
       MAX_CONTACTS: -1, // Unlimited contacts to remove friction
-      AI_MESSAGES_LIMIT: 50, // Reduced to create upgrade pressure
+      AI_MESSAGES_LIMIT: 300, // 300 AI messages for Starter plan
       PSYCHOLOGICAL_PROFILING: false, // No psychological profiling - basic AI only
       EMAIL_SUPPORT: true,
       CORE_AUTOMATION: true,
@@ -145,7 +145,7 @@ export const subscriptionPlans: SubscriptionPlanDefinition[] = [
     highlight: 'Best Value',
     popular: true,
     features: {
-      MAX_USERS: 5,
+      MAX_USERS: 3,
       MAX_CONTACTS: -1, // Unlimited contacts
       AI_MESSAGES_LIMIT: 500, // 500 total messages shared across team
       PSYCHOLOGICAL_PROFILING: true, // Full psychological profiling
@@ -175,7 +175,7 @@ export const subscriptionPlans: SubscriptionPlanDefinition[] = [
       MOBILE_APP_ACCESS: true
     },
     trialDays: 0,
-    userLimit: 5,
+    userLimit: 3,
     isOrganizationPlan: false
   },
   // Premium Basic Tier
@@ -191,7 +191,7 @@ export const subscriptionPlans: SubscriptionPlanDefinition[] = [
     popular: false,
     premiumTier: 'basic',
     features: {
-      MAX_USERS: 20, // 20 users limit
+      MAX_USERS: 10, // 10 users limit
       MAX_CONTACTS: -1, // Unlimited contacts
       AI_MESSAGES_LIMIT: 5000, // 5,000 AI messages/month
       PSYCHOLOGICAL_PROFILING: true,
@@ -222,7 +222,7 @@ export const subscriptionPlans: SubscriptionPlanDefinition[] = [
       MOBILE_APP_ACCESS: true
     },
     trialDays: 14,
-    userLimit: 20,
+    userLimit: 10,
     additionalUserPrice: 15, // €15 per additional user per month
     isOrganizationPlan: true
   },

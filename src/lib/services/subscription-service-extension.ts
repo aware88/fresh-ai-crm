@@ -1,5 +1,5 @@
 import { SubscriptionService, SubscriptionPlan, OrganizationSubscription } from './subscription-service';
-import { subscriptionPlans as predefinedPlans, SubscriptionPlanDefinition } from '@/lib/subscription-plans';
+import { subscriptionPlans as predefinedPlans, SubscriptionPlanDefinition } from '@/lib/subscription-plans-v2';
 import { createLazyServerClient } from '@/lib/supabase/lazy-client';
 
 /**

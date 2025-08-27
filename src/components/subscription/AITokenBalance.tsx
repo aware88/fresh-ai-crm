@@ -114,6 +114,9 @@ export default function AITokenBalance({
   const subscriptionUsagePercent = usage.subscription?.limit > 0 
     ? ((usage.subscription?.current || 0) / usage.subscription.limit) * 100 
     : 0;
+    
+  // Check if plan has unlimited messages
+  const isUnlimited = usage.subscription?.limit === -1;
 
   const getStatusColor = () => {
     if (!usage.total?.canMakeRequest) return 'text-red-600';
@@ -129,6 +132,7 @@ export default function AITokenBalance({
   };
 
   const getStatusText = () => {
+    if (isUnlimited) return 'Unlimited tokens';
     if (!usage.total?.canMakeRequest) return 'No tokens available';
     if (usage.subscription?.exceeded) return 'Using top-up tokens';
     return 'Active';
@@ -141,14 +145,17 @@ export default function AITokenBalance({
           <Zap className="h-4 w-4 text-blue-600" />
           <div>
             <div className="font-medium text-sm">
-              {usage.total?.available?.toLocaleString() || 0} tokens available
+              {isUnlimited ? 'Unlimited tokens' : `${usage.total?.available?.toLocaleString() || 0} tokens available`}
             </div>
             <div className="text-xs text-gray-600">
-              {usage.subscription?.remaining || 0} subscription + {usage.topup?.available || 0} top-up
+              {isUnlimited 
+                ? 'Premium Enterprise plan' 
+                : `${usage.subscription?.remaining || 0} subscription + ${usage.topup?.available || 0} top-up`
+              }
             </div>
           </div>
         </div>
-        {showTopUpButton && (
+        {showTopUpButton && !isUnlimited && (
           <Link href="/settings/subscription">
             <Button size="sm" variant="outline">
               <Plus className="h-3 w-3 mr-1" />
@@ -196,17 +203,35 @@ export default function AITokenBalance({
             <div className="flex items-center justify-between">
               <h4 className="font-medium">Subscription Tokens</h4>
               <Badge variant={usage.subscription?.exceeded ? 'destructive' : 'secondary'}>
-                {usage.subscription?.current || 0} / {usage.subscription?.limit || 0} used
+                {isUnlimited 
+                  ? `${usage.subscription?.current || 0} used (Unlimited)`
+                  : `${usage.subscription?.current || 0} / ${usage.subscription?.limit || 0} used`
+                }
               </Badge>
             </div>
-            <Progress 
-              value={Math.min(subscriptionUsagePercent, 100)} 
-              className="h-2"
-            />
-            <div className="flex justify-between text-sm text-gray-600">
-              <span>{usage.subscription?.remaining || 0} remaining</span>
-              <span>{Math.round(subscriptionUsagePercent)}% used</span>
-            </div>
+            {!isUnlimited && (
+              <>
+                <Progress 
+                  value={Math.min(subscriptionUsagePercent, 100)} 
+                  className="h-2"
+                />
+                <div className="flex justify-between text-sm text-gray-600">
+                  <span>{usage.subscription?.remaining || 0} remaining</span>
+                  <span>{Math.round(subscriptionUsagePercent)}% used</span>
+                </div>
+              </>
+            )}
+            {isUnlimited && (
+              <div className="p-3 bg-green-50 rounded-lg border border-green-200">
+                <div className="flex items-center gap-2 text-green-700">
+                  <Sparkles className="h-4 w-4" />
+                  <span className="font-medium">Unlimited AI Messages</span>
+                </div>
+                <p className="text-sm text-green-600 mt-1">
+                  You have unlimited AI messages with your Premium Enterprise plan
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Top-up Balance */}
@@ -233,7 +258,10 @@ export default function AITokenBalance({
               <div>
                 <h4 className="font-semibold text-blue-900">Total Available</h4>
                 <p className="text-sm text-blue-700">
-                  {usage.total?.available?.toLocaleString() || 0} tokens ready to use
+                  {isUnlimited 
+                    ? 'Unlimited tokens ready to use'
+                    : `${usage.total?.available?.toLocaleString() || 0} tokens ready to use`
+                  }
                 </p>
               </div>
               <TrendingUp className="h-6 w-6 text-blue-600" />
@@ -242,7 +270,7 @@ export default function AITokenBalance({
 
           {/* Action Buttons */}
           <div className="flex space-x-3">
-            {showTopUpButton && (
+            {showTopUpButton && !isUnlimited && (
               <Link href="/settings/subscription" className="flex-1">
                 <Button className="w-full">
                   <Plus className="h-4 w-4 mr-2" />

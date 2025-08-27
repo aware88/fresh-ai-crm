@@ -33,21 +33,55 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Get cached results
-    const { data: cacheData, error: cacheError } = await supabase
-      .from('email_ai_cache')
-      .select('*')
-      .eq('email_id', emailId)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single();
+    // Get cached results - try database first, fall back to background processor cache
+    let cacheData = null;
+    let cacheError = null;
+    
+    try {
+      const { data, error } = await supabase
+        .from('email_ai_cache')
+        .select('*')
+        .eq('email_id', emailId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+      
+      cacheData = data;
+      cacheError = error;
+    } catch (error) {
+      // Table might not exist, try background processor cache
+      console.log('Database cache unavailable, checking background processor cache');
+    }
 
-    if (cacheError && cacheError.code !== 'PGRST116') {
-      console.error('Error fetching cache:', cacheError);
-      return NextResponse.json(
-        { error: 'Failed to fetch cached results' },
-        { status: 500 }
-      );
+    // If database cache failed, try background processor cache
+    if (!cacheData || (cacheError && cacheError.code !== 'PGRST116')) {
+      try {
+        const { getBackgroundProcessor } = await import('@/lib/email/background-ai-processor');
+        const OpenAI = (await import('openai')).default;
+        
+        const openai = new OpenAI({
+          apiKey: process.env.OPENAI_API_KEY
+        });
+
+        if (openai.apiKey) {
+          const processor = getBackgroundProcessor(supabase, openai);
+          const cachedResults = await processor.getCachedResultsForUI(emailId);
+          
+          if (cachedResults) {
+            return NextResponse.json({
+              cached: true,
+              emailId,
+              analysis: cachedResults.analysis,
+              draft: cachedResults.draft,
+              cachedAt: new Date().toISOString(),
+              cacheAge: 0,
+              source: 'memory'
+            });
+          }
+        }
+      } catch (memoryError) {
+        console.log('Memory cache also unavailable:', memoryError);
+      }
     }
 
     // Check if cache exists and is still fresh
@@ -106,7 +140,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { emailId, forceReprocess = false, skipDraft = false } = await request.json();
+    const { emailId, forceReprocess = false, skipDraft = false, emailContent } = await request.json();
 
     if (!emailId) {
       return NextResponse.json(
@@ -115,18 +149,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verify email exists and belongs to user
-    const { data: email, error: emailError } = await supabase
-      .from('emails')
-      .select('id, user_id')
-      .eq('id', emailId)
-      .single();
+    // For virtual/composed emails, we don't need to verify in database
+    if (!emailId.startsWith('compose-') && !emailId.startsWith('virtual-')) {
+      // Verify email exists and belongs to user
+      const { data: email, error: emailError } = await supabase
+        .from('emails')
+        .select('id, user_id')
+        .eq('id', emailId)
+        .single();
 
-    if (emailError || !email || email.user_id !== session.user.id) {
-      return NextResponse.json(
-        { error: 'Email not found or access denied' },
-        { status: 404 }
-      );
+      if (emailError || !email || email.user_id !== session.user.id) {
+        return NextResponse.json(
+          { error: 'Email not found or access denied' },
+          { status: 404 }
+        );
+      }
     }
 
     // Import and use background processor
@@ -162,7 +199,8 @@ export async function POST(request: NextRequest) {
       organizationId,
       priority: 'normal',
       skipDraft,
-      forceReprocess
+      forceReprocess,
+      emailContent
     });
 
     return NextResponse.json({

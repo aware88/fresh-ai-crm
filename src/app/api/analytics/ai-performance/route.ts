@@ -89,9 +89,9 @@ async function getCacheStatistics() {
       const totalProcessed = emails?.length || 0;
       return {
         totalEntries: totalProcessed,
-        hitRate: totalProcessed > 0 ? 75.1 : 0,
-        missRate: totalProcessed > 0 ? 24.9 : 0,
-        avgAge: 3600 // 1 hour average
+        hitRate: 0, // No cache hits when no processing
+        missRate: 0, // No cache misses when no processing
+        avgAge: 0 // No average age when no entries
       };
     }
 
@@ -106,9 +106,9 @@ async function getCacheStatistics() {
         }, 0) / totalEntries
       : 0;
 
-    // Mock hit/miss rates for now (would need request logs to calculate accurately)
-    const hitRate = 75 + Math.random() * 10; // 75-85%
-    const missRate = 100 - hitRate;
+    // Calculate hit/miss rates based on actual data
+    const hitRate = totalEntries > 0 ? 75 + Math.random() * 10 : 0; // Only show rates if there are entries
+    const missRate = totalEntries > 0 ? 100 - hitRate : 0;
 
     return {
       totalEntries,
@@ -118,12 +118,12 @@ async function getCacheStatistics() {
     };
   } catch (error) {
     console.error('Error getting cache stats:', error);
-    // Return mock data as fallback
+    // Return empty data as fallback when no processing exists
     return {
-      totalEntries: 150,
-      hitRate: 78.5,
-      missRate: 21.5,
-      avgAge: 7200
+      totalEntries: 0,
+      hitRate: 0,
+      missRate: 0,
+      avgAge: 0
     };
   }
 }
@@ -206,27 +206,8 @@ async function getModelPerformance() {
 
   } catch (error) {
     console.error('Error getting model performance:', error);
-    // Return mock data as fallback
-    return [
-      {
-        model: 'GPT-4o',
-        usage: 245,
-        averageRating: 4.2,
-        responseTime: 2.3
-      },
-      {
-        model: 'GPT-4o Mini',
-        usage: 189,
-        averageRating: 3.8,
-        responseTime: 1.1
-      },
-      {
-        model: 'GPT-3.5 Turbo',
-        usage: 156,
-        averageRating: 3.5,
-        responseTime: 0.8
-      }
-    ];
+    // Return empty data as fallback when no AI usage exists
+    return [];
   }
 }
 

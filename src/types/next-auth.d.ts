@@ -12,7 +12,7 @@ declare module 'next-auth' {
     refreshToken?: string;
     provider?: string;
   }
-  
+
   interface User {
     id: string;
     name?: string | null;
@@ -23,11 +23,10 @@ declare module 'next-auth' {
 
 declare module 'next-auth/jwt' {
   interface JWT {
+    id?: string;
     accessToken?: string;
     refreshToken?: string;
-    expiresAt?: number;
     provider?: string;
-    id?: string;
-    sub?: string;
+    organizationSetup?: boolean;
   }
 }

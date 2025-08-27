@@ -540,15 +540,30 @@ export default function AnalyticsDashboardClient({ initialData, organizationId }
                   <div className="space-y-3">
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-purple-700">Email Responses</span>
-                      <span className="font-semibold text-purple-900">67%</span>
+                      <span className="font-semibold text-purple-900">
+                        {aiSavings?.breakdown?.minutesByType?.emailResponses ? 
+                          `${Math.round((aiSavings.breakdown.minutesByType.emailResponses / Object.values(aiSavings.breakdown.minutesByType).reduce((a, b) => a + b, 0)) * 100)}%` : 
+                          '0%'
+                        }
+                      </span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-purple-700">Profiling</span>
-                      <span className="font-semibold text-purple-900">23%</span>
+                      <span className="font-semibold text-purple-900">
+                        {aiSavings?.breakdown?.minutesByType?.profiling ? 
+                          `${Math.round((aiSavings.breakdown.minutesByType.profiling / Object.values(aiSavings.breakdown.minutesByType).reduce((a, b) => a + b, 0)) * 100)}%` : 
+                          '0%'
+                        }
+                      </span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-purple-700">Drafting</span>
-                      <span className="font-semibold text-purple-900">10%</span>
+                      <span className="font-semibold text-purple-900">
+                        {aiSavings?.breakdown?.minutesByType?.drafting ? 
+                          `${Math.round((aiSavings.breakdown.minutesByType.drafting / Object.values(aiSavings.breakdown.minutesByType).reduce((a, b) => a + b, 0)) * 100)}%` : 
+                          '0%'
+                        }
+                      </span>
                     </div>
                   </div>
                 </CardContent>

@@ -442,12 +442,12 @@ export class AutoReplyService {
   /**
    * Get user's auto-reply settings
    */
-  private async getUserAutoReplySettings(userEmail: string): Promise<AutoReplySettings> {
+  private async getUserAutoReplySettings(userId: string): Promise<AutoReplySettings> {
     try {
       const { data, error } = await supabase
         .from('user_preferences')
         .select('auto_reply_settings')
-        .eq('email', userEmail)
+        .eq('user_id', userId)
         .single();
 
       if (error) {

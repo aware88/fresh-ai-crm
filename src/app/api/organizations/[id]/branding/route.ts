@@ -84,9 +84,35 @@ export async function PUT(
     // Create Supabase client properly with await
     const supabase = await createServerClient();
     
-    // SIMPLIFIED: Skip admin check for now to avoid sign-in issues
-    // TODO: Implement proper admin checks later
-    console.log('Skipping admin check for organization branding update:', organizationId);
+    // Check if user is admin for this organization (simplified check)
+    try {
+      // Direct query to organization_members table
+      const { data: membership, error: membershipError } = await supabase
+        .from('organization_members')
+        .select('role')
+        .eq('organization_id', organizationId)
+        .eq('user_id', session.user.id)
+        .single();
+
+      if (membershipError || !membership) {
+        return NextResponse.json({ 
+          error: 'Forbidden: User is not a member of this organization' 
+        }, { status: 403 });
+      }
+
+      if (membership.role !== 'admin') {
+        return NextResponse.json({ 
+          error: 'Forbidden: Only organization administrators can modify branding settings' 
+        }, { status: 403 });
+      }
+      
+      console.log('✅ Admin permission verified for organization branding update:', organizationId);
+    } catch (adminError) {
+      console.error('Error checking admin permissions:', adminError);
+      return NextResponse.json({ 
+        error: 'Unable to verify admin permissions' 
+      }, { status: 500 });
+    }
     
     // Get request body
     const brandingData = await request.json();

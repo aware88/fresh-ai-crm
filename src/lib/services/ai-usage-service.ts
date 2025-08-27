@@ -180,7 +180,7 @@ export class AIUsageService {
       const currentMessages = currentUsage?.currentMessages || 0;
       
       // Default limits based on subscription (simplified)
-      const defaultLimit = 50; // Starter plan default
+      const defaultLimit = 300; // Starter plan default
       const remaining = Math.max(0, defaultLimit - currentMessages);
       const limitExceeded = currentMessages >= defaultLimit;
 
@@ -196,8 +196,8 @@ export class AIUsageService {
       return {
         limitExceeded: false,
         currentUsage: 0,
-        limitAmount: 50,
-        remaining: 50
+        limitAmount: 300,
+        remaining: 300
       };
     }
   }

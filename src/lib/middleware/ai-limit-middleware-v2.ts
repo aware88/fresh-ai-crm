@@ -506,15 +506,16 @@ export async function getUsageStatus(organizationId: string): Promise<{
       return null;
     }
 
-    const subscriptionRemaining = Math.max(0, limitCheck.remaining);
-    const totalAvailable = subscriptionRemaining + topupBalance.totalMessagesAvailable;
+    const isUnlimited = limitCheck.limitAmount === -1;
+    const subscriptionRemaining = isUnlimited ? -1 : Math.max(0, limitCheck.remaining);
+    const totalAvailable = isUnlimited ? -1 : subscriptionRemaining + topupBalance.totalMessagesAvailable;
 
     return {
       subscription: {
         current: limitCheck.currentUsage,
         limit: limitCheck.limitAmount,
         remaining: subscriptionRemaining,
-        exceeded: limitCheck.limitExceeded
+        exceeded: isUnlimited ? false : limitCheck.limitExceeded
       },
       topup: {
         available: topupBalance.totalMessagesAvailable,
@@ -523,7 +524,7 @@ export async function getUsageStatus(organizationId: string): Promise<{
       },
       total: {
         available: totalAvailable,
-        canMakeRequest: totalAvailable > 0
+        canMakeRequest: isUnlimited ? true : totalAvailable > 0
       }
     };
   } catch (error) {

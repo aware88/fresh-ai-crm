@@ -173,18 +173,18 @@ export async function GET(request: NextRequest) {
         time_saved_hours: (automationData?.filter(e => e.status === 'sent').length || 0) * 0.25
       },
       ml_insights: {
-        prediction_accuracy: 84.7,
-        top_factors: [
+        prediction_accuracy: followups && followups.length > 0 ? 84.7 : 0,
+        top_factors: followups && followups.length > 0 ? [
           { factor: 'Historical Response Rate', impact: 0.42, confidence: 0.95 },
           { factor: 'Time Since Original', impact: 0.28, confidence: 0.87 },
           { factor: 'Business Hours', impact: 0.18, confidence: 0.82 },
           { factor: 'Priority Level', impact: 0.12, confidence: 0.79 }
-        ],
-        optimization_suggestions: [
+        ] : [],
+        optimization_suggestions: followups && followups.length > 0 ? [
           { type: 'timing', suggestion: 'Send follow-ups on Tuesday-Thursday for 15% better response rates', potential_impact: 15.2 },
           { type: 'content', suggestion: 'Value-add approach shows 12% higher success rate', potential_impact: 12.8 },
           { type: 'automation', suggestion: 'Enable automation for medium priority follow-ups to save 8 hours/week', potential_impact: 8.0 }
-        ]
+        ] : []
       }
     };
 

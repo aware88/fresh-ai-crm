@@ -591,7 +591,7 @@ I'm your intelligent AI business partner. I can help you manage your entire CRM 
 
   return (
     <Card className={`h-full flex flex-col ${className}`}>
-      <CardHeader className="bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 text-white relative overflow-hidden">
+      <CardHeader className="bg-gradient-to-r from-[var(--brand-start)] via-[var(--brand-mid)] to-[var(--brand-end)] text-white relative overflow-hidden">
         <div className="absolute inset-0 bg-white bg-opacity-10 backdrop-blur-sm"></div>
         <div className="relative flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -603,7 +603,7 @@ I'm your intelligent AI business partner. I can help you manage your entire CRM 
             </div>
             <div>
               <CardTitle className="text-white text-xl font-bold">CRM Assistant</CardTitle>
-              <p className="text-blue-100 text-sm">Your Intelligent Business Partner</p>
+              <p className="text-white/70 text-sm">Your Intelligent Business Partner</p>
             </div>
           </div>
           <div className="flex items-center gap-2">

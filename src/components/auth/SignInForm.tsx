@@ -10,14 +10,12 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Label } from '@/components/ui/label';
 import { AlertCircle, CheckCircle } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { FcGoogle } from 'react-icons/fc';
 
 export default function SignInForm() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [oauthLoading, setOauthLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showResendConfirmation, setShowResendConfirmation] = useState(false);
   const [resendLoading, setResendLoading] = useState(false);
@@ -66,35 +64,6 @@ export default function SignInForm() {
       setError('An error occurred during sign in');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleGoogleSignIn = async () => {
-    try {
-      setOauthLoading('google');
-      setError('');
-
-      console.log('🔐 Attempting Google OAuth sign in...');
-      
-      const result = await signIn('google', {
-        redirect: false,
-        callbackUrl: '/dashboard',
-      });
-
-      console.log('🔐 Google OAuth result:', result);
-
-      if (result?.error) {
-        console.error('🔐 Google OAuth error:', result.error);
-        setError('Google sign-in failed. Please try again.');
-      } else if (result?.ok) {
-        console.log('✅ Google sign-in successful, redirecting...');
-        window.location.href = result.url || '/dashboard';
-      }
-    } catch (error) {
-      console.error('🔐 Google OAuth exception:', error);
-      setError('An error occurred during Google sign-in');
-    } finally {
-      setOauthLoading(null);
     }
   };
 
@@ -165,29 +134,6 @@ export default function SignInForm() {
             </AlertDescription>
           </Alert>
         )}
-
-        {/* Google OAuth Sign-In Button */}
-        <div className="mb-6">
-          <Button
-            onClick={handleGoogleSignIn}
-            disabled={loading || oauthLoading !== null}
-            variant="outline"
-            className="w-full flex items-center justify-center gap-3 py-6 text-base font-medium rounded-xl border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-colors duration-200"
-          >
-            <FcGoogle className="w-5 h-5" />
-            {oauthLoading === 'google' ? 'Signing in with Google...' : 'Continue with Google'}
-          </Button>
-        </div>
-
-        {/* Divider */}
-        <div className="relative mb-6">
-          <div className="absolute inset-0 flex items-center">
-            <span className="w-full border-t border-gray-200" />
-          </div>
-          <div className="relative flex justify-center text-sm">
-            <span className="bg-white px-4 text-gray-500 font-medium">Or continue with email</span>
-          </div>
-        </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-2">

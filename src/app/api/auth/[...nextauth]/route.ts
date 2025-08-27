@@ -3,7 +3,62 @@ import { SupabaseAdapter } from '@auth/supabase-adapter';
 import NextAuth from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import GoogleProvider from 'next-auth/providers/google';
-import { supabase } from '@/lib/supabaseClient';
+import { supabase } from '../../../../lib/supabaseClient';
+
+// Extend NextAuth types for this file
+declare module 'next-auth' {
+  interface Session {
+    user: {
+      id: string;
+      name?: string | null;
+      email?: string | null;
+      image?: string | null;
+    };
+    accessToken?: string;
+    refreshToken?: string;
+    provider?: string;
+    currentOrganizationId?: string | null;
+  }
+
+  interface User {
+    id: string;
+    name?: string | null;
+    email?: string | null;
+    image?: string | null;
+  }
+}
+
+declare module 'next-auth' {
+  interface Session {
+    user: {
+      id: string;
+      email?: string | null;
+      name?: string | null;
+    };
+    currentOrganizationId?: string | null;
+    organizationSetup?: boolean;
+    organizationBranding?: {
+      name: string;
+      slug: string;
+    };
+  }
+}
+
+declare module 'next-auth/jwt' {
+  interface JWT {
+    id?: string;
+    accessToken?: string;
+    refreshToken?: string;
+    provider?: string;
+    organizationSetup?: boolean;
+    expiresAt?: number;
+    currentOrganizationId?: string | null;
+    organizationBranding?: {
+      name: string;
+      slug: string;
+    };
+  }
+}
 
 const authOptions: NextAuthOptions = {
   adapter: SupabaseAdapter({
@@ -140,6 +195,9 @@ const authOptions: NextAuthOptions = {
         session.user.email = token.email;
         session.user.image = token.picture;
         
+        // Add current organization ID for theme validation
+        session.currentOrganizationId = token.currentOrganizationId;
+        
         // Add OAuth tokens to session for API calls
         if (token.accessToken) {
           session.accessToken = token.accessToken as string;
@@ -158,6 +216,8 @@ const authOptions: NextAuthOptions = {
           email: token.email as string,
           image: token.picture as string | null
         };
+        // Add current organization ID for theme validation
+        session.currentOrganizationId = token.currentOrganizationId;
       }
       return session;
     },
@@ -187,6 +247,48 @@ const authOptions: NextAuthOptions = {
       if (user) {
         token.id = user.id;
         
+        // Fetch user preferences and organization branding for immediate theme application
+        try {
+          console.log('🎨 JWT: Fetching user preferences for theme preloading:', user.id);
+          const { data: preferences, error } = await supabase
+            .from('user_preferences')
+            .select('current_organization_id, theme')
+            .eq('user_id', user.id)
+            .single();
+          
+          if (!error && preferences && preferences.current_organization_id) {
+            // Store organization ID in token
+            token.currentOrganizationId = preferences.current_organization_id;
+            console.log('🎨 JWT: Found user organization:', preferences.current_organization_id);
+            
+            // Fetch organization branding for immediate theme application
+            try {
+              const { data: branding } = await supabase
+                .from('organizations')
+                .select('name, slug')
+                .eq('id', preferences.current_organization_id)
+                .single();
+              
+              if (branding) {
+                // Store minimal branding info in token
+                token.organizationBranding = {
+                  name: branding.name,
+                  slug: branding.slug
+                };
+                console.log('🎨 JWT: Loaded organization branding for', branding.name, 'slug:', branding.slug);
+              }
+            } catch (brandingError) {
+              console.warn('🎨 JWT: Failed to fetch organization branding:', brandingError);
+            }
+          } else {
+            console.log('🎨 JWT: No user preferences found, user is independent');
+            token.currentOrganizationId = null;
+          }
+        } catch (error) {
+          console.warn('🎨 JWT: Failed to fetch user preferences:', error);
+          token.currentOrganizationId = null;
+        }
+        
         // 🚨 EMERGENCY DISABLE: Skip organization setup to fix sign-in
         console.log('🚨 Skipping organization setup call to fix sign-in');
         token.organizationSetup = true; // Always mark as complete
@@ -206,6 +308,27 @@ const authOptions: NextAuthOptions = {
       }
       
       return token;
+    },
+    async session({ session, token }) {
+      // Ensure session.user.id is set from token
+      if (token?.id) {
+        session.user.id = token.id;
+      }
+      
+      // Add organization info to session if available
+      if (token?.currentOrganizationId) {
+        session.currentOrganizationId = token.currentOrganizationId;
+      }
+      
+      // Add organization branding to session for immediate theme application
+      if (token?.organizationBranding) {
+        session.organizationBranding = token.organizationBranding;
+      }
+      
+      // Add organization setup status to session
+      session.organizationSetup = token.organizationSetup || false;
+      
+      return session;
     },
   },
   pages: {

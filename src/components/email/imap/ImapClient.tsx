@@ -50,9 +50,10 @@ interface ImapClientProps {
   folder?: string;
   onSalesAgent: (emailId: string, emailData?: any) => void;
   isSalesProcessing: boolean;
+  onEmailCountChange?: (count: number) => void;
 }
 
-function ImapClientContent({ account, folder = 'Inbox', onSalesAgent, isSalesProcessing }: ImapClientProps) {
+function ImapClientContent({ account, folder = 'Inbox', onSalesAgent, isSalesProcessing, onEmailCountChange }: ImapClientProps) {
   const { data: session } = useSession();
   const supabase = createClientComponentClient();
   const {
@@ -116,9 +117,7 @@ function ImapClientContent({ account, folder = 'Inbox', onSalesAgent, isSalesPro
 
   // Load emails function
   const loadEmails = async (folder: string = currentFolder) => {
-
     if (!session?.user) {
-      console.log('User not authenticated, stopping email load');
       setError('User not authenticated');
       setLoading(false);
       return;
@@ -386,7 +385,6 @@ function ImapClientContent({ account, folder = 'Inbox', onSalesAgent, isSalesPro
   }, [folder, currentFolder]);
 
   useEffect(() => {
-
     if (session?.user) {
       loadFolders();
       loadEmails(currentFolder);
@@ -518,6 +516,8 @@ function ImapClientContent({ account, folder = 'Inbox', onSalesAgent, isSalesPro
             console.log(`Total emails after update: ${updatedEmails.length}`);
             // Update display count to match total emails
             setDisplayCount(updatedEmails.length);
+            // Notify parent component of email count change
+            onEmailCountChange?.(updatedEmails.length);
             return updatedEmails;
           });
           
@@ -608,46 +608,12 @@ function ImapClientContent({ account, folder = 'Inbox', onSalesAgent, isSalesPro
 
   return (
     <div className="h-full flex flex-col">
-      <Tabs value={currentFolder} onValueChange={handleFolderChange} className="h-full flex flex-col">
-        <div className="flex items-center justify-between px-3 py-2 border-b bg-gray-50">
-          <TabsList className="grid w-full grid-cols-3 max-w-md">
-            <TabsTrigger value="Inbox" className="flex items-center gap-2">
-              <FaInbox className="h-4 w-4" />
-              Inbox
-            </TabsTrigger>
-            <TabsTrigger 
-              value="Sent" 
-              className="flex items-center gap-2"
-            >
-              <Send className="h-4 w-4" />
-              Sent
-            </TabsTrigger>
-            <TabsTrigger 
-              value="Drafts" 
-              className="flex items-center gap-2"
-            >
-              <FileText className="h-4 w-4" />
-              Drafts
-            </TabsTrigger>
-          </TabsList>
-          <div className="flex items-center gap-2">
-            <span className="font-medium text-gray-800">
-              {currentFolder} ({emails.length})
-            </span>
-            <Button onClick={refreshEmails} variant="outline" size="sm">
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Refresh
-            </Button>
-          </div>
-        </div>
-        
-        <TabsContent value={currentFolder} className="flex-1 min-h-0 mt-0">
           <div className="flex-1 flex gap-3 p-3 min-h-0 h-full">
             <div className="email-list-container bg-gray-50 rounded-lg border" style={{ width: '380px', height: '100%', flexShrink: 0 }}>
               <div className="h-full overflow-y-auto" id="email-scroll-container">
                 <div className="p-2">
 
-                  <div className="space-y-2">
+                  <div className="space-y-1">
                     {emails.length === 0 ? (
                       <div className="text-center py-8">
                         <FaInbox className="h-12 w-12 mx-auto text-gray-400 mb-4" />
@@ -660,7 +626,7 @@ function ImapClientContent({ account, folder = 'Inbox', onSalesAgent, isSalesPro
                         {displayedEmails.map((email) => (
                           <div
                             key={email.id}
-                            className={`email-list-item cursor-pointer p-3 rounded-lg border transition-all duration-200 ${
+                            className={`email-list-item cursor-pointer p-2 rounded-lg border transition-all duration-200 ${
                               selectedEmail?.id === email.id
                                 ? 'selected bg-blue-50 border-blue-300 shadow-sm'
                                 : email.read
@@ -683,7 +649,7 @@ function ImapClientContent({ account, folder = 'Inbox', onSalesAgent, isSalesPro
                             }}
                           >
                             <div className="w-full">
-                                <div className="flex items-start justify-between mb-1">
+                                <div className="flex items-start justify-between mb-0.5">
                                   <p className={`text-xs font-medium truncate flex-1 pr-1 ${
                                     email.read ? 'text-gray-600' : 'text-gray-800'
                                   }`}
@@ -701,7 +667,7 @@ function ImapClientContent({ account, folder = 'Inbox', onSalesAgent, isSalesPro
                                     </span>
                                   </div>
                                 </div>
-                                <p className={`email-subject text-sm mb-1 leading-tight ${
+                                <p className={`email-subject text-sm mb-0.5 leading-tight ${
                                   email.read ? 'font-normal text-gray-700' : 'font-bold text-blue-900'
                                 }`}
                                    style={{
@@ -716,7 +682,7 @@ function ImapClientContent({ account, folder = 'Inbox', onSalesAgent, isSalesPro
                                 </p>
                                 
                                 {/* Agent, Priority, and Upsell Badges */}
-                                <div className="flex items-center flex-wrap gap-1 mb-1">
+                                <div className="flex items-center flex-wrap gap-1 mb-0.5">
                                   {email.assigned_agent && (
                                     <Badge 
                                       variant="outline" 
@@ -937,16 +903,14 @@ function ImapClientContent({ account, folder = 'Inbox', onSalesAgent, isSalesPro
               </AnimatePresence>
             </div>
           </div>
-        </TabsContent>
-      </Tabs>
     </div>
   );
 }
 
-export default function ImapClient({ account, folder, onSalesAgent, isSalesProcessing }: ImapClientProps) {
+export default function ImapClient({ account, folder, onSalesAgent, isSalesProcessing, onEmailCountChange }: ImapClientProps) {
   return (
     <EmailViewProvider>
-      <ImapClientContent account={account} folder={folder} onSalesAgent={onSalesAgent} isSalesProcessing={isSalesProcessing} />
+      <ImapClientContent account={account} folder={folder} onSalesAgent={onSalesAgent} isSalesProcessing={isSalesProcessing} onEmailCountChange={onEmailCountChange} />
     </EmailViewProvider>
   );
 } 

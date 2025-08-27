@@ -82,17 +82,15 @@ export default function TeamPresence({ className, compact = false }: TeamPresenc
           {onlineMembers.slice(0, 3).map((member) => (
             <TooltipProvider key={member.id}>
               <Tooltip>
-                <TooltipTrigger asChild>
-                  <div className="relative">
-                    <Avatar className="h-8 w-8 border-2 border-white">
-                      <AvatarImage src={member.avatar} />
-                      <AvatarFallback className="text-xs">
-                        {member.name.split(' ').map(n => n[0]).join('')}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="absolute -bottom-1 -right-1">
-                      {getStatusIcon(member.status)}
-                    </div>
+                <TooltipTrigger className="relative p-0 border-0 bg-transparent cursor-pointer">
+                  <Avatar className="h-8 w-8 border-2 border-white">
+                    <AvatarImage src={member.avatar} />
+                    <AvatarFallback className="text-xs">
+                      {member.name.split(' ').map(n => n[0]).join('')}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="absolute -bottom-1 -right-1">
+                    {getStatusIcon(member.status)}
                   </div>
                 </TooltipTrigger>
                 <TooltipContent>
@@ -188,8 +186,10 @@ export default function TeamPresence({ className, compact = false }: TeamPresenc
                     onClick={() => handleStatusChange(status)}
                     className="h-6 px-2 text-xs capitalize"
                   >
-                    {getStatusIcon(status)}
-                    <span className="ml-1">{status}</span>
+                    <div className="flex items-center">
+                      {getStatusIcon(status)}
+                      <span className="ml-1">{status}</span>
+                    </div>
                   </Button>
                 ))}
               </div>
@@ -267,23 +267,27 @@ export default function TeamPresence({ className, compact = false }: TeamPresenc
                   {/* Quick actions */}
                   {member.id !== currentUser?.id && member.status === 'online' && (
                     <div className="flex space-x-1">
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-                            <MessageCircle className="h-3 w-3" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>Send message</TooltipContent>
-                      </Tooltip>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger>
+                            <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                              <MessageCircle className="h-3 w-3" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Send message</TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                       
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-                            <Mail className="h-3 w-3" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>Send email</TooltipContent>
-                      </Tooltip>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger>
+                            <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                              <Mail className="h-3 w-3" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Send email</TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                     </div>
                   )}
                 </div>

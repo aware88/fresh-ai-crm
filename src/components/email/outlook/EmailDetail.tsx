@@ -277,7 +277,7 @@ export default function EmailDetail({ messageId, onReply, onReplyAll, onForward,
                   className="bg-green-50 text-green-700 border-green-200 hover:bg-green-100"
                 >
                   <Zap className="h-3 w-3 mr-1" />
-                  AI Draft
+                  AI Analysis & Draft
                 </Button>
               )}
               

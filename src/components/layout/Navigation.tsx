@@ -16,11 +16,24 @@ interface NavigationProps {
 export function Navigation({ className = '' }: NavigationProps) {
   const { organization, loading: orgLoading } = useOrganization();
   const { branding, loading: brandingLoading } = useOrganizationBranding();
+  const [loadingTimeout, setLoadingTimeout] = useState(false);
+
+  // Add timeout to prevent infinite loading
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setLoadingTimeout(true);
+    }, 2000); // 2 second timeout
+
+    return () => clearTimeout(timer);
+  }, []);
   
   // Get derived values from branding - fully dynamic
   const logoPath = branding?.logo_url || null;
   // Default to ARIS if no organization name is set, or if the name is empty/whitespace
   const companyName = (organization?.name && organization.name.trim()) ? organization.name.trim() : 'ARIS';
+  
+  // Determine if we should show loading state
+  const isLoading = (orgLoading || brandingLoading) && !loadingTimeout;
   
 
   
@@ -32,7 +45,7 @@ export function Navigation({ className = '' }: NavigationProps) {
         {/* Logo on the left side */}
         <div className="flex items-center">
           <Link href="/dashboard" className="flex items-center">
-            {(orgLoading || brandingLoading) ? (
+            {isLoading ? (
               // Loading state for logo
               <div className="flex items-center">
                 <div className="h-8 w-8 flex items-center justify-center">

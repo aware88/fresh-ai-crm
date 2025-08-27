@@ -18,9 +18,8 @@ export async function GET(request: NextRequest) {
       .from('email_accounts')
       .select(`
         id,
-        email_address,
+        email,
         last_sync_at,
-        last_followup_sync_at,
         sync_error,
         created_at,
         updated_at

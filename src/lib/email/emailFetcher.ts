@@ -339,7 +339,7 @@ async function processAttachments(
 }
 
 /**
- * Process emails with AI in the background
+ * Process emails with AI in the background using existing EmailLearningService + BackgroundAIProcessor
  */
 async function processEmailsWithAI(
   emails: ParsedEmail[],
@@ -351,7 +351,7 @@ async function processEmailsWithAI(
   console.log(`[EmailFetcher] Starting AI processing for ${emails.length} emails`);
   
   try {
-    // Initialize AI processor
+    // Initialize AI services
     const openai = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY
     });
@@ -361,24 +361,68 @@ async function processEmailsWithAI(
       return;
     }
 
+    // Use the existing background processor (with our improvements)
     const processor = getBackgroundProcessor(supabase, openai);
     
-    // Create processing contexts for all emails
-    const contexts = emails.map(email => ({
-      emailId: email.id,
-      userId,
-      organizationId,
-      priority: 'normal' as const,
-      skipDraft: false // Generate drafts for all emails
-    }));
+    // Process emails in batches for better performance
+    const batchSize = 5;
+    let successful = 0;
+    let failed = 0;
+    let skipped = 0;
+    
+    for (let i = 0; i < emails.length; i += batchSize) {
+      const batch = emails.slice(i, i + batchSize);
+      
+      // Create processing contexts
+      const contexts = batch.map(email => ({
+        emailId: email.id,
+        userId,
+        organizationId,
+        priority: 'normal' as const,
+        skipDraft: false,
+        forceReprocess: false,
+        emailContent: {
+          from: email.from,
+          to: email.to,
+          subject: email.subject,
+          body: email.body,
+          date: email.date
+        }
+      }));
 
-    // Process in batch (with concurrency control)
-    const results = await processor.processEmailsBatch(contexts);
+      // Process batch in parallel
+      const results = await processor.processEmailsBatch(contexts);
+      
+      // Count results
+      successful += results.filter(r => r.success && !r.skipped).length;
+      failed += results.filter(r => !r.success).length;
+      skipped += results.filter(r => r.skipped).length;
+      
+      // Small delay between batches to prevent overwhelming the system
+      if (i + batchSize < emails.length) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+    }
     
-    const successful = results.filter(r => r.success).length;
-    const failed = results.filter(r => !r.success).length;
+    console.log(`[EmailFetcher] AI processing completed: ${successful} successful, ${failed} failed, ${skipped} skipped`);
     
-    console.log(`[EmailFetcher] AI processing completed: ${successful} successful, ${failed} failed`);
+    // Also trigger background draft generation using existing EmailLearningService
+    try {
+      const { EmailLearningService } = await import('./email-learning-service');
+      const learningService = new EmailLearningService();
+      
+      // Process a few emails for background draft generation
+      const priorityEmails = emails.slice(0, 10); // Process first 10 for immediate drafts
+      await Promise.allSettled(
+        priorityEmails.map(email => 
+          learningService.generateBackgroundDraft(email.id, userId, organizationId)
+        )
+      );
+      
+      console.log(`[EmailFetcher] Background drafts generated for ${priorityEmails.length} priority emails`);
+    } catch (learningError) {
+      console.error('[EmailFetcher] Error in background draft generation:', learningError);
+    }
     
   } catch (error) {
     console.error('[EmailFetcher] Error in AI processing:', error);
