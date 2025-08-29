@@ -139,7 +139,7 @@
     "formidable": "^3.5.4",
     "framer-motion": "^12.17.0",
     "imap": "^0.8.19",
-    "imapflow": "^1.0.193",
+    "imapflow": "^1.0.195",
     "jose": "^6.0.11",
     "lucide-react": "^0.513.0",
     "mailparser": "^3.7.4",

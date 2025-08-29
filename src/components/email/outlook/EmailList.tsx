@@ -16,6 +16,9 @@ import {
 } from 'lucide-react';
 import { analyzeEmailForUpsell, sortEmailsByUpsellPriority, EmailWithUpsell } from '@/lib/email/upsellDetection';
 import { UpsellBadge } from '../UpsellIndicator';
+import { shouldShowOpportunityBadges } from '@/lib/settings/display-settings';
+import { EmailColorLegend } from '../EmailColorLegend';
+import { sortEmailsSmart, getEmailBorderColor } from '@/lib/email/smart-email-sorting';
 
 interface Email {
   id: string;
@@ -38,6 +41,9 @@ interface Email {
   auto_reply_enabled?: boolean;
   // Upsell analysis data
   upsellData?: EmailWithUpsell;
+  // Reply tracking
+  replied?: boolean;
+  last_reply_at?: string;
 }
 
 interface EmailListProps {
@@ -171,12 +177,15 @@ export function EmailList({ onEmailSelect }: EmailListProps = {}) {
   if (loading) return <Spinner />;
   if (error) return <Alert variant="destructive">{error}</Alert>;
 
-  // Sort emails by upsell priority
-  const sortedEmails = sortEmailsByUpsellPriority(emails);
+  // Sort with smart sorting: highlighted first, then by date
+  const sortedEmails = sortEmailsSmart(emails);
 
   return (
     <div className="email-list h-full flex flex-col">
-      <h2 className="text-xl font-semibold mb-4 flex-shrink-0">Inbox</h2>
+      <div className="flex items-center justify-between mb-4 flex-shrink-0">
+        <h2 className="text-xl font-semibold">Inbox</h2>
+        <EmailColorLegend />
+      </div>
       {sortedEmails.length === 0 ? (
         <p className="text-gray-500">No emails found</p>
       ) : (
@@ -189,13 +198,7 @@ export function EmailList({ onEmailSelect }: EmailListProps = {}) {
               onClick={() => handleEmailClick(email.id)}
               data-email-id={email.id}
               style={{
-                borderLeft: email.upsellData?.hasUpsellOpportunity
-                  ? email.upsellData.highestConfidence === 'high'
-                    ? '4px solid #10B981' // green for high confidence
-                    : '4px solid #F59E0B' // amber for medium/low confidence
-                  : email.highlight_color 
-                  ? `4px solid ${email.highlight_color}` 
-                  : '4px solid transparent'
+                borderLeft: `4px solid ${getEmailBorderColor(email, false)}`
               }}
             >
               <div className="flex flex-col space-y-2">
@@ -230,7 +233,7 @@ export function EmailList({ onEmailSelect }: EmailListProps = {}) {
                     )}
 
                     {/* Upsell indicator */}
-                    {email.upsellData && (
+                    {email.upsellData && shouldShowOpportunityBadges() && (
                       <UpsellBadge 
                         upsellData={email.upsellData}
                         onClick={() => {

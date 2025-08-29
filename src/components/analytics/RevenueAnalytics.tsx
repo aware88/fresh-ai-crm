@@ -184,8 +184,8 @@ export default function RevenueAnalytics({ organizationId, className }: RevenueA
     );
   }
 
-  // Check if data is empty
-  if (data.overview.totalRevenue === 0) {
+  // Check if data is empty or undefined
+  if (!data?.overview || data.overview.totalRevenue === 0) {
     return (
       <div className="text-center py-12">
         <DollarSign className="h-12 w-12 mx-auto mb-4 text-gray-400" />
@@ -226,10 +226,10 @@ export default function RevenueAnalytics({ organizationId, className }: RevenueA
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Total Revenue</p>
-                <p className="text-2xl font-bold">{formatCurrency(data.overview.totalRevenue)}</p>
-                <div className={`text-xs flex items-center mt-1 ${getTrendColor(data.overview.revenueGrowth)}`}>
-                  {getTrendIcon(data.overview.revenueGrowth)}
-                  <span className="ml-1">{formatNumber(Math.abs(data.overview.revenueGrowth))}% vs last period</span>
+                <p className="text-2xl font-bold">{formatCurrency(data?.overview?.totalRevenue || 0)}</p>
+                <div className={`text-xs flex items-center mt-1 ${getTrendColor(data?.overview?.revenueGrowth || 0)}`}>
+                  {getTrendIcon(data?.overview?.revenueGrowth || 0)}
+                  <span className="ml-1">{formatNumber(Math.abs(data?.overview?.revenueGrowth || 0))}% vs last period</span>
                 </div>
               </div>
               <DollarSign className="h-8 w-8 text-green-600" />
@@ -242,10 +242,10 @@ export default function RevenueAnalytics({ organizationId, className }: RevenueA
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Total Orders</p>
-                <p className="text-2xl font-bold">{data.overview.totalOrders.toLocaleString()}</p>
-                <div className={`text-xs flex items-center mt-1 ${getTrendColor(data.overview.ordersGrowth)}`}>
-                  {getTrendIcon(data.overview.ordersGrowth)}
-                  <span className="ml-1">{formatNumber(Math.abs(data.overview.ordersGrowth))}% vs last period</span>
+                <p className="text-2xl font-bold">{(data?.overview?.totalOrders || 0).toLocaleString()}</p>
+                <div className={`text-xs flex items-center mt-1 ${getTrendColor(data?.overview?.ordersGrowth || 0)}`}>
+                  {getTrendIcon(data?.overview?.ordersGrowth || 0)}
+                  <span className="ml-1">{formatNumber(Math.abs(data?.overview?.ordersGrowth || 0))}% vs last period</span>
                 </div>
               </div>
               <ShoppingBag className="h-8 w-8 text-blue-600" />
@@ -258,10 +258,10 @@ export default function RevenueAnalytics({ organizationId, className }: RevenueA
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Avg Order Value</p>
-                <p className="text-2xl font-bold">{formatCurrency(data.overview.averageOrderValue)}</p>
-                <div className={`text-xs flex items-center mt-1 ${getTrendColor(data.overview.aovGrowth)}`}>
-                  {getTrendIcon(data.overview.aovGrowth)}
-                  <span className="ml-1">{formatNumber(Math.abs(data.overview.aovGrowth))}% vs last period</span>
+                <p className="text-2xl font-bold">{formatCurrency(data?.overview?.averageOrderValue || 0)}</p>
+                <div className={`text-xs flex items-center mt-1 ${getTrendColor(data?.overview?.aovGrowth || 0)}`}>
+                  {getTrendIcon(data?.overview?.aovGrowth || 0)}
+                  <span className="ml-1">{formatNumber(Math.abs(data?.overview?.aovGrowth || 0))}% vs last period</span>
                 </div>
               </div>
               <Target className="h-8 w-8 text-purple-600" />
@@ -274,7 +274,7 @@ export default function RevenueAnalytics({ organizationId, className }: RevenueA
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Daily Avg Revenue</p>
-                <p className="text-2xl font-bold">{formatCurrency(data.insights.averageDailyRevenue)}</p>
+                <p className="text-2xl font-bold">{formatCurrency(data?.insights?.averageDailyRevenue || 0)}</p>
                 <p className="text-xs text-gray-500 mt-1">Over selected period</p>
               </div>
               <BarChart3 className="h-8 w-8 text-orange-600" />
@@ -290,7 +290,7 @@ export default function RevenueAnalytics({ organizationId, className }: RevenueA
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={300}>
-            <AreaChart data={data.trends}>
+            <AreaChart data={data?.trends || []}>
               <defs>
                 <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.8}/>
@@ -323,14 +323,14 @@ export default function RevenueAnalytics({ organizationId, className }: RevenueA
       {/* Additional Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Top Customers */}
-        {data.topCustomers.length > 0 && (
+        {(data?.topCustomers?.length || 0) > 0 && (
           <Card>
             <CardHeader>
               <CardTitle>Top Customers</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {data.topCustomers.map((customer, index) => (
+                {(data?.topCustomers || []).map((customer, index) => (
                   <div key={customer.name} className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-sm font-medium text-blue-600">
@@ -349,7 +349,7 @@ export default function RevenueAnalytics({ organizationId, className }: RevenueA
         )}
 
         {/* Revenue Breakdown */}
-        {data.revenueBreakdown.length > 1 && (
+        {(data?.revenueBreakdown?.length || 0) > 1 && (
           <Card>
             <CardHeader>
               <CardTitle>Revenue by Currency</CardTitle>
@@ -358,7 +358,7 @@ export default function RevenueAnalytics({ organizationId, className }: RevenueA
               <ResponsiveContainer width="100%" height={200}>
                 <PieChart>
                   <Pie
-                    data={data.revenueBreakdown}
+                    data={data?.revenueBreakdown || []}
                     cx="50%"
                     cy="50%"
                     labelLine={false}
@@ -367,7 +367,7 @@ export default function RevenueAnalytics({ organizationId, className }: RevenueA
                     fill="#8884d8"
                     dataKey="amount"
                   >
-                    {data.revenueBreakdown.map((entry, index) => (
+                    {(data?.revenueBreakdown || []).map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>
@@ -380,7 +380,7 @@ export default function RevenueAnalytics({ organizationId, className }: RevenueA
       </div>
 
       {/* Insights */}
-      {data.insights.bestPerformingDay && (
+      {data?.insights?.bestPerformingDay && (
         <Card>
           <CardHeader>
             <CardTitle>Key Insights</CardTitle>
@@ -389,19 +389,19 @@ export default function RevenueAnalytics({ organizationId, className }: RevenueA
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="text-center p-4 bg-green-50 rounded-lg">
                 <p className="text-sm text-green-600 font-medium">Best Performing Day</p>
-                <p className="text-lg font-bold">{data.insights.bestPerformingDay.date}</p>
+                <p className="text-lg font-bold">{data?.insights?.bestPerformingDay?.date}</p>
                 <p className="text-sm text-green-600">
-                  {formatCurrency(data.insights.bestPerformingDay.revenue)}
+                  {formatCurrency(data?.insights?.bestPerformingDay?.revenue || 0)}
                 </p>
               </div>
               <div className="text-center p-4 bg-blue-50 rounded-lg">
                 <p className="text-sm text-blue-600 font-medium">Total Transactions</p>
-                <p className="text-lg font-bold">{data.insights.totalTransactions}</p>
+                <p className="text-lg font-bold">{data?.insights?.totalTransactions || 0}</p>
                 <p className="text-sm text-blue-600">In selected period</p>
               </div>
               <div className="text-center p-4 bg-purple-50 rounded-lg">
                 <p className="text-sm text-purple-600 font-medium">Daily Average</p>
-                <p className="text-lg font-bold">{formatCurrency(data.insights.averageDailyRevenue)}</p>
+                <p className="text-lg font-bold">{formatCurrency(data?.insights?.averageDailyRevenue || 0)}</p>
                 <p className="text-sm text-purple-600">Revenue per day</p>
               </div>
             </div>

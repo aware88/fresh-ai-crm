@@ -166,23 +166,35 @@ export async function GET(request: NextRequest) {
           process.env.NEXT_PUBLIC_SUPABASE_URL || '',
           process.env.SUPABASE_SERVICE_ROLE_KEY || ''
         );
-        const [suppliersOrg, suppliersUser, productsOrg, productsUser] = await Promise.all([
+        const [contactsOrg, contactsUser, suppliersOrg, suppliersUser, productsOrg, productsUser] = await Promise.all([
+          direct.from('contacts').select('id').eq('organization_id', organizationId),
+          direct.from('contacts').select('id').eq('user_id', uid),
           direct.from('suppliers').select('id').eq('organization_id', organizationId),
           direct.from('suppliers').select('id').eq('user_id', uid),
           direct.from('products').select('id').eq('organization_id', organizationId),
           direct.from('products').select('id').eq('user_id', uid)
         ]);
+        
+        // Debug contacts queries
+        console.log('📊 Contacts admin queries:');
+        console.log(`   Organization contacts: ${contactsOrg.data?.length || 0} (error: ${contactsOrg.error?.message || 'none'})`);
+        console.log(`   User contacts: ${contactsUser.data?.length || 0} (error: ${contactsUser.error?.message || 'none'})`);
+        
+        const conMap: Record<string, true> = {};
+        (contactsOrg.data || []).forEach((r: any) => r?.id && (conMap[r.id] = true));
+        (contactsUser.data || []).forEach((r: any) => r?.id && (conMap[r.id] = true));
         const supMap: Record<string, true> = {};
         (suppliersOrg.data || []).forEach((r: any) => r?.id && (supMap[r.id] = true));
         (suppliersUser.data || []).forEach((r: any) => r?.id && (supMap[r.id] = true));
         const prodMap: Record<string, true> = {};
         (productsOrg.data || []).forEach((r: any) => r?.id && (prodMap[r.id] = true));
         (productsUser.data || []).forEach((r: any) => r?.id && (prodMap[r.id] = true));
+        totalContacts = Object.keys(conMap).length;
         totalSuppliers = Object.keys(supMap).length;
         totalProducts = Object.keys(prodMap).length;
-        console.log('📊 Real database counts from admin query:', { totalSuppliers, totalProducts });
+        console.log('📊 Real database counts from admin query:', { totalContacts, totalSuppliers, totalProducts });
       } catch (e) {
-        console.warn('Admin suppliers/products count failed:', e);
+        console.warn('Admin contacts/suppliers/products count failed:', e);
       }
       // We no longer add orphaned data or separate user fallbacks; the combined filters align with list pages.
     } else {

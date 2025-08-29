@@ -5,6 +5,7 @@ import { useOrganization } from './useOrganization';
 
 interface OrganizationBranding {
   logo_url?: string | null;
+  organization_name?: string | null;
   primary_color?: string | null;
   secondary_color?: string | null;
   accent_color?: string | null;
@@ -99,24 +100,34 @@ export function useOrganizationBranding() {
         
         if (response.ok) {
           const data = await response.json();
+          console.log('🎨 useOrganizationBranding: API response:', data);
+          console.log('🎨 useOrganizationBranding: Organization ID:', organization.id);
           
           if (data.branding) {
             // Use the branding data as-is from the API
             brandingData = data.branding;
+            console.log('🎨 useOrganizationBranding: Using data.branding:', brandingData);
+          } else if (data.logo_url || data.primary_color) {
+            // API returned branding data directly (not wrapped in 'branding' property)
+            brandingData = data;
+            console.log('🎨 useOrganizationBranding: Using direct data:', brandingData);
           } else {
             // Fallback to default branding for all organizations
             brandingData = {
               logo_url: null, // No logo by default - organizations upload their own
+              organization_name: null, // No organization name by default - will use ARIS
               primary_color: '#0f172a',
               secondary_color: '#64748b',
               accent_color: '#2563eb',
               font_family: 'Inter, system-ui, sans-serif'
             };
+            console.log('🎨 useOrganizationBranding: Using default branding (no data)');
           }
         } else {
           // API failed, use generic defaults for all organizations
           brandingData = {
             logo_url: null,
+            organization_name: null,
             primary_color: '#0f172a',
             secondary_color: '#64748b',
             accent_color: '#2563eb',
@@ -125,6 +136,7 @@ export function useOrganizationBranding() {
         }
 
         // Update cache with success
+        console.log('🎨 useOrganizationBranding: Updating cache with branding data:', brandingData);
         cache.data = brandingData;
         cache.loading = false;
         cache.lastFetch = Date.now();
@@ -136,6 +148,7 @@ export function useOrganizationBranding() {
         // Error fallback - use generic defaults
         const fallbackBranding = {
           logo_url: null,
+          organization_name: null,
           primary_color: '#0f172a',
           secondary_color: '#64748b',
           accent_color: '#2563eb',
@@ -154,9 +167,11 @@ export function useOrganizationBranding() {
     
     // Listen for branding updates (e.g., from logo uploads)
     const handleBrandingUpdate = () => {
+      console.log('🎨 useOrganizationBranding: Received branding update event');
       if (organization?.id && brandingCache[organization.id]) {
         // Clear cache to force refresh
         brandingCache[organization.id].lastFetch = 0;
+        console.log('🎨 useOrganizationBranding: Cleared cache for org:', organization.id);
       }
       loadBranding();
     };

@@ -77,9 +77,33 @@ export async function GET(request: Request) {
     }
 
     console.log(`Contacts API: userId=${userId}, organizationId=${organizationId}`);
-    const filterQuery = `organization_id.eq.${organizationId || '00000000-0000-0000-0000-000000000000'},user_id.eq.${userId})`;
+    
+    // Build proper filter conditions for the query
+    // We want contacts that belong to the organization OR belong to the user
+    const filterQuery = `organization_id.eq.${organizationId || '00000000-0000-0000-0000-000000000000'},user_id.eq.${userId}`;
     console.log(`Contacts API: Using filter query: ${filterQuery}`);
-
+    
+    // First, let's check what's in the contacts table without filters
+    const { data: allContacts, error: allError } = await supabaseAdmin
+      .from('contacts')
+      .select('*')
+      .limit(5);
+    
+    if (allError) {
+      console.error('Contacts API: Error fetching all contacts:', allError);
+    } else {
+      console.log(`Contacts API: Found ${allContacts?.length || 0} total contacts in table`);
+      if (allContacts && allContacts.length > 0) {
+        console.log('Contacts API: Sample contact:', {
+          id: allContacts[0].id,
+          organization_id: allContacts[0].organization_id,
+          user_id: allContacts[0].user_id,
+          email: allContacts[0].email
+        });
+      }
+    }
+    
+    // Now apply the filter
     const { data, error } = await supabaseAdmin
       .from('contacts')
       .select('*')

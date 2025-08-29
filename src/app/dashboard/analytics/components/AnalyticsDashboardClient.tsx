@@ -44,7 +44,21 @@ import AITokenBalance from '@/components/subscription/AITokenBalance';
 import UpsellAnalytics from '@/components/analytics/UpsellAnalytics';
 import RevenueAnalytics from '@/components/analytics/RevenueAnalytics';
 
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
+// Dynamic colors that will use CSS variables
+const getChartColors = () => {
+  if (typeof window !== 'undefined') {
+    const root = getComputedStyle(document.documentElement);
+    return [
+      root.getPropertyValue('--brand-primary').trim() || '#3b82f6',
+      root.getPropertyValue('--color-success').trim() || '#10b981',
+      root.getPropertyValue('--color-warning').trim() || '#f59e0b',
+      root.getPropertyValue('--color-error').trim() || '#ef4444',
+      root.getPropertyValue('--brand-secondary').trim() || '#8b5cf6',
+      root.getPropertyValue('--color-info').trim() || '#3b82f6',
+    ];
+  }
+  return ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#3b82f6'];
+};
 
 interface StatCardProps {
   title: string;
@@ -67,23 +81,23 @@ interface AnalyticsDashboardClientProps {
 
 const StatCard = ({ title, value, description, icon, trend, trendValue }: StatCardProps) => {
   return (
-    <Card>
+    <Card className="card-brand border-brand-light shadow-lg hover:shadow-xl transition-shadow duration-200">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium">{title}</CardTitle>
-        <div className="h-8 w-8 rounded-full bg-blue-100 p-1.5 text-blue-600">
+        <CardTitle className="text-sm font-medium text-primary">{title}</CardTitle>
+        <div className="h-8 w-8 rounded-full p-1.5" style={{backgroundColor: 'var(--hover-bg)', color: 'var(--brand-primary)'}}>
           {icon}
         </div>
       </CardHeader>
       <CardContent>
-        <div className="text-2xl font-bold">{value}</div>
-        <p className="text-xs text-muted-foreground">{description}</p>
+        <div className="text-2xl font-bold text-primary">{value}</div>
+        <p className="text-xs text-muted">{description}</p>
         <div className="mt-2 flex items-center text-xs">
           {trend === 'up' ? (
-            <ArrowUpRight className="mr-1 h-4 w-4 text-green-500" />
+            <ArrowUpRight className="mr-1 h-4 w-4" style={{color: 'var(--color-success)'}} />
           ) : trend === 'down' ? (
-            <ArrowDownRight className="mr-1 h-4 w-4 text-red-500" />
+            <ArrowDownRight className="mr-1 h-4 w-4" style={{color: 'var(--color-error)'}} />
           ) : null}
-          <span className={trend === 'up' ? 'text-green-500' : trend === 'down' ? 'text-red-500' : ''}>
+          <span style={{color: trend === 'up' ? 'var(--color-success)' : trend === 'down' ? 'var(--color-error)' : 'var(--text-muted)'}}>
             {trendValue}
           </span>
         </div>

@@ -1,0 +1,275 @@
+/* ========================================
+   UNIFIED COLOR SYSTEM FOR ARIS CRM
+   ========================================
+   Single source of truth for all colors
+   Ensures consistency across all components
+   ======================================== */
+
+:root {
+  /* ===== ARIS DEFAULT BRAND COLORS ===== */
+  /* Default ARIS branding - blue/purple gradient theme */
+  --brand-primary: #3b82f6;        /* ARIS Blue */
+  --brand-secondary: #8b5cf6;      /* ARIS Purple */
+  --brand-dark: #2563eb;           /* Darker ARIS Blue */
+  --brand-gradient-start: #3b82f6; /* ARIS gradient start */
+  --brand-gradient-end: #8b5cf6;   /* ARIS gradient end */
+  
+  /* ===== SEMANTIC COLORS (Fixed) ===== */
+  /* These remain consistent regardless of brand */
+  --color-success: #10b981;        /* Green - success, sales */
+  --color-warning: #f59e0b;        /* Amber - warnings, medium priority */
+  --color-error: #ef4444;          /* Red - errors, urgent, disputes */
+  --color-info: #3b82f6;           /* Blue - information, customer service */
+  --color-purple: #8b5cf6;         /* Purple - billing, special */
+  
+  /* ===== AVATAR COLORS (Consistent) ===== */
+  /* All avatars use the brand primary color for consistency */
+  --avatar-bg: var(--brand-primary);
+  --avatar-text: #ffffff;
+  --avatar-border: var(--brand-dark);
+  
+  /* ===== INTERACTION COLORS ===== */
+  --hover-bg: color-mix(in srgb, var(--brand-primary) 10%, transparent);
+  --active-bg: color-mix(in srgb, var(--brand-primary) 20%, transparent);
+  --selected-bg: color-mix(in srgb, var(--brand-primary) 15%, transparent);
+  --selected-border: var(--brand-primary);
+  
+  /* ===== BUTTON COLORS ===== */
+  --btn-primary-bg: var(--brand-primary);
+  --btn-primary-hover: var(--brand-dark);
+  --btn-primary-text: #ffffff;
+  
+  --btn-secondary-bg: transparent;
+  --btn-secondary-border: var(--brand-primary);
+  --btn-secondary-text: var(--brand-primary);
+  --btn-secondary-hover: var(--hover-bg);
+  
+  /* ===== STATUS COLORS ===== */
+  --status-success-bg: #f0fdf4;
+  --status-success-text: #15803d;
+  --status-success-border: #bbf7d0;
+  
+  --status-warning-bg: #fffbeb;
+  --status-warning-text: #d97706;
+  --status-warning-border: #fed7aa;
+  
+  --status-error-bg: #fef2f2;
+  --status-error-text: #dc2626;
+  --status-error-border: #fecaca;
+  
+  --status-info-bg: #eff6ff;
+  --status-info-text: #2563eb;
+  --status-info-border: #bfdbfe;
+  
+  /* ===== NEUTRAL COLORS ===== */
+  --gray-50: #f9fafb;
+  --gray-100: #f3f4f6;
+  --gray-200: #e5e7eb;
+  --gray-300: #d1d5db;
+  --gray-400: #9ca3af;
+  --gray-500: #6b7280;
+  --gray-600: #4b5563;
+  --gray-700: #374151;
+  --gray-800: #1f2937;
+  --gray-900: #111827;
+  
+  /* ===== COMPONENT-SPECIFIC COLORS ===== */
+  --card-bg: #ffffff;
+  --card-border: var(--gray-200);
+  --card-header-bg: var(--brand-primary);
+  --card-header-text: #ffffff;
+  
+  --table-header-bg: var(--gray-50);
+  --table-row-hover: var(--hover-bg);
+  --table-row-selected: var(--selected-bg);
+  --table-border: var(--gray-200);
+  
+  --input-border: var(--gray-300);
+  --input-focus-border: var(--brand-primary);
+  --input-focus-ring: color-mix(in srgb, var(--brand-primary) 20%, transparent);
+  
+  /* ===== TEXT COLORS ===== */
+  --text-primary: var(--gray-900);
+  --text-secondary: var(--gray-700);
+  --text-muted: var(--gray-500);
+  --text-brand: var(--brand-primary);
+}
+
+/* ===== UTILITY CLASSES ===== */
+
+/* Avatar Classes */
+.avatar-default {
+  background: var(--avatar-bg);
+  color: var(--avatar-text);
+  border: 2px solid var(--avatar-border);
+}
+
+.avatar-success {
+  background: var(--color-success);
+  color: #ffffff;
+}
+
+.avatar-warning {
+  background: var(--color-warning);
+  color: #ffffff;
+}
+
+.avatar-error {
+  background: var(--color-error);
+  color: #ffffff;
+}
+
+.avatar-info {
+  background: var(--color-info);
+  color: #ffffff;
+}
+
+.avatar-purple {
+  background: var(--color-purple);
+  color: #ffffff;
+}
+
+/* Button Classes */
+.btn-brand-primary {
+  background: var(--btn-primary-bg);
+  color: var(--btn-primary-text);
+  border: none;
+}
+
+.btn-brand-primary:hover {
+  background: var(--btn-primary-hover);
+}
+
+.btn-brand-secondary {
+  background: var(--btn-secondary-bg);
+  color: var(--btn-secondary-text);
+  border: 1px solid var(--btn-secondary-border);
+}
+
+.btn-brand-secondary:hover {
+  background: var(--btn-secondary-hover);
+}
+
+/* Status Classes */
+.status-success {
+  background: var(--status-success-bg);
+  color: var(--status-success-text);
+  border: 1px solid var(--status-success-border);
+}
+
+.status-warning {
+  background: var(--status-warning-bg);
+  color: var(--status-warning-text);
+  border: 1px solid var(--status-warning-border);
+}
+
+.status-error {
+  background: var(--status-error-bg);
+  color: var(--status-error-text);
+  border: 1px solid var(--status-error-border);
+}
+
+.status-info {
+  background: var(--status-info-bg);
+  color: var(--status-info-text);
+  border: 1px solid var(--status-info-border);
+}
+
+/* Hover States */
+.hover-brand:hover {
+  background: var(--hover-bg);
+}
+
+.hover-success:hover {
+  background: color-mix(in srgb, var(--color-success) 10%, transparent);
+}
+
+.hover-error:hover {
+  background: color-mix(in srgb, var(--color-error) 10%, transparent);
+}
+
+.hover-info:hover {
+  background: color-mix(in srgb, var(--color-info) 10%, transparent);
+}
+
+/* Selected States */
+.selected-brand {
+  background: var(--selected-bg);
+  border-color: var(--selected-border);
+}
+
+/* Card Classes */
+.card-brand {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+}
+
+.card-header-brand {
+  background: var(--card-header-bg);
+  color: var(--card-header-text);
+}
+
+/* Table Classes */
+.table-header {
+  background: var(--table-header-bg);
+}
+
+.table-row:hover {
+  background: var(--table-row-hover);
+}
+
+.table-row.selected {
+  background: var(--table-row-selected);
+}
+
+/* Text Classes */
+.text-brand {
+  color: var(--text-brand);
+}
+
+.text-primary {
+  color: var(--text-primary);
+}
+
+.text-secondary {
+  color: var(--text-secondary);
+}
+
+.text-muted {
+  color: var(--text-muted);
+}
+
+/* Gradient Classes */
+.gradient-brand {
+  background: linear-gradient(135deg, var(--brand-gradient-start), var(--brand-gradient-end));
+}
+
+.gradient-brand-text {
+  background: linear-gradient(135deg, var(--brand-gradient-start), var(--brand-gradient-end));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.gradient-brand-horizontal {
+  background: linear-gradient(90deg, var(--brand-gradient-start), var(--brand-gradient-end));
+}
+
+.gradient-brand-vertical {
+  background: linear-gradient(180deg, var(--brand-gradient-start), var(--brand-gradient-end));
+}
+
+/* Border Classes */
+.border-brand {
+  border-color: var(--brand-primary);
+}
+
+.border-brand-light {
+  border-color: var(--brand-secondary);
+}
+
+/* Focus Classes */
+.focus-brand:focus {
+  border-color: var(--input-focus-border);
+  box-shadow: 0 0 0 3px var(--input-focus-ring);
+}

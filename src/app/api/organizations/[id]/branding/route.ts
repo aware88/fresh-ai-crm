@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient } from '@/lib/supabase/server';
+import { createServiceRoleClient } from '@/lib/supabase/service-role';
 import { getServerSession } from '@/lib/auth';
 import { OrganizationBranding } from '@/types/branding';
 import { promises as fs } from 'fs';
@@ -27,8 +27,8 @@ export async function GET(
     const { id } = await params;
     const organizationId = id;
     
-    // Create Supabase client properly with await
-    const supabase = await createServerClient();
+    // Create Supabase service role client to bypass RLS policies
+    const supabase = createServiceRoleClient();
     
     // Try file-based branding storage first
     const brandingDir = path.join(process.cwd(), 'data', 'branding');
@@ -43,6 +43,7 @@ export async function GET(
       const existingBranding = JSON.parse(brandingData);
       
       console.log('Found existing branding file for organization:', organizationId);
+      console.log('📖 Returning branding data:', existingBranding);
       return NextResponse.json({ branding: existingBranding });
       
     } catch (fileError) {
@@ -81,8 +82,8 @@ export async function PUT(
     const { id } = await params;
     const organizationId = id;
     
-    // Create Supabase client properly with await
-    const supabase = await createServerClient();
+    // Create Supabase service role client to bypass RLS policies
+    const supabase = createServiceRoleClient();
     
     // Check if user is admin for this organization (simplified check)
     try {
@@ -125,16 +126,42 @@ export async function PUT(
       // Ensure branding directory exists
       await fs.mkdir(brandingDir, { recursive: true });
       
-      // Create complete branding record
+      // Read existing branding to preserve fields like logo_url
+      let existingBranding: {
+        created_at?: string;
+        created_by?: string;
+        logo_url?: string;
+        [key: string]: any;
+      } = {};
+      try {
+        const existingData = await fs.readFile(brandingFile, 'utf8');
+        existingBranding = JSON.parse(existingData);
+              console.log('📖 Read existing branding for update:', existingBranding);
+    } catch (readError) {
+      console.log('No existing branding file found, creating new one');
+    }
+    
+    console.log('📝 Received branding data from request:', brandingData);
+      
+      // Create complete branding record, preserving existing fields
       const brandingRecord = {
+        ...existingBranding,  // Preserve all existing fields (including logo_url, organization_name)
+        ...brandingData,      // Override with new data
         id: `branding_${organizationId}`,
         organization_id: organizationId,
-        ...brandingData,
-        created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-        created_by: session.user.id,
-        updated_by: session.user.id
+        updated_by: session.user.id,
+        created_at: existingBranding.created_at || new Date().toISOString(),
+        created_by: existingBranding.created_by || session.user.id
       };
+      
+      // If logo_url is explicitly set to null, remove it completely
+      if (brandingData.logo_url === null) {
+        delete brandingRecord.logo_url;
+        console.log('🗑️ Logo URL set to null, removing from branding record');
+      }
+      
+      console.log('📝 Updated branding record:', brandingRecord);
       
       // Save to file
       await fs.writeFile(brandingFile, JSON.stringify(brandingRecord, null, 2), 'utf8');

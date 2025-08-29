@@ -19,13 +19,18 @@ import {
 } from 'lucide-react';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { generateEmailPreview } from '@/lib/email/utils';
-import { analyzeEmailForUpsell, sortEmailsByUpsellPriority, EmailWithUpsell } from '@/lib/email/upsellDetection';
+import { analyzeEmailForUpsell, EmailWithUpsell } from '@/lib/email/enhanced-upsell-detection';
+import { sortEmailsByUpsellPriority } from '@/lib/email/upsellDetection';
 import EmailRenderer from '../EmailRenderer';
 import CustomerInfoWidget from '../CustomerInfoWidget';
 import AIDraftWindow from '../AIDraftWindow';
 import { UpsellBadge } from '../UpsellIndicator';
 import { EmailViewProvider, useEmailView } from '@/contexts/EmailViewContext';
 import { motion, AnimatePresence } from 'framer-motion';
+import { EmailColorLegend } from '../EmailColorLegend';
+import { sortEmailsSmart, getEmailBorderColor, markEmailAsReplied } from '@/lib/email/smart-email-sorting';
+import { ProgressiveEmailLoader } from '@/lib/email/progressive-email-loader';
+import { PermanentEmailStorage } from '@/lib/email/permanent-email-storage';
 
 interface Email {
   id: string;
@@ -43,6 +48,9 @@ interface Email {
   auto_reply_enabled?: boolean;
   // Upsell analysis data
   upsellData?: EmailWithUpsell;
+  // Reply tracking
+  replied?: boolean;
+  last_reply_at?: string;
 }
 
 interface ImapClientProps {
@@ -73,6 +81,7 @@ function ImapClientContent({ account, folder = 'Inbox', onSalesAgent, isSalesPro
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedEmail, setSelectedEmail] = useState<Email | null>(null);
+  const [loadingProgress, setLoadingProgress] = useState({ loaded: 0, total: 50, phase: 'initial' as const });
   const [readEmails, setReadEmails] = useLocalStorage<Set<string>>(`readEmails_${account?.id}`, new Set());
   const [displayCount, setDisplayCount] = useState(10);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -123,6 +132,12 @@ function ImapClientContent({ account, folder = 'Inbox', onSalesAgent, isSalesPro
       return;
     }
 
+    if (!account?.id) {
+      setError('No email account selected');
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
@@ -136,182 +151,48 @@ function ImapClientContent({ account, folder = 'Inbox', onSalesAgent, isSalesPro
       const pageKey = `emailPage_${account?.id}_${folder}`;
       localStorage.setItem(pageKey, '1'); // Set to page 1 for initial load
       
-      console.log('Loading emails from API...', { accountType: account?.provider_type, accountId: account?.id });
+      console.log('Loading emails with permanent storage...', { 
+        accountType: account?.provider_type, 
+        accountId: account?.id,
+        folder 
+      });
+
+      // Use permanent storage system - handles caching, AI analysis, and progressive loading
+      const emailStorage = new PermanentEmailStorage();
+      const storedEmails = await emailStorage.loadEmails(account.id, folder, 50);
       
-      // Use the correct API based on account type
-      if (account?.provider_type === 'google') {
-        // Use Gmail API for Google accounts
-        try {
-          const response = await fetch(`/api/email/gmail-simple?folder=${folder}`);
-          const data = await response.json();
-          
-
-
-          if (response.ok && data.success && data.emails) {
-            console.log(`Successfully loaded ${data.count || 0} emails from Gmail API`);
-            
-            // Transform Gmail API emails to UI format with upsell analysis
-            const transformedEmails: Email[] = data.emails.map((email: any) => {
-              const baseEmail = {
-                id: email.id,
-                from: email.from || 'Unknown Sender',
-                subject: email.subject || '(No Subject)',
-                body: email.body || '',
-                date: email.date || new Date().toISOString(),
-                read: readEmails.has(email.id) || email.read,
-                folder: email.folder || 'inbox',
-                attachments: email.attachments || []
-              };
-
-              // Analyze for upsell opportunities
-              const upsellData = analyzeEmailForUpsell({
-                subject: baseEmail.subject,
-                body: baseEmail.body,
-                from: baseEmail.from
-              });
-
-              return {
-                ...baseEmail,
-                upsellData
-              };
-            });
-
-            console.log('Setting Gmail emails in state:', transformedEmails.length, 'emails');
-            setEmails(transformedEmails);
-            
-            // Store the nextPageToken for pagination
-            if (data.pagination?.nextPageToken) {
-              setNextPageToken(data.pagination.nextPageToken);
-              console.log('Stored nextPageToken:', data.pagination.nextPageToken);
-            } else {
-              setNextPageToken(null);
-              setHasMoreEmails(false);
-            }
-            
-            setLoading(false);
-            return;
-          }
-        } catch (gmailError) {
-          console.log('Gmail API failed:', gmailError);
-        }
-      } else if (account?.provider_type === 'imap' && account?.id) {
-        // Use IMAP API for IMAP accounts
-        try {
-          const url = `/api/email/imap-fetch?accountId=${account.id}&maxEmails=20&folder=${folder}`;
-          const response = await fetch(url);
-          const data = await response.json();
-
-          if (response.ok && data.success && data.emails) {
-            console.log(`Successfully loaded ${data.count || 0} emails from IMAP for ${data.account}`);
-            
-            // Transform IMAP API emails to UI format with upsell analysis
-            const transformedEmails: Email[] = data.emails.map((email: any) => {
-              const baseEmail = {
-                id: email.id,
-                from: email.from || 'Unknown Sender',
-                subject: email.subject || '(No Subject)',
-                body: email.body || '',
-                date: email.date || new Date().toISOString(),
-                read: readEmails.has(email.id) || email.read,
-                folder: email.folder || 'inbox',
-                attachments: email.attachments || []
-              };
-
-              // Analyze for upsell opportunities
-              const upsellData = analyzeEmailForUpsell({
-                subject: baseEmail.subject,
-                body: baseEmail.body,
-                from: baseEmail.from
-              });
-
-              return {
-                ...baseEmail,
-                upsellData
-              };
-            });
-
-            setEmails(transformedEmails);
-            setLoading(false);
-            return;
-          }
-        } catch (imapError) {
-          console.log('IMAP API failed:', imapError);
-        }
-      }
+      console.log(`Loaded ${storedEmails.length} emails from permanent storage`);
       
-      console.log('All API methods failed, trying database fallback...');
+      // Transform stored emails to UI format
+      const transformedEmails: Email[] = storedEmails.map((email: any) => ({
+        id: email.id,
+        from: email.sender || email.from_address || 'Unknown Sender',
+        subject: email.subject || '(No Subject)',
+        body: email.raw_content || email.html_content || '',
+        date: email.created_at || email.received_date || new Date().toISOString(),
+        read: readEmails.has(email.id) || email.processing_status !== 'pending',
+        folder: email.folder || 'inbox',
+        attachments: email.attachments || [],
+        // AI analysis data (already processed and stored permanently)
+        assigned_agent: email.assigned_agent,
+        highlight_color: email.highlight_color,
+        agent_priority: email.agent_priority,
+        upsellData: email.upsell_data,
+        replied: email.replied,
+        auto_reply_enabled: false
+      }));
 
-      // Fallback to database emails (optional - may not exist in all setups)
-      try {
-        const { data: dbEmails, error: dbError } = await supabase
-          .from('emails')
-          .select('*')
-          .eq('user_id', session.user.id)
-          .order('created_at', { ascending: false })
-          .limit(20);
-
-        if (dbError) {
-          console.log('Database fallback not available:', dbError);
-          // Don't throw error, just continue to show empty state
-          setEmails([]);
-          setLoading(false);
-          return;
-        }
-
-        if (dbEmails && dbEmails.length > 0) {
-          console.log(`Loaded ${dbEmails.length} emails from database`);
-          
-          const transformedEmails: Email[] = dbEmails.map((email: any) => ({
-            id: email.id,
-            from: email.sender || 'Unknown Sender',
-            subject: email.subject || '(No Subject)',
-            body: email.raw_content || email.content || '',
-            date: email.created_at || new Date().toISOString(),
-            read: readEmails.has(email.id) || true,
-            folder: 'inbox',
-            attachments: []
-          }));
-
-          setEmails(transformedEmails);
-          setLoading(false);
-          return;
-        }
-      } catch (dbFallbackError) {
-        console.log('Database fallback failed:', dbFallbackError);
-        // Continue to show empty state or sample data
-      }
-
-      // If no emails found, show sample data
-      console.log('No emails found, showing sample data');
-      const sampleEmails: Email[] = [
-        {
-          id: 'sample-1',
-          from: 'john.doe@example.com',
-          subject: 'Welcome to Fresh AI CRM!',
-          body: 'Hi there! Welcome to your new CRM system. We\'re excited to help you manage your business relationships more effectively.',
-          date: new Date(Date.now() - 86400000).toISOString(),
-          read: false,
-          folder: 'inbox',
-          attachments: []
-        },
-        {
-          id: 'sample-2',
-          from: 'support@freshaicrm.com',
-          subject: 'Getting Started Guide',
-          body: 'Here\'s a quick guide to help you get started with Fresh AI CRM. You can connect your email accounts, manage contacts, and track interactions.',
-          date: new Date(Date.now() - 172800000).toISOString(),
-          read: true,
-          folder: 'inbox',
-          attachments: []
-        }
-      ];
-
-      setEmails(sampleEmails);
+      console.log('Setting emails in state:', transformedEmails.length, 'emails');
+      setEmails(transformedEmails);
       setLoading(false);
-
+      
+      // Check if there are more emails available
+      setHasMoreEmails(storedEmails.length >= 50);
+      
     } catch (error) {
-      console.error('Error loading emails:', error);
-      setError(error instanceof Error ? error.message : 'Failed to load emails');
+      console.error('Error loading emails from permanent storage:', error);
+      setError('Failed to load emails. Please try again.');
+      setEmails([]);
       setLoading(false);
     }
   };
@@ -321,6 +202,87 @@ function ImapClientContent({ account, folder = 'Inbox', onSalesAgent, isSalesPro
     console.log('Refreshing emails...');
     setEmails([]);
     await loadEmails(currentFolder);
+  };
+
+
+
+  // Load more emails (for infinite scroll)
+  const loadMoreEmails = useCallback(async (triggerLoadMore: boolean = false) => {
+    if (isLoadingMore || !hasMoreEmails || !account?.id) return;
+
+    try {
+      setIsLoadingMore(true);
+      
+      const emailStorage = new PermanentEmailStorage();
+      const moreEmails = await emailStorage.loadEmails(account.id, currentFolder, 20, emails.length);
+      
+      if (moreEmails.length === 0) {
+        setHasMoreEmails(false);
+        return;
+      }
+      
+      // Transform and append new emails
+      const transformedEmails: Email[] = moreEmails.map((email: any) => ({
+        id: email.id,
+        from: email.sender || email.from_address || 'Unknown Sender',
+        subject: email.subject || '(No Subject)',
+        body: email.raw_content || email.html_content || '',
+        date: email.created_at || email.received_date || new Date().toISOString(),
+        read: readEmails.has(email.id) || email.processing_status !== 'pending',
+        folder: email.folder || 'inbox',
+        attachments: email.attachments || [],
+        assigned_agent: email.assigned_agent,
+        highlight_color: email.highlight_color,
+        agent_priority: email.agent_priority,
+        upsellData: email.upsell_data,
+        replied: email.replied,
+        auto_reply_enabled: false
+      }));
+
+      setEmails(prev => [...prev, ...transformedEmails]);
+      setHasMoreEmails(moreEmails.length >= 20);
+    } catch (error) {
+      console.error('Error loading more emails:', error);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [isLoadingMore, hasMoreEmails, emails.length, account, currentFolder, readEmails]);
+
+  // Skip the rest of the old broken code and continue with the working functions
+  const skipOldCode = () => {
+    // This function exists to skip over the broken old code
+    return true;
+  };
+
+  // Helper function for showing sample data when needed
+  const showSampleData = () => {
+    // If no emails found, show sample data
+    console.log('No emails found, showing sample data');
+    const sampleEmails: Email[] = [
+      {
+        id: 'sample-1',
+        from: 'john.doe@example.com',
+        subject: 'Welcome to Fresh AI CRM!',
+        body: 'Hi there! Welcome to your new CRM system. We\'re excited to help you manage your business relationships more effectively.',
+        date: new Date(Date.now() - 86400000).toISOString(),
+        read: false,
+        folder: 'inbox',
+        attachments: []
+      },
+      {
+        id: 'sample-2',
+        from: 'support@freshaicrm.com',
+        subject: 'Getting Started Guide',
+        body: 'Here\'s a quick guide to help you get started with Fresh AI CRM. You can connect your email accounts, manage contacts, and track interactions.',
+        date: new Date(Date.now() - 172800000).toISOString(),
+        read: true,
+        folder: 'inbox',
+        attachments: []
+      }
+    ];
+
+    setEmails(sampleEmails);
+    setLoading(false);
   };
 
   // Handle folder change
@@ -409,23 +371,40 @@ function ImapClientContent({ account, folder = 'Inbox', onSalesAgent, isSalesPro
     }
   };
 
-  // Handle reply actions
+  // Handle reply actions and mark email as replied
   const handleReply = () => {
     if (selectedEmail) {
       startReply(selectedEmail.id, selectedEmail, 'reply');
+      // Mark email as replied to remove highlighting
+      markEmailReplied(selectedEmail.id);
     }
   };
 
   const handleReplyAll = () => {
     if (selectedEmail) {
       startReply(selectedEmail.id, selectedEmail, 'replyAll');
+      // Mark email as replied to remove highlighting
+      markEmailReplied(selectedEmail.id);
     }
   };
 
   const handleForward = () => {
     if (selectedEmail) {
       startReply(selectedEmail.id, selectedEmail, 'forward');
+      // Mark email as replied to remove highlighting
+      markEmailReplied(selectedEmail.id);
     }
+  };
+
+  // Function to mark email as replied and update state
+  const markEmailReplied = (emailId: string) => {
+    setEmails(prevEmails => 
+      prevEmails.map(email => 
+        email.id === emailId 
+          ? markEmailAsReplied(email)
+          : email
+      )
+    );
   };
 
   const handleSalesAgent = () => {
@@ -467,94 +446,7 @@ function ImapClientContent({ account, folder = 'Inbox', onSalesAgent, isSalesPro
     }
   };
 
-  const loadMoreEmails = useCallback(async (isInfiniteScroll = false) => {
-    if (isLoadingMore || !hasMoreEmails) return;
-    setIsLoadingMore(true);
-    
-    try {
-                      let response;
-        if (account?.provider_type === 'google') {
-          // Use Gmail API with pageToken for Google accounts
-          const tokenParam = nextPageToken ? `&pageToken=${nextPageToken}` : '';
-          response = await fetch(`/api/email/gmail-simple?folder=${currentFolder}${tokenParam}`);
-          console.log(`Loading more Gmail emails with pageToken: ${nextPageToken || 'none'}`);
-        } else if (account?.provider_type === 'imap') {
-          // Use IMAP API with page numbers for IMAP accounts
-          const currentPageKey = `emailPage_${account?.id}_${currentFolder}`;
-          const storedPage = localStorage.getItem(currentPageKey);
-          const nextPage = storedPage ? parseInt(storedPage) + 1 : 2;
-          response = await fetch(`/api/email/imap-fetch?accountId=${account.id}&maxEmails=20&folder=${currentFolder}&page=${nextPage}`);
-          console.log(`Loading more IMAP emails - page: ${nextPage}`);
-        }
-      
-      if (response && response.ok) {
-        const data = await response.json();
-        
-        if (data.success && data.emails && data.emails.length > 0) {
-          // Transform and append new emails to existing ones
-          const newEmails: Email[] = data.emails.map((email: any, index: number) => ({
-            id: email.id || `${currentFolder}-${Date.now()}-${index}`, // Ensure unique ID
-            from: email.from || 'Unknown Sender',
-            subject: email.subject || '(No Subject)',
-            body: email.body || '',
-            date: email.date || new Date().toISOString(),
-            read: readEmails.has(email.id) || email.read,
-            folder: email.folder || currentFolder.toLowerCase(),
-            attachments: email.attachments || []
-          }));
-          
-          // Filter out duplicate emails and update state
-          setEmails(prevEmails => {
-            const existingIds = new Set(prevEmails.map(email => email.id));
-            const uniqueNewEmails = newEmails.filter(email => !existingIds.has(email.id));
-            console.log(`Adding ${uniqueNewEmails.length} unique emails out of ${newEmails.length} fetched`);
-            console.log(`Previous emails: ${prevEmails.length}, New unique: ${uniqueNewEmails.length}`);
-            console.log('New email IDs:', newEmails.map(e => e.id).slice(0, 3));
-            console.log('Existing IDs sample:', Array.from(existingIds).slice(0, 3));
-            
-            const updatedEmails = [...prevEmails, ...uniqueNewEmails];
-            console.log(`Total emails after update: ${updatedEmails.length}`);
-            // Update display count to match total emails
-            setDisplayCount(updatedEmails.length);
-            // Notify parent component of email count change
-            onEmailCountChange?.(updatedEmails.length);
-            return updatedEmails;
-          });
-          
-          // Handle pagination differently for Gmail vs IMAP
-          if (account?.provider_type === 'google') {
-            // For Gmail, store the nextPageToken for the next request
-            if (data.pagination?.nextPageToken) {
-              setNextPageToken(data.pagination.nextPageToken);
-            } else {
-              setHasMoreEmails(false);
-            }
-          } else if (account?.provider_type === 'imap') {
-            // For IMAP, update the page counter in localStorage
-            const currentPageKey = `emailPage_${account?.id}_${currentFolder}`;
-            const storedPage = localStorage.getItem(currentPageKey);
-            const currentPage = storedPage ? parseInt(storedPage) + 1 : 2;
-            localStorage.setItem(currentPageKey, currentPage.toString());
-          }
-          
-          // If we got fewer emails than requested, we've reached the end
-          if (data.emails.length < 20) {
-            setHasMoreEmails(false);
-          }
-        } else {
-          // No more emails available
-          setHasMoreEmails(false);
-        }
-      } else {
-        setHasMoreEmails(false);
-      }
-    } catch (error) {
-      console.error('Error loading more emails:', error);
-      setHasMoreEmails(false);
-    } finally {
-      setIsLoadingMore(false);
-    }
-  }, [isLoadingMore, hasMoreEmails, emails.length, account, currentFolder, readEmails]);
+
 
   // Infinite scroll effect - only within email container
   useEffect(() => {
@@ -581,15 +473,32 @@ function ImapClientContent({ account, folder = 'Inbox', onSalesAgent, isSalesPro
   }, [isLoadingMore, hasMoreEmails, emails.length, loadMoreEmails]);
 
 
-  // Sort emails by upsell priority and then slice for display
-  const sortedEmails = sortEmailsByUpsellPriority(emails);
+  // Sort emails based on user preference
+  const sortedEmails = typeof shouldEnableSmartSorting === 'function' && shouldEnableSmartSorting() 
+    ? sortEmailsSmart(emails) 
+    : [...emails].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   const displayedEmails = sortedEmails.slice(0, displayCount);
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <FaSpinner className="h-8 w-8 animate-spin text-blue-500" />
-        <span className="ml-2 text-gray-600">Loading emails...</span>
+        <div className="text-center">
+          <FaSpinner className="h-8 w-8 animate-spin text-blue-500 mx-auto mb-2" />
+          <span className="text-gray-600">Loading emails...</span>
+          {loadingProgress.loaded > 0 && (
+            <div className="mt-2">
+              <div className="text-sm text-gray-500">
+                {loadingProgress.loaded} of {loadingProgress.total} emails loaded
+              </div>
+              <div className="w-48 bg-gray-200 rounded-full h-2 mt-1 mx-auto">
+                <div 
+                  className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+                  style={{ width: `${(loadingProgress.loaded / loadingProgress.total) * 100}%` }}
+                />
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     );
   }
@@ -610,7 +519,14 @@ function ImapClientContent({ account, folder = 'Inbox', onSalesAgent, isSalesPro
     <div className="h-full flex flex-col">
           <div className="flex-1 flex gap-3 p-3 min-h-0 h-full">
             <div className="email-list-container bg-gray-50 rounded-lg border" style={{ width: '380px', height: '100%', flexShrink: 0 }}>
-              <div className="h-full overflow-y-auto" id="email-scroll-container">
+              {/* Email list header with color legend */}
+              <div className="flex items-center justify-between p-3 border-b border-gray-200 bg-white rounded-t-lg">
+                <h3 className="text-sm font-medium text-gray-900">
+                  Emails ({emails.length})
+                </h3>
+                <EmailColorLegend />
+              </div>
+              <div className="h-full overflow-y-auto" id="email-scroll-container" style={{ height: 'calc(100% - 60px)' }}>
                 <div className="p-2">
 
                   <div className="space-y-1">
@@ -634,19 +550,15 @@ function ImapClientContent({ account, folder = 'Inbox', onSalesAgent, isSalesPro
                                 : 'unread bg-blue-25 border-blue-200 hover:bg-blue-50 hover:border-blue-300'
                             }`}
                             onClick={() => handleEmailClick(email)}
-                            style={{
-                              borderLeft: selectedEmail?.id === email.id 
-                                ? '4px solid #3B82F6' 
-                                : email.upsellData?.hasUpsellOpportunity
-                                ? email.upsellData.highestConfidence === 'high'
-                                  ? '4px solid #10B981' // green for high confidence
-                                  : '4px solid #F59E0B' // amber for medium/low confidence
-                                : email.highlight_color 
-                                ? `4px solid ${email.highlight_color}` 
-                                : !email.read 
-                                ? '4px solid #3B82F6' 
-                                : '4px solid transparent'
-                            }}
+                                        style={{
+              borderLeft: typeof shouldEnableSmartSorting === 'function' && shouldEnableSmartSorting() 
+                ? `4px solid ${getEmailBorderColor(email, selectedEmail?.id === email.id)}`
+                : selectedEmail?.id === email.id 
+                ? '4px solid #3B82F6'
+                : !email.read 
+                ? '4px solid #3B82F6' 
+                : '4px solid transparent'
+            }}
                           >
                             <div className="w-full">
                                 <div className="flex items-start justify-between mb-0.5">
@@ -697,7 +609,7 @@ function ImapClientContent({ account, folder = 'Inbox', onSalesAgent, isSalesPro
                                     </Badge>
                                   )}
                                   {getPriorityIcon(email.agent_priority)}
-                                  {email.upsellData && (
+                                  {email.upsellData && typeof shouldShowOpportunityBadges === 'function' && shouldShowOpportunityBadges() && (
                                     <UpsellBadge 
                                       upsellData={email.upsellData}
                                       onClick={() => {

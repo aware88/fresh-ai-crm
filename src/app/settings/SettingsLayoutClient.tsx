@@ -148,7 +148,7 @@ export default function SettingsLayoutClient({ children, sidebarNavItems }: Sett
             {/* Enhanced main content area - auto-height with scrolling only when needed */}
             <div className="col-span-9 flex flex-col min-h-0">
               <div className="bg-white rounded-xl border border-gray-200/60 shadow-sm overflow-hidden flex flex-col h-full">
-                <div className="p-8 overflow-y-auto flex-1">
+                <div className="p-8 overflow-y-auto flex-1" data-settings-container>
                   <div className="max-w-4xl mx-auto">
                     {children}
                   </div>

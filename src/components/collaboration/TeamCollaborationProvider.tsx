@@ -56,73 +56,50 @@ export function TeamCollaborationProvider({ children }: TeamCollaborationProvide
   const [isLoading, setIsLoading] = useState(true);
   const supabase = createClientComponentClient();
 
-  // Mock data for demo - replace with real API calls
+  // Fetch real data from API
   useEffect(() => {
-    const mockTeamMembers: TeamMember[] = [
-      {
-        id: '1',
-        name: 'Sarah Johnson',
-        email: 'sarah@company.com',
-        avatar: 'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=32&h=32&fit=crop&crop=face',
-        role: 'manager',
-        status: 'online',
-        lastSeen: new Date().toISOString()
-      },
-      {
-        id: '2',
-        name: 'Mike Chen',
-        email: 'mike@company.com',
-        avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=32&h=32&fit=crop&crop=face',
-        role: 'agent',
-        status: 'online',
-        lastSeen: new Date().toISOString()
-      },
-      {
-        id: '3',
-        name: 'Emma Davis',
-        email: 'emma@company.com',
-        avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=32&h=32&fit=crop&crop=face',
-        role: 'agent',
-        status: 'away',
-        lastSeen: new Date(Date.now() - 300000).toISOString()
-      },
-      {
-        id: '4',
-        name: 'Alex Rodriguez',
-        email: 'alex@company.com',
-        avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=32&h=32&fit=crop&crop=face',
-        role: 'admin',
-        status: 'busy',
-        lastSeen: new Date().toISOString()
-      }
-    ];
+    const fetchTeamData = async () => {
+      try {
+        // Fetch team members
+        const membersResponse = await fetch('/api/team/members');
+        if (membersResponse.ok) {
+          const { members } = await membersResponse.json();
+          const formattedMembers: TeamMember[] = members.map((member: any) => ({
+            id: member.id,
+            name: member.name,
+            email: member.email,
+            avatar: member.avatar,
+            role: member.role as TeamMember['role'],
+            status: member.status as TeamMember['status'],
+            lastSeen: member.lastSeen
+          }));
+          setTeamMembers(formattedMembers);
+          
+          // Set current user (first member for now - in real app, match by session user ID)
+          if (formattedMembers.length > 0) {
+            setCurrentUser(formattedMembers[0]);
+          }
+        }
 
-    const mockActivities: CollaborationActivity[] = [
-      {
-        id: '1',
-        type: 'note_added',
-        userId: '2',
-        userName: 'Mike Chen',
-        customerEmail: 'john.doe@example.com',
-        content: 'Added support note about shipping issue resolution',
-        createdAt: new Date(Date.now() - 600000).toISOString()
-      },
-      {
-        id: '2',
-        type: 'mention',
-        userId: '1',
-        userName: 'Sarah Johnson',
-        customerEmail: 'sarah.smith@company.com',
-        content: 'Mentioned @Emma Davis for follow-up on sales opportunity',
-        metadata: { mentionedUserId: '3' },
-        createdAt: new Date(Date.now() - 1200000).toISOString()
-      }
-    ];
+        // Fetch team activities
+        const activitiesResponse = await fetch('/api/team/activities?limit=20');
+        if (activitiesResponse.ok) {
+          const { activities } = await activitiesResponse.json();
+          setActivities(activities);
+        }
 
-    setTeamMembers(mockTeamMembers);
-    setActivities(mockActivities);
-    setCurrentUser(mockTeamMembers[0]); // Mock current user
-    setIsLoading(false);
+        setIsLoading(false);
+      } catch (error) {
+        console.error('Error fetching team data:', error);
+        // Fall back to empty state
+        setTeamMembers([]);
+        setActivities([]);
+        setCurrentUser(null);
+        setIsLoading(false);
+      }
+    };
+
+    fetchTeamData();
   }, []);
 
   const addActivity = (activity: Omit<CollaborationActivity, 'id' | 'createdAt'>) => {

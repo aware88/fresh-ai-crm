@@ -55,28 +55,6 @@ export default function AIEmailSettingsPage() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
 
-  // Scroll to top when component mounts
-  useEffect(() => {
-    setTimeout(() => {
-      const containers = [
-        document.querySelector('main'),
-        document.querySelector('.overflow-y-auto'),
-        document.querySelector('[data-scroll-container]'),
-        document.documentElement,
-        document.body
-      ];
-      
-      let scrolled = false;
-      for (const container of containers) {
-        if (container && !scrolled) {
-          container.scrollTop = 0;
-          scrolled = true;
-          console.log('Scrolled to top using container:', container.tagName || container.className);
-        }
-      }
-      window.scrollTo(0, 0);
-    }, 100);
-  }, []);
   const [saving, setSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
@@ -105,6 +83,21 @@ export default function AIEmailSettingsPage() {
       
       // Always try window scroll as fallback
       window.scrollTo(0, 0);
+      
+      // Also try to scroll the parent container if this is in a settings layout
+      const settingsContainer = document.querySelector('[data-settings-container]');
+      if (settingsContainer) {
+        settingsContainer.scrollTop = 0;
+        console.log('Scrolled settings container to top');
+      }
+      
+      // Force scroll to top with a slight delay to ensure content is rendered
+      setTimeout(() => {
+        if (settingsContainer) {
+          settingsContainer.scrollTop = 0;
+        }
+        window.scrollTo(0, 0);
+      }, 50);
     }, 100);
   }, []);
   const [settings, setSettings] = useState<AIEmailSettings>({

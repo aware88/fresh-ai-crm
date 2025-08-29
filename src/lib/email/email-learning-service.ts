@@ -601,8 +601,8 @@ Focus on patterns that are:
     // Calculate keyword overlap
     const keywords1 = new Set(pattern1.trigger_keywords.map(k => k.toLowerCase()));
     const keywords2 = new Set(pattern2.trigger_keywords.map(k => k.toLowerCase()));
-    const intersection = new Set([...keywords1].filter(k => keywords2.has(k)));
-    const union = new Set([...keywords1, ...keywords2]);
+    const intersection = new Set(Array.from(keywords1).filter(k => keywords2.has(k)));
+    const union = new Set([...Array.from(keywords1), ...Array.from(keywords2)]);
     
     const keywordSimilarity = union.size > 0 ? intersection.size / union.size : 0;
 
@@ -622,8 +622,8 @@ Focus on patterns that are:
     const words2 = str2.toLowerCase().split(/\s+/);
     const set1 = new Set(words1);
     const set2 = new Set(words2);
-    const intersection = new Set([...set1].filter(w => set2.has(w)));
-    const union = new Set([...set1, ...set2]);
+    const intersection = new Set(Array.from(set1).filter(w => set2.has(w)));
+    const union = new Set([...Array.from(set1), ...Array.from(set2)]);
     
     return union.size > 0 ? intersection.size / union.size : 0;
   }
@@ -743,7 +743,7 @@ Focus on patterns that are:
    * This is called when a new email is received to pre-generate a response
    */
   async generateBackgroundDraft(
-    emailId: string,
+    messageId: string,
     userId: string,
     organizationId?: string
   ): Promise<{
@@ -762,12 +762,12 @@ Focus on patterns that are:
     let totalTokens = 0;
 
     try {
-      console.log(`[EmailLearning] Generating background draft for email ${emailId}`);
+      console.log(`[EmailLearning] Generating background draft for message ${messageId}`);
 
       await this.initializeModelRouter(userId, organizationId);
 
       // 1. Get the email content
-      const email = await this.getEmailById(emailId, userId);
+      const email = await this.getEmailById(messageId, userId);
       if (!email) {
         return {
           success: false,
@@ -776,10 +776,10 @@ Focus on patterns that are:
       }
 
       // 2. Check memory cache first for speed
-      const cacheKey = `${emailId}_${userId}`;
+      const cacheKey = `${messageId}_${userId}`;
       const cachedDraft = this.draftCache.get(cacheKey);
       if (cachedDraft && Date.now() - cachedDraft.timestamp < this.CACHE_TTL) {
-        console.log(`[EmailLearning] Using cached draft for email ${emailId}`);
+        console.log(`[EmailLearning] Using cached draft for message ${messageId}`);
         return {
           success: true,
           draft: cachedDraft.draft
@@ -787,9 +787,9 @@ Focus on patterns that are:
       }
 
       // 3. Check if draft already exists in database
-      const existingDraft = await this.getExistingDraft(emailId, userId);
+      const existingDraft = await this.getExistingDraft(messageId, userId);
       if (existingDraft && existingDraft.status === 'ready') {
-        console.log(`[EmailLearning] Using existing draft for email ${emailId}`);
+        console.log(`[EmailLearning] Using existing draft for message ${messageId}`);
         const draft = {
           id: existingDraft.id,
           subject: existingDraft.subject,
@@ -861,7 +861,7 @@ Focus on patterns that are:
 
       // 5. Save draft to cache
       const savedDraft = await this.saveDraftToCache(
-        emailId,
+        messageId,
         userId,
         organizationId,
         draftResult.draft,
@@ -904,45 +904,71 @@ Focus on patterns that are:
   }
 
   /**
-   * Get email by ID
+   * Get email by message ID from the new optimized structure
    */
-  private async getEmailById(emailId: string, userId: string): Promise<{
+  private async getEmailById(messageId: string, userId: string): Promise<{
     id: string;
     subject: string;
     content: string;
     sender: string;
     received_at: string;
   } | null> {
-    const { data: email, error } = await this.supabase
-      .from('emails')
-      .select('id, subject, raw_content, plain_content, sender, from_address, received_at')
-      .eq('id', emailId)
-      .eq('created_by', userId)
-      .single();
+    try {
+      // First get the email from email_index
+      const { data: emailIndex, error: indexError } = await this.supabase
+        .from('email_index')
+        .select(`
+          id,
+          message_id,
+          subject,
+          sender_email,
+          received_at,
+          email_account_id,
+          email_accounts!inner(user_id)
+        `)
+        .eq('message_id', messageId)
+        .eq('email_accounts.user_id', userId)
+        .single();
 
-    if (error || !email) {
-      console.error('[EmailLearning] Error fetching email:', error);
+      if (indexError || !emailIndex) {
+        console.error('[EmailLearning] Error fetching email from index:', indexError);
+        return null;
+      }
+
+      // Get the content from email_content_cache
+      const { data: contentData, error: contentError } = await this.supabase
+        .from('email_content_cache')
+        .select('plain_content, html_content')
+        .eq('message_id', messageId)
+        .single();
+
+      let content = '';
+      if (!contentError && contentData) {
+        content = contentData.plain_content || contentData.html_content || '';
+      }
+
+      return {
+        id: emailIndex.message_id, // Use message_id as the ID
+        subject: emailIndex.subject || 'No Subject',
+        content: content,
+        sender: emailIndex.sender_email || '',
+        received_at: emailIndex.received_at
+      };
+    } catch (error) {
+      console.error('[EmailLearning] Error in getEmailById:', error);
       return null;
     }
-
-    return {
-      id: email.id,
-      subject: email.subject || 'No Subject',
-      content: email.raw_content || email.plain_content || '',
-      sender: email.sender || email.from_address || '',
-      received_at: email.received_at
-    };
   }
 
   /**
    * Check for existing draft in cache
    */
-  private async getExistingDraft(emailId: string, userId: string): Promise<any> {
+  private async getExistingDraft(messageId: string, userId: string): Promise<any> {
     const { data: draft, error } = await this.supabase
       .from('email_drafts_cache')
       .select('*')
-      .eq('email_id', emailId)
-      .eq('created_by', userId)
+      .eq('message_id', messageId)
+      .eq('user_id', userId)
       .eq('status', 'ready')
       .gt('expires_at', new Date().toISOString())
       .single();
@@ -1326,7 +1352,7 @@ BODY: [response body]`;
    * Save generated draft to cache
    */
   private async saveDraftToCache(
-    emailId: string,
+    messageId: string,
     userId: string,
     organizationId: string | undefined,
     draft: any,
@@ -1338,7 +1364,7 @@ BODY: [response body]`;
   ): Promise<any> {
     const draftData = {
       user_id: userId,
-      email_id: emailId,
+      message_id: messageId,
       organization_id: organizationId,
       subject: draft.subject,
       body: draft.body,
@@ -1406,21 +1432,21 @@ BODY: [response body]`;
     const now = Date.now();
     
     // Clean draft cache
-    for (const [key, value] of this.draftCache.entries()) {
+    for (const [key, value] of Array.from(this.draftCache.entries())) {
       if (now - value.timestamp > this.CACHE_TTL) {
         this.draftCache.delete(key);
       }
     }
     
     // Clean pattern cache
-    for (const [key, value] of this.patternCache.entries()) {
+    for (const [key, value] of Array.from(this.patternCache.entries())) {
       if (now - value.timestamp > this.CACHE_TTL) {
         this.patternCache.delete(key);
       }
     }
     
     // Clean config cache
-    for (const [key, value] of this.configCache.entries()) {
+    for (const [key, value] of Array.from(this.configCache.entries())) {
       if (now - value.timestamp > this.CACHE_TTL) {
         this.configCache.delete(key);
       }
@@ -1430,12 +1456,12 @@ BODY: [response body]`;
   /**
    * Batch process multiple emails for initial learning (OPTIMIZED)
    */
-  async processEmailsBatch(emailIds: string[], userId: string, organizationId?: string): Promise<{
+    async processEmailsBatch(messageIds: string[], userId: string, organizationId?: string): Promise<{
     successful: number;
     failed: number;
     results: Array<{ emailId: string; success: boolean; error?: string }>
   }> {
-    console.log(`[EmailLearning] Starting batch processing of ${emailIds.length} emails`);
+    console.log(`[EmailLearning] Starting batch processing of ${messageIds.length} emails`);
     
     const results: Array<{ emailId: string; success: boolean; error?: string }> = [];
     let successful = 0;
@@ -1444,26 +1470,26 @@ BODY: [response body]`;
     // Process in smaller batches to prevent overwhelming the system
     const batchSize = 3;
     
-    for (let i = 0; i < emailIds.length; i += batchSize) {
-      const batch = emailIds.slice(i, i + batchSize);
+    for (let i = 0; i < messageIds.length; i += batchSize) {
+      const batch = messageIds.slice(i, i + batchSize);
       
       // Process batch in parallel
-      const batchPromises = batch.map(async (emailId) => {
+      const batchPromises = batch.map(async (messageId) => {
         try {
-          const result = await this.generateBackgroundDraft(emailId, userId, organizationId);
+          const result = await this.generateBackgroundDraft(messageId, userId, organizationId);
           if (result.success) {
             successful++;
-            return { emailId, success: true };
+            return { emailId: messageId, success: true };
           } else {
             failed++;
-            return { emailId, success: false, error: result.error };
+            return { emailId: messageId, success: false, error: result.error };
           }
         } catch (error) {
           failed++;
-          return { 
-            emailId, 
-            success: false, 
-            error: error instanceof Error ? error.message : 'Unknown error' 
+          return {
+            emailId: messageId,
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown error'
           };
         }
       });
@@ -1484,7 +1510,7 @@ BODY: [response body]`;
       });
       
       // Small delay between batches
-      if (i + batchSize < emailIds.length) {
+      if (i + batchSize < messageIds.length) {
         await new Promise(resolve => setTimeout(resolve, 200));
       }
       

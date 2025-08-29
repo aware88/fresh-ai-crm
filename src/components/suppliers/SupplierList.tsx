@@ -152,14 +152,14 @@ export default function SupplierList() {
         </div>
       ) : (
         <Table>
-          <TableHeader>
+          <TableHeader className="table-header">
             <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Phone</TableHead>
-              <TableHead>Website</TableHead>
-              <TableHead>Reliability</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
+              <TableHead>NAME</TableHead>
+              <TableHead>EMAIL</TableHead>
+              <TableHead>PHONE</TableHead>
+              <TableHead>WEBSITE</TableHead>
+              <TableHead>RELIABILITY</TableHead>
+              <TableHead className="text-right">ACTIONS</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -167,8 +167,18 @@ export default function SupplierList() {
               const reliability = formatReliabilityScore(supplier.reliabilityScore || 0);
               
               return (
-              <TableRow key={supplier.id} className="cursor-pointer hover:bg-blue-50 transition-colors">
-                <TableCell className="font-medium">{supplier.name}</TableCell>
+              <TableRow key={supplier.id} className="cursor-pointer table-row transition-colors">
+                <TableCell className="font-medium">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-full avatar-default flex items-center justify-center font-medium">
+                      {supplier.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                    </div>
+                    <div>
+                      <div className="font-medium">{supplier.name}</div>
+                      <div className="text-sm text-muted">{supplier.email}</div>
+                    </div>
+                  </div>
+                </TableCell>
                 <TableCell>{supplier.email}</TableCell>
                 <TableCell>{supplier.phone || '-'}</TableCell>
                 <TableCell>
@@ -177,7 +187,7 @@ export default function SupplierList() {
                       href={supplier.website.startsWith('http') ? supplier.website : `https://${supplier.website}`} 
                       target="_blank" 
                       rel="noopener noreferrer"
-                      className="text-blue-600 hover:text-blue-800 flex items-center"
+                      className="text-brand hover:text-secondary flex items-center"
                     >
                       {supplier.website}
                       <ExternalLink className="ml-1 h-3 w-3" />
@@ -218,8 +228,8 @@ export default function SupplierList() {
 
       {/* Add/Edit Supplier Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-[500px] border-0 shadow-lg bg-gradient-to-b from-white to-blue-50">
-          <DialogHeader className="bg-gradient-to-r from-blue-500 to-indigo-600 pb-4 -mx-6 -mt-6 px-6 pt-6 rounded-t-lg">
+        <DialogContent className="sm:max-w-[500px] border-0 shadow-lg card-brand">
+          <DialogHeader className="card-header-brand pb-4 -mx-6 -mt-6 px-6 pt-6 rounded-t-lg">
             <DialogTitle className="text-white flex items-center">
               <div className="p-2 bg-white bg-opacity-20 rounded-full mr-3">
                 {currentSupplier.id ? (
@@ -234,18 +244,18 @@ export default function SupplierList() {
           <form onSubmit={handleSubmit} className="mt-4">
             <div className="grid gap-4 py-4">
               <div className="grid gap-2">
-                <Label htmlFor="name" className="text-blue-800">Name *</Label>
+                <Label htmlFor="name" className="text-primary">Name *</Label>
                 <Input
                   id="name"
                   value={currentSupplier.name || ''}
                   onChange={(e) => setCurrentSupplier({ ...currentSupplier, name: e.target.value })}
                   placeholder="Supplier name"
                   required
-                  className="border-blue-200 focus:border-blue-400 focus:ring-blue-400"
+                  className="focus-brand"
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="email" className="text-blue-800">Email *</Label>
+                <Label htmlFor="email" className="text-primary">Email *</Label>
                 <Input
                   id="email"
                   type="email"
@@ -253,38 +263,38 @@ export default function SupplierList() {
                   onChange={(e) => setCurrentSupplier({ ...currentSupplier, email: e.target.value })}
                   placeholder="contact@supplier.com"
                   required
-                  className="border-blue-200 focus:border-blue-400 focus:ring-blue-400"
+                  className="focus-brand"
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="phone" className="text-blue-800">Phone</Label>
+                <Label htmlFor="phone" className="text-primary">Phone</Label>
                 <Input
                   id="phone"
                   value={currentSupplier.phone || ''}
                   onChange={(e) => setCurrentSupplier({ ...currentSupplier, phone: e.target.value })}
                   placeholder="+1 (555) 123-4567"
-                  className="border-blue-200 focus:border-blue-400 focus:ring-blue-400"
+                  className="focus-brand"
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="website" className="text-blue-800">Website</Label>
+                <Label htmlFor="website" className="text-primary">Website</Label>
                 <Input
                   id="website"
                   value={currentSupplier.website || ''}
                   onChange={(e) => setCurrentSupplier({ ...currentSupplier, website: e.target.value })}
                   placeholder="www.supplier.com"
-                  className="border-blue-200 focus:border-blue-400 focus:ring-blue-400"
+                  className="focus-brand"
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="notes" className="text-blue-800">Notes</Label>
+                <Label htmlFor="notes" className="text-primary">Notes</Label>
                 <Textarea
                   id="notes"
                   value={currentSupplier.notes || ''}
                   onChange={(e) => setCurrentSupplier({ ...currentSupplier, notes: e.target.value })}
                   placeholder="Additional notes about this supplier"
                   rows={3}
-                  className="border-blue-200 focus:border-blue-400 focus:ring-blue-400"
+                  className="focus-brand"
                 />
               </div>
             </div>
@@ -293,13 +303,13 @@ export default function SupplierList() {
                 type="button" 
                 variant="outline" 
                 onClick={() => setIsDialogOpen(false)}
-                className="border-blue-200 text-blue-700 hover:bg-blue-50"
+                className="btn-brand-secondary"
               >
                 Cancel
               </Button>
               <Button 
                 type="submit"
-                className="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white shadow-md hover:shadow-lg transition-all duration-200"
+                className="btn-brand-primary shadow-md hover:shadow-lg transition-all duration-200"
                 disabled={loading}
               >
                 {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -312,8 +322,8 @@ export default function SupplierList() {
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent className="sm:max-w-[400px] border-0 shadow-lg bg-gradient-to-b from-white to-red-50">
-          <DialogHeader className="bg-gradient-to-r from-red-500 to-pink-600 pb-4 -mx-6 -mt-6 px-6 pt-6 rounded-t-lg">
+        <DialogContent className="sm:max-w-[400px] border-0 shadow-lg card-brand">
+          <DialogHeader className="pb-4 -mx-6 -mt-6 px-6 pt-6 rounded-t-lg" style={{background: 'var(--color-error)'}}>
             <DialogTitle className="text-white flex items-center">
               <div className="p-2 bg-white bg-opacity-20 rounded-full mr-3">
                 <AlertCircle className="h-5 w-5 text-white" />
@@ -330,13 +340,14 @@ export default function SupplierList() {
               type="button" 
               variant="outline" 
               onClick={() => setIsDeleteDialogOpen(false)}
-              className="border-red-200 text-red-700 hover:bg-red-50"
+              className="btn-brand-secondary"
             >
               Cancel
             </Button>
             <Button
               type="button"
-              className="bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700 text-white shadow-md hover:shadow-lg transition-all duration-200"
+              className="shadow-md hover:shadow-lg transition-all duration-200"
+              style={{background: 'var(--color-error)', color: 'white'}}
               onClick={handleDelete}
               disabled={loading}
             >

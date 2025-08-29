@@ -46,26 +46,45 @@ export async function POST(request: NextRequest) {
       finalOrganizationId = preferences?.current_organization_id;
     }
 
-    // Fetch emails to process
-    let emailQuery = supabase
-      .from('emails')
-      .select('id, subject, created_at')
-      .eq('user_id', userId);
+    // Fetch emails to process from email_index (the new optimized structure)
+    // First get user's email accounts
+    const { data: emailAccounts, error: accountsError } = await supabase
+      .from('email_accounts')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('is_active', true);
 
-    if (finalOrganizationId) {
-      emailQuery = emailQuery.eq('organization_id', finalOrganizationId);
+    if (accountsError || !emailAccounts || emailAccounts.length === 0) {
+      return NextResponse.json({
+        success: true,
+        message: 'No active email accounts found',
+        results: {
+          totalEmails: 0,
+          successful: 0,
+          failed: 0,
+          processingTime: 0
+        }
+      });
     }
+
+    const accountIds = emailAccounts.map(acc => acc.id);
+
+    // Fetch emails from email_index table
+    let emailQuery = supabase
+      .from('email_index')
+      .select('id, message_id, subject, received_at, sender_email')
+      .in('email_account_id', accountIds);
 
     // Apply date filter
     if (daysBack > 0) {
       const cutoffDate = new Date();
       cutoffDate.setDate(cutoffDate.getDate() - daysBack);
-      emailQuery = emailQuery.gte('created_at', cutoffDate.toISOString());
+      emailQuery = emailQuery.gte('received_at', cutoffDate.toISOString());
     }
 
     // Apply limit and order
     emailQuery = emailQuery
-      .order('created_at', { ascending: false })
+      .order('received_at', { ascending: false })
       .limit(maxEmails);
 
     const { data: emails, error: emailsError } = await emailQuery;
@@ -92,19 +111,19 @@ export async function POST(request: NextRequest) {
     // SMART FILTERING: Check which emails already have AI analysis/drafts
     console.log(`[API] Checking which emails are already processed...`);
     
-    // Get list of emails that already have AI analysis/drafts
-    const emailIds = emails.map(email => email.id);
+    // Get list of message IDs (using message_id from email_index)
+    const messageIds = emails.map(email => email.message_id);
     
-    // Check database cache first
+    // Check database cache first using message_id
     let alreadyProcessedEmails: string[] = [];
     try {
       const { data: cachedEmails, error: cacheError } = await supabase
         .from('email_ai_cache')
-        .select('email_id')
-        .in('email_id', emailIds);
+        .select('message_id')
+        .in('message_id', messageIds);
       
       if (!cacheError && cachedEmails) {
-        alreadyProcessedEmails = cachedEmails.map(item => item.email_id);
+        alreadyProcessedEmails = cachedEmails.map(item => item.message_id);
         console.log(`[API] Found ${alreadyProcessedEmails.length} emails already processed in database cache`);
       }
     } catch (error) {
@@ -117,14 +136,14 @@ export async function POST(request: NextRequest) {
       console.log('[API] No database cache found, checking individual email status...');
       
       // Check a sample of emails to see if they have existing drafts
-      const sampleEmails = emailIds.slice(0, 10); // Check first 10 emails
+      const sampleEmails = messageIds.slice(0, 10); // Check first 10 message IDs
       const learningService = new EmailLearningService();
       
-      for (const emailId of sampleEmails) {
+      for (const messageId of sampleEmails) {
         try {
-          const existingDraft = await learningService.getExistingDraft(emailId, userId);
+          const existingDraft = await learningService.getExistingDraft(messageId, userId);
           if (existingDraft && existingDraft.status === 'ready') {
-            alreadyProcessedEmails.push(emailId);
+            alreadyProcessedEmails.push(messageId);
           }
         } catch (error) {
           // Continue checking other emails
@@ -134,13 +153,13 @@ export async function POST(request: NextRequest) {
       if (alreadyProcessedEmails.length > 0) {
         console.log(`[API] Found ${alreadyProcessedEmails.length} emails with existing drafts (sample check)`);
         // Extrapolate: if 10% of sample has drafts, assume similar ratio for all
-        const estimatedProcessed = Math.floor((alreadyProcessedEmails.length / sampleEmails.length) * emailIds.length);
+        const estimatedProcessed = Math.floor((alreadyProcessedEmails.length / sampleEmails.length) * messageIds.length);
         console.log(`[API] Estimating ${estimatedProcessed} total emails already processed`);
       }
     }
 
-    // Filter out already processed emails
-    const emailsToProcess = emailIds.filter(id => !alreadyProcessedEmails.includes(id));
+    // Filter out already processed emails using message_id
+    const emailsToProcess = messageIds.filter(messageId => !alreadyProcessedEmails.includes(messageId));
     
     console.log(`[API] Smart filtering results:`);
     console.log(`  - Total emails found: ${emails.length}`);

@@ -25,8 +25,12 @@ import {
   AlertCircle,
   Loader2,
   RefreshCw,
-  TrendingUp
+  TrendingUp,
+  Play,
+  Pause,
+  Eye
 } from 'lucide-react';
+import EmailLearningProgressDialog from './EmailLearningProgressDialog';
 
 interface LearningStatus {
   has_initial_learning: boolean;
@@ -54,7 +58,7 @@ export default function EmailLearningSettings() {
   const [loading, setLoading] = useState(true);
   const [learningStatus, setLearningStatus] = useState<LearningStatus | null>(null);
   const [learningConfig, setLearningConfig] = useState<LearningConfig>({
-    max_emails_to_analyze: 5000,
+    max_emails_to_analyze: 10000,
     learning_email_types: ['sent', 'received'],
     excluded_senders: [],
     learning_sensitivity: 'balanced',
@@ -66,13 +70,28 @@ export default function EmailLearningSettings() {
   const [isLearning, setIsLearning] = useState(false);
   const [learningProgress, setLearningProgress] = useState(0);
   const [newExcludedSender, setNewExcludedSender] = useState('');
+  const [activeJobs, setActiveJobs] = useState<any[]>([]);
+  const [showProgressDialog, setShowProgressDialog] = useState(false);
+  const [currentJobId, setCurrentJobId] = useState<string | null>(null);
 
   // Load initial data
   useEffect(() => {
     if (session?.user?.id) {
       loadLearningStatus();
       loadLearningConfig();
+      loadActiveJobs();
     }
+  }, [session]);
+
+  // Poll for active jobs
+  useEffect(() => {
+    if (!session?.user?.id) return;
+
+    const interval = setInterval(() => {
+      loadActiveJobs();
+    }, 5000); // Poll every 5 seconds
+
+    return () => clearInterval(interval);
   }, [session]);
 
   const loadLearningStatus = async () => {
@@ -97,20 +116,43 @@ export default function EmailLearningSettings() {
     }
   };
 
+  const loadActiveJobs = async () => {
+    try {
+      const response = await fetch('/api/email/learning/jobs');
+      if (response.ok) {
+        const data = await response.json();
+        setActiveJobs(data.jobs || []);
+      }
+    } catch (error) {
+      console.error('Error loading active jobs:', error);
+    }
+  };
+
   const startInitialLearning = async () => {
     if (!session?.user?.id) return;
 
+    // Check if there's already an active job
+    const existingJob = activeJobs.find(job => 
+      job.status === 'processing' || job.status === 'queued'
+    );
+
+    if (existingJob) {
+      setCurrentJobId(existingJob.jobId);
+      setShowProgressDialog(true);
+      return;
+    }
+
     setIsLearning(true);
-    setLearningProgress(0);
 
     try {
-      const response = await fetch('/api/email/learning/initial', {
+      const response = await fetch('/api/email/learning/jobs', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           maxEmails: learningConfig.max_emails_to_analyze,
+          daysBack: 90,
           organizationId: null // Will be implemented later
         })
       });
@@ -118,18 +160,23 @@ export default function EmailLearningSettings() {
       if (response.ok) {
         const data = await response.json();
         
+        setCurrentJobId(data.jobId);
+        setShowProgressDialog(true);
+        
         toast({
-          title: "Learning Complete!",
-          description: `Found ${data.result.patterns_found} patterns with ${Math.round(data.result.quality_score * 100)}% quality score`,
+          title: "Email Learning Started",
+          description: "Processing will continue in the background. You'll be notified when complete.",
+          variant: "default"
         });
 
-        // Reload status
+        // Reload active jobs and status
+        await loadActiveJobs();
         await loadLearningStatus();
       } else {
         const error = await response.json();
         toast({
-          title: "Learning Failed",
-          description: error.details || "Failed to analyze emails",
+          title: "Failed to Start Learning",
+          description: error.details || "Failed to start learning process",
           variant: "destructive"
         });
       }
@@ -142,8 +189,35 @@ export default function EmailLearningSettings() {
       });
     } finally {
       setIsLearning(false);
-      setLearningProgress(0);
     }
+  };
+
+  const viewJobProgress = (jobId: string) => {
+    setCurrentJobId(jobId);
+    setShowProgressDialog(true);
+  };
+
+  const getActiveJobsStatus = () => {
+    const processingJobs = activeJobs.filter(job => job.status === 'processing');
+    const queuedJobs = activeJobs.filter(job => job.status === 'queued');
+    
+    if (processingJobs.length > 0) {
+      return {
+        status: 'processing',
+        message: `Processing ${processingJobs[0].processedEmails || 0}/${processingJobs[0].totalEmails || 0} emails`,
+        job: processingJobs[0]
+      };
+    }
+    
+    if (queuedJobs.length > 0) {
+      return {
+        status: 'queued',
+        message: 'Learning job is queued',
+        job: queuedJobs[0]
+      };
+    }
+    
+    return null;
   };
 
   const addExcludedSender = () => {
@@ -248,20 +322,59 @@ export default function EmailLearningSettings() {
             </div>
           )}
 
+          {/* Active Job Status */}
+          {getActiveJobsStatus() && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  {getActiveJobsStatus()?.status === 'processing' ? (
+                    <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
+                  ) : (
+                    <Clock className="h-5 w-5 text-blue-600" />
+                  )}
+                  <div>
+                    <div className="font-medium text-blue-900">
+                      {getActiveJobsStatus()?.status === 'processing' ? 'Learning in Progress' : 'Learning Queued'}
+                    </div>
+                    <div className="text-sm text-blue-700">
+                      {getActiveJobsStatus()?.message}
+                    </div>
+                  </div>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => viewJobProgress(getActiveJobsStatus()?.job?.jobId)}
+                  className="border-blue-300 text-blue-700 hover:bg-blue-100"
+                >
+                  <Eye className="h-4 w-4 mr-2" />
+                  View Progress
+                </Button>
+              </div>
+            </div>
+          )}
+
           <div className="flex gap-2">
             <Button 
               onClick={startInitialLearning}
-              disabled={isLearning}
+              disabled={isLearning || !!getActiveJobsStatus()}
               className="flex items-center gap-2"
             >
               {isLearning ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
+              ) : getActiveJobsStatus() ? (
+                <Pause className="h-4 w-4" />
               ) : learningStatus?.has_initial_learning ? (
                 <RefreshCw className="h-4 w-4" />
               ) : (
-                <Zap className="h-4 w-4" />
+                <Play className="h-4 w-4" />
               )}
-              {learningStatus?.has_initial_learning ? 'Refresh Learning' : 'Start Learning'}
+              {getActiveJobsStatus() 
+                ? 'Learning Active' 
+                : learningStatus?.has_initial_learning 
+                  ? 'Refresh Learning' 
+                  : 'Start Learning'
+              }
             </Button>
             
             {learningStatus?.has_initial_learning && (
@@ -271,16 +384,6 @@ export default function EmailLearningSettings() {
               </Button>
             )}
           </div>
-
-          {isLearning && (
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span>Analyzing email patterns...</span>
-                <span>{learningProgress}%</span>
-              </div>
-              <Progress value={learningProgress} className="w-full" />
-            </div>
-          )}
         </CardContent>
       </Card>
 
@@ -316,7 +419,7 @@ export default function EmailLearningSettings() {
                   className="mt-1"
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  Recommended: 5000 emails for optimal learning
+                  Recommended: 10,000 emails for maximum intelligence (~$3-5 one-time cost)
                 </p>
               </div>
 
@@ -492,6 +595,16 @@ export default function EmailLearningSettings() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Progress Dialog */}
+      <EmailLearningProgressDialog
+        isOpen={showProgressDialog}
+        onClose={() => {
+          setShowProgressDialog(false);
+          setCurrentJobId(null);
+        }}
+        jobId={currentJobId}
+      />
     </div>
   );
 }

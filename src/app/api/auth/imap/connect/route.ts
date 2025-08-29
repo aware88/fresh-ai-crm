@@ -157,11 +157,66 @@ export async function POST(request: Request) {
       );
     }
 
-    return NextResponse.json({
-      success: true,
-      message: 'IMAP credentials stored successfully',
-      accountId: result.data?.[0]?.id,
-    });
+    const account = result.data?.[0];
+    
+    // Automatically trigger email sync for new accounts
+    if (!existingAccount && account) {
+      console.log('🔄 Triggering automatic email sync for new account...');
+      try {
+        // Call the sync API internally
+        const syncResponse = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/email/sync-to-database`, {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'User-Agent': 'Internal-IMAP-Setup'
+          },
+          body: JSON.stringify({ 
+            accountId: account.id, 
+            maxEmails: 10000 
+          })
+        });
+        
+        const syncResult = await syncResponse.json();
+        
+        if (syncResult.success) {
+          console.log(`✅ Auto-sync completed: ${syncResult.totalSaved} emails synced`);
+          
+          return NextResponse.json({
+            success: true,
+            message: `IMAP account connected and ${syncResult.totalSaved} emails synced successfully!`,
+            accountId: account.id,
+            syncResult: {
+              totalSaved: syncResult.totalSaved,
+              breakdown: syncResult.breakdown
+            }
+          });
+        } else {
+          console.warn('⚠️ Auto-sync failed but account created:', syncResult.error);
+          
+          return NextResponse.json({
+            success: true,
+            message: 'IMAP account connected successfully. Email sync will be available shortly.',
+            accountId: account.id,
+            syncWarning: syncResult.error
+          });
+        }
+      } catch (syncError) {
+        console.warn('⚠️ Auto-sync failed but account created:', syncError);
+        
+        return NextResponse.json({
+          success: true,
+          message: 'IMAP account connected successfully. Email sync will be available shortly.',
+          accountId: account.id,
+          syncWarning: syncError instanceof Error ? syncError.message : 'Sync failed'
+        });
+      }
+    } else {
+      return NextResponse.json({
+        success: true,
+        message: existingAccount ? 'IMAP account updated successfully' : 'IMAP credentials stored successfully',
+        accountId: account?.id,
+      });
+    }
   } catch (error: any) {
     console.error('Error in IMAP connect API:', error);
     return NextResponse.json(

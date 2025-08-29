@@ -40,6 +40,10 @@ declare module 'next-auth' {
     organizationBranding?: {
       name: string;
       slug: string;
+      logo_url?: string | null;
+      organization_name?: string | null;
+      primary_color?: string | null;
+      secondary_color?: string | null;
     };
   }
 }
@@ -56,6 +60,10 @@ declare module 'next-auth/jwt' {
     organizationBranding?: {
       name: string;
       slug: string;
+      logo_url?: string | null;
+      organization_name?: string | null;
+      primary_color?: string | null;
+      secondary_color?: string | null;
     };
   }
 }
@@ -263,19 +271,39 @@ const authOptions: NextAuthOptions = {
             
             // Fetch organization branding for immediate theme application
             try {
-              const { data: branding } = await supabase
+              const { data: orgData } = await supabase
                 .from('organizations')
                 .select('name, slug')
                 .eq('id', preferences.current_organization_id)
                 .single();
               
-              if (branding) {
-                // Store minimal branding info in token
+              if (orgData) {
+                // Try to load branding from file system first
+                let brandingData = null;
+                try {
+                  const { promises: fs } = require('fs');
+                  const path = require('path');
+                  
+                  const brandingDir = path.join(process.cwd(), 'data', 'branding');
+                  const brandingFile = path.join(brandingDir, `${preferences.current_organization_id}.json`);
+                  
+                  const brandingFileData = await fs.readFile(brandingFile, 'utf8');
+                  brandingData = JSON.parse(brandingFileData);
+                  console.log('🎨 JWT: Loaded branding from file for', orgData.name);
+                } catch (fileError) {
+                  console.log('🎨 JWT: No branding file found, using org data only');
+                }
+                
+                // Store comprehensive branding info in token
                 token.organizationBranding = {
-                  name: branding.name,
-                  slug: branding.slug
+                  name: orgData.name,
+                  slug: orgData.slug,
+                  logo_url: brandingData?.logo_url && brandingData.logo_url.trim() !== '' ? brandingData.logo_url : null,
+                  organization_name: brandingData?.organization_name || orgData.name,
+                  primary_color: brandingData?.primary_color || null,
+                  secondary_color: brandingData?.secondary_color || null
                 };
-                console.log('🎨 JWT: Loaded organization branding for', branding.name, 'slug:', branding.slug);
+                console.log('🎨 JWT: Loaded organization branding for', orgData.name, 'with logo:', !!brandingData?.logo_url);
               }
             } catch (brandingError) {
               console.warn('🎨 JWT: Failed to fetch organization branding:', brandingError);
@@ -313,6 +341,16 @@ const authOptions: NextAuthOptions = {
       // Ensure session.user.id is set from token
       if (token?.id) {
         session.user.id = token.id;
+      }
+      
+      // Pass branding data to session for immediate availability
+      if (token?.organizationBranding) {
+        session.organizationBranding = token.organizationBranding;
+      }
+      
+      // Pass organization ID to session
+      if (token?.currentOrganizationId) {
+        session.currentOrganizationId = token.currentOrganizationId;
       }
       
       // Add organization info to session if available

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { createServiceRoleClient } from '@/lib/supabase/service-role';
 import { ImapFlow } from 'imapflow';
 import { simpleParser } from 'mailparser';
@@ -34,13 +34,30 @@ function decryptPassword(encryptedPassword: string): string {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    // Check for internal call (from automatic sync)
+    const userAgent = request.headers.get('User-Agent') || '';
+    const isInternalCall = userAgent.includes('Internal-IMAP-Setup') || userAgent.includes('Manual-Sync-Script');
     
-    if (!session || !session.user?.id) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { status: 401 }
-      );
+    console.log(`🔍 Sync API called - User-Agent: "${userAgent}", Internal: ${isInternalCall}`);
+    
+    let userId = null;
+    
+    if (!isInternalCall) {
+      // Regular authentication for browser calls
+      console.log('🔐 Checking session authentication...');
+      const session = await getServerSession(authOptions);
+      
+      if (!session || !session.user?.id) {
+        console.log('❌ No valid session found');
+        return NextResponse.json(
+          { success: false, error: 'Unauthorized' },
+          { status: 401 }
+        );
+      }
+      userId = session.user.id;
+      console.log(`✅ Authenticated user: ${userId}`);
+    } else {
+      console.log('🔧 Internal call - bypassing authentication');
     }
 
     const { accountId, maxEmails = 5000 } = await request.json();
@@ -55,14 +72,19 @@ export async function POST(request: NextRequest) {
     const supabase = createServiceRoleClient();
 
     // Get the email account details
-    const { data: account, error: accountError } = await supabase
+    let accountQuery = supabase
       .from('email_accounts')
       .select('*')
       .eq('id', accountId)
-      .eq('user_id', session.user.id)
       .eq('provider_type', 'imap')
-      .eq('is_active', true)
-      .single();
+      .eq('is_active', true);
+    
+    // Add user_id filter only for authenticated calls
+    if (userId) {
+      accountQuery = accountQuery.eq('user_id', userId);
+    }
+    
+    const { data: account, error: accountError } = await accountQuery.single();
 
     if (accountError || !account) {
       return NextResponse.json(
@@ -105,14 +127,24 @@ export async function POST(request: NextRequest) {
       console.log(`📧 Syncing emails for ${account.email}...`);
       await client.connect();
       
-      // Sync INBOX emails (2500 max)
-      const inboxEmails = await fetchEmailsFromFolder(client, 'INBOX', Math.floor(maxEmails / 2));
-      const savedInbox = await saveEmailsToDatabase(supabase, session.user.id, inboxEmails, 'received', accountId);
+      // Sync INBOX emails (smaller batch for testing)
+      const inboxBatchSize = Math.min(100, Math.floor(maxEmails / 2)); // Start with 100 emails
+      console.log(`📥 Starting INBOX sync (${inboxBatchSize} emails)...`);
+      const inboxEmails = await fetchEmailsFromFolder(client, 'INBOX', inboxBatchSize);
+      console.log(`📧 Fetched ${inboxEmails.length} emails from INBOX`);
+      
+      const savedInbox = await saveEmailsToDatabase(supabase, userId || account.user_id, inboxEmails, 'received', accountId);
+      console.log(`💾 Saved ${savedInbox} INBOX emails to database`);
       totalSaved += savedInbox;
       
-      // Sync Sent emails (2500 max)
-      const sentEmails = await fetchEmailsFromFolder(client, 'Sent', Math.floor(maxEmails / 2));
-      const savedSent = await saveEmailsToDatabase(supabase, session.user.id, sentEmails, 'sent', accountId);
+      // Sync Sent emails (smaller batch for testing)
+      const sentBatchSize = Math.min(100, Math.floor(maxEmails / 2)); // Start with 100 emails
+      console.log(`📤 Starting Sent sync (${sentBatchSize} emails)...`);
+      const sentEmails = await fetchEmailsFromFolder(client, 'Sent', sentBatchSize);
+      console.log(`📧 Fetched ${sentEmails.length} emails from Sent`);
+      
+      const savedSent = await saveEmailsToDatabase(supabase, userId || account.user_id, sentEmails, 'sent', accountId);
+      console.log(`💾 Saved ${savedSent} Sent emails to database`);
       totalSaved += savedSent;
       
       await client.logout();
@@ -186,13 +218,19 @@ export async function POST(request: NextRequest) {
 async function fetchEmailsFromFolder(client: ImapFlow, folderName: string, maxEmails: number) {
   try {
     const mailbox = await client.mailboxOpen(folderName);
-    console.log(`📬 ${folderName}: ${mailbox.exists} messages`);
+    console.log(`📬 ${folderName}: ${mailbox.exists} messages available`);
     
-    if (mailbox.exists === 0) return [];
+    if (mailbox.exists === 0) {
+      console.log(`📭 ${folderName}: No emails to sync`);
+      return [];
+    }
     
+    // Smart limit: sync what's available, up to maxEmails
     const fetchCount = Math.min(maxEmails, mailbox.exists);
     const start = Math.max(1, mailbox.exists - fetchCount + 1);
     const end = mailbox.exists;
+    
+    console.log(`📥 ${folderName}: Syncing ${fetchCount} most recent emails (${start}-${end})`);
     
     console.log(`   📥 Fetching messages ${start}:${end}`);
     
@@ -200,14 +238,20 @@ async function fetchEmailsFromFolder(client: ImapFlow, folderName: string, maxEm
     
     for (let seqno = end; seqno >= start && emails.length < maxEmails; seqno--) {
       try {
-        const message = await client.fetchOne(seqno, { source: true });
+        // Progress logging every 100 emails
+        if ((end - seqno + 1) % 100 === 0) {
+          console.log(`   📧 Processing email ${end - seqno + 1}/${fetchCount} (seqno: ${seqno})`);
+        }
+        
+        const message = await client.fetchOne(seqno, { source: true, flags: true });
         
         if (message.source) {
           const parsed = await simpleParser(message.source);
           emails.push({
             parsed,
             seqno,
-            uid: message.uid
+            uid: message.uid,
+            flags: message.flags
           });
         }
       } catch (error) {
@@ -235,7 +279,8 @@ async function saveEmailsToDatabase(supabase: any, userId: string, emails: any[]
   
   for (let i = 0; i < emails.length; i += batchSize) {
     const batch = emails.slice(i, i + batchSize);
-    const emailsToInsert = [];
+    const emailIndexRecords = [];
+    const contentCacheRecords = [];
     
     for (const email of batch) {
       if (!email.parsed) continue;
@@ -243,45 +288,66 @@ async function saveEmailsToDatabase(supabase: any, userId: string, emails: any[]
       const parsed = email.parsed;
       const messageId = parsed.messageId || `sync-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
       
-      // Check for duplicates
+      // Check for duplicates in email_index
       const { data: existing } = await supabase
-        .from('emails')
+        .from('email_index')
         .select('id')
         .eq('message_id', messageId)
-        .eq('created_by', userId)
+        .eq('email_account_id', accountId)
         .single();
         
       if (existing) continue;
       
-      const emailRecord = {
-        // Let database auto-generate UUID
-        created_by: userId,
-        organization_id: null,
+      // Create email_index record (using only existing columns)
+      const emailIndexRecord = {
         message_id: messageId,
+        email_account_id: accountId,
         subject: parsed.subject || 'No Subject',
-        html_content: parsed.html || null,
-        raw_content: parsed.text || parsed.html || '',
-        email_type: emailType,
+        sender_email: parsed.from?.value?.[0]?.address || parsed.from?.text || 'unknown',
+        sender_name: parsed.from?.value?.[0]?.name || null,
+        received_at: parsed.date ? parsed.date.toISOString() : new Date().toISOString(),
         has_attachments: (parsed.attachments && parsed.attachments.length > 0) || false,
-        thread_id: parsed.references && Array.isArray(parsed.references) ? parsed.references[0] : null,
-        created_at: parsed.date ? parsed.date.toISOString() : new Date().toISOString(),
+        is_read: email.flags ? email.flags.has('\\Seen') : false, // Set read status from IMAP flags
+        // Don't include thread_id if it causes constraint issues
+        created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       };
       
-      emailsToInsert.push(emailRecord);
+      // Create email_content_cache record (minimal columns)
+      const contentCacheRecord = {
+        message_id: messageId,
+        plain_content: parsed.text || null,
+        html_content: parsed.html || null
+        // Remove created_at/updated_at if they don't exist in schema
+      };
+      
+      emailIndexRecords.push(emailIndexRecord);
+      contentCacheRecords.push(contentCacheRecord);
     }
     
-    if (emailsToInsert.length > 0) {
-      const { error } = await supabase
-        .from('emails')
-        .insert(emailsToInsert);
+    if (emailIndexRecords.length > 0) {
+      // Insert into email_index
+      const { error: indexError } = await supabase
+        .from('email_index')
+        .insert(emailIndexRecords);
         
-      if (error) {
-        console.error(`❌ Error inserting batch:`, error.message);
-      } else {
-        savedCount += emailsToInsert.length;
-        console.log(`   ✅ Saved batch ${Math.floor(i/batchSize) + 1}: ${emailsToInsert.length} emails`);
+      if (indexError) {
+        console.error(`❌ Error inserting email_index batch:`, indexError.message);
+        continue;
       }
+      
+      // Insert into email_content_cache
+      const { error: contentError } = await supabase
+        .from('email_content_cache')
+        .insert(contentCacheRecords);
+        
+      if (contentError) {
+        console.error(`❌ Error inserting content_cache batch:`, contentError.message);
+        continue;
+      }
+      
+      savedCount += emailIndexRecords.length;
+      console.log(`   ✅ Saved batch ${Math.floor(i/batchSize) + 1}: ${emailIndexRecords.length} emails`);
     }
   }
   

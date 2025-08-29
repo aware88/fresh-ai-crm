@@ -24,7 +24,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { useMobileMenu } from '@/hooks/use-mobile-menu';
 import { useOrganization } from '@/hooks/useOrganization';
-import { useOrganizationBranding } from '@/hooks/useOrganizationBranding';
 import { useSubscriptionFeatures } from '@/hooks/useSubscriptionFeatures';
 import { useSidebar } from '@/contexts/SidebarContext';
 
@@ -195,14 +194,11 @@ export function Sidebar({ className }: SidebarProps) {
   const { isOpen: isMobileMenuOpen, toggleMenu, closeMenu } = useMobileMenu();
   const { isCollapsed, toggleSidebar } = useSidebar();
   
-  // Get organization data and branding
+  // Get organization data for navigation features
   const { organization, loading: orgLoading } = useOrganization();
-  const { branding, loading: brandingLoading } = useOrganizationBranding();
   const { hasFeature } = useSubscriptionFeatures(organization?.id || '');
 
-  // Get derived values from branding - fully dynamic
-  const logoPath = branding?.logo_url || null;
-  const companyName = organization?.name || 'ARIS';
+  // No logo needed in sidebar - handled by navigation
 
   // Close mobile menu when pathname changes
   useEffect(() => {
@@ -217,13 +213,13 @@ export function Sidebar({ className }: SidebarProps) {
       setLoadingTimeout(true);
     }, 3000); // 3 second timeout
 
-    if (!orgLoading && !brandingLoading) {
+    if (!orgLoading) {
       clearTimeout(timer);
       setLoadingTimeout(false);
     }
 
     return () => clearTimeout(timer);
-  }, [orgLoading, brandingLoading]);
+  }, [orgLoading]);
 
   // Get navigation items - same for all organizations
   const navItems = useMemo<NavItem[]>(() => {
@@ -231,7 +227,6 @@ export function Sidebar({ className }: SidebarProps) {
       console.log('🔍 Sidebar organization check:', { 
         organization, 
         orgLoading, 
-        brandingLoading,
         loadingTimeout,
         orgSlug: organization?.slug, 
         orgName: organization?.name 
@@ -239,9 +234,9 @@ export function Sidebar({ className }: SidebarProps) {
     }
 
     // If still loading organization and no timeout, return empty array
-    if ((orgLoading || brandingLoading) && !loadingTimeout) {
+    if (orgLoading && !loadingTimeout) {
       if (process.env.NODE_ENV === 'development') {
-        console.log('⏳ Organization or branding still loading, showing loading state');
+        console.log('⏳ Organization still loading, showing loading state');
       }
       return [];
     }
@@ -251,7 +246,7 @@ export function Sidebar({ className }: SidebarProps) {
     }
     // Universal navigation for all organizations
     return NAVIGATION_CONFIG;
-  }, [organization, orgLoading, brandingLoading, loadingTimeout]);
+  }, [organization, orgLoading, loadingTimeout]);
 
   // Filter nav items based on subscription features
   const filteredNavItems = navItems.filter(item => {
@@ -318,7 +313,7 @@ export function Sidebar({ className }: SidebarProps) {
 
         {/* Navigation */}
         <nav className={`flex-1 py-4 space-y-1.5 overflow-y-auto ${isCollapsed ? 'px-1' : 'px-2'}`}>
-          {(orgLoading || brandingLoading) && !loadingTimeout ? (
+          {orgLoading && !loadingTimeout ? (
             // Loading state with timeout
             <div className="flex items-center justify-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-600"></div>

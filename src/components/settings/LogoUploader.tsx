@@ -9,74 +9,138 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Upload, CheckCircle, Loader2, Image as ImageIcon, AlertCircle } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { useOptimizedAuth } from '@/hooks/useOptimizedAuth';
-import { useOrganizationAdmin } from '@/hooks/useOrganizationAdmin';
+import { useSimpleOrganizationAdmin } from '@/hooks/useSimpleOrganizationAdmin';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import Image from 'next/image';
 
 export function LogoUploader() {
   const { data: session } = useOptimizedAuth();
-  const { isAdmin, loading: adminLoading } = useOrganizationAdmin();
+  const { isAdmin, loading: adminLoading } = useSimpleOrganizationAdmin();
   const supabase = createClientComponentClient();
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [currentLogo, setCurrentLogo] = useState<string | null>(null);
   const [companyName, setCompanyName] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
+  const [adminTimeout, setAdminTimeout] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
-  // Check for logo and company name on component mount - prioritize API over localStorage
+  // Add timeout for admin loading to prevent infinite loading
+  useEffect(() => {
+    console.log('LogoUploader: Admin loading state:', adminLoading, 'isAdmin:', isAdmin);
+    if (adminLoading) {
+      const timer = setTimeout(() => {
+        console.log('LogoUploader: Admin loading timeout reached, setting adminTimeout to true');
+        setAdminTimeout(true);
+      }, 3000); // 3 second timeout
+      
+      return () => clearTimeout(timer);
+    } else {
+      setAdminTimeout(false);
+    }
+  }, [adminLoading, isAdmin]);
+
+  // Listen for branding updates from parent component
+  useEffect(() => {
+    const handleBrandingUpdate = () => {
+      // Check if branding settings have been updated in localStorage
+      const updatedLogo = localStorage.getItem('companyLogo');
+      const updatedCompanyName = localStorage.getItem('companyName');
+      
+      if (updatedLogo !== currentLogo) {
+        setCurrentLogo(updatedLogo);
+      }
+      if (updatedCompanyName !== companyName) {
+        setCompanyName(updatedCompanyName);
+      }
+    };
+
+    // Listen for custom events that indicate branding has been updated
+    window.addEventListener('organizationBrandingUpdated', handleBrandingUpdate);
+    window.addEventListener('localStorageUpdated', handleBrandingUpdate);
+    
+    return () => {
+      window.removeEventListener('organizationBrandingUpdated', handleBrandingUpdate);
+      window.removeEventListener('localStorageUpdated', handleBrandingUpdate);
+    };
+  }, [currentLogo, companyName]);
+
+
+
+  // Load branding data on component mount
   useEffect(() => {
     const loadBrandingData = async () => {
       try {
-        // Always fetch from API first to ensure organization-specific branding
-        const response = await fetch('/api/logo/get');
+        console.log('LogoUploader: Loading branding data...');
+        
+        // Get current organization branding
+        const orgResponse = await fetch('/api/user/preferences');
+        const orgData = await orgResponse.json();
+        const organizationId = orgData?.current_organization_id;
+        
+        if (!organizationId) {
+          console.error('LogoUploader: No organization ID found');
+          setIsLoading(false);
+          return;
+        }
+        
+        // Get organization branding using the organization ID
+        const response = await fetch(`/api/organizations/${organizationId}/branding`);
+        
         if (response.ok) {
           const data = await response.json();
-          if (data.logoUrl) {
-            setCurrentLogo(data.logoUrl);
-            localStorage.setItem('companyLogo', data.logoUrl);
+          console.log('LogoUploader: Branding API response:', data);
+          
+          if (data.branding && data.branding.logo_url) {
+            console.log('LogoUploader: Setting current logo to:', data.branding.logo_url);
+            setCurrentLogo(data.branding.logo_url);
+            localStorage.setItem('companyLogo', data.branding.logo_url);
             
             // Emit formdata event for the parent SettingsForm
             document.dispatchEvent(new CustomEvent('formdata', {
               bubbles: true,
-              detail: { logoUrl: data.logoUrl }
+              detail: { logoUrl: data.branding.logo_url }
             }));
-          } else {
-            // If no logo from API, clear localStorage to avoid stale data
-            localStorage.removeItem('companyLogo');
-            setCurrentLogo(null);
+          }
+          
+          if (data.branding && data.branding.company_name) {
+            setCompanyName(data.branding.company_name);
+            localStorage.setItem('companyName', data.branding.company_name);
           }
         } else {
-          // API failed, fallback to localStorage but warn about potential stale data
-          console.warn('Logo API failed, using localStorage fallback (may be stale)');
+          // API failed, fallback to localStorage
+          console.warn('Branding API failed, using localStorage fallback');
           const savedLogo = localStorage.getItem('companyLogo');
           if (savedLogo) {
             setCurrentLogo(savedLogo);
           }
+          
+          const savedCompanyName = localStorage.getItem('companyName');
+          if (savedCompanyName) {
+            setCompanyName(savedCompanyName);
+          }
         }
       } catch (error) {
-        console.error('Error fetching logo:', error);
+        console.error('Error fetching branding data:', error);
         // Fallback to localStorage on error
         const savedLogo = localStorage.getItem('companyLogo');
         if (savedLogo) {
           setCurrentLogo(savedLogo);
         }
-      }
-      
-      // Load company name from localStorage (this is still valid to cache)
-      const savedCompanyName = localStorage.getItem('companyName');
-      if (savedCompanyName) {
-        setCompanyName(savedCompanyName);
+        
+        const savedCompanyName = localStorage.getItem('companyName');
+        if (savedCompanyName) {
+          setCompanyName(savedCompanyName);
+        }
+      } finally {
+        // Set loading to false after data is loaded (regardless of success/failure)
+        console.log('LogoUploader: Setting loading to false');
+        setIsLoading(false);
       }
     };
     
     loadBrandingData();
-  }, []);
-
-  // Set loading to false after initial setup
-  useEffect(() => {
-    setIsLoading(false);
   }, []);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -224,8 +288,44 @@ export function LogoUploader() {
         
         toast({
           title: "Logo uploaded successfully",
-          description: "Your logo has been updated",
+          description: "Your logo has been updated and will appear immediately.",
         });
+
+        // Force session refresh to update JWT token with new branding data immediately
+        try {
+          console.log('🔄 Refreshing session to update branding data...');
+          
+          // Trigger NextAuth session update - this will re-run the JWT callback
+          const sessionResponse = await fetch('/api/auth/session?update=true', {
+            method: 'GET',
+            credentials: 'same-origin'
+          });
+          
+          if (sessionResponse.ok) {
+            console.log('✅ Session refreshed successfully');
+            
+            // Dispatch branding update event for real-time theme changes
+            window.dispatchEvent(new CustomEvent('brandingUpdated', {
+              detail: { branding: { logo_url: data.logoPath } }
+            }));
+            
+            // Force a page refresh to ensure the new logo appears in navigation immediately
+            setTimeout(() => {
+              console.log('🔄 Reloading page to show new logo...');
+              window.location.reload();
+            }, 1000);
+          } else {
+            throw new Error('Session refresh failed');
+          }
+        } catch (sessionError) {
+          console.error('❌ Failed to refresh session:', sessionError);
+          
+          // Fallback: still refresh the page to show the logo
+          setTimeout(() => {
+            console.log('🔄 Session refresh failed, reloading page anyway...');
+            window.location.reload();
+          }, 1000);
+        }
       }
     } catch (error) {
       console.error('Error uploading logo:', error);
@@ -239,26 +339,86 @@ export function LogoUploader() {
     }
   };
 
-  const handleRemoveLogo = () => {
-    localStorage.removeItem('companyLogo');
-    setCurrentLogo(null);
-    
-    // Dispatch a custom event to notify other components
-    window.dispatchEvent(new Event('localStorageUpdated'));
-    
-    // Emit formdata event for the parent SettingsForm
-    document.dispatchEvent(new CustomEvent('formdata', {
-      bubbles: true,
-      detail: { logoUrl: '' }
-    }));
-    
-    toast({
-      title: 'Logo removed',
-      description: 'Your company logo has been removed',
-    });
+  const handleRemoveLogo = async () => {
+    try {
+      setIsLoading(true);
+      
+      // Get current organization branding
+      const orgResponse = await fetch('/api/user/preferences');
+      const orgData = await orgResponse.json();
+      const organizationId = orgData?.current_organization_id;
+      
+      if (!organizationId) {
+        throw new Error('No organization ID found');
+      }
+      
+      // Update branding to remove logo_url
+      const response = await fetch(`/api/organizations/${organizationId}/branding`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          logo_url: null, // Explicitly set to null to remove logo
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to remove logo from server');
+      }
+      
+      // Remove from localStorage
+      localStorage.removeItem('companyLogo');
+      setCurrentLogo(null);
+      
+      // Dispatch a custom event to notify other components
+      window.dispatchEvent(new Event('localStorageUpdated'));
+      
+      // Emit formdata event for the parent SettingsForm
+      document.dispatchEvent(new CustomEvent('formdata', {
+        bubbles: true,
+        detail: { logoUrl: null }
+      }));
+      
+      toast({
+        title: 'Logo removed',
+        description: 'Your company logo has been removed. Please sign out and sign back in to see the default ARIS logo.',
+      });
+      
+      // Force session refresh to update JWT token with new branding data
+      setTimeout(async () => {
+        if (confirm('Logo removed successfully! To see the changes immediately, you need to refresh your session. Would you like to do this now?')) {
+          try {
+            // Try to trigger session update by calling the session endpoint
+            await fetch('/api/auth/session', { 
+              method: 'GET',
+              cache: 'no-store'
+            });
+            
+            // Force a hard page refresh to reload with new session
+            window.location.reload();
+          } catch (error) {
+            console.error('Failed to refresh session:', error);
+            // Fallback to sign out
+            const { signOut } = await import('next-auth/react');
+            signOut({ callbackUrl: '/signin' });
+          }
+        }
+      }, 1000);
+      
+    } catch (error) {
+      console.error('Error removing logo:', error);
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to remove logo',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  if (isLoading || adminLoading) {
+  if (isLoading || (adminLoading && !adminTimeout)) {
     return (
       <Card>
         <CardHeader>
@@ -279,31 +439,31 @@ export function LogoUploader() {
     );
   }
 
-  // Show read-only view for non-admin users
-  if (!isAdmin) {
+  // Show read-only view for non-admin users (or if admin check timed out)
+  if (!isAdmin && !adminTimeout) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+      <Card className="card-brand">
+        <CardHeader className="card-header-brand">
+          <div className="flex items-center gap-2">
             <span>🔒</span>
-            Logo & Branding
-          </CardTitle>
-          <CardDescription>
+            <CardTitle className="text-white">Logo & Branding</CardTitle>
+          </div>
+          <CardDescription className="text-white/80">
             Only organization administrators can modify logo and branding settings
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <CardContent className="space-y-6 p-6">
           {/* Show current logo (read-only) */}
           <div className="space-y-4">
             <div>
-              <Label className="text-sm font-medium text-gray-700">Current Company Name</Label>
+              <Label className="text-sm font-medium text-primary">Current Company Name</Label>
               <div className="mt-1 p-3 bg-gray-50 rounded-md border">
                 {companyName || 'Not set'}
               </div>
             </div>
             
             <div>
-              <Label className="text-sm font-medium text-gray-700">Current Logo</Label>
+              <Label className="text-sm font-medium text-primary">Current Logo</Label>
               <div className="mt-1 p-3 bg-gray-50 rounded-md border">
                 {currentLogo ? (
                   <div className="flex items-center justify-center">
@@ -325,9 +485,9 @@ export function LogoUploader() {
             </div>
           </div>
           
-          <Alert>
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>
+          <Alert className="bg-orange-50 border-orange-200">
+            <AlertCircle className="h-4 w-4 text-orange-600" />
+            <AlertDescription className="text-orange-700">
               Contact your organization administrator to upload or change the company logo.
             </AlertDescription>
           </Alert>
@@ -337,30 +497,48 @@ export function LogoUploader() {
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <ImageIcon className="h-5 w-5" />
-          Logo & Branding
-        </CardTitle>
-        <CardDescription>
+    <Card className="card-brand">
+      <CardHeader className="card-header-brand">
+        <div className="flex items-center gap-2">
+          <ImageIcon className="h-5 w-5 text-white" />
+          <CardTitle className="text-white">Logo & Branding</CardTitle>
+        </div>
+        <CardDescription className="text-white/80">
           Customize your logo and company branding
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-6">
+      <CardContent className="space-y-6 p-6">
         <div className="flex flex-col items-center space-y-4">
           {/* Current logo display */}
-          {currentLogo && !previewUrl && (
+          {currentLogo && !previewUrl ? (
             <div className="text-center">
               <p className="text-sm text-gray-500 mb-2">Current Logo:</p>
               <div className="relative w-40 h-40 border rounded-md overflow-hidden">
                 <Image 
-                  src={currentLogo} 
+                  src={currentLogo?.startsWith('/') ? `${currentLogo}?v=${Date.now()}` : currentLogo} 
                   alt="Company Logo" 
                   width={160}
                   height={160}
                   className="w-full h-full object-contain"
+                  onError={(e) => {
+                    console.error('Failed to load logo:', currentLogo);
+                    const target = e.target as HTMLImageElement;
+                    target.style.display = 'none';
+                    const parent = target.parentElement;
+                    if (parent) {
+                      parent.innerHTML = `<div class="flex items-center justify-center h-full bg-gray-50">
+                        <span class="text-gray-400">Logo not found</span>
+                      </div>`;
+                    }
+                  }}
                 />
+              </div>
+            </div>
+          ) : !previewUrl && (
+            <div className="text-center">
+              <p className="text-sm text-gray-500 mb-2">No Logo Uploaded:</p>
+              <div className="flex items-center justify-center h-40 bg-gray-50 border rounded-md">
+                <span className="text-gray-400">Default ARIS logo will be used</span>
               </div>
             </div>
           )}
@@ -381,24 +559,7 @@ export function LogoUploader() {
             </div>
           )}
           
-          {/* Company name input */}
-          <div className="w-full">
-            <Label htmlFor="companyName" className="block text-sm font-medium text-gray-700 mb-1">
-              Company Name
-            </Label>
-            <Input
-              id="companyName"
-              type="text"
-              value={companyName}
-              onChange={handleCompanyNameChange}
-              placeholder="Enter your company name"
-              className="w-full"
-            />
-            <p className="mt-1 text-xs text-gray-500">
-              This will be displayed next to your logo in the navigation bar
-            </p>
-          </div>
-          
+
           {/* File input */}
           <div className="w-full">
             <Label htmlFor="logoUpload" className="block text-sm font-medium text-gray-700 mb-1">

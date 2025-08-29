@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { useState, useEffect } from 'react';
 import { Bell, User, Brain } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
-import { signOut } from 'next-auth/react';
+import { signOut, useSession } from 'next-auth/react';
 import { useOrganization } from '@/hooks/useOrganization';
 import { useOrganizationBranding } from '@/hooks/useOrganizationBranding';
 
@@ -14,9 +14,12 @@ interface NavigationProps {
 }
 
 export function Navigation({ className = '' }: NavigationProps) {
+  const { data: session } = useSession();
   const { organization, loading: orgLoading } = useOrganization();
   const { branding, loading: brandingLoading } = useOrganizationBranding();
   const [loadingTimeout, setLoadingTimeout] = useState(false);
+  
+
 
   // Add timeout to prevent infinite loading
   useEffect(() => {
@@ -27,10 +30,44 @@ export function Navigation({ className = '' }: NavigationProps) {
     return () => clearTimeout(timer);
   }, []);
   
-  // Get derived values from branding - fully dynamic
-  const logoPath = branding?.logo_url || null;
-  // Default to ARIS if no organization name is set, or if the name is empty/whitespace
-  const companyName = (organization?.name && organization.name.trim()) ? organization.name.trim() : 'ARIS';
+  // Get branding data from session first (immediate), then from API (async)
+  const sessionBranding = session?.organizationBranding;
+  const effectiveBranding = sessionBranding || branding;
+  
+  // Get derived values from branding - prefer session data for immediate display
+  // Treat empty string, null, or undefined as no custom logo, use default ARIS logo
+  const logoPath = effectiveBranding?.logo_url && effectiveBranding.logo_url.trim() !== '' 
+    ? effectiveBranding.logo_url 
+    : '/images/aris-logo.png'; // Default ARIS logo
+  console.log('Navigation: Logo path from effective branding:', logoPath, 'source:', sessionBranding ? 'session' : 'api');
+  
+  // Company name logic:
+  // If using default ARIS logo, always show ARIS for consistency
+  // Otherwise, show custom organization name if available
+  const hasCustomLogo = effectiveBranding?.logo_url && effectiveBranding.logo_url.trim() !== '';
+  const hasCustomCompanyName = effectiveBranding?.organization_name && effectiveBranding.organization_name.trim();
+  const hasOrgName = organization?.name && organization.name.trim();
+  
+  const companyName = hasCustomLogo 
+    ? (hasCustomCompanyName 
+        ? effectiveBranding.organization_name.trim() 
+        : hasOrgName 
+          ? organization.name.trim() 
+          : 'ARIS')
+    : 'ARIS'; // Always show ARIS when no custom logo
+      
+  // Logo logic: logoPath now always contains either custom logo or default ARIS logo
+  const isDefaultARISLogo = logoPath === '/images/aris-logo.png';
+  
+  // Debug logging for branding data
+  console.log('🎨 Navigation: Branding data:', {
+    logoPath,
+    companyName,
+    branding: branding,
+    orgLoading,
+    brandingLoading,
+    loadingTimeout
+  });
   
   // Determine if we should show loading state
   const isLoading = (orgLoading || brandingLoading) && !loadingTimeout;
@@ -53,53 +90,27 @@ export function Navigation({ className = '' }: NavigationProps) {
                 </div>
                 <div className="ml-2 animate-pulse bg-gray-200 rounded w-16 h-4"></div>
               </div>
-            ) : logoPath ? (
-              // If organization has a logo, show it
-              <div className="h-8 w-auto flex items-center justify-center">
+            ) : (
+              // Always show logo (either custom or default ARIS)
+              <div className="h-10 w-auto flex items-center justify-center">
                 <Image 
-                  src={logoPath} 
+                  src={logoPath.startsWith('/') ? `${logoPath}?v=${Date.now()}&t=${Math.random()}` : logoPath}
                   alt={`${companyName} Logo`} 
-                  width={80}
-                  height={32}
+                  width={120}
+                  height={40}
                   className="object-contain"
                   priority
                   onError={(e) => {
-                    // Fallback to company name if logo fails
+                    console.error('🎨 Navigation: Logo failed to load:', logoPath);
+                    // Fallback to ARIS text if logo fails
                     const target = e.target as HTMLImageElement;
                     target.style.display = 'none';
                     const parent = target.parentElement;
                     if (parent) {
-                      parent.innerHTML = `<span class="text-xl font-bold text-gray-900">${companyName}</span>`;
+                      parent.innerHTML = `<div class="w-10 h-10 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 rounded flex items-center justify-center text-white font-bold text-lg">ARIS</div>`;
                     }
                   }}
                 />
-              </div>
-            ) : (
-              // No logo, show company name with default icon
-              <div className="flex items-center">
-                {companyName === 'ARIS' ? (
-                  // Show ARIS logo and branding when using default
-                  <>
-                    <div className="h-8 w-8 flex items-center justify-center overflow-hidden">
-                      <Image 
-                        src="/images/aris-logo.svg" 
-                        alt="ARIS Logo" 
-                        width={32}
-                        height={32}
-                        className="object-contain" 
-                        priority
-                      />
-                    </div>
-                    <span className="ml-2 font-semibold text-lg bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-transparent bg-clip-text">
-                      ARIS
-                    </span>
-                  </>
-                ) : (
-                  // Show custom company name with neutral styling
-                  <span className="text-xl font-bold text-gray-900">
-                    {companyName}
-                  </span>
-                )}
               </div>
             )}
           </Link>

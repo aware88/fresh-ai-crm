@@ -2,9 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../../auth/[...nextauth]/route';
-import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
 import { createServiceRoleClient } from '../../../../lib/supabase/service-role';
-import { cookies } from 'next/headers';
 import { promises as fs } from 'fs';
 import * as path from 'path';
 import { v4 as uuidv4 } from 'uuid';
@@ -36,16 +34,17 @@ export async function POST(request: NextRequest) {
     // Check if user is admin for their current organization
     let organizationId: string;
     try {
-      // Get user's current organization
-      const cookieStore = await cookies();
-      const supabaseClient = createServerComponentClient({ cookies: () => Promise.resolve(cookieStore) });
-      const { data: preferences } = await supabaseClient
+      // Get user's current organization using service role client
+      const supabase = createServiceRoleClient();
+      
+      // Get user preferences to find current organization
+      const { data: preferences, error: preferencesError } = await supabase
         .from('user_preferences')
         .select('current_organization_id')
         .eq('user_id', session.user.id)
         .single();
 
-      if (!preferences?.current_organization_id) {
+      if (preferencesError || !preferences?.current_organization_id) {
         return NextResponse.json({ 
           error: 'No organization found for user' 
         }, { status: 400 });
@@ -54,7 +53,6 @@ export async function POST(request: NextRequest) {
       organizationId = preferences.current_organization_id;
 
       // Check if user is admin of this organization
-      const supabase = createServiceRoleClient();
       const { data: membership, error: membershipError } = await supabase
         .from('organization_members')
         .select('role')
@@ -189,22 +187,11 @@ export async function POST(request: NextRequest) {
       }
     }
     
-    // Get user's current organization
-    const cookieStore = await cookies();
-    const supabaseClient = createServerComponentClient({ cookies: () => Promise.resolve(cookieStore) });
-    const { data: preferences } = await supabaseClient
-      .from('user_preferences')
-      .select('current_organization_id')
-      .eq('user_id', session.user.id)
-      .single();
-
-    if (!preferences?.current_organization_id) {
-      return NextResponse.json({ error: 'No organization selected' }, { status: 400 });
-    }
+    // We already have organizationId from the earlier admin check
 
     // Save logo to file-based branding system
     const brandingDir = path.join(process.cwd(), 'data', 'branding');
-    const brandingFile = path.join(brandingDir, `${preferences.current_organization_id}.json`);
+    const brandingFile = path.join(brandingDir, `${organizationId}.json`);
     
     try {
       console.log('💾 Saving logo to branding file:', brandingFile);
@@ -224,14 +211,14 @@ export async function POST(request: NextRequest) {
         console.log('📖 Read existing branding:', existingBranding);
       } catch (readError) {
         // File doesn't exist, create new branding
-        console.log('Creating new branding file for organization:', preferences.current_organization_id);
+        console.log('Creating new branding file for organization:', organizationId);
       }
       
       // Update with new logo URL
       const updatedBranding = {
         ...existingBranding,
-        id: existingBranding.id || `branding_${preferences.current_organization_id}`,
-        organization_id: preferences.current_organization_id,
+        id: existingBranding.id || `branding_${organizationId}`,
+        organization_id: organizationId,
         logo_url: logoUrl,
         updated_at: new Date().toISOString(),
         updated_by: session.user.id,

@@ -17,6 +17,8 @@ interface DisplaySettings {
   emailPreviewLength: number;
   emailView: string;
   dashboardLayout: string;
+  showOpportunityBadges: boolean;
+  enableSmartSorting: boolean;
   widgets: {
     emails: boolean;
     contacts: boolean;
@@ -34,6 +36,8 @@ export default function DisplaySettingsPage() {
     emailPreviewLength: 2,
     emailView: 'threaded',
     dashboardLayout: 'grid',
+    showOpportunityBadges: true,
+    enableSmartSorting: true,
     widgets: {
       emails: true,
       contacts: true,
@@ -75,6 +79,8 @@ export default function DisplaySettingsPage() {
             email_preview_length: formData.emailPreviewLength,
             email_view: formData.emailView,
             dashboard_layout: formData.dashboardLayout,
+            show_opportunity_badges: formData.showOpportunityBadges,
+            enable_smart_sorting: formData.enableSmartSorting,
             widget_emails: formData.widgets.emails,
             widget_contacts: formData.widgets.contacts,
             widget_tasks: formData.widgets.tasks,
@@ -182,6 +188,38 @@ export default function DisplaySettingsPage() {
                 <Label htmlFor="flat">Flat</Label>
               </div>
             </RadioGroup>
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label htmlFor="opportunity-badges">Show Opportunity Badges</Label>
+                <p className="text-sm text-muted-foreground">
+                  Display sales opportunity indicators on email tiles
+                </p>
+              </div>
+              <Checkbox
+                id="opportunity-badges"
+                checked={settings.showOpportunityBadges}
+                onCheckedChange={(checked) => updateSettings('showOpportunityBadges', !!checked)}
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label htmlFor="smart-sorting">Enable Smart Email Sorting</Label>
+                <p className="text-sm text-muted-foreground">
+                  Sort emails by priority (highlighted first), then by date. When off, all emails sorted by date only.
+                </p>
+              </div>
+              <Checkbox
+                id="smart-sorting"
+                checked={settings.enableSmartSorting}
+                onCheckedChange={(checked) => updateSettings('enableSmartSorting', !!checked)}
+              />
+            </div>
           </div>
         </CardContent>
       </Card>

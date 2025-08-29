@@ -31,9 +31,11 @@ export default function SimpleThemeProvider({ children }: { children: React.Reac
     let themeSlug = 'default';
 
     if (status === 'authenticated' && session?.organizationBranding?.name) {
-      // Convert organization name to theme slug
-      const orgName = session.organizationBranding.name.toLowerCase().replace(/\s+/g, '-');
+      // Convert organization name to theme slug - use organization_name if available, fallback to name
+      const orgName = (session.organizationBranding.organization_name || session.organizationBranding.name)
+        .toLowerCase().replace(/\s+/g, '-');
       themeSlug = ORG_THEMES[orgName] || 'default';
+      console.log('🎨 SimpleThemeProvider: Using theme for org:', orgName, '-> theme:', themeSlug);
     }
 
     // Apply theme via data attribute (most performant method)

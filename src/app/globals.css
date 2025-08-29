@@ -2,6 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Import unified color system */
+@import '../styles/unified-colors.css';
+
 /* Animation delays for loading indicators */
 .animation-delay-200 {
   animation-delay: 200ms;
@@ -372,10 +375,10 @@ html {
   /* Use CSS containment for performance and stability */
   contain: layout style paint;
   
-  /* Robust height control - prevents any dynamic changes */
-  height: 88px;
-  min-height: 88px;
-  max-height: 88px;
+  /* Robust height control - prevents any dynamic changes - reduced to show only 3 rows */
+  height: 76px;
+  min-height: 76px;
+  max-height: 76px;
   
   /* Layout properties */
   width: 100%;

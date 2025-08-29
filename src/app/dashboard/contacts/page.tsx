@@ -73,6 +73,11 @@ function ContactsContent() {
   const router = useRouter();
   const { organization, loading: orgLoading } = useOrganization();
 
+  // Debug contacts state changes
+  useEffect(() => {
+    console.log('Contacts: State changed - contacts:', contacts.length, 'loading:', loading, 'error:', error);
+  }, [contacts, loading, error]);
+
   // Add timeout to prevent infinite loading
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -101,6 +106,9 @@ function ContactsContent() {
         const data = await response.json();
         const contactsArray = Array.isArray(data.contacts) ? data.contacts : [];
         console.log(`Contacts: Loaded ${contactsArray.length} contacts from API`);
+        console.log('Contacts: Data received:', data);
+        console.log('Contacts: Setting contacts state with:', contactsArray);
+        console.log('Contacts: First contact sample:', contactsArray[0]);
         setContacts(contactsArray);
         
         // Display whether we're using Supabase or not
@@ -124,6 +132,7 @@ function ContactsContent() {
         setContacts([]);
         setError('Failed to load contacts');
       } finally {
+        console.log('Contacts: Setting loading to false');
         setLoading(false);
       }
     };
@@ -146,6 +155,9 @@ function ContactsContent() {
     
     return matchesSearch && matchesPersonality;
   });
+
+  // Debug filtered contacts
+  console.log('Contacts: Filtered contacts:', filteredContacts.length, 'from total:', contacts.length);
 
   // Delete a contact
   const handleDeleteContact = async (id: string) => {
@@ -360,11 +372,14 @@ function ContactsContent() {
                 )}
               </div>
 
-              {loading || orgLoading ? (
+              {loading ? (
                 <div className="flex justify-center items-center py-12">
                   <div className="flex flex-col items-center space-y-4">
                     <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
                     <p className="text-gray-500">Loading contacts...</p>
+                    <div className="text-xs text-gray-400">
+                      Contacts: {contacts.length} | Org: {orgLoading ? 'Loading' : 'Ready'}
+                    </div>
                   </div>
                 </div>
               ) : (contacts.length === 0 || error) ? (
@@ -393,12 +408,12 @@ function ContactsContent() {
                     {filteredContacts.map((contact) => (
                       <TableRow 
                         key={contact.id} 
-                        className="cursor-pointer transition-colors hover:bg-gray-50"
+                        className="cursor-pointer transition-colors table-row"
                         onClick={() => router.push(`/contacts/${contact.id}`)}
                       >
                         <TableCell className="font-medium">
                           <div className="flex items-center gap-3">
-                            <div className="h-10 w-10 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 flex items-center justify-center text-white font-medium">
+                            <div className="h-10 w-10 rounded-full avatar-default flex items-center justify-center font-medium">
                               {contact.firstName?.[0]}{contact.lastName?.[0]}
                             </div>
                             <div>
@@ -421,7 +436,7 @@ function ContactsContent() {
                         </TableCell>
                         <TableCell>
                           {contact.personalityType ? (
-                            <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                            <Badge variant="outline" className="status-info">
                               <Brain className="h-3 w-3 mr-1" />
                               {contact.personalityType}
                             </Badge>
@@ -446,35 +461,35 @@ function ContactsContent() {
                             <Button 
                               variant="ghost" 
                               size="icon" 
-                              className="h-8 w-8 rounded-full hover:bg-blue-50 transition-all duration-200" 
+                              className="h-8 w-8 rounded-full hover-info transition-all duration-200" 
                               onClick={(e) => {
                                 e.stopPropagation();
                                 router.push(`/contacts/${contact.id}`);
                               }}
                             >
-                              <User className="h-4 w-4 text-blue-600" />
+                              <User className="h-4 w-4 text-brand" />
                             </Button>
                             <Button 
                               variant="ghost" 
                               size="icon" 
-                              className="h-8 w-8 rounded-full hover:bg-green-50 transition-all duration-200" 
+                              className="h-8 w-8 rounded-full hover-success transition-all duration-200" 
                               onClick={(e) => {
                                 e.stopPropagation();
                                 router.push(`/dashboard/contacts/${contact.id}/edit`);
                               }}
                             >
-                              <Edit className="h-4 w-4 text-green-600" />
+                              <Edit className="h-4 w-4" style={{color: 'var(--color-success)'}} />
                             </Button>
                             <Button 
                               variant="ghost" 
                               size="icon" 
-                              className="h-8 w-8 rounded-full hover:bg-red-50 transition-all duration-200" 
+                              className="h-8 w-8 rounded-full hover-error transition-all duration-200" 
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleDeleteContact(contact.id);
                               }}
                             >
-                              <Trash2 className="h-4 w-4 text-red-500" />
+                              <Trash2 className="h-4 w-4" style={{color: 'var(--color-error)'}} />
                             </Button>
                           </div>
                         </TableCell>
