@@ -153,21 +153,66 @@ export class PermanentEmailStorage {
     limit: number
   ): Promise<StoredEmail[]> {
     
-    const { data, error } = await this.supabase
-      .from('emails')
-      .select('*')
-      .eq('email_account_id', emailAccountId)
-      .eq('organization_id', organizationId)
-      .eq('folder', folder)
-      .order('received_date', { ascending: false })
-      .limit(limit);
-    
-    if (error) {
+    try {
+      // Use the new email_index table structure
+      const { data, error } = await this.supabase
+        .from('email_index')
+        .select(`
+          id,
+          message_id,
+          subject,
+          sender_email,
+          sender_name,
+          recipient_email,
+          received_at,
+          sent_at,
+          is_read,
+          has_attachments,
+          email_type,
+          folder_name,
+          processing_status,
+          created_at,
+          updated_at
+        `)
+        .eq('email_account_id', emailAccountId)
+        .eq('folder_name', folder)
+        .order('received_at', { ascending: false })
+        .limit(limit);
+      
+      if (error) {
+        console.error('Database query error:', error);
+        return [];
+      }
+      
+      // Transform the data to match the StoredEmail interface
+      const transformedData = (data || []).map(email => ({
+        id: email.id,
+        message_id: email.message_id,
+        subject: email.subject || 'No Subject',
+        sender: email.sender_email || 'Unknown',
+        sender_name: email.sender_name,
+        recipient: email.recipient_email,
+        received_date: email.received_at,
+        sent_date: email.sent_at,
+        is_read: email.is_read || false,
+        has_attachments: email.has_attachments || false,
+        email_type: email.email_type || 'received',
+        folder: email.folder_name || folder,
+        processing_status: email.processing_status || 'pending',
+        created_at: email.created_at,
+        updated_at: email.updated_at,
+        // Add placeholder fields for compatibility
+        raw_content: '',
+        html_content: '',
+        plain_content: '',
+        attachments: []
+      })) as StoredEmail[];
+      
+      return transformedData;
+    } catch (error) {
       console.error('Database query error:', error);
       return [];
     }
-    
-    return data || [];
   }
 
   /**
@@ -178,37 +223,64 @@ export class PermanentEmailStorage {
     folder: string,
     limit: number
   ): Promise<StoredEmail[]> {
-    
-    if (!this.db) {
-      await this.initIndexedDB();
-    }
-    
-    return new Promise((resolve) => {
+    try {
+      // Skip IndexedDB for now to avoid errors
+      console.log('Skipping IndexedDB cache, returning empty array');
+      return [];
+      
+      // TODO: Re-enable when IndexedDB is properly initialized
+      /*
       if (!this.db) {
-        resolve([]);
-        return;
+        await this.initIndexedDB();
       }
       
-      const transaction = this.db.transaction(['emails'], 'readonly');
-      const store = transaction.objectStore('emails');
-      const index = store.index('email_account_id');
-      const request = index.getAll(emailAccountId);
-      
-      request.onsuccess = () => {
-        const emails = request.result
-          .filter((email: StoredEmail) => email.folder === folder)
-          .sort((a, b) => new Date(b.received_date).getTime() - new Date(a.received_date).getTime())
-          .slice(0, limit);
-        
-        console.log(`Retrieved ${emails.length} emails from IndexedDB cache`);
-        resolve(emails);
-      };
-      
-      request.onerror = () => {
-        console.warn('IndexedDB read error:', request.error);
-        resolve([]);
-      };
-    });
+      if (!this.db) {
+        console.warn('IndexedDB not available, returning empty array');
+        return [];
+      }
+
+      return new Promise((resolve) => {
+        try {
+          const transaction = this.db!.transaction(['emails'], 'readonly');
+          const store = transaction.objectStore('emails');
+          const index = store.index('email_account_id');
+          
+          transaction.onerror = () => {
+            console.error('Database query error:', transaction.error);
+            resolve([]);
+          };
+
+          const request = index.getAll(emailAccountId);
+          
+          request.onsuccess = () => {
+            try {
+              const emails = request.result
+                .filter((email: StoredEmail) => email.folder === folder)
+                .sort((a, b) => new Date(b.received_date).getTime() - new Date(a.received_date).getTime())
+                .slice(0, limit);
+              
+              console.log(`Retrieved ${emails.length} emails from IndexedDB cache`);
+              resolve(emails);
+            } catch (error) {
+              console.error('Error processing IndexedDB results:', error);
+              resolve([]);
+            }
+          };
+          
+          request.onerror = () => {
+            console.warn('IndexedDB read error:', request.error);
+            resolve([]);
+          };
+        } catch (error) {
+          console.error('Database query error:', error);
+          resolve([]);
+        }
+      });
+      */
+    } catch (error) {
+      console.error('Error in getFromIndexedDB:', error);
+      return [];
+    }
   }
 
   /**

@@ -21,6 +21,7 @@ import EmailComposer from '@/components/email/EmailComposer';
 import EnhancedEmailComposer from '@/components/email/EnhancedEmailComposer';
 import OptimizedEmailList from '@/components/email/OptimizedEmailList';
 import OptimizedEmailDetail from '@/components/email/OptimizedEmailDetail';
+import EmailAccountSwitcher from '@/components/email/EmailAccountSwitcher';
 import { FaEnvelope, FaRobot, FaSearch, FaSync } from 'react-icons/fa';
 import {
   Mail,
@@ -40,6 +41,7 @@ import { useOrganization } from '@/hooks/useOrganization';
 import { useSubscriptionFeatures } from '@/hooks/useSubscriptionFeatures';
 
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { AnalysisResultsModal } from '@/components/email/AnalysisResultsModal';
 import { SalesAgentResultsModal } from '@/components/email/SalesAgentResultsModal';
 import { AnalysisLoadingModal } from '@/components/email/AnalysisResultsModal';
@@ -56,13 +58,53 @@ export default function EmailPage() {
   const [connected, setConnected] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [activeTab, setActiveTab] = useState('optimized');
+  const [activeTab, setActiveTab] = useState('inbox');
   const [outlookConnected, setOutlookConnected] = useState(false);
   const [imapAccounts, setImapAccounts] = useState<any[]>([]);
   const [selectedAccount, setSelectedAccount] = useState<string>('');
   const [lastRefresh, setLastRefresh] = useState<number>(Date.now());
   const [selectedEmailId, setSelectedEmailId] = useState<string>('');
   const [syncStatus, setSyncStatus] = useState<string>('');
+  const [syncing, setSyncing] = useState(false);
+  
+  // Safety timeout to reset syncing state
+  useEffect(() => {
+    if (syncing) {
+      const timeout = setTimeout(() => {
+        console.warn('⚠️ Syncing timeout reached, forcing reset');
+        setSyncing(false);
+        setSyncStatus('❌ Import timeout - please try again');
+      }, 60000); // 60 second timeout
+      
+      return () => clearTimeout(timeout);
+    }
+  }, [syncing]);
+  const [selectedEmailAccountId, setSelectedEmailAccountId] = useState<string>('');
+  
+  // Compose state
+  const [composeMode, setComposeMode] = useState<'new' | 'reply' | 'replyAll' | 'forward'>('new');
+  const [composeOriginalEmail, setComposeOriginalEmail] = useState<any>(null);
+  
+  // Helper function to get email data for reply/forward
+  const getEmailForCompose = async (messageId: string) => {
+    try {
+      // Get email data from the optimized email service
+      const response = await fetch(`/api/email/${messageId}`);
+      if (response.ok) {
+        const emailData = await response.json();
+        return {
+          subject: emailData.subject || '',
+          body: emailData.html_content || emailData.plain_content || '',
+          from: emailData.sender_email || '',
+          to: emailData.recipient_email || '',
+          messageId: emailData.message_id
+        };
+      }
+    } catch (error) {
+      console.error('Failed to get email for compose:', error);
+    }
+    return null;
+  };
 
   // Modal states
   const [analysisModalOpen, setAnalysisModalOpen] = useState(false);
@@ -92,6 +134,168 @@ export default function EmailPage() {
   const handleInboxCountChange = (count: number) => setInboxCount(count);
   const handleSentCountChange = (count: number) => setSentCount(count);
   const handleDraftsCountChange = (count: number) => setDraftsCount(count);
+
+  // Handle email sync
+  const handleSyncEmails = async () => {
+    if (!selectedAccount || syncing) return;
+    
+    setSyncing(true);
+    setSyncStatus('Syncing emails from IMAP...');
+    
+    try {
+      const response = await fetch('/api/email/sync-to-database', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          accountId: selectedAccount,
+          maxEmails: 100
+        }),
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        setSyncStatus(`✅ Synced ${data.totalSaved} emails successfully!`);
+        // Refresh the email list after sync
+        window.location.reload(); // Simple refresh to reload emails
+      } else {
+        setSyncStatus(`❌ Sync failed: ${data.error}`);
+      }
+    } catch (error) {
+      console.error('Sync error:', error);
+      setSyncStatus(`❌ Sync failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setSyncing(false);
+      // Clear status after 5 seconds
+      setTimeout(() => setSyncStatus(''), 5000);
+    }
+  };
+
+  // Handle Microsoft/Outlook email import
+  const handleMicrosoftImport = async (accountId: string) => {
+    if (!accountId || syncing) return;
+    
+    setSyncing(true);
+    setSyncStatus('Importing emails from Microsoft Graph...');
+    
+    try {
+      // Use the new Microsoft Graph sync endpoint
+      const response = await fetch('/api/email/sync-microsoft-graph', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          accountId,
+          maxEmails: 100 // Start with 100 emails for initial sync
+        }),
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        setSyncStatus(`✅ Imported ${data.totalSaved || 0} emails from Microsoft Graph!`);
+        // Refresh the email list after import
+        setTimeout(() => window.location.reload(), 1000);
+      } else {
+        setSyncStatus(`❌ Import failed: ${data.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Microsoft import error:', error);
+      setSyncStatus(`❌ Import failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setSyncing(false);
+      // Clear status after 10 seconds (longer for import)
+      setTimeout(() => setSyncStatus(''), 10000);
+    }
+  };
+
+  // Check if Microsoft account needs import by checking email count
+  const checkAndTriggerMicrosoftImport = async (accountId: string) => {
+    try {
+      console.log('🔍 Checking email count for Microsoft account:', accountId);
+      
+      // Check if there are any emails for this account in the database
+      const response = await fetch(`/api/emails/count?accountId=${accountId}`);
+      const data = await response.json();
+      
+      console.log('📊 Email count result:', data);
+      
+      if (data.success && data.count === 0) {
+        console.log('📮 No emails found, triggering auto-import for Microsoft account:', accountId);
+        handleMicrosoftImport(accountId);
+      } else if (data.success) {
+        console.log('✅ Microsoft account already has emails:', data.count);
+      } else {
+        console.warn('⚠️ Failed to check email count:', data.error);
+      }
+    } catch (error) {
+      console.error('❌ Error checking Microsoft import status:', error);
+    }
+  };
+
+  // Initialize real-time sync for all accounts
+  useEffect(() => {
+    console.log('Email Debug:', {
+      selectedEmailAccountId,
+      selectedAccount,
+      hasActiveAccount: !!(selectedEmailAccountId || selectedAccount),
+      imapAccountsCount: imapAccounts.length
+    });
+    
+    // Start real-time sync for all connected accounts
+    if (imapAccounts.length > 0 && !syncing) {
+      imapAccounts.forEach(async (account) => {
+        try {
+          console.log(`🚀 Starting real-time sync for ${account.email} (${account.provider_type})`);
+          
+          const response = await fetch('/api/email/start-realtime-sync', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ accountId: account.id })
+          });
+
+          const result = await response.json();
+          if (result.success) {
+            console.log(`✅ Real-time sync active for ${account.email}`);
+          } else {
+            console.warn(`⚠️ Failed to start real-time sync for ${account.email}:`, result.error);
+          }
+        } catch (error) {
+          console.error(`❌ Error starting real-time sync for ${account.email}:`, error);
+        }
+      });
+    }
+    
+    // Legacy fallback for manual import (will be replaced by real-time sync)
+    const accountId = selectedEmailAccountId || selectedAccount;
+    if (accountId && imapAccounts.length > 0) {
+      const account = imapAccounts.find(acc => acc.id === accountId);
+      console.log('🔍 Account check:', { 
+        accountId, 
+        account: account ? {
+          email: account.email,
+          provider_type: account.provider_type,
+          last_sync_at: account.last_sync_at,
+          real_time_sync_active: account.real_time_sync_active
+        } : null,
+        syncing 
+      });
+      
+      // Only trigger manual import if real-time sync isn't active
+      if (account && !syncing && !account.real_time_sync_active) {
+        if (account.provider_type === 'imap' && !account.last_sync_at) {
+          console.log('🔄 Auto-triggering first sync for IMAP account:', accountId);
+          handleSyncEmails();
+        } else if ((account.provider_type === 'microsoft' || account.provider_type === 'outlook')) {
+          console.log('📮 Microsoft account detected, checking if import needed:', accountId);
+          checkAndTriggerMicrosoftImport(accountId);
+        }
+      }
+    }
+  }, [selectedEmailAccountId, selectedAccount, imapAccounts, syncing]);
 
   // Email sync is now automatic when accounts are added
 
@@ -338,27 +542,27 @@ export default function EmailPage() {
           const microsoftAccounts = allAccounts.filter(
             (acc: any) => acc.provider_type === 'microsoft' || acc.provider_type === 'outlook'
           );
-          const nonMicrosoftAccounts = allAccounts.filter(
-            (acc: any) => acc.provider_type !== 'microsoft' && acc.provider_type !== 'outlook'
+          // Accounts backed by our database (IMAP and imported Microsoft)
+          const storageAccounts = allAccounts.filter(
+            (acc: any) => ['imap', 'microsoft', 'outlook', 'google'].includes(acc.provider_type)
           );
 
           // Update Outlook connection status
           setOutlookConnected(microsoftAccounts.length > 0);
 
-          // Set IMAP accounts (includes Google, IMAP, and other non-Microsoft accounts)
-          setImapAccounts(nonMicrosoftAccounts);
+          // Set accounts that are backed by our storage (IMAP + Microsoft)
+          setImapAccounts(storageAccounts);
 
           // Auto-select primary account
-          if (allAccounts.length > 0) {
-            // If there's only one account, select it
-            if (allAccounts.length === 1) {
-              setSelectedAccount(allAccounts[0].id);
-            } else {
-              // If multiple accounts, select the first active one or just the first one
-              const activeAccount =
-                allAccounts.find((acc: any) => acc.is_active !== false) || allAccounts[0];
-              setSelectedAccount(activeAccount.id);
-            }
+          if (storageAccounts.length > 0) {
+            // Prefer IMAP account for optimized list UI
+            const activeImap =
+              storageAccounts.find((acc: any) => acc.is_active !== false) ||
+              storageAccounts[0];
+            setSelectedAccount(activeImap.id);
+          } else if (microsoftAccounts.length > 0) {
+            // If only Outlook is connected, use special key
+            setSelectedAccount('outlook');
           }
 
           // Update last refresh timestamp
@@ -385,10 +589,13 @@ export default function EmailPage() {
               );
 
               setOutlookConnected(microsoftAccounts.length > 0);
+              // In this fallback path, use non-Microsoft accounts for IMAP/storage-backed UI
               setImapAccounts(nonMicrosoftAccounts);
 
-              if (allAccounts.length > 0) {
-                setSelectedAccount(allAccounts[0].id);
+              if (nonMicrosoftAccounts.length > 0) {
+                setSelectedAccount(nonMicrosoftAccounts[0].id);
+              } else if (microsoftAccounts.length > 0) {
+                setSelectedAccount('outlook');
               }
               setLastRefresh(Date.now());
             } else {
@@ -629,19 +836,19 @@ export default function EmailPage() {
           <div className="flex gap-4 flex-1 min-h-0">
             {/* Main Email Content */}
             <div className={`flex-1 transition-all duration-300`}>
-              <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col h-full">
+              <Tabs value={activeTab} onValueChange={(value) => {
+                setActiveTab(value);
+                // Reset compose state when clicking compose tab directly
+                if (value === 'compose') {
+                  setComposeMode('new');
+                  setComposeOriginalEmail(null);
+                }
+              }} className="flex flex-col h-full">
                 {/* Combined Navigation Header */}
                 <div className="bg-white rounded-lg border border-gray-200 shadow-sm mb-4 flex-shrink-0">
-                  <div className="flex justify-between items-center p-3">
-                    {/* Navigation Tabs */}
-                    <TabsList className="grid grid-cols-6 rounded-md border bg-slate-50 border-slate-200 h-10">
-                      <TabsTrigger
-                        value="optimized"
-                        className="flex items-center gap-2 data-[state=active]:bg-[var(--accent-color)] data-[state=active]:text-white text-sm px-3"
-                      >
-                        <Database className="h-4 w-4" />
-                        Optimized ⚡
-                      </TabsTrigger>
+                  {/* Navigation Tabs - Full width row */}
+                  <div className="p-3 border-b border-gray-100">
+                    <TabsList className="grid grid-cols-5 rounded-md border bg-slate-50 border-slate-200 h-10 w-full">
                       <TabsTrigger
                         value="inbox"
                         className="flex items-center gap-2 data-[state=active]:bg-[var(--accent-color)] data-[state=active]:text-white text-sm px-3"
@@ -679,55 +886,125 @@ export default function EmailPage() {
                         Compose
                       </TabsTrigger>
                     </TabsList>
+                  </div>
+
+                  {/* Controls - Separate row */}
+                  <div className="flex justify-between items-center px-3 py-2">
+                    {/* Email Account Switcher */}
+                    <EmailAccountSwitcher
+                      selectedAccountId={selectedEmailAccountId}
+                      onAccountChange={(accountId) => {
+                        setSelectedEmailAccountId(accountId);
+                        setSelectedAccount(accountId); // Keep existing functionality
+                      }}
+                      showAddButton={true}
+                    />
 
                     {/* Right side controls */}
-                    <div className="flex items-center space-x-3">
-                      {/* Account Selector - only show if more than one account */}
-                      {outlookConnected && imapAccounts.length > 0 ? (
-                        <Select value={selectedAccount} onValueChange={setSelectedAccount}>
-                          <SelectTrigger className="w-44">
-                            <SelectValue placeholder="Select email account" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {outlookConnected && <SelectItem value="outlook">Outlook</SelectItem>}
-                            {imapAccounts.map((account) => (
-                              <SelectItem key={account.id} value={account.id}>
-                                {account.email}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      ) : null}
+                    <div className="flex items-center space-x-2">
+                      {/* Sync Button */}
+                      {(() => {
+                        const accountId = selectedEmailAccountId || selectedAccount;
+                        const acc = imapAccounts.find((a) => a.id === accountId);
+                        
+                        if (acc && acc.provider_type === 'imap') {
+                          return (
+                            <Button
+                              onClick={handleSyncEmails}
+                              variant="outline"
+                              size="sm"
+                              className="flex items-center gap-2 text-xs"
+                              disabled={syncing}
+                            >
+                              <FaSync className={`h-3 w-3 ${syncing ? 'animate-spin' : ''}`} />
+                              {syncing ? 'Syncing...' : 'Sync Emails'}
+                            </Button>
+                          );
+                        }
+                        return null;
+                      })()}
+
+                      {/* Real-time Sync Status / Manual Import Button */}
+                      {(() => {
+                        const accountId = selectedEmailAccountId || selectedAccount;
+                        const acc = imapAccounts.find((a) => a.id === accountId);
+                        
+                        if (acc && (acc.provider_type === 'microsoft' || acc.provider_type === 'outlook')) {
+                          // Check if real-time sync is active
+                          const isRealTimeActive = acc.real_time_sync_active;
+                          
+                          if (isRealTimeActive) {
+                            return (
+                              <div className="flex items-center gap-2 px-3 py-1 bg-green-50 border border-green-200 rounded-md">
+                                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                                <span className="text-xs text-green-700 font-medium">Live Sync Active</span>
+                              </div>
+                            );
+                          } else {
+                            return (
+                              <div className="flex items-center gap-1">
+                                <Button
+                                  onClick={() => handleMicrosoftImport(accountId)}
+                                  variant="outline"
+                                  size="sm"
+                                  className="flex items-center gap-2 text-xs bg-blue-50 hover:bg-blue-100 border-blue-200"
+                                  disabled={syncing}
+                                >
+                                  <Download className="h-3 w-3" />
+                                  {syncing ? 'Importing...' : 'Import Now'}
+                                </Button>
+                                {syncing && (
+                                  <Button
+                                    onClick={() => {
+                                      setSyncing(false);
+                                      setSyncStatus('');
+                                      console.log('🔄 Manually reset syncing state');
+                                    }}
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-8 w-8 p-0"
+                                    title="Reset import state"
+                                  >
+                                    ✕
+                                  </Button>
+                                )}
+                              </div>
+                            );
+                          }
+                        }
+                        return null;
+                      })()}
 
                       {/* Refresh Button */}
                       <Button
                         onClick={() => window.location.reload()}
                         variant="outline"
                         size="sm"
-                        className="flex items-center gap-2"
+                        className="flex items-center gap-2 text-xs"
                       >
-                        <FaSync className="h-4 w-4" />
+                        <FaSync className="h-3 w-3" />
                         Refresh
                       </Button>
                     </div>
                   </div>
+                  
+                  {/* Sync Status */}
+                  {syncStatus && (
+                    <div className="px-3 py-2 bg-blue-50 border-t border-blue-200">
+                      <p className="text-sm text-blue-700 font-medium">{syncStatus}</p>
+                    </div>
+                  )}
                 </div>
 
-                <TabsContent value="optimized" className="flex-1 min-h-0 mt-0">
+                <TabsContent value="inbox" className="flex-1 min-h-0 mt-0">
                   <div className="bg-white rounded-lg border border-gray-200 shadow-sm h-full flex">
-                    {selectedAccount && imapAccounts.find((acc) => acc.id === selectedAccount) ? (
+                    {(selectedEmailAccountId || selectedAccount) ? (
                       <>
                         {/* Email List - Fixed width sidebar */}
                         <div className="w-96 border-r border-gray-200 flex flex-col h-full">
-                          <div className="p-4 border-b border-gray-200 bg-gray-50">
-                            <h3 className="font-medium text-gray-900 flex items-center gap-2">
-                              <Inbox className="h-4 w-4" />
-                              Inbox
-                            </h3>
-                          </div>
                           <div className="flex-1 overflow-hidden">
                             <OptimizedEmailList
-                              emailAccountId={selectedAccount}
+                              emailAccountId={selectedEmailAccountId || selectedAccount}
                               folder="INBOX"
                               onEmailSelect={(messageId) => {
                                 setSelectedEmailId(messageId);
@@ -743,14 +1020,22 @@ export default function EmailPage() {
                           {selectedEmailId ? (
                             <OptimizedEmailDetail
                               messageId={selectedEmailId}
-                              onReply={() => {
-                                // Switch to compose tab with reply context
+                              onReply={async () => {
+                                const emailData = await getEmailForCompose(selectedEmailId);
+                                setComposeMode('reply');
+                                setComposeOriginalEmail(emailData);
                                 setActiveTab('compose');
                               }}
-                              onReplyAll={() => {
+                              onReplyAll={async () => {
+                                const emailData = await getEmailForCompose(selectedEmailId);
+                                setComposeMode('replyAll');
+                                setComposeOriginalEmail(emailData);
                                 setActiveTab('compose');
                               }}
-                              onForward={() => {
+                              onForward={async () => {
+                                const emailData = await getEmailForCompose(selectedEmailId);
+                                setComposeMode('forward');
+                                setComposeOriginalEmail(emailData);
                                 setActiveTab('compose');
                               }}
                               onArchive={() => {
@@ -780,73 +1065,154 @@ export default function EmailPage() {
                           )}
                         </div>
                       </>
+                    ) : outlookConnected ? (
+                      // Outlook (Microsoft Graph) live client
+                      <div className="flex-1 min-h-0">
+                        <OutlookClient folder="inbox" />
+                      </div>
                     ) : (
                       <div className="text-center py-8 text-gray-500">
-                        <Database className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-                        <h3 className="text-lg font-medium mb-2">Optimized Email System</h3>
-                        <p className="mb-4">
-                          Lightning-fast email management with 95% storage reduction
-                        </p>
-                        <div className="space-y-2 text-sm">
-                          <div className="flex items-center justify-center space-x-2">
-                            <span>⚡ 10x faster loading</span>
-                          </div>
-                          <div className="flex items-center justify-center space-x-2">
-                            <span>💾 95% storage savings</span>
-                          </div>
-                          <div className="flex items-center justify-center space-x-2">
-                            <span>🔄 Smart caching</span>
-                          </div>
-                          <div className="flex items-center justify-center space-x-2">
-                            <span>🤖 AI analysis preserved</span>
-                          </div>
-                        </div>
-                        <p className="mt-4 text-xs text-gray-400">
-                          Select an email account to get started
-                        </p>
+                        {(selectedEmailAccountId || selectedAccount) && imapAccounts.length > 0 ? (
+                          // Account is connected but no emails loaded
+                          <>
+                            <Database className="h-12 w-12 mx-auto mb-4 text-blue-400" />
+                            <h3 className="text-lg font-medium mb-2">Ready to Import Emails</h3>
+                            <p className="mb-4 max-w-md mx-auto">
+                              Your email account is connected! For Microsoft/Outlook accounts, you need to import emails first.
+                            </p>
+                            <div className="space-y-3">
+                              <Link href="/settings/email-accounts">
+                                <Button variant="outline" className="mb-2">
+                                  <Download className="h-4 w-4 mr-2" />
+                                  Import Emails from Settings
+                                </Button>
+                              </Link>
+                              <div className="space-y-2 text-sm text-gray-400">
+                                <div>📮 Microsoft accounts use secure import process</div>
+                                <div>🔒 Your emails stay private and secure</div>
+                              </div>
+                            </div>
+                          </>
+                        ) : (
+                          // No accounts connected
+                          <>
+                            <Mail className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                            <h3 className="text-lg font-medium mb-2">No Email Accounts Connected</h3>
+                            <p className="mb-4 max-w-md mx-auto">
+                              Connect your email accounts to start managing and analyzing your messages with AI-powered insights.
+                            </p>
+                            <div className="space-y-3">
+                              <Link href="/settings/email-accounts">
+                                <Button className="mb-2">
+                                  <Mail className="h-4 w-4 mr-2" />
+                                  Connect Email Accounts
+                                </Button>
+                              </Link>
+                              <div className="space-y-2 text-sm text-gray-400">
+                                <div className="flex items-center justify-center space-x-2">
+                                  <span>📧 Gmail, Outlook, IMAP supported</span>
+                                </div>
+                                <div className="flex items-center justify-center space-x-2">
+                                  <span>🤖 AI-powered email analysis</span>
+                                </div>
+                              </div>
+                            </div>
+                          </>
+                        )}
                       </div>
                     )}
                   </div>
                 </TabsContent>
 
-                <TabsContent value="inbox" className="flex-1 min-h-0 mt-0">
-                  <div className="bg-white rounded-lg border border-gray-200 shadow-sm h-full">
-                    <div className="h-full">
-                      {outlookConnected && (selectedAccount === 'outlook' || !selectedAccount) ? (
-                        <OutlookClient />
-                      ) : selectedAccount &&
-                        imapAccounts.find((acc) => acc.id === selectedAccount) ? (
-                        <div className="text-center py-8 text-gray-500">
-                          <Database className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-                          <p>Legacy IMAP client temporarily disabled</p>
-                          <p className="text-sm text-gray-400">
-                            Use the "Optimized ⚡" tab for the new email system
-                          </p>
-                        </div>
-                      ) : (
-                        <div className="text-center py-8 text-gray-500">
-                          <Mail className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-                          <p>Select an email account to view messages</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </TabsContent>
+
 
                 <TabsContent value="sent" className="flex-1 min-h-0 mt-0">
                   <div className="bg-white rounded-lg border border-gray-200 shadow-sm h-full">
                     <div className="h-full">
-                      {outlookConnected && (selectedAccount === 'outlook' || !selectedAccount) ? (
+                      {(selectedEmailAccountId || selectedAccount) ? (
+                        <>
+                          {/* Show OptimizedEmailList for sent emails from our database */}
+                          <div className="flex h-full">
+                            {/* Email List - Fixed width sidebar */}
+                            <div className="w-96 border-r border-gray-200 flex-shrink-0">
+                              <OptimizedEmailList
+                                emailAccountId={selectedEmailAccountId || selectedAccount}
+                                folder="Sent"
+                                onEmailSelect={(messageId) => setSelectedEmailId(messageId)}
+                                onAnalyzeEmail={handleAnalyzeEmail}
+                                onSalesAgent={handleSalesAgent}
+                              />
+                            </div>
+
+                            {/* Email Detail - Flexible width main content */}
+                            <div className="flex-1 flex flex-col h-full">
+                              {selectedEmailId ? (
+                                <OptimizedEmailDetail
+                                  messageId={selectedEmailId}
+                                  onReply={async () => {
+                                    const emailData = await getEmailForCompose(selectedEmailId);
+                                    setComposeMode('reply');
+                                    setComposeOriginalEmail(emailData);
+                                    setActiveTab('compose');
+                                  }}
+                                  onReplyAll={async () => {
+                                    const emailData = await getEmailForCompose(selectedEmailId);
+                                    setComposeMode('replyAll');
+                                    setComposeOriginalEmail(emailData);
+                                    setActiveTab('compose');
+                                  }}
+                                  onForward={async () => {
+                                    const emailData = await getEmailForCompose(selectedEmailId);
+                                    setComposeMode('forward');
+                                    setComposeOriginalEmail(emailData);
+                                    setActiveTab('compose');
+                                  }}
+                                  onArchive={() => {
+                                    // Handle archive
+                                    setSelectedEmailId('');
+                                  }}
+                                  onDelete={() => {
+                                    // Handle delete
+                                    setSelectedEmailId('');
+                                  }}
+                                  onBack={() => {
+                                    setSelectedEmailId('');
+                                  }}
+                                />
+                              ) : (
+                                <div className="flex-1 flex items-center justify-center text-gray-500">
+                                  <div className="text-center">
+                                    <Send className="h-16 w-16 mx-auto mb-4 text-gray-300" />
+                                    <h3 className="text-lg font-medium mb-2">
+                                      Select a sent email to read
+                                    </h3>
+                                    <p className="text-sm">
+                                      Choose an email from the list to view its contents
+                                    </p>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          
+                          {/* Legacy clients for backward compatibility */}
+                          <div className="hidden">
+                            {outlookConnected && (selectedAccount === 'outlook' || !selectedAccount) ? (
+                              <OutlookClient folder="sent" />
+                            ) : selectedAccount &&
+                              imapAccounts.find((acc) => acc.id === selectedAccount) ? (
+                              <ImapClient
+                                account={imapAccounts.find((acc) => acc.id === selectedAccount)}
+                                folder="Sent"
+                                onSalesAgent={handleSalesAgent}
+                                isSalesProcessing={isSalesProcessing}
+                                onEmailCountChange={handleSentCountChange}
+                              />
+                            ) : null}
+                          </div>
+                        </>
+                      ) : outlookConnected ? (
                         <OutlookClient folder="sent" />
-                      ) : selectedAccount &&
-                        imapAccounts.find((acc) => acc.id === selectedAccount) ? (
-                        <ImapClient
-                          account={imapAccounts.find((acc) => acc.id === selectedAccount)}
-                          folder="Sent"
-                          onSalesAgent={handleSalesAgent}
-                          isSalesProcessing={isSalesProcessing}
-                          onEmailCountChange={handleSentCountChange}
-                        />
                       ) : (
                         <div className="text-center py-8 text-gray-500">
                           <Send className="h-12 w-12 mx-auto mb-4 text-gray-400" />
@@ -860,9 +1226,7 @@ export default function EmailPage() {
                 <TabsContent value="drafts" className="flex-1 min-h-0 mt-0">
                   <div className="bg-white rounded-lg border border-gray-200 shadow-sm h-full">
                     <div className="h-full">
-                      {outlookConnected && (selectedAccount === 'outlook' || !selectedAccount) ? (
-                        <OutlookClient folder="drafts" />
-                      ) : selectedAccount &&
+                      {selectedAccount &&
                         imapAccounts.find((acc) => acc.id === selectedAccount) ? (
                         <ImapClient
                           account={imapAccounts.find((acc) => acc.id === selectedAccount)}
@@ -871,6 +1235,8 @@ export default function EmailPage() {
                           isSalesProcessing={isSalesProcessing}
                           onEmailCountChange={handleDraftsCountChange}
                         />
+                      ) : outlookConnected ? (
+                        <OutlookClient folder="drafts" />
                       ) : (
                         <div className="text-center py-8 text-gray-500">
                           <Database className="h-12 w-12 mx-auto mb-4 text-gray-400" />
@@ -910,18 +1276,60 @@ export default function EmailPage() {
                     </div>
                     <div className="p-4 flex-1 min-h-0">
                       <EnhancedEmailComposer
-                        mode="new"
+                        mode={composeMode}
+                        originalEmail={composeOriginalEmail}
                         onSend={async (emailData) => {
-                          // Handle email sending
-                          console.log('Sending email:', emailData);
+                          try {
+                            console.log('Sending email:', emailData);
+                            
+                            // Send email via API
+                            const response = await fetch('/api/email/send', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({
+                                to: emailData.to,
+                                cc: emailData.cc,
+                                bcc: emailData.bcc,
+                                subject: emailData.subject,
+                                body: emailData.body,
+                                attachments: emailData.attachments,
+                                priority: 'normal'
+                              })
+                            });
+
+                            if (response.ok) {
+                              const result = await response.json();
+                              console.log('Email sent successfully:', result);
+                              
+                              // Show success message
+                              alert('Email sent successfully!');
+                              
+                              // Reset compose state after sending
+                              setComposeMode('new');
+                              setComposeOriginalEmail(null);
+                              
+                              // Switch back to inbox
+                              setActiveTab('inbox');
+                            } else {
+                              const error = await response.json();
+                              console.error('Failed to send email:', error);
+                              alert(`Failed to send email: ${error.message || 'Unknown error'}`);
+                            }
+                          } catch (error) {
+                            console.error('Error sending email:', error);
+                            alert('Failed to send email. Please try again.');
+                          }
                         }}
                         onSave={async (emailData) => {
                           // Handle draft saving
                           console.log('Saving draft:', emailData);
                         }}
                         onClose={() => {
+                          // Reset compose state when closing
+                          setComposeMode('new');
+                          setComposeOriginalEmail(null);
                           // Handle close - could switch back to inbox
-                          setActiveTab('optimized');
+                          setActiveTab('inbox');
                         }}
                       />
                     </div>
@@ -952,9 +1360,9 @@ export default function EmailPage() {
 
               {/* Team Collaboration Content */}
               {!isTeamSidebarCollapsed && (
-                <div className="space-y-4">
+                <div className="h-full flex flex-col gap-4 pb-10">
                   {/* Team Presence */}
-                  <Card>
+                  <Card className="flex-shrink-0">
                     <CardHeader className="pb-3">
                       <div className="flex items-center gap-2">
                         <Users className="h-4 w-4 text-blue-600" />
@@ -967,15 +1375,15 @@ export default function EmailPage() {
                   </Card>
 
                   {/* Team Activity Feed */}
-                  <Card className="flex-1">
-                    <CardHeader className="pb-3">
+                  <Card className="flex-1 flex flex-col min-h-0">
+                    <CardHeader className="pb-3 flex-shrink-0">
                       <div className="flex items-center gap-2">
                         <AlertCircle className="h-4 w-4 text-green-600" />
                         <h3 className="font-semibold text-sm">Team Activity</h3>
                       </div>
                     </CardHeader>
-                    <CardContent className="pt-0">
-                      <TeamActivityFeedSimple maxHeight="450px" />
+                    <CardContent className="pt-0 flex-1 min-h-0 overflow-hidden">
+                      <TeamActivityFeedSimple maxHeight="100%" />
                     </CardContent>
                   </Card>
                 </div>

@@ -19,6 +19,7 @@ interface UseOptimizedEmailsOptions {
   folder?: string;
   autoLoad?: boolean;
   enableRealTimeSync?: boolean;
+  loadContentOnInit?: boolean; // Whether to preload email content on initial load
 }
 
 interface UseOptimizedEmailsReturn {
@@ -36,6 +37,7 @@ interface UseOptimizedEmailsReturn {
   
   // Email actions
   markAsRead: (messageId: string) => Promise<void>;
+  markAsUnread: (messageId: string) => Promise<void>;
   markAsReplied: (messageId: string) => Promise<void>;
   analyzeEmail: (messageId: string) => Promise<void>;
   
@@ -60,8 +62,11 @@ export function useOptimizedEmails(
     emailAccountId,
     folder = 'INBOX',
     autoLoad = true,
-    enableRealTimeSync = false
+    enableRealTimeSync = false,
+    loadContentOnInit = false
   } = options;
+
+  console.log(`🚀 [useOptimizedEmails] Hook initialized with accountId: ${emailAccountId}, folder: ${folder}, autoLoad: ${autoLoad}`);
 
   // State
   const [emails, setEmails] = useState<EmailWithContent[]>([]);
@@ -88,7 +93,9 @@ export function useOptimizedEmails(
   // =====================================================
 
   const loadEmails = useCallback(async (loadOptions: EmailLoadOptions = {}) => {
-    if (!emailAccountId) return;
+    if (!emailAccountId) {
+      return;
+    }
     
     setLoading(true);
     setError(null);
@@ -96,26 +103,44 @@ export function useOptimizedEmails(
     try {
       const options = {
         folder,
-        limit: 50,
+        limit: 100, // Increased from 50 to 100 to match database count
         offset: loadOptions.forceRefresh ? 0 : offsetRef.current,
         ...loadOptions
       };
 
-      console.log('📧 Loading emails with options:', options);
-
       const newEmails = await optimizedEmailService.loadEmails(emailAccountId, options);
+      console.log(`📧 [useOptimizedEmails] Loaded ${newEmails.length} emails for account ${emailAccountId}, folder ${folder}`);
       
       if (loadOptions.forceRefresh || offsetRef.current === 0) {
+        console.log(`📧 [useOptimizedEmails] Setting ${newEmails.length} emails in state`);
         setEmails(newEmails);
         offsetRef.current = newEmails.length;
+        
+        // Preload content if loadContentOnInit is enabled
+        if (loadContentOnInit && newEmails.length > 0) {
+          console.log(`📧 Preloading content for ${newEmails.length} emails`);
+          // Preload content for the first few emails
+          const preloadCount = Math.min(newEmails.length, 10); // Limit to 10 emails to avoid overwhelming
+          
+          // Use setTimeout to allow the UI to render first
+          setTimeout(() => {
+            for (let i = 0; i < preloadCount; i++) {
+              getEmailContent(newEmails[i].message_id);
+            }
+          }, 100);
+        }
       } else {
-        setEmails(prev => [...prev, ...newEmails]);
-        offsetRef.current += newEmails.length;
+        // Filter out any duplicate emails before adding new ones
+        const existingIds = new Set(emails.map(email => email.message_id));
+        const uniqueNewEmails = newEmails.filter(email => !existingIds.has(email.message_id));
+        
+        if (uniqueNewEmails.length > 0) {
+          setEmails(prev => [...prev, ...uniqueNewEmails]);
+          offsetRef.current += uniqueNewEmails.length;
+        }
       }
 
-      setHasMore(newEmails.length === (options.limit || 50));
-      
-      console.log(`✅ Loaded ${newEmails.length} emails (total: ${offsetRef.current})`);
+      setHasMore(newEmails.length === (options.limit || 100));
 
     } catch (err) {
       console.error('Failed to load emails:', {
@@ -127,7 +152,7 @@ export function useOptimizedEmails(
     } finally {
       setLoading(false);
     }
-  }, [emailAccountId, folder]);
+  }, [emailAccountId, folder, loadContentOnInit]); // Remove getEmailContent from dependencies to prevent infinite loop
 
   const loadMoreEmails = useCallback(async () => {
     if (loading || !hasMore) return;
@@ -167,6 +192,8 @@ export function useOptimizedEmails(
         ));
 
         console.log(`✅ Content loaded for ${messageId}`);
+      } else {
+        console.warn(`⚠️ No content found for email ${messageId}`);
       }
 
       return emailWithContent;
@@ -224,23 +251,77 @@ export function useOptimizedEmails(
   // =====================================================
 
   const markAsRead = useCallback(async (messageId: string) => {
-    try {
-      // Optimistically update UI
-      setEmails(prev => prev.map(email => 
-        email.message_id === messageId 
-          ? { ...email, is_read: true }
-          : email
-      ));
+    // Avoid duplicate network calls if already read
+    const current = emails.find(e => e.message_id === messageId);
+    if (current?.is_read) return;
 
-      // TODO: Implement mark as read API call
-      console.log(`📧 Marked as read: ${messageId}`);
+    // Optimistic update
+    setEmails(prev => prev.map(email => 
+      email.message_id === messageId 
+        ? { ...email, is_read: true }
+        : email
+    ));
+
+    try {
+      const res = await fetch(`/api/email/${encodeURIComponent(messageId)}/read-status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isRead: true })
+      });
+
+      if (!res.ok) {
+        throw new Error(`Failed to persist read status: ${res.status}`);
+      }
+
+      // Notify other views to refresh if they listen
+      try {
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new Event('emailReadStatusChanged'));
+        }
+      } catch {}
 
     } catch (err) {
       console.error('Failed to mark as read:', err);
-      // Revert optimistic update
+      // Revert optimistic update on failure
       setEmails(prev => prev.map(email => 
         email.message_id === messageId 
           ? { ...email, is_read: false }
+          : email
+      ));
+    }
+  }, [emails]);
+
+  const markAsUnread = useCallback(async (messageId: string) => {
+    // Optimistic update
+    setEmails(prev => prev.map(email => 
+      email.message_id === messageId 
+        ? { ...email, is_read: false }
+        : email
+    ));
+
+    try {
+      const res = await fetch(`/api/email/${encodeURIComponent(messageId)}/read-status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isRead: false })
+      });
+
+      if (!res.ok) {
+        throw new Error(`Failed to persist unread status: ${res.status}`);
+      }
+
+      try {
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new Event('emailReadStatusChanged'));
+        }
+      } catch {}
+
+    } catch (err) {
+      console.error('Failed to mark as unread:', err);
+      // Revert optimistic update on failure
+      setEmails(prev => prev.map(email => 
+        email.message_id === messageId 
+          ? { ...email, is_read: true }
           : email
       ));
     }
@@ -340,27 +421,22 @@ export function useOptimizedEmails(
       offsetRef.current = 0;
       loadEmails();
     }
-  }, [emailAccountId, autoLoad, loadEmails]);
+  }, [emailAccountId, autoLoad, folder]); // Don't include loadEmails to avoid loops
 
-  // Update stats periodically
+  // Update stats once
   useEffect(() => {
     updateStats();
-    
-    const interval = setInterval(updateStats, 30000); // Every 30 seconds
-    return () => clearInterval(interval);
-  }, [updateStats]);
+  }, []);
 
-  // Real-time sync (optional)
+  // Real-time sync (optional) - disabled to prevent duplicate emails
   useEffect(() => {
     if (!enableRealTimeSync || !emailAccountId) return;
-
-    const interval = setInterval(() => {
-      // Check for new emails without refreshing the entire list
-      loadEmails({ limit: 10, offset: 0 });
-    }, 60000); // Every minute
-
-    return () => clearInterval(interval);
-  }, [enableRealTimeSync, emailAccountId, loadEmails]);
+    
+    // Disabled automatic refresh to prevent duplicate emails
+    // Users can manually refresh using the refresh button
+    
+    return () => {};
+  }, [enableRealTimeSync, emailAccountId]);
 
   // =====================================================
   // RETURN HOOK INTERFACE
@@ -381,6 +457,7 @@ export function useOptimizedEmails(
     
     // Email actions
     markAsRead,
+    markAsUnread,
     markAsReplied,
     analyzeEmail,
     
@@ -415,8 +492,15 @@ export function useEmailContent(messageId: string) {
         forceRefresh
       );
       
-      setContent(emailContent);
+      if (emailContent === null && forceRefresh) {
+        // If force refresh returned null, it might be due to malformed message ID or server issues
+        // Don't treat this as an error, just keep the existing content
+        console.warn('Force refresh returned null for message:', messageId);
+      } else {
+        setContent(emailContent);
+      }
     } catch (err) {
+      console.error('Error loading email content:', err);
       setError(err instanceof Error ? err.message : 'Failed to load content');
     } finally {
       setLoading(false);

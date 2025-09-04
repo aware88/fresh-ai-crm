@@ -27,33 +27,23 @@ export async function GET(request: NextRequest) {
     
     console.log('🔍 Email Accounts API: Fetching count for user:', uid);
     
-    // Get all accounts for this user directly
-    const { data: allAccounts, error: fetchError } = await directClient
+    // Get ONLY accounts for this specific user - NO organization sharing
+    const { data: userAccounts, error: fetchError } = await directClient
       .from('email_accounts')
-      .select('*');
+      .select('*')
+      .eq('user_id', uid);
     
     if (fetchError) {
       console.error('❌ Error fetching accounts:', fetchError);
       return NextResponse.json({ count: 0, error: fetchError.message });
     }
     
-    // Filter accounts for this user
-    const userAccounts = allAccounts.filter(account => 
-      account.user_id === uid || 
-      (account.organization_id && account.organization_id === allAccounts.find(a => a.user_id === uid)?.organization_id)
-    );
-    
-    const emailAccountsCount = userAccounts.length;
+    const emailAccountsCount = userAccounts?.length || 0;
     console.log(`📊 Found ${emailAccountsCount} email accounts for user ${uid}`);
     
-    // Log all accounts for debugging
-    console.log('📧 All accounts:');
-    allAccounts.forEach(account => {
-      console.log(`   - ${account.email} (user: ${account.user_id})`);
-    });
-    
+    // Log user's accounts for debugging (ONLY their own accounts)
     console.log('📧 User accounts:');
-    userAccounts.forEach(account => {
+    userAccounts?.forEach(account => {
       console.log(`   - ${account.email} (user: ${account.user_id})`);
     });
     

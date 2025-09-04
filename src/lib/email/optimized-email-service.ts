@@ -96,6 +96,7 @@ export class OptimizedEmailService {
   private supabase = createClientComponentClient<Database>();
   private contentCache = new Map<string, EmailContent>();
   private loadingPromises = new Map<string, Promise<EmailContent | null>>();
+  private __debug = process.env.NODE_ENV !== 'production';
 
   // =====================================================
   // CORE EMAIL LOADING
@@ -118,51 +119,108 @@ export class OptimizedEmailService {
     } = options;
 
     try {
-      // 1. Load email metadata (fast - no content)
-      const { data: emails, error } = await this.supabase
-        .rpc('get_emails_with_content', {
-          p_email_account_id: emailAccountId,
-          p_folder: folder,
-          p_limit: limit,
-          p_offset: offset
-        });
-
-      if (error) {
-        console.error('Error loading emails:', {
-          message: error.message,
-          details: error.details,
-          hint: error.hint,
-          code: error.code,
-          error
-        });
-        throw new Error(`Failed to load emails: ${error.message || 'Unknown database error'}`);
-      }
-
-      if (!emails) return [];
-
-      // 2. If content requested, load it on-demand
-      if (includeContent) {
-        await this.preloadEmailContent(
-          emails.map(e => e.message_id),
+      console.log(`📧 [OptimizedEmailService] Loading emails for account ${emailAccountId}, folder ${folder}`);
+      
+      // Use API route instead of direct Supabase client to avoid RLS issues
+      const response = await fetch('/api/emails/optimized-list', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          emailAccountId,
+          folder,
+          limit,
+          offset,
+          includeContent,
           forceRefresh
-        );
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      return emails.map(email => ({
+      const data = await response.json();
+      
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to load emails');
+      }
+
+      const emails = data.emails || [];
+      console.log(`🔍 [OptimizedEmailService] API result: ${emails.length} emails found`);
+
+      if (emails.length === 0) {
+        console.log(`⚠️ [OptimizedEmailService] No emails found for account ${emailAccountId}, folder ${folder}`);
+        return [];
+      }
+      
+      // Debug: Check for unique emails and remove duplicates
+      if (emails.length > 0) {
+        const uniqueIds = new Set(emails.map((e: any) => e.message_id));
+        console.log(`📧 [OptimizedEmailService] ${emails.length} emails with ${uniqueIds.size} unique IDs`);
+        
+        // Remove duplicates if found
+        if (uniqueIds.size !== emails.length) {
+          console.warn(`⚠️ [OptimizedEmailService] Removing duplicate emails...`);
+          const seen = new Set();
+          emails = emails.filter((email: any) => {
+            if (seen.has(email.message_id)) {
+              console.log(`  Removing duplicate: ${email.subject}`);
+              return false;
+            }
+            seen.add(email.message_id);
+            return true;
+          });
+          console.log(`✅ [OptimizedEmailService] Filtered to ${emails.length} unique emails`);
+        }
+        
+        // Log first 3 emails to verify they're different
+        console.log('First 3 unique emails from API:');
+        emails.slice(0, 3).forEach((email: any, i: number) => {
+          console.log(`  ${i+1}. ${email.subject} (ID: ${email.message_id?.substring(0, 30)}...)`);
+        });
+      }
+
+      // 2. Process and enhance email data
+      const processedEmails = emails.map((email: any) => ({
         ...email,
+        // Add computed fields
+        preview_text: email.preview_text || this.generatePreview(email.html_content || email.plain_content || ''),
         opportunity_value: this.calculateOpportunityValue(email.upsell_data),
-        email_status: this.determineEmailStatus(email)
+        email_status: this.getEmailStatus(email)
       }));
 
+      console.log(`✅ [OptimizedEmailService] Processed ${processedEmails.length} emails successfully`);
+      return processedEmails;
+
     } catch (error) {
-      console.error('Failed to load emails:', {
-        message: error instanceof Error ? error.message : 'Unknown error',
-        stack: error instanceof Error ? error.stack : undefined,
-        error
-      });
-      throw error instanceof Error ? error : new Error('Failed to load emails');
+      console.error('Error in loadEmails:', error);
+      throw error;
     }
   }
+
+  // Helper methods
+  private generatePreview(content: string): string {
+    if (!content) return '';
+    // Strip HTML tags and get first 200 characters
+    const text = content.replace(/<[^>]*>/g, '').trim();
+    return text.length > 200 ? text.substring(0, 200) + '...' : text;
+  }
+
+  private calculateOpportunityValue(upsellData: any): number {
+    if (!upsellData || !upsellData.hasUpsellOpportunity) return 0;
+    return parseFloat(upsellData.totalPotentialValue) || 0;
+  }
+
+  private getEmailStatus(email: any): string {
+    if (email.replied) return 'replied';
+    if (!email.is_read) return 'unread';
+    if (email.agent_priority === 'urgent') return 'urgent';
+    if (email.assigned_agent) return 'assigned';
+    return 'normal';
+  }
+
 
   /**
    * Get single email with full content
@@ -180,8 +238,9 @@ export class OptimizedEmailService {
         .single();
 
       if (error || !emailData) {
-        console.error('Email not found:', messageId);
-        return null;
+        if (this.__debug) console.warn('Email not found in index');
+        // Try fallback: search in legacy tables
+        return await this.getFallbackEmailContent(messageId);
       }
 
       // 2. Get or load content
@@ -262,17 +321,16 @@ export class OptimizedEmailService {
           .from('email_content_cache')
           .select('*')
           .eq('message_id', messageId)
-          .gt('expires_at', new Date().toISOString())
           .single();
 
         if (cached && !error) {
-          console.log(`📧 Content cache hit for ${messageId}`);
+          if (this.__debug) console.log(`📧 Content cache hit for ${messageId}`);
           return cached;
         }
       }
 
       // 2. Load from email server (IMAP/API)
-      console.log(`📧 Loading content from email server for ${messageId}`);
+      if (this.__debug) console.log(`📧 Loading content from email server for ${messageId}`);
       const content = await this.fetchEmailContentFromServer(messageId);
 
       if (content) {
@@ -294,26 +352,60 @@ export class OptimizedEmailService {
    */
   private async fetchEmailContentFromServer(messageId: string): Promise<EmailContent | null> {
     try {
+      // Validate message ID format first
+      if (!messageId || typeof messageId !== 'string') {
+        console.error('Invalid message ID:', messageId);
+        return null;
+      }
+
+      // Check for obviously malformed message IDs (containing email addresses, too long, etc.)
+      if (messageId.includes('@') && messageId.includes('<') && messageId.includes('>')) {
+        if (this.__debug) console.warn('Skipping malformed message ID that looks like an email address');
+        return null;
+      }
+
       // Get email metadata to determine server details
+      // First get the basic email data
       const { data: emailMeta, error } = await this.supabase
         .from('email_index')
-        .select(`
-          *,
-          email_accounts!inner(
-            email_address,
-            imap_host,
-            imap_port,
-            imap_username,
-            imap_password_encrypted,
-            provider_type
-          )
-        `)
+        .select('*, email_account_id')
         .eq('message_id', messageId)
         .single();
 
       if (error || !emailMeta) {
-        throw new Error(`Email metadata not found for ${messageId}`);
+        console.error('Email metadata error:', error);
+        if (this.__debug) console.warn('Email metadata not found for message ID');
+        return null; // Return null instead of throwing to prevent UI errors
       }
+      
+      // Check if email_account_id exists
+      if (!emailMeta.email_account_id) {
+        if (this.__debug) console.warn('No email account ID found for message');
+        return null;
+      }
+      
+      // Then get the account details separately
+      const { data: accountData, error: accountError } = await this.supabase
+        .from('email_accounts')
+        .select(`
+          email_address,
+          imap_host,
+          imap_port,
+          imap_username,
+          imap_password_encrypted,
+          provider_type
+        `)
+        .eq('id', emailMeta.email_account_id)
+        .single();
+        
+      if (accountError || !accountData) {
+        console.error('Email account error:', accountError);
+        if (this.__debug) console.warn('Email account not found for message ID');
+        return null; // Return null instead of throwing to prevent UI errors
+      }
+      
+      // Combine the data
+      emailMeta.email_accounts = accountData;
 
       // Based on provider type, use appropriate fetching method
       const account = emailMeta.email_accounts;
@@ -338,7 +430,7 @@ export class OptimizedEmailService {
   private async fetchFromGmailAPI(messageId: string, account: any): Promise<EmailContent | null> {
     // Implementation for Gmail API
     // This would use the Gmail API to fetch the full message
-    console.log('🔄 Fetching from Gmail API...');
+    if (this.__debug) console.log('🔄 Fetching from Gmail API...');
     
     // TODO: Implement Gmail API integration
     // For now, return placeholder
@@ -358,7 +450,7 @@ export class OptimizedEmailService {
    */
   private async fetchFromOutlookAPI(messageId: string, account: any): Promise<EmailContent | null> {
     // Implementation for Outlook/Exchange API
-    console.log('🔄 Fetching from Outlook API...');
+    if (this.__debug) console.log('🔄 Fetching from Outlook API...');
     
     // TODO: Implement Outlook API integration
     return {
@@ -380,7 +472,7 @@ export class OptimizedEmailService {
     emailMeta: any,
     account: any
   ): Promise<EmailContent | null> {
-    console.log('🔄 Fetching from IMAP server...');
+    if (this.__debug) console.log('🔄 Fetching from IMAP server...');
     
     try {
       // Use existing IMAP client logic
@@ -436,7 +528,7 @@ export class OptimizedEmailService {
         p_attachments: content.attachments
       });
 
-      console.log(`✅ Cached content for ${content.message_id}`);
+      if (this.__debug) console.log(`✅ Cached content for ${content.message_id}`);
     } catch (error) {
       console.error('Failed to cache email content:', error);
     }
@@ -447,13 +539,31 @@ export class OptimizedEmailService {
    */
   private async updateContentAccess(messageId: string): Promise<void> {
     try {
-      await this.supabase
+      // Access counters belong to the content cache, not the index.
+      // Safely increment in two steps to avoid PostgREST expression issues.
+      const { data: cacheRow, error: readErr } = await this.supabase
         .from('email_content_cache')
-        .update({
-          last_accessed: new Date().toISOString(),
-          access_count: this.supabase.rpc('increment', { field: 'access_count' })
-        })
-        .eq('message_id', messageId);
+        .select('access_count')
+        .eq('message_id', messageId)
+        .single();
+
+      if (!readErr && cacheRow) {
+        await this.supabase
+          .from('email_content_cache')
+          .update({
+            last_accessed: new Date().toISOString(),
+            access_count: (cacheRow.access_count ?? 0) + 1
+          })
+          .eq('message_id', messageId);
+      } else {
+        // Fallback: at least bump the index updated_at to avoid 400s and keep activity visible
+        await this.supabase
+          .from('email_index')
+          .update({
+            updated_at: new Date().toISOString()
+          })
+          .eq('message_id', messageId);
+      }
     } catch (error) {
       console.error('Failed to update access stats:', error);
     }
@@ -472,7 +582,7 @@ export class OptimizedEmailService {
 
     try {
       await Promise.allSettled(loadPromises);
-      console.log(`📧 Preloaded content for ${messageIds.length} emails`);
+      if (this.__debug) console.log(`📧 Preloaded content for ${messageIds.length} emails`);
     } catch (error) {
       console.error('Failed to preload email content:', error);
     }
@@ -490,7 +600,7 @@ export class OptimizedEmailService {
       // Get email content
       const content = await this.getEmailContent(messageId);
       if (!content?.html_content && !content?.plain_content) {
-        console.warn('No content available for analysis:', messageId);
+        if (this.__debug) console.warn('No content available for analysis');
         return false;
       }
 
@@ -507,7 +617,7 @@ export class OptimizedEmailService {
 
       // Skip if already analyzed
       if (email.ai_analyzed) {
-        console.log('Email already analyzed:', messageId);
+        if (this.__debug) console.log('Email already analyzed');
         return true;
       }
 
@@ -528,12 +638,12 @@ export class OptimizedEmailService {
         'update_email_analysis_optimized',
         {
           p_message_id: messageId,
-          p_upsell_data: analysis.upsellData,
-          p_assigned_agent: analysis.assignedAgent,
-          p_highlight_color: analysis.highlightColor,
-          p_agent_priority: analysis.agentPriority,
-          p_sentiment_score: analysis.sentimentScore,
-          p_language_code: analysis.languageCode
+          p_upsell_data: analysis,
+          p_assigned_agent: null,
+          p_highlight_color: null,
+          p_agent_priority: null,
+          p_sentiment_score: null,
+          p_language_code: null
         }
       );
 
@@ -541,7 +651,7 @@ export class OptimizedEmailService {
         throw updateError;
       }
 
-      console.log(`🤖 AI analysis completed for ${messageId}`);
+      if (this.__debug) console.log(`🤖 AI analysis completed for ${messageId}`);
       return true;
 
     } catch (error) {
@@ -562,7 +672,7 @@ export class OptimizedEmailService {
 
       if (error) throw error;
 
-      console.log(`✅ Marked email as replied: ${messageId}`);
+      if (this.__debug) console.log(`✅ Marked email as replied: ${messageId}`);
       return data;
     } catch (error) {
       console.error('Failed to mark email as replied:', error);
@@ -603,12 +713,54 @@ export class OptimizedEmailService {
     return parseFloat(upsellData.totalPotentialValue) || 0;
   }
 
-  private determineEmailStatus(email: any): string {
+  private determineEmailStatus(email: any): 'replied' | 'unread' | 'urgent' | 'assigned' | 'normal' {
     if (email.replied) return 'replied';
     if (!email.is_read) return 'unread';
     if (email.agent_priority === 'urgent') return 'urgent';
     if (email.assigned_agent) return 'assigned';
     return 'normal';
+  }
+
+  /**
+   * Convert legacy email format to optimized format
+   */
+  private convertEmailsToOptimizedFormat(emails: any[], folder: string): EmailWithContent[] {
+    return emails.map(email => ({
+      id: email.id || `fallback-${Date.now()}-${Math.random()}`,
+      message_id: email.message_id || `msg-${email.id}`,
+      sender_email: email.sender_email || '',
+      sender_name: email.sender_name || '',
+      recipient_email: email.recipient_email || '',
+      subject: email.subject || '(No Subject)',
+      preview_text: email.preview_text || '',
+      html_content: '', // Content will be loaded on-demand
+      plain_content: '', // Content will be loaded on-demand
+      raw_content: '', // Content will be loaded on-demand
+      received_at: email.received_at || email.created_at || new Date().toISOString(),
+      is_read: email.is_read !== undefined ? email.is_read : false,
+      replied: email.replied || false,
+      has_attachments: email.has_attachments || false,
+      attachment_count: email.attachment_count || 0,
+      attachments: [], // Will be loaded with content
+      ai_analyzed: email.ai_analyzed || false,
+      upsell_data: email.upsell_data || null,
+      assigned_agent: email.assigned_agent || null,
+      highlight_color: email.highlight_color || null,
+      agent_priority: email.agent_priority || 'normal',
+      folder_name: folder,
+      email_type: 'received',
+      importance: email.importance || 'normal',
+      processing_status: email.processing_status || 'processed',
+      created_at: email.created_at || new Date().toISOString(),
+      updated_at: email.updated_at || email.created_at || new Date().toISOString(),
+      organization_id: email.organization_id || '',
+      user_id: email.user_id || '',
+      email_account_id: email.email_account_id || '',
+      content_cached: false,
+      content_last_accessed: undefined,
+      opportunity_value: this.calculateOpportunityValue(email.upsell_data),
+      email_status: this.determineEmailStatus(email)
+    }));
   }
 
   /**
@@ -632,7 +784,12 @@ export class OptimizedEmailService {
 
       return (data || []).map(email => ({
         ...email,
+        html_content: '', // Content will be loaded on-demand
+        plain_content: '', // Content will be loaded on-demand
+        raw_content: '', // Content will be loaded on-demand
+        attachments: [], // Will be loaded with content
         content_cached: false,
+        content_last_accessed: undefined,
         opportunity_value: this.calculateOpportunityValue(email.upsell_data),
         email_status: this.determineEmailStatus(email)
       }));
@@ -705,6 +862,71 @@ export class OptimizedEmailService {
       return Math.round(savedBytes / (1024 * 1024)); // Convert to MB
     } catch (error) {
       return 0;
+    }
+  }
+
+  /**
+   * Fallback method to get email from legacy storage
+   */
+  private async getFallbackEmailContent(messageId: string): Promise<EmailWithContent | null> {
+    try {
+      if (this.__debug) console.log('🔄 Trying fallback email lookup');
+      
+      // Try to find in email_index table
+      const { data: legacyEmail, error } = await this.supabase
+        .from('email_index')
+        .select('*')
+        .eq('message_id', messageId)
+        .single();
+
+      if (!error && legacyEmail) {
+        if (this.__debug) console.log('✅ Found email in legacy storage');
+        
+        // Convert email_index format to optimized format
+        return {
+          id: legacyEmail.id,
+          message_id: messageId,
+          sender_email: legacyEmail.sender_email || '',
+          sender_name: legacyEmail.sender_name || '',
+          recipient_email: legacyEmail.recipient_email || '',
+          subject: legacyEmail.subject || '(No Subject)',
+          preview_text: legacyEmail.preview_text || '',
+          html_content: '', // Will be loaded from email_content_cache
+          plain_content: '', // Will be loaded from email_content_cache
+          raw_content: '', // Will be loaded from email_content_cache
+          received_at: legacyEmail.received_at || legacyEmail.created_at,
+          is_read: legacyEmail.is_read || false,
+          replied: legacyEmail.replied || false,
+          has_attachments: legacyEmail.has_attachments || false,
+          attachment_count: legacyEmail.attachment_count || 0,
+          attachments: [], // Will be loaded with content
+          ai_analyzed: legacyEmail.ai_analyzed || false,
+          upsell_data: legacyEmail.upsell_data || null,
+          assigned_agent: legacyEmail.assigned_agent || null,
+          highlight_color: legacyEmail.highlight_color || null,
+          agent_priority: legacyEmail.agent_priority || 'normal',
+          folder_name: 'INBOX',
+          email_type: 'received',
+          importance: legacyEmail.importance || 'normal',
+          processing_status: legacyEmail.processing_status || 'processed',
+          created_at: legacyEmail.created_at,
+          updated_at: legacyEmail.updated_at,
+          content_cached: false,
+          content_last_accessed: undefined,
+          opportunity_value: this.calculateOpportunityValue(legacyEmail.upsell_data),
+          email_status: this.determineEmailStatus(legacyEmail),
+          organization_id: legacyEmail.organization_id || '',
+          user_id: legacyEmail.user_id || '',
+          email_account_id: legacyEmail.email_account_id || ''
+        };
+      }
+
+      if (this.__debug) console.warn('⚠️ Email not found in any storage');
+      return null;
+
+    } catch (error) {
+      console.error('Fallback email lookup failed:', error);
+      return null;
     }
   }
 }
