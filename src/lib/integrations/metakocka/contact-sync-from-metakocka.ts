@@ -53,7 +53,7 @@ export class ContactSyncFromMetakockaService {
         }
         
         // Check if contact already exists in CRM by looking up the mapping
-        const supabase = createServerClient();
+        const supabase = await createServerClient();
         
         const { data: mapping, error: mappingError } = await supabase
           .from('metakocka_contact_mappings')
@@ -153,7 +153,7 @@ export class ContactSyncFromMetakockaService {
       }
       
       // Get all existing mappings
-      const supabase = createServerClient();
+      const supabase = await createServerClient();
       
       const { data: mappings, error: mappingsError } = await supabase
         .from('metakocka_contact_mappings')
@@ -217,7 +217,7 @@ export class ContactSyncFromMetakockaService {
           const contactId = await this.syncContactFromMetakocka(userId, metakockaId, retryConfig);
           
           // Check if this is a new contact or an update
-          const supabase = createServerClient();
+          const supabase = await createServerClient();
           const { data, error } = await supabase
             .from('metakocka_contact_mappings')
             .select('created_at, updated_at')

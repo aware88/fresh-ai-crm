@@ -3,10 +3,9 @@ import { createLazyServerClient } from '@/lib/supabase/lazy-client';
 import { FollowUpMLService } from '@/lib/email/followup-ml-service';
 import { FollowUpService } from '@/lib/email/follow-up-service';
 
-const supabase = createLazyServerClient();
-
 export async function POST(request: NextRequest) {
   try {
+    const supabase = await createLazyServerClient();
     const { data: { session } } = await supabase.auth.getSession();
     
     if (!session) {

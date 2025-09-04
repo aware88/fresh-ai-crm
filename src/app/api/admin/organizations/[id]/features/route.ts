@@ -3,7 +3,7 @@ import { createServerClient } from '@/lib/supabase/server';
 import { requirePermission } from '@/lib/auth/middleware';
 
 // GET /api/admin/organizations/[id]/features - Get organization feature flags
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     // Check if user has permission to view organization features
     const auth = await requirePermission('admin.organizations.view');
@@ -16,7 +16,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     // Use async pattern for params in Next.js 15+
     const { id } = await params;
     const organizationId = id;
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
 
     // Get organization feature flags
     const { data: organization, error } = await supabase
@@ -45,7 +45,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 }
 
 // PUT /api/admin/organizations/[id]/features - Update organization feature flags
-export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     // Check if user has permission to update organization features
     const auth = await requirePermission('admin.organizations.edit');
@@ -87,7 +87,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       validatedFeatureFlags[feature] = Boolean(feature_flags[feature]);
     }
 
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
 
     // Update the organization feature flags
     const { data: organization, error } = await supabase

@@ -6,7 +6,7 @@
 
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { createServerClient } from '@/lib/supabase/server';
 import { AgentMemoryConfig } from '@/components/ai/agent/AgentMemoryConfig';
 import { PageHeader } from '@/components/page-header';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -20,13 +20,16 @@ export const metadata: Metadata = {
 };
 
 interface PageProps {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
 
 export default async function AgentMemoryPage({ params }: PageProps) {
-  const supabase = createServerSupabaseClient();
+  // Await params to fix Next.js 15 requirement
+  const { id } = await params;
+  
+  const supabase = await createServerClient();
   
   // Get the current user and organization
   const {
@@ -48,7 +51,7 @@ export default async function AgentMemoryPage({ params }: PageProps) {
   const { data: agent } = await supabase
     .from('agents')
     .select('*')
-    .eq('id', params.id)
+    .eq('id', id)
     .eq('organization_id', organizationId)
     .single();
   
@@ -59,7 +62,7 @@ export default async function AgentMemoryPage({ params }: PageProps) {
   // Get memory statistics
   const { data: memoryStats } = await supabase
     .rpc('get_agent_memory_stats', {
-      p_agent_id: params.id,
+      p_agent_id: id,
       p_organization_id: organizationId,
     });
   
@@ -67,7 +70,7 @@ export default async function AgentMemoryPage({ params }: PageProps) {
     <div className="container mx-auto py-6 space-y-6">
       <PageHeader
         heading={`${agent.name} Memory Settings`}
-        description="Configure how this sales agent uses AI memory for customer interactions"
+        subheading="Configure how this sales agent uses AI memory for customer interactions"
       />
       
       <Tabs defaultValue="configuration" className="w-full">
@@ -79,7 +82,7 @@ export default async function AgentMemoryPage({ params }: PageProps) {
         <TabsContent value="configuration" className="mt-6">
           <div className="grid gap-6">
             <AgentMemoryConfig 
-              agentId={params.id} 
+              agentId={id} 
               organizationId={organizationId} 
             />
             
@@ -154,7 +157,7 @@ export default async function AgentMemoryPage({ params }: PageProps) {
         
         <TabsContent value="analytics" className="mt-6">
           <MemoryAnalytics 
-            agentId={params.id}
+            agentId={id}
             organizationId={organizationId}
             initialStats={memoryStats || {
               total_memories: 0,

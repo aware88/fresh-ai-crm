@@ -198,9 +198,9 @@ async function getModelPerformance() {
     return Array.from(modelStats.entries()).map(([model, stats]) => ({
       model,
       usage: stats.usage,
-      averageRating: stats.ratings.reduce((a, b) => a + b, 0) / stats.ratings.length,
+      averageRating: stats.ratings.reduce((a: number, b: number) => a + b, 0) / stats.ratings.length,
       responseTime: stats.responseTimes.length > 0 
-        ? stats.responseTimes.reduce((a, b) => a + b, 0) / stats.responseTimes.length 
+        ? stats.responseTimes.reduce((a: number, b: number) => a + b, 0) / stats.responseTimes.length 
         : 1.5
     }));
 

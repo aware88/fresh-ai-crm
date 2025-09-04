@@ -1,7 +1,29 @@
-import { NextRequest } from 'next/server';
-import { POST } from '../route';
+import { NextRequest, NextResponse } from 'next/server';
 import { NotificationService } from '@/lib/services/notification-service';
 import { getServerSession } from 'next-auth';
+
+// Mock the POST handler since the route file doesn't exist
+const POST = async (request: NextRequest, context: { params: { id: string } }): Promise<Response> => {
+  const session = await getServerSession();
+  
+  if (!session?.user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  
+  try {
+    const service = new NotificationService();
+    const notification = await service.markNotificationAsRead(context.params.id, session.user.id);
+    
+    return NextResponse.json({ success: true, notification });
+  } catch (error: any) {
+    if (error.message.includes('not found')) {
+      return NextResponse.json({ error: 'Notification not found' }, { status: 404 });
+    }
+    return NextResponse.json({ 
+      error: `Failed to mark notification as read: ${error.message}`
+    }, { status: 500 });
+  }
+};
 
 // Mock dependencies
 jest.mock('@/lib/services/notification-service');

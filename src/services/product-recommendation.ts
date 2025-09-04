@@ -33,7 +33,7 @@ export class ProductRecommendationService {
    */
   async recommendProducts(options: ProductRecommendationOptions): Promise<RecommendationResult> {
     const startTime = Date.now();
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
     
     // Default options
     const {
@@ -205,7 +205,7 @@ export class ProductRecommendationService {
    * @returns A promise that resolves to the recommendation result
    */
   async getFrequentlyBoughtTogether(productId: string, limit = 3): Promise<RecommendationResult> {
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
     
     // This is a simplified implementation
     // In a real system, we would analyze order history to find products frequently bought together

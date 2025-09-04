@@ -19,6 +19,7 @@ import { emailAIStreaming } from './email-ai-streaming';
 import { autoReplyService } from './auto-reply-service';
 import { emailFilterService } from './email-filter-service';
 import { FollowUpService } from '@/lib/email/follow-up-service';
+import { EmailLearningService } from './email-learning-service';
 
 export interface BackgroundProcessingResult {
   success: boolean;
@@ -54,14 +55,15 @@ export interface EmailProcessingContext {
 export class BackgroundAIProcessor {
   private supabase: SupabaseClient<Database>;
   private openai: OpenAI;
-  private modelRouter: ModelRouterService;
+  private modelRouter: ModelRouterService | null;
   private processingQueue: Map<string, Promise<BackgroundProcessingResult>> = new Map();
   private memoryCache: Map<string, { data: any; expires: number }> = new Map(); // Fallback cache
 
   constructor(supabase: SupabaseClient<Database>, openai: OpenAI) {
     this.supabase = supabase;
     this.openai = openai;
-    this.modelRouter = new ModelRouterService(supabase, openai);
+    // ModelRouterService will be initialized per request with proper org/user context
+    this.modelRouter = null as any; // Will be initialized in methods that need it
   }
 
   /**
@@ -95,7 +97,7 @@ export class BackgroundAIProcessor {
   /**
    * Core background processing logic
    */
-  private async performBackgroundProcessing(context: EmailProcessingContext): Promise<BackgroundProcessingResult> {
+  private async performBackgroundProcessing(context: EmailProcessingContext & { emailContent?: any }): Promise<BackgroundProcessingResult> {
     const startTime = Date.now();
     const { emailId, userId, organizationId, priority, skipDraft = false, forceReprocess = false } = context;
 
@@ -160,13 +162,26 @@ export class BackgroundAIProcessor {
       // Execute tasks in parallel
       const results = await Promise.allSettled(parallelTasks);
       
-      const analysisResult = results[0].status === 'fulfilled' ? results[0].value : null;
-      const draftResult = !skipDraft && results[1] && results[1].status === 'fulfilled' ? results[1].value : null;
+      const analysisResult = results[0].status === 'fulfilled' ? results[0].value as {
+        sentiment: string;
+        classification: any;
+        salesIntelligence?: any;
+        processingTime: number;
+      } : null;
+      const draftResult = !skipDraft && results[1] && results[1].status === 'fulfilled' ? results[1].value as {
+        subject: string;
+        body: string;
+        confidence: number;
+        processingTime: number;
+      } : null;
 
       // 6. Cache results for instant UI access
       await this.cacheResults(emailId, analysisResult, draftResult);
 
-      // 7. Create follow-up tracking for outbound emails automatically
+      // 7. CONTINUOUS LEARNING - Learn from this email (NEW!)
+      await this.performContinuousLearning(emailData, userId, organizationId);
+
+      // 8. Create follow-up tracking for outbound emails automatically
       await this.createFollowUpTracking(emailData, userId, organizationId);
 
       const totalTime = Date.now() - startTime;
@@ -204,7 +219,13 @@ export class BackgroundAIProcessor {
   /**
    * Run AI analysis task
    */
-  private async runAnalysisTask(emailData: any, userId: string, organizationId?: string, complexity: TaskComplexity = TaskComplexity.STANDARD) {
+  private async runAnalysisTask(emailData: any, userId: string, organizationId?: string, complexity: TaskComplexity = TaskComplexity.STANDARD): Promise<{
+    sentiment: string;
+    classification: any;
+    salesIntelligence?: any;
+    processingTime: number;
+    error?: string;
+  }> {
     const startTime = Date.now();
     
     try {
@@ -220,7 +241,7 @@ export class BackgroundAIProcessor {
       
       const analysisContext = {
         emailId: emailData.id,
-        email: {
+        emailContent: {
           from: emailFrom,
           to: emailTo,
           subject: emailSubject,
@@ -241,9 +262,9 @@ export class BackgroundAIProcessor {
       console.log(`[BackgroundAI] Analysis completed in ${Date.now() - startTime}ms`);
       
       return {
-        sentiment: result.analysis?.sentiment || 'neutral',
+        sentiment: result.analysis?.classification?.sentiment || 'neutral',
         classification: result.analysis?.classification || { category: 'general', intent: 'inquiry' },
-        salesIntelligence: result.analysis?.salesIntelligence || {
+        salesIntelligence: {
           opportunity: { score: 5, potential: 'medium' },
           insights: { key_indicators: ['Email processed'] }
         },
@@ -259,8 +280,7 @@ export class BackgroundAIProcessor {
           opportunity: { score: 5, potential: 'medium' },
           insights: { key_indicators: ['Email processed'] }
         },
-        processingTime: Date.now() - startTime,
-        error: error instanceof Error ? error.message : 'Analysis failed'
+        processingTime: Date.now() - startTime
       };
     }
   }
@@ -268,7 +288,13 @@ export class BackgroundAIProcessor {
   /**
    * Run AI drafting task
    */
-  private async runDraftingTask(emailData: any, userId: string, organizationId?: string, complexity: TaskComplexity = TaskComplexity.STANDARD) {
+  private async runDraftingTask(emailData: any, userId: string, organizationId?: string, complexity: TaskComplexity = TaskComplexity.STANDARD): Promise<{
+    subject: string;
+    body: string;
+    confidence: number;
+    processingTime: number;
+    error?: string;
+  }> {
     const startTime = Date.now();
     
     try {
@@ -521,7 +547,7 @@ export class BackgroundAIProcessor {
       
       batchResults.forEach((result, index) => {
         if (result.status === 'fulfilled') {
-          results.push(result.value);
+          results.push((result as PromiseFulfilledResult<any>).value);
         } else {
           results.push({
             success: false,
@@ -578,8 +604,7 @@ export class BackgroundAIProcessor {
         subject: emailData.subject,
         recipients: emailData.to_address ? [emailData.to_address] : [],
         sentAt: new Date(emailData.created_at || Date.now()),
-        autoFollowup: true, // Enable automatic follow-up
-        followUpType: 'ai_generated'
+        autoFollowup: true // Enable automatic follow-up
       });
 
       console.log(`[BackgroundAI] Created follow-up tracking for outbound email ${emailData.id}`);
@@ -601,19 +626,67 @@ export class BackgroundAIProcessor {
     try {
       const followUpService = new FollowUpService();
       
-      // Try to match this response to an existing follow-up
-      await followUpService.recordResponse({
-        originalSubject: emailData.subject?.replace(/^re:\s*/i, ''),
-        respondentEmail: emailData.from_address,
-        responseEmailId: emailData.id,
-        userId: userId,
-        organizationId: organizationId
+      // Process this incoming email for follow-up response detection
+      await followUpService.processIncomingEmail({
+        id: emailData.id,
+        subject: emailData.subject?.replace(/^re:\s*/i, '') || '',
+        fromAddress: emailData.from_address || '',
+        receivedDate: new Date(emailData.created_at || Date.now()),
+        userId: userId
       });
 
       console.log(`[BackgroundAI] Processed inbound response for email ${emailData.id}`);
       
     } catch (error) {
       console.error(`[BackgroundAI] Error handling inbound response:`, error);
+      // Don't throw - this is a background task
+    }
+  }
+
+  /**
+   * CONTINUOUS LEARNING - Learn patterns from new email
+   */
+  private async performContinuousLearning(
+    emailData: any,
+    userId: string,
+    organizationId?: string
+  ): Promise<void> {
+    try {
+      // Only learn from emails with substantial content
+      const content = emailData.raw_content || emailData.text_content || emailData.body || '';
+      if (content.length < 50) {
+        return; // Skip very short emails
+      }
+
+      console.log(`[BackgroundAI] Starting continuous learning for email ${emailData.id}`);
+      
+      // Initialize email learning service
+      const learningService = new EmailLearningService();
+      
+      // Determine if this is a user response (sent email)
+      const { data: userEmail } = await this.supabase
+        .from('email_accounts')
+        .select('email_address')
+        .eq('user_id', userId)
+        .single();
+
+      const isUserResponse = userEmail?.email_address && 
+        emailData.from_address?.toLowerCase() === userEmail.email_address.toLowerCase();
+      
+      // Learn from this email
+      const learningResult = await learningService.learnFromNewEmail(
+        emailData.id,
+        userId,
+        organizationId,
+        isUserResponse
+      );
+      
+      if (learningResult.success && learningResult.patternsLearned > 0) {
+        console.log(`[BackgroundAI] Learned ${learningResult.patternsLearned} patterns from email ${emailData.id}`);
+      }
+      
+    } catch (error) {
+      console.error(`[BackgroundAI] Error in continuous learning:`, error);
       // Don't throw - this is a background task
     }
   }

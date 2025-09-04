@@ -30,35 +30,17 @@ export default function EmailLearningNotificationBanner() {
   const [completedJobs, setCompletedJobs] = useState<CompletedJob[]>([]);
   const [dismissedJobs, setDismissedJobs] = useState<Set<string>>(new Set());
 
-  // Poll for completed jobs
+  // Only check for jobs when explicitly requested
   useEffect(() => {
     if (!session?.user?.id) return;
 
-    const checkForCompletedJobs = async () => {
-      try {
-        const response = await fetch('/api/email/learning/jobs');
-        if (response.ok) {
-          const data = await response.json();
-          const recentlyCompleted = data.jobs?.filter((job: any) => 
-            (job.status === 'completed' || job.status === 'failed') &&
-            !dismissedJobs.has(job.jobId) &&
-            new Date(job.endTime).getTime() > Date.now() - (5 * 60 * 1000) // Last 5 minutes
-          ) || [];
-          
-          setCompletedJobs(recentlyCompleted);
-        }
-      } catch (error) {
-        console.error('Error checking for completed jobs:', error);
-      }
-    };
-
-    // Check immediately
-    checkForCompletedJobs();
-
-    // Check every 30 seconds
-    const interval = setInterval(checkForCompletedJobs, 30000);
-
-    return () => clearInterval(interval);
+    // Completely disable automatic polling
+    // Only check for jobs when the user is actively using email learning features
+    
+    // This component will still display notifications when they appear,
+    // but won't automatically poll for them
+    
+    return () => {};
   }, [session, dismissedJobs]);
 
   const dismissJob = (jobId: string) => {

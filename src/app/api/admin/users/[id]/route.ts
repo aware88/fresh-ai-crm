@@ -5,7 +5,7 @@ import { logActivityServer } from '@/utils/activity-logger';
 
 // GET a specific user by ID
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   
   // Check if user is admin
   const isUserAdmin = await isAdmin();
@@ -63,7 +63,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 
 // PATCH to update a user
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   
   // Check if user is admin
   const { data: adminUser, error: adminError } = await supabase.auth.getUser();
@@ -170,7 +170,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
 // DELETE to deactivate a user (we don't actually delete users, just mark them as inactive)
 export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   
   // Check if user is admin
   const { data: adminUser, error: adminError } = await supabase.auth.getUser();

@@ -12,6 +12,7 @@ import { createLazyServerClient } from '@/lib/supabase/lazy-client';
 import { AutomotiveProductMatcher, CarSpecification } from './automotive-product-matcher';
 import { WithcarIntegrationService } from '@/lib/integrations/metakocka/withcar-integration';
 import { aiPreferencesService, EmailContext } from './ai-preferences-service';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 export interface EmailProcessingContext {
   emailId: string;
@@ -84,6 +85,11 @@ export class AIHubService {
     this.supabase = createLazyServerClient();
     this.automotiveMatcher = new AutomotiveProductMatcher();
     this.withcarIntegration = new WithcarIntegrationService();
+  }
+
+  // Helper method to get the awaited Supabase client
+  private async getSupabase(): Promise<SupabaseClient> {
+    return await this.supabase;
   }
 
   /**

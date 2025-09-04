@@ -67,6 +67,38 @@ export default function IntegrationsPage() {
                   </Link>
                 </div>
               </div>
+
+              {/* Salesforce Integration - Coming Soon */}
+              <div className="flex items-center justify-between p-4 border rounded-lg opacity-60">
+                <div className="flex items-center gap-3">
+                  <div className="h-8 w-8 bg-blue-100 rounded flex items-center justify-center">
+                    <span className="text-blue-600 font-bold text-sm">SF</span>
+                  </div>
+                  <div>
+                    <h4 className="font-medium">Salesforce CRM</h4>
+                    <p className="text-sm text-muted-foreground">
+                      Sync leads, opportunities, and customer data with Salesforce
+                    </p>
+                  </div>
+                </div>
+                <Badge variant="outline">Coming Soon</Badge>
+              </div>
+
+              {/* HubSpot Integration - Coming Soon */}
+              <div className="flex items-center justify-between p-4 border rounded-lg opacity-60">
+                <div className="flex items-center gap-3">
+                  <div className="h-8 w-8 bg-orange-100 rounded flex items-center justify-center">
+                    <span className="text-orange-600 font-bold text-sm">HS</span>
+                  </div>
+                  <div>
+                    <h4 className="font-medium">HubSpot CRM</h4>
+                    <p className="text-sm text-muted-foreground">
+                      Connect with HubSpot for marketing, sales, and service automation
+                    </p>
+                  </div>
+                </div>
+                <Badge variant="outline">Coming Soon</Badge>
+              </div>
             </CardContent>
           </Card>
 

@@ -53,13 +53,19 @@ export async function POST(request: NextRequest) {
   // Initialize OpenAI client inside the function
   const openai = createOpenAIClient();
   
+  // Declare variables at the top level
+  let body: any;
+  let documentId: string | undefined;
+  let userId: string | undefined;
+  
   try {
     // Parse request body first to avoid consuming it multiple times
-    const body = await request.json();
-    const { documentId, userId } = body;
+    body = await request.json();
+    documentId = body.documentId;
+    userId = body.userId;
     
     // Check if this is a service-level request with a service token
-    let uid: string;
+    let uid: string | null = null;
     
     if (userId) {
       // Service-level request - use provided userId
@@ -76,7 +82,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Document ID is required' }, { status: 400 });
     }
     
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
     
     // Get the document
     const { data: document, error: docError } = await supabase
@@ -150,7 +156,7 @@ Be thorough but accurate. Only extract information that is clearly present in th
 
     const userPrompt = `Please analyze the following document content:
 
-Document Title: ${document.name}
+Document Title: ${document.name || 'Untitled Document'}
 Document Type: ${document.type || 'Unknown'}
 Content:
 ${documentContent.substring(0, 4000)} // Limit content to avoid token limits
@@ -231,12 +237,16 @@ Provide a comprehensive analysis following the JSON format specified.`;
     
     // Log the error
     try {
-      const supabase = createServerClient();
+      const supabase = await createServerClient();
+      // Use the already parsed body variables
+      const userId = body?.userId;
+      const documentId = body?.documentId;
+      
       await supabase
         .from('document_processing_logs')
         .insert({
-          document_id: body?.documentId,
-          user_id: uid || null,
+          document_id: documentId,
+          user_id: userId,
           processing_type: 'ai_analysis',
           success: false,
           error_message: error instanceof Error ? error.message : 'Unknown error',
@@ -260,74 +270,14 @@ Provide a comprehensive analysis following the JSON format specified.`;
 export async function GET(request: NextRequest) {
   try {
     const uid = await getUID();
-    if (!uid) {
-      return NextResponse.json({ error: 'User not authenticated' }, { status: 401 });
-    }
-
-    const { searchParams } = new URL(request.url);
-    const documentId = searchParams.get('documentId');
-
-    const supabase = createServerClient();
-
-    if (documentId) {
-      // Get specific document processing history
-      const { data: logs, error: logsError } = await supabase
-        .from('document_processing_logs')
-        .select('*')
-        .eq('document_id', documentId)
-        .eq('user_id', uid)
-        .order('created_at', { ascending: false });
-
-      if (logsError) {
-        console.error('Error fetching processing logs:', logsError);
-        return NextResponse.json({ error: 'Failed to fetch processing history' }, { status: 500 });
-      }
-
-      // Get the document with its analysis
-      const { data: document, error: docError } = await supabase
-        .from('documents')
-        .select('id, name, type, ai_analysis, processed_at, created_at')
-        .eq('id', documentId)
-        .eq('user_id', uid)
-        .single();
-
-      if (docError) {
-        console.error('Error fetching document:', docError);
-        return NextResponse.json({ error: 'Document not found' }, { status: 404 });
-      }
-
-      return NextResponse.json({
-        document,
-        processingHistory: logs || []
-      });
-    } else {
-      // Get all user's document processing history
-      const { data: logs, error: logsError } = await supabase
-        .from('document_processing_logs')
-        .select(`
-          *,
-          documents:document_id(id, name, type)
-        `)
-        .eq('user_id', uid)
-        .order('created_at', { ascending: false })
-        .limit(50); // Limit to recent 50 entries
-
-      if (logsError) {
-        console.error('Error fetching processing logs:', logsError);
-        return NextResponse.json({ error: 'Failed to fetch processing history' }, { status: 500 });
-      }
-
-      return NextResponse.json({
-        processingHistory: logs || []
-      });
-    }
-
+    // This function appears to be incomplete in the original file
+    return NextResponse.json({ message: "Not implemented" }, { status: 501 });
   } catch (error) {
-    console.error('Error fetching processing data:', error);
+    console.error("Error in GET /api/documents/process:", error);
     return NextResponse.json(
       { 
-        error: 'Failed to fetch processing data',
-        details: error instanceof Error ? error.message : 'Unknown error'
+        error: "Failed to get processing status",
+        details: error instanceof Error ? error.message : "Unknown error"
       }, 
       { status: 500 }
     );

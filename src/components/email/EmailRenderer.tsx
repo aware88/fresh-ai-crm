@@ -19,6 +19,27 @@ interface EmailRendererProps {
 export function EmailRenderer({ content, className = '', style = {} }: EmailRendererProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [isLoaded, setIsLoaded] = useState(false);
+  
+  // Handle messages from the iframe for CID image replacement
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'EMAIL_CID_IMAGES' && event.data?.cids?.length > 0) {
+        // Find parent component with attachments
+        const emailDetailElement = document.querySelector('.email-detail-with-attachments');
+        if (emailDetailElement) {
+          // Trigger custom event to notify parent component
+          const customEvent = new CustomEvent('email-cid-images', {
+            detail: { cids: event.data.cids },
+            bubbles: true
+          });
+          emailDetailElement.dispatchEvent(customEvent);
+        }
+      }
+    };
+    
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, []);
 
   useEffect(() => {
     if (!iframeRef.current) return;
@@ -36,7 +57,7 @@ export function EmailRenderer({ content, className = '', style = {} }: EmailRend
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data: https: http:; font-src 'self' data:;">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data: https: http:; font-src 'self' data:; script-src 'unsafe-inline';">
   <style>
     /* Reset and base styles */
     * {
@@ -46,19 +67,20 @@ export function EmailRenderer({ content, className = '', style = {} }: EmailRend
     
     html, body {
       margin: 0;
-      padding: 0;
-      font-family: 'Google Sans', Roboto, RobotoDraft, Helvetica, Arial, sans-serif;
+      padding: 16px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
       font-size: 14px;
       line-height: 1.6;
-      color: #202124;
-      background: transparent;
+      color: #1f2937;
+      background: #ffffff;
       word-wrap: break-word;
       overflow-wrap: break-word;
     }
     
     body {
-      padding: 0;
+      padding: 16px;
       margin: 0;
+      border-radius: 8px;
     }
     
     /* Gmail-like seamless email styling */
@@ -97,22 +119,18 @@ export function EmailRenderer({ content, className = '', style = {} }: EmailRend
     }
     
     p {
-      margin: 0;
+      margin: 0 0 12px 0;
       padding: 0;
       line-height: 1.6;
       word-wrap: break-word;
       font-size: 14px;
-      background: transparent;
+      color: #374151;
     }
     
     div {
-      margin: 0;
-      padding: 0;
       word-wrap: break-word;
       font-size: 14px;
-      background: transparent;
-      border: none;
-      box-shadow: none;
+      line-height: 1.6;
     }
     
     h1, h2, h3, h4, h5, h6 {
@@ -123,12 +141,14 @@ export function EmailRenderer({ content, className = '', style = {} }: EmailRend
     }
     
     a {
-      color: #1a73e8;
-      text-decoration: none;
-      word-break: break-all;
+      color: #2563eb;
+      text-decoration: underline;
+      word-break: break-word;
+      transition: color 0.2s ease;
     }
     
     a:hover {
+      color: #1d4ed8;
       text-decoration: underline;
     }
     
@@ -195,7 +215,22 @@ export function EmailRenderer({ content, className = '', style = {} }: EmailRend
   </style>
 </head>
 <body>
-  ${parsedContent.displayContent}
+  <div id="email-content-container">${parsedContent.displayContent}</div>
+  
+  <script>
+    // Find and process any inline attachments with CID references
+    document.addEventListener('DOMContentLoaded', function() {
+      // This script helps display inline attachments properly
+      const images = document.querySelectorAll('img[data-attachment-cid]');
+      if (images.length > 0) {
+        // Signal to parent that we have CID images that need replacement
+        window.parent.postMessage({
+          type: 'EMAIL_CID_IMAGES',
+          cids: Array.from(images).map(img => img.getAttribute('data-attachment-cid'))
+        }, '*');
+      }
+    });
+  </script>
 </body>
 </html>`;
 

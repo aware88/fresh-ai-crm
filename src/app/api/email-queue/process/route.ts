@@ -12,7 +12,7 @@ import { processEmailQueue } from '@/lib/email/emailQueueWorker';
 // POST /api/email-queue/process - Process emails in the queue
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
     
     // Get the current user
     const { data: { user } } = await supabase.auth.getUser();

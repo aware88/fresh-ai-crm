@@ -9,6 +9,7 @@ import { OrganizationSettingsService, AutomotiveMatchingConfig, SeasonalRecommen
 import { getMetakockaDataForAIContext } from '@/lib/integrations/metakocka/metakocka-ai-integration';
 import { createLazyServerClient } from '@/lib/supabase/lazy-client';
 import OpenAI from 'openai';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 // Withcar-specific product categories
 const WITHCAR_PRODUCT_CATEGORIES = {
@@ -152,6 +153,11 @@ export class AutomotiveProductMatcher {
     });
     this.settingsService = new OrganizationSettingsService();
     this.supabase = createLazyServerClient();
+  }
+
+  // Helper method to get the awaited Supabase client
+  private async getSupabase(): Promise<SupabaseClient> {
+    return await this.supabase;
   }
 
   /**

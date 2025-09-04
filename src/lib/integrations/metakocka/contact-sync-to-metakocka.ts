@@ -47,7 +47,7 @@ export class ContactSyncToMetakockaService {
       const client = await MetakockaService.getClientForUser(userId, true);
       
       // Get contact details from CRM
-      const supabase = createServerClient();
+      const supabase = await createServerClient();
       
       const { data: contact, error: contactError } = await supabase
         .from('contacts')
@@ -160,7 +160,7 @@ export class ContactSyncToMetakockaService {
    */
   static async getUnsyncedContactsFromCRM(userId: string): Promise<any[]> {
     try {
-      const supabase = createServerClient();
+      const supabase = await createServerClient();
       
       // Get existing mappings
       const { data: mappings, error: mappingsError } = await supabase
@@ -245,7 +245,7 @@ export class ContactSyncToMetakockaService {
           const metakockaId = await this.syncContactToMetakocka(userId, contactId);
           
           // Check if this is a new partner or an update
-          const supabase = createServerClient();
+          const supabase = await createServerClient();
           const { data, error } = await supabase
             .from('metakocka_contact_mappings')
             .select('created_at, updated_at')

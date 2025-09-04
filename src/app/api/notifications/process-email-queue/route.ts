@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { EmailService } from '@/lib/services/email-service';
+import { RoleService } from '@/services/role-service';
 
 // This endpoint processes pending emails in the queue
 // It can be triggered by a cron job or manually by an admin
@@ -10,11 +11,19 @@ export async function POST() {
   try {
     // Check authentication and admin status
     const session = await getServerSession(authOptions);
-    if (!session?.user || !session.user.isAdmin) {
+    if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    
+    // Check if user has admin permissions using RoleService
+    const userId = session.user.id;
+    const isSystemAdmin = await RoleService.isSystemAdmin(userId);
+    
+    if (!isSystemAdmin) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
-    const supabase = createClient();
+    const supabase = await createClient();
     const emailService = new EmailService();
     
     // Get pending emails with limit
@@ -37,7 +46,7 @@ export async function POST() {
     
     // Process each email
     const results = await Promise.allSettled(
-      pendingEmails.map(async (email) => {
+      pendingEmails.map(async (email: any) => {
         try {
           // Update status to processing
           await supabase

@@ -11,6 +11,9 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
+    // Await params to fix Next.js 15 requirement
+    const { id } = await params;
+    
     const session = await getServerSession();
     
     if (!session?.user?.id) {
@@ -23,7 +26,7 @@ export async function POST(
     
     // Get the follow-up details
     const followups = await followUpService.getFollowups(session.user.id);
-    const followup = followups.find(f => f.id === params.id);
+    const followup = followups.find(f => f.id === id);
     
     if (!followup) {
       return NextResponse.json({ error: 'Follow-up not found' }, { status: 404 });
@@ -89,10 +92,9 @@ export async function POST(
       );
     }
     
-    // Update follow-up with AI draft info
-    await followUpService.updateFollowupStatus(params.id, followup.status, {
-      ai_draft_generated: true,
-      ai_draft_count: followup.ai_draft_count ? followup.ai_draft_count + 1 : 1,
+    // Update follow-up with AI draft info using correct property names
+    await followUpService.updateFollowupStatus(id, followup.status, {
+      ai_draft_content: result.draft || (result as any).variations?.[0] || '',
       ai_draft_generated_at: new Date().toISOString()
     });
     

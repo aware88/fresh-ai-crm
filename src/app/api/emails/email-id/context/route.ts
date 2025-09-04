@@ -14,7 +14,8 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const emailId = params.id;
+    const { id } = await params;
+    const emailId = id;
     
     if (!emailId) {
       return NextResponse.json(

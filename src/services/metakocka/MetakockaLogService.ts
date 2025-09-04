@@ -1,4 +1,4 @@
-import { createLazyClientClient } from '@/lib/supabase/lazy-client';
+import { createLazyServerClient } from '@/lib/supabase/lazy-client';
 import { PostgrestError } from '@supabase/supabase-js';
 
 export type ErrorLogStatus = 'new' | 'in_progress' | 'resolved';
@@ -35,13 +35,14 @@ export interface ErrorLogFilter {
 }
 
 export class MetakockaLogService {
-  private async async getSupabase() { return await createLazyServerClient(); }
+  private async getSupabase() { return await createLazyServerClient(); }
 
   /**
    * Fetch error logs with optional filtering
    */
-  async async getErrorLogs(filters?: ErrorLogFilter): Promise<{ data: ErrorLog[] | null; error: PostgrestError | null }> {
-    let query = this.supabase
+  async getErrorLogs(filters?: ErrorLogFilter): Promise<{ data: ErrorLog[] | null; error: PostgrestError | null }> {
+    const supabase = await this.getSupabase();
+    let query = supabase
       .from('metakocka_integration_logs')
       .select(`
         *,
@@ -101,8 +102,9 @@ export class MetakockaLogService {
   /**
    * Get a single error log by ID
    */
-  async async getErrorLogById(id: string): Promise<{ data: ErrorLog | null; error: PostgrestError | null }> {
-    const { data, error } = await this.supabase
+  async getErrorLogById(id: string): Promise<{ data: ErrorLog | null; error: PostgrestError | null }> {
+    const supabase = await this.getSupabase();
+    const { data, error } = await supabase
       .from('metakocka_integration_logs')
       .select(`
         *,
@@ -127,7 +129,7 @@ export class MetakockaLogService {
   /**
    * Update the status of an error log
    */
-  async async updateErrorLogStatus(
+  async updateErrorLogStatus(
     id: string, 
     errorStatus: ErrorLogStatus, 
     resolution?: string,
@@ -143,7 +145,8 @@ export class MetakockaLogService {
       updates.assigned_to = assignedTo;
     }
 
-    const { data, error } = await this.supabase
+    const supabase = await this.getSupabase();
+    const { data, error } = await supabase
       .from('metakocka_integration_logs')
       .update(updates)
       .eq('id', id)
@@ -156,7 +159,7 @@ export class MetakockaLogService {
   /**
    * Bulk update error logs status
    */
-  async async bulkUpdateErrorLogStatus(
+  async bulkUpdateErrorLogStatus(
     ids: string[], 
     errorStatus: ErrorLogStatus, 
     resolution?: string
@@ -167,7 +170,8 @@ export class MetakockaLogService {
       updates.resolution = resolution;
     }
 
-    const { error } = await this.supabase
+    const supabase = await this.getSupabase();
+    const { error } = await supabase
       .from('metakocka_integration_logs')
       .update(updates)
       .in('id', ids);
@@ -178,7 +182,7 @@ export class MetakockaLogService {
   /**
    * Get error log statistics
    */
-  async async getErrorLogStats(): Promise<{ 
+  async getErrorLogStats(): Promise<{ 
     totalErrors: number; 
     newErrors: number;
     inProgressErrors: number;
@@ -186,39 +190,47 @@ export class MetakockaLogService {
     organizationCount: number;
     error: PostgrestError | null 
   }> {
+    const supabase = await this.getSupabase();
+    
     // Get total count
-    const { count: totalCount, error: totalError } = await this.supabase
+    const { count: totalCount, error: totalError } = await supabase
       .from('metakocka_integration_logs')
       .select('*', { count: 'exact', head: true })
       .eq('status', 'error');
 
     // Get new errors count
-    const { count: newCount, error: newError } = await this.supabase
+    const { count: newCount, error: newError } = await supabase
       .from('metakocka_integration_logs')
       .select('*', { count: 'exact', head: true })
       .eq('status', 'error')
       .eq('error_status', 'new');
 
     // Get in progress errors count
-    const { count: inProgressCount, error: inProgressError } = await this.supabase
+    const { count: inProgressCount, error: inProgressError } = await supabase
       .from('metakocka_integration_logs')
       .select('*', { count: 'exact', head: true })
       .eq('status', 'error')
       .eq('error_status', 'in_progress');
 
     // Get resolved errors count
-    const { count: resolvedCount, error: resolvedError } = await this.supabase
+    const { count: resolvedCount, error: resolvedError } = await supabase
       .from('metakocka_integration_logs')
       .select('*', { count: 'exact', head: true })
       .eq('status', 'error')
       .eq('error_status', 'resolved');
 
-    // Get unique organization count
-    const { data: orgs, error: orgsError } = await this.supabase
+    // Get unique organization count by selecting distinct organization_id values
+    const { data: orgs, error: orgsError } = await supabase
       .from('metakocka_integration_logs')
       .select('organization_id')
-      .eq('status', 'error')
-      .distinct();
+      .eq('status', 'error');
+
+    // Count unique organizations
+    let organizationCount = 0;
+    if (orgs && !orgsError) {
+      const uniqueOrgs = new Set(orgs.map(item => item.organization_id));
+      organizationCount = uniqueOrgs.size;
+    }
 
     const error = totalError || newError || inProgressError || resolvedError || orgsError;
 
@@ -227,7 +239,7 @@ export class MetakockaLogService {
       newErrors: newCount || 0,
       inProgressErrors: inProgressCount || 0,
       resolvedErrors: resolvedCount || 0,
-      organizationCount: orgs?.length || 0,
+      organizationCount,
       error
     };
   }
@@ -235,7 +247,7 @@ export class MetakockaLogService {
   /**
    * Export error logs as CSV
    */
-  async async exportErrorLogsAsCsv(filters?: ErrorLogFilter): Promise<string> {
+  async exportErrorLogsAsCsv(filters?: ErrorLogFilter): Promise<string> {
     const { data } = await this.getErrorLogs(filters);
     
     if (!data || data.length === 0) {

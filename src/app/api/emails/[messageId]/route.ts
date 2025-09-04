@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from '@/lib/auth';
 import { MicrosoftGraphService } from '@/lib/services/microsoft-graph-service';
+import { createServiceRoleClient } from '@/lib/supabase/service-role';
+import { getValidMicrosoftAccessToken } from '@/lib/services/microsoft-token';
 
 /**
  * GET handler for fetching a single email from Microsoft Graph API
@@ -11,15 +13,24 @@ export async function GET(
 ) {
   try {
     const session = await getServerSession();
-    
-    if (!session?.accessToken) {
-      return NextResponse.json({ error: 'Unauthorized or missing Microsoft Graph access token' }, { status: 401 });
+
+    let accessToken: string | null = (session as any)?.accessToken || null;
+    if (!accessToken && session?.user?.id) {
+      const valid = await getValidMicrosoftAccessToken({ userId: (session.user as any).id });
+      accessToken = valid?.accessToken || null;
+    }
+
+    if (!accessToken) {
+      return NextResponse.json(
+        { error: 'Unauthorized or missing Microsoft Graph access token' },
+        { status: 401 },
+      );
     }
     
-    const { messageId } = params;
+    const { messageId } = await params;
     
     // Create Microsoft Graph service and fetch the email
-    const graphService = new MicrosoftGraphService(session.accessToken);
+    const graphService = new MicrosoftGraphService(accessToken);
     const email = await graphService.getEmail(messageId);
     
     return NextResponse.json({ data: email });
@@ -42,7 +53,7 @@ export async function PATCH(
   try {
     const session = await getServerSession();
     
-    const { messageId } = params;
+    const { messageId } = await params;
     const body = await req.json();
     
     // Dev-phase: support local-only read/unread update; skip provider update if env flag set
@@ -82,7 +93,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized or missing Microsoft Graph access token' }, { status: 401 });
     }
     
-    const { messageId } = params;
+    const { messageId } = await params;
     
     // Create Microsoft Graph service
     const graphService = new MicrosoftGraphService(session.accessToken);

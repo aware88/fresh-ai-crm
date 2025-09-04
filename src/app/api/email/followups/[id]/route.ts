@@ -10,6 +10,9 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
+    // Await params to fix Next.js 15 requirement
+    const { id } = await params;
+    
     const session = await getServerSession();
     
     if (!session?.user?.id) {
@@ -26,18 +29,18 @@ export async function PUT(
       switch (body.action) {
         case 'complete':
           success = await followUpService.markFollowupCompleted(
-            params.id,
+            id,
             body.responseReceivedAt ? new Date(body.responseReceivedAt) : undefined
           );
           break;
         case 'sent':
           success = await followUpService.markFollowupSent(
-            params.id,
+            id,
             body.sentAt ? new Date(body.sentAt) : undefined
           );
           break;
         case 'cancel':
-          success = await followUpService.cancelFollowup(params.id);
+          success = await followUpService.cancelFollowup(id);
           break;
         case 'snooze':
           if (!body.snoozeUntil) {
@@ -47,7 +50,7 @@ export async function PUT(
             );
           }
           success = await followUpService.snoozeFollowup(
-            params.id,
+            id,
             new Date(body.snoozeUntil)
           );
           break;
@@ -60,7 +63,7 @@ export async function PUT(
     } else if (body.status) {
       // Direct status update
       success = await followUpService.updateFollowupStatus(
-        params.id,
+        id,
         body.status,
         body.additionalData
       );
@@ -96,6 +99,9 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
+    // Await params to fix Next.js 15 requirement
+    const { id } = await params;
+    
     const session = await getServerSession();
     
     if (!session?.user?.id) {
@@ -103,7 +109,7 @@ export async function DELETE(
     }
     
     const followUpService = new FollowUpService();
-    const success = await followUpService.cancelFollowup(params.id);
+    const success = await followUpService.cancelFollowup(id);
     
     if (!success) {
       return NextResponse.json(

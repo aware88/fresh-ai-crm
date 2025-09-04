@@ -25,6 +25,7 @@ const BUCKET_NAME = 'company_assets';
 
 export async function POST(request: NextRequest) {
   try {
+    const __debug = process.env.NODE_ENV !== 'production';
     // Check authentication
     const session = await getServerSession(authOptions);
     if (!session?.user) {
@@ -84,12 +85,9 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData();
     const file = formData.get('file') as File;
     
-    console.log('📁 File upload attempt:', {
-      fileName: file?.name,
-      fileSize: file?.size,
-      fileType: file?.type,
-      hasFile: !!file
-    });
+    if (__debug) {
+      console.log('📁 File upload attempt');
+    }
     
     if (!file) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 });
@@ -132,14 +130,14 @@ export async function POST(request: NextRequest) {
     let useSupabaseStorage = !disableSupabaseStorage;
     
     if (disableSupabaseStorage) {
-      console.log('🔄 Supabase Storage disabled via environment variable, using local storage...');
+      if (__debug) console.log('🔄 Supabase Storage disabled via environment variable, using local storage...');
       useSupabaseStorage = false;
     }
     
     // Try Supabase Storage first if enabled
     if (useSupabaseStorage) {
       try {
-        console.log('Attempting Supabase Storage upload...');
+        if (__debug) console.log('Attempting Supabase Storage upload...');
         
         // Upload file to Supabase Storage
         const { data, error } = await supabase
@@ -156,11 +154,11 @@ export async function POST(request: NextRequest) {
         
         // Supabase upload successful
         logoUrl = `${supabaseUrl}/storage/v1/object/public/${BUCKET_NAME}/${filePath}`;
-        console.log('✅ Successfully uploaded to Supabase Storage:', logoUrl);
+        if (__debug) console.log('✅ Successfully uploaded to Supabase Storage');
         
       } catch (supabaseError) {
         console.error('❌ Supabase Storage upload failed:', supabaseError);
-        console.log('🔄 Falling back to local storage...');
+        if (__debug) console.log('🔄 Falling back to local storage...');
         useSupabaseStorage = false;
       }
     }
@@ -168,19 +166,19 @@ export async function POST(request: NextRequest) {
     // Use local storage if Supabase is disabled or failed
     if (!useSupabaseStorage) {
       try {
-        console.log('🔄 Attempting local storage upload...');
+        if (__debug) console.log('🔄 Attempting local storage upload...');
         const publicDir = path.join(process.cwd(), 'public', 'uploads', 'logos');
-        console.log('📁 Creating directory:', publicDir);
+        if (__debug) console.log('📁 Creating directory');
         await fs.mkdir(publicDir, { recursive: true });
         
         const localFileName = `logo-${uuidv4()}.${fileExtension}`;
         const localFilePath = path.join(publicDir, localFileName);
         
-        console.log('💾 Writing file to:', localFilePath);
+        if (__debug) console.log('💾 Writing file');
         await fs.writeFile(localFilePath, buffer);
         
         logoUrl = `/uploads/logos/${localFileName}`;
-        console.log('✅ Successfully saved to local storage:', logoUrl);
+        if (__debug) console.log('✅ Successfully saved to local storage');
       } catch (localError) {
         console.error('❌ Local storage also failed:', localError);
         throw new Error('Failed to save logo to both Supabase and local storage');
@@ -194,7 +192,7 @@ export async function POST(request: NextRequest) {
     const brandingFile = path.join(brandingDir, `${organizationId}.json`);
     
     try {
-      console.log('💾 Saving logo to branding file:', brandingFile);
+      if (__debug) console.log('💾 Saving logo to branding file');
       // Ensure branding directory exists
       await fs.mkdir(brandingDir, { recursive: true });
       
@@ -208,10 +206,10 @@ export async function POST(request: NextRequest) {
       try {
         const existingData = await fs.readFile(brandingFile, 'utf8');
         existingBranding = JSON.parse(existingData);
-        console.log('📖 Read existing branding:', existingBranding);
+        if (__debug) console.log('📖 Read existing branding');
       } catch (readError) {
         // File doesn't exist, create new branding
-        console.log('Creating new branding file for organization:', organizationId);
+        if (__debug) console.log('Creating new branding file for organization');
       }
       
       // Update with new logo URL
@@ -226,11 +224,11 @@ export async function POST(request: NextRequest) {
         created_by: existingBranding.created_by || session.user.id
       };
       
-      console.log('📝 Updated branding data:', updatedBranding);
+      if (__debug) console.log('📝 Updated branding data');
       
       // Save updated branding
       await fs.writeFile(brandingFile, JSON.stringify(updatedBranding, null, 2), 'utf8');
-      console.log('✅ Successfully saved logo to branding file');
+      if (__debug) console.log('✅ Successfully saved logo to branding file');
       
     } catch (brandingError) {
       console.error('❌ Error saving logo to branding file:', brandingError);

@@ -30,7 +30,7 @@ export interface ActivityLogData {
  */
 export const logActivity = async (data: ActivityLogData): Promise<{ success: boolean; error?: string }> => {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     
     const { error } = await supabase.rpc('log_user_activity', {
       p_user_id: data.user_id,
@@ -61,7 +61,7 @@ export const logActivity = async (data: ActivityLogData): Promise<{ success: boo
  */
 export const logActivityServer = async (data: ActivityLogData): Promise<{ success: boolean; error?: string }> => {
   try {
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
     
     const { error } = await supabase.rpc('log_user_activity', {
       p_user_id: data.user_id,
@@ -92,7 +92,7 @@ export const logActivityServer = async (data: ActivityLogData): Promise<{ succes
  */
 export const getUserActivityLogs = async (userId: string, page = 1, limit = 10) => {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const offset = (page - 1) * limit;
     
     const { data, error, count } = await supabase

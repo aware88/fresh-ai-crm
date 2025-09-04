@@ -19,7 +19,7 @@ import { ProductRecommendationService } from '@/services/product-recommendation'
  * @returns The processed queue item with product recommendations
  */
 export async function processQueuedEmailWithRecommendations(queueItemId: string, userId: string) {
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   
   try {
     // Get the queue item with email data

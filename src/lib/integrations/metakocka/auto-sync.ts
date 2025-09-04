@@ -422,7 +422,7 @@ export async function triggerManualSync(userId: string): Promise<void> {
       const syncType = ['products'][index];
       if (result.status === 'fulfilled') {
         // Check if the fulfilled result actually indicates success
-        const syncResult = result.value;
+        const syncResult = (result as PromiseFulfilledResult<any>).value;
         if (syncResult && (syncResult.created > 0 || syncResult.updated > 0 || syncResult.failed === 0)) {
           successCount++;
           MetakockaErrorLogger.logInfo(

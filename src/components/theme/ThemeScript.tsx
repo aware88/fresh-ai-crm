@@ -19,7 +19,6 @@ export default function ThemeScript() {
         const stored = localStorage.getItem('org-theme');
         if (stored && ORG_THEMES[stored]) {
           document.documentElement.setAttribute('data-org-theme', stored);
-          console.log('🎨 SSR: Applied cached theme:', stored);
           return;
         }
 
@@ -34,15 +33,13 @@ export default function ThemeScript() {
             try {
               const prefs = JSON.parse(userPrefs);
               // This will be updated by the auth system, but provides immediate feedback
-              console.log('🎨 SSR: User authenticated, theme will load from session');
             } catch (e) {
-              console.log('🎨 SSR: Using default theme');
+              // Silent fallback to default theme
             }
           }
         }
 
         // Default theme (no data attribute needed)
-        console.log('🎨 SSR: Using default theme');
         
       } catch (error) {
         console.warn('🎨 SSR: Theme script error:', error);

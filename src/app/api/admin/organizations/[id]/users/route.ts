@@ -4,7 +4,7 @@ import { requirePermission } from '@/lib/auth/middleware';
 import { EnhancedSubscriptionService } from '@/lib/services/subscription-service-extension';
 
 // GET /api/admin/organizations/[id]/users - Get users for an organization
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     // Check if user has permission to view organization users
     const auth = await requirePermission('admin.organizations.view');
@@ -17,7 +17,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     // Use async pattern for params in Next.js 15+
     const { id } = await params;
     const organizationId = id;
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
 
     // Get organization to verify it exists
     const { data: organization, error: orgError } = await supabase
@@ -47,9 +47,9 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     }
 
     // Format the user data
-    const users = userOrgs.map(userOrg => {
+    const users = userOrgs.map((userOrg: any) => {
       const user = userOrg.users;
-      const roles = userOrg.user_roles?.map(ur => ur.roles?.name).filter(Boolean) || [];
+      const roles = userOrg.user_roles?.map((ur: any) => ur.roles?.name).filter(Boolean) || [];
       
       return {
         id: user.id,
@@ -71,7 +71,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 }
 
 // POST /api/admin/organizations/[id]/users - Add a user to an organization
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     // Check if user has permission to manage organization users
     const auth = await requirePermission('admin.organizations.users.manage');
@@ -95,7 +95,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       );
     }
 
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
 
     // Check if organization exists
     const { data: organization, error: orgError } = await supabase

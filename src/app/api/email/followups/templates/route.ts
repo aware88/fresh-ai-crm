@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
     const isPublic = searchParams.get('public') === 'true';
     const limit = searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : undefined;
     
-    const supabase = createLazyServerClient();
+    const supabase = await createLazyServerClient();
     
     let query = supabase
       .from('email_followup_templates')
@@ -82,7 +82,7 @@ export async function POST(req: NextRequest) {
       );
     }
     
-    const supabase = createLazyServerClient();
+    const supabase = await createLazyServerClient();
     
     const templateData = {
       user_id: session.user.id,

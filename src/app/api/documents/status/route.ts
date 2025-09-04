@@ -30,7 +30,7 @@ export async function PUT(request: NextRequest) {
     }
 
     // Create Supabase client
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
     
     // Get document details to verify ownership
     const { data: document, error: docError } = await supabase

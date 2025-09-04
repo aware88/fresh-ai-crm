@@ -104,7 +104,7 @@ export default function OrganizationBranding({
             <input
               type="text"
               id="logo_url"
-              value={branding.logo_url}
+              value={branding.logo_url || ''}
               onChange={(e) => {
                 setBranding({ ...branding, logo_url: e.target.value });
                 setLogoError(false); // Reset error state when URL changes

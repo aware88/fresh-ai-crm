@@ -42,13 +42,31 @@ function detectLanguage(text: string): string {
 }
 
 export interface EmailLearningPattern {
-  id: string;
+  id?: string;
   pattern_type: string;
   context_category: string;
   trigger_keywords: string[];
+  trigger_phrases?: string[];
+  sender_patterns?: string[];
   response_template: string;
   confidence_score: number;
+  success_rate?: number;
+  usage_count?: number;
+  last_used_at?: string | null;
   example_pairs: Array<{ question: string; answer: string }>;
+  learning_quality?: string;
+  metadata?: {
+    language?: string;
+    writing_style_notes?: string;
+    context_indicators?: string[];
+    multilingual_notes?: string;
+    relationship_context?: string;
+    urgency_handling?: string;
+    cultural_markers?: string[];
+    formality_level?: string;
+    response_length_preference?: string;
+    technical_depth?: string;
+  };
 }
 
 export interface LearningAnalysis {
@@ -96,6 +114,11 @@ export class EmailLearningService {
     this.openai = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY
     });
+  }
+
+  // Provide a consistent accessor like other services
+  private async getSupabase() {
+    return this.supabase;
   }
 
   /**
@@ -397,8 +420,8 @@ export class EmailLearningService {
     const analysisPrompt = this.createPatternAnalysisPrompt(emailPairs, language);
     
     try {
-      // Force GPT-4o for initial learning (better accuracy and JSON reliability)
-      const modelChoice = { model: 'gpt-4o', reasoning: 'High-quality initial learning' };
+      // Use GPT-4o-mini for initial learning (good balance of quality and cost)
+      const modelChoice = { model: 'gpt-4o-mini', reasoning: 'Cost-effective learning' };
 
       console.log(`[EmailLearning] Using model ${modelChoice.model} for pattern analysis`);
 
@@ -421,9 +444,9 @@ export class EmailLearningService {
       const analysisResult = response.choices[0]?.message?.content;
       totalTokens = response.usage?.total_tokens || 0;
       
-      // Calculate cost for GPT-4o ($0.005 per 1K tokens)
+      // Calculate cost for GPT-4o-mini ($0.00015 per 1K tokens)
       if (response.usage) {
-        totalCost = (response.usage.total_tokens / 1000) * 0.005;
+        totalCost = (response.usage.total_tokens / 1000) * 0.00015;
       }
 
       if (analysisResult) {
@@ -445,62 +468,61 @@ export class EmailLearningService {
   }
 
   /**
-   * Create a focused prompt for pattern analysis
+   * Create a focused prompt for pattern analysis optimized for GPT-4o-mini
    */
   private createPatternAnalysisPrompt(emailPairs: EmailPair[], language: string = 'mixed'): string {
-    const examples = emailPairs.slice(0, 5).map((pair, index) => {
+    // Limit to 3 examples for token efficiency
+    const examples = emailPairs.slice(0, 3).map((pair, index) => {
       return `
 EMAIL PAIR ${index + 1}:
 RECEIVED: "${pair.received_email.subject}"
-${pair.received_email.body.substring(0, 500)}...
+${pair.received_email.body.substring(0, 300)}...
 
 RESPONSE: "${pair.sent_response?.subject}"
-${pair.sent_response?.body.substring(0, 500)}...
+${pair.sent_response?.body.substring(0, 300)}...
 ---`;
     }).join('\n');
 
     const languageInstruction = language === 'sl' ? 
-      'IMPORTANT: All patterns are in Slovenian. Analyze Slovenian communication patterns, keywords, and response templates.' :
+      'IMPORTANT: All patterns are in Slovenian.' :
       language === 'en' ? 
-      'IMPORTANT: All patterns are in English. Focus on English communication patterns, keywords, and response templates.' :
-      'IMPORTANT: These emails contain mixed languages (English/Slovenian). Separate patterns by language for optimal learning.';
+      'IMPORTANT: All patterns are in English.' :
+      'IMPORTANT: These emails contain mixed languages.';
 
-    return `Analyze these email communication patterns and extract specific question-answer patterns:
+    return `TASK: Analyze these email pairs and extract communication patterns.
 
 ${examples}
 
 ${languageInstruction}
 
-Please identify:
-1. SPECIFIC question types and their corresponding answer patterns
-2. Communication style elements (tone, formality, structure)  
-3. Common response templates that could be reused
-4. Keywords that trigger specific types of responses (in the appropriate language)
+EXTRACT EXACTLY:
+1. Question types and answer patterns
+2. Communication style (tone, formality)
+3. Response templates
+4. Trigger keywords
 
-Return your analysis as structured JSON with this format:
+OUTPUT FORMAT (JSON ONLY):
 {
   "patterns": [
     {
-      "pattern_type": "question_response|greeting_style|closing_style|complaint_handling|etc",
-      "context_category": "customer_inquiry|sales_request|technical_support|etc", 
+      "pattern_type": "question_response|greeting_style|closing_style",
+      "context_category": "customer_inquiry|sales_request|technical_support", 
       "trigger_keywords": ["keyword1", "keyword2"],
-      "response_template": "Template with placeholders like {customer_name}",
-      "confidence_score": 0.8,
-      "example_pairs": [{"question": "...", "answer": "..."}]
+      "response_template": "Template with {placeholders}",
+      "confidence_score": 0.8
     }
   ],
   "style_analysis": {
     "tone": "professional|friendly|formal",
-    "avg_response_length": "concise|detailed",
     "formality_level": "high|medium|low"
   }
 }
 
-Focus on patterns that are:
-- Specific and actionable
-- Have clear triggers (keywords/phrases)
-- Can be generalized to similar situations
-- Show consistent communication style`;
+REQUIREMENTS:
+- Find 3-5 clear patterns
+- Each pattern must have specific triggers
+- Templates must be reusable
+- JSON must be valid with no extra text`;
   }
 
   /**
@@ -676,12 +698,28 @@ Focus on patterns that are:
             pattern_type: pattern.pattern_type,
             email_category: pattern.context_category,
             pattern_text: pattern.response_template,
-            context: `Triggers: ${pattern.trigger_keywords.join(', ')}`,
+            context: `Triggers: ${pattern.trigger_keywords.join(', ')} | Phrases: ${(pattern.trigger_phrases || []).join(', ')} | Senders: ${(pattern.sender_patterns || []).join(', ')}`,
             confidence: pattern.confidence_score,
             frequency_count: 1,
             extracted_from_email_ids: [],
-            tags: pattern.trigger_keywords,
-            is_active: true
+            tags: [...pattern.trigger_keywords, ...(pattern.trigger_phrases || [])],
+            is_active: true,
+            metadata: {
+              comprehensive_learning: true,
+              language: pattern.metadata?.language || 'en',
+              writing_style_notes: pattern.metadata?.writing_style_notes || '',
+              context_indicators: pattern.metadata?.context_indicators || [],
+              multilingual_notes: pattern.metadata?.multilingual_notes || '',
+              relationship_context: pattern.metadata?.relationship_context || '',
+              urgency_handling: pattern.metadata?.urgency_handling || '',
+              cultural_markers: pattern.metadata?.cultural_markers || [],
+              formality_level: pattern.metadata?.formality_level || 'neutral',
+              response_length_preference: pattern.metadata?.response_length_preference || 'medium',
+              technical_depth: pattern.metadata?.technical_depth || 'standard',
+              trigger_phrases: pattern.trigger_phrases,
+              sender_patterns: pattern.sender_patterns,
+              learning_version: '2.0'
+            }
           })
           .select('id')
           .single();
@@ -736,6 +774,185 @@ Focus on patterns that are:
     ).length / patterns.length;
 
     return (avgConfidence * 0.4) + (diversityScore * 0.3) + (completenessScore * 0.3);
+  }
+
+  /**
+   * Get email content by message ID
+   */
+  private async getEmailContent(messageId: string, userId: string): Promise<any | null> {
+    try {
+      const { data: email, error } = await this.supabase
+        .from('emails')
+        .select('*')
+        .eq('message_id', messageId)
+        .eq('user_id', userId)
+        .single();
+
+      if (error || !email) {
+        console.log(`[EmailLearning] Email not found for message_id: ${messageId}`);
+        return null;
+      }
+
+      return {
+        id: email.id,
+        message_id: messageId,
+        subject: email.subject,
+        content: email.body || email.text_content || '',
+        sender: email.sender_email || email.from_email,
+        recipient: email.recipient_email || email.to_email,
+        date: email.date,
+        is_sent: email.is_sent || false
+      };
+    } catch (error) {
+      console.error('[EmailLearning] Error fetching email content:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Extract patterns from a single email using AI
+   * Uses chunking for large emails to stay within token limits
+   */
+  private async extractPatternsFromEmail(
+    email: any, 
+    userId: string, 
+    organizationId?: string
+  ): Promise<EmailLearningPattern[]> {
+    try {
+      if (!email.content || email.content.length < 30) {
+        return []; // Skip very short emails
+      }
+      
+      // For very large emails, we need to chunk the content
+      if (email.content.length > 6000) {
+        return this.extractPatternsFromLargeEmail(email, userId, organizationId);
+      }
+
+      const prompt = `EMAIL PATTERN EXTRACTION
+
+Extract key communication patterns from this email to learn the user's style.
+
+EMAIL:
+Subject: ${email.subject}
+From: ${email.sender}
+To: ${email.recipient || 'N/A'}
+Content: ${email.content.substring(0, 1500)}${email.content.length > 1500 ? '...' : ''}
+Type: ${email.is_sent ? 'SENT by user' : 'RECEIVED by user'}
+
+${email.is_sent ? `
+ANALYZE SENT EMAIL:
+1. Writing style (tone, formality, structure)
+2. Response patterns (how user answers questions, handles requests)
+3. Opening/closing styles
+4. Key phrases and expressions
+` : `
+ANALYZE RECEIVED EMAIL:
+1. Question types and request patterns
+2. Sender relationship indicators
+3. Context and urgency markers
+4. Industry terminology
+`}
+
+REQUIRED OUTPUT FORMAT (JSON ARRAY):
+[
+  {
+    "pattern_type": "question_response|greeting_style|closing_style",
+    "context_category": "customer_inquiry|technical_support|general",
+    "language": "en|sl", 
+    "trigger_keywords": ["keyword1", "keyword2"],
+    "trigger_phrases": ["phrase1", "phrase2"],
+    "response_template": "Template response with [placeholders]",
+    "confidence_score": 0.8,
+    "metadata": {
+      "writing_style": "concise|detailed",
+      "formality": "formal|casual",
+      "relationship_context": "customer|vendor|internal"
+    }
+  }
+]
+
+INSTRUCTIONS:
+- Extract 3-7 clear patterns
+- Focus on patterns that appear in the email
+- Include only essential metadata
+- Ensure valid JSON format
+- Prioritize quality over quantity`;
+
+      const response = await this.openai.chat.completions.create({
+        model: 'gpt-4o-mini', // Use GPT-4o-mini for cost-effective analysis
+        messages: [
+          {
+            role: 'system',
+            content: 'You are an email pattern analyzer. Extract clear, specific communication patterns from emails that can be used to generate responses. Return only valid JSON with no additional text or explanations.'
+          },
+          {
+            role: 'user',
+            content: prompt
+          }
+        ],
+        temperature: 0.1, // Low temperature for consistent analysis
+        max_tokens: 2000 // Increased for comprehensive analysis
+      });
+
+      const content = response.choices[0]?.message?.content;
+      if (!content) {
+        return [];
+      }
+
+      // Parse JSON response
+      let patterns: any[] = [];
+      try {
+        // Extract JSON from response (handle potential markdown formatting)
+        const jsonMatch = content.match(/\[[\s\S]*\]/);
+        if (jsonMatch) {
+          patterns = JSON.parse(jsonMatch[0]);
+        } else {
+          patterns = JSON.parse(content);
+        }
+      } catch (parseError) {
+        console.log('[EmailLearning] Could not parse comprehensive pattern extraction response as JSON');
+        console.log('Response content:', content.substring(0, 500));
+        return [];
+      }
+
+      // Convert to EmailLearningPattern format with enhanced data
+      const learningPatterns: EmailLearningPattern[] = patterns
+        .filter(p => p.pattern_type && p.response_template && p.confidence_score > 0.3) // Lower threshold for comprehensive learning
+        .map(p => ({
+          pattern_type: p.pattern_type,
+          context_category: p.context_category || 'general',
+          trigger_keywords: Array.isArray(p.trigger_keywords) ? p.trigger_keywords : [],
+          trigger_phrases: Array.isArray(p.trigger_phrases) ? p.trigger_phrases : [],
+          sender_patterns: Array.isArray(p.sender_patterns) ? p.sender_patterns : [],
+          response_template: p.response_template,
+          confidence_score: Math.min(Math.max(p.confidence_score, 0), 1),
+          success_rate: 0.8, // Default success rate
+          usage_count: 0,
+          last_used_at: null,
+          example_pairs: [],
+          learning_quality: p.confidence_score > 0.8 ? 'high' : p.confidence_score > 0.5 ? 'medium' : 'low',
+          // Extended metadata for comprehensive learning
+          metadata: {
+            language: p.language || 'en',
+            writing_style_notes: p.writing_style_notes || '',
+            context_indicators: p.context_indicators || [],
+            multilingual_notes: p.multilingual_notes || '',
+            relationship_context: p.relationship_context || '',
+            urgency_handling: p.urgency_handling || '',
+            cultural_markers: p.cultural_markers || [],
+            formality_level: p.formality_level || 'neutral',
+            response_length_preference: p.response_length_preference || 'medium',
+            technical_depth: p.technical_depth || 'standard'
+          }
+        }));
+
+      console.log(`[EmailLearning] Extracted ${learningPatterns.length} comprehensive patterns from email`);
+      return learningPatterns;
+
+    } catch (error) {
+      console.error('[EmailLearning] Error extracting comprehensive patterns from email:', error);
+      return [];
+    }
   }
 
   /**
@@ -821,7 +1038,8 @@ Focus on patterns that are:
       const patternMatches = await this.findMatchingPatterns(
         email.content,
         email.sender,
-        userId
+        userId,
+        email.subject
       );
 
       console.log(`[EmailLearning] Found ${patternMatches.length} matching patterns`);
@@ -876,7 +1094,7 @@ Focus on patterns that are:
       if (matchedPatternIds.length > 0) {
         await Promise.all(
           matchedPatternIds.map(patternId => 
-            this.updatePatternUsage(patternId, true) // Assume successful for now
+            this.updatePatternUsage(patternId, true, userId) // Pass userId to new function
           )
         );
       }
@@ -986,7 +1204,8 @@ Focus on patterns that are:
   private async findMatchingPatterns(
     emailContent: string,
     senderEmail: string,
-    userId: string
+    userId: string,
+    emailSubject?: string
   ): Promise<Array<{
     pattern_id: string;
     match_score: number;
@@ -996,12 +1215,15 @@ Focus on patterns that are:
     trigger_keywords: string[];
   }>> {
     try {
-      // Use the database function for pattern matching
+      // Use the enhanced database function for comprehensive pattern matching
       const { data: patterns, error } = await this.supabase
         .rpc('find_best_pattern_match', {
-          p_user_id: userId,
-          p_email_content: emailContent,
-          p_sender_email: senderEmail
+          user_id_param: userId,
+          email_content: emailContent,
+          email_subject: emailSubject || '',
+          sender_email: senderEmail,
+          context_category: 'general',
+          language_preference: 'en'
         });
 
       if (error) {
@@ -1382,7 +1604,7 @@ BODY: [response body]`;
 
     const { data, error } = await this.supabase
       .from('email_drafts_cache')
-      .upsert(draftData, { onConflict: 'email_id,user_id' })
+      .upsert(draftData, { onConflict: 'message_id,user_id' })
       .select('*')
       .single();
 
@@ -1397,11 +1619,17 @@ BODY: [response body]`;
   /**
    * Update pattern usage statistics
    */
-  private async updatePatternUsage(patternId: string, wasSuccessful: boolean = true): Promise<void> {
+  private async updatePatternUsage(patternId: string, wasSuccessful: boolean = true, userId?: string): Promise<void> {
     try {
-      await this.supabase.rpc('update_pattern_usage', {
-        p_pattern_id: patternId,
-        p_was_successful: wasSuccessful
+      const supabase = await this.getSupabase();
+      await supabase.rpc('update_pattern_usage', {
+        user_id_param: userId || '', // Required by new function signature
+        pattern_id_param: patternId,
+        success_param: wasSuccessful,
+        usage_context: {
+          timestamp: new Date().toISOString(),
+          context: 'draft_generation'
+        }
       });
     } catch (error) {
       console.error('[EmailLearning] Error updating pattern usage:', error);
@@ -1455,17 +1683,19 @@ BODY: [response body]`;
 
   /**
    * Batch process multiple emails for initial learning (OPTIMIZED)
+   * This method both generates drafts AND extracts patterns for learning
    */
     async processEmailsBatch(messageIds: string[], userId: string, organizationId?: string): Promise<{
     successful: number;
     failed: number;
     results: Array<{ emailId: string; success: boolean; error?: string }>
   }> {
-    console.log(`[EmailLearning] Starting batch processing of ${messageIds.length} emails`);
+    console.log(`[EmailLearning] Starting batch processing of ${messageIds.length} emails for learning and draft generation`);
     
     const results: Array<{ emailId: string; success: boolean; error?: string }> = [];
     let successful = 0;
     let failed = 0;
+    const extractedPatterns: EmailLearningPattern[] = [];
     
     // Process in smaller batches to prevent overwhelming the system
     const batchSize = 3;
@@ -1476,13 +1706,32 @@ BODY: [response body]`;
       // Process batch in parallel
       const batchPromises = batch.map(async (messageId) => {
         try {
-          const result = await this.generateBackgroundDraft(messageId, userId, organizationId);
-          if (result.success) {
+          // 1. Generate draft (existing functionality)
+          const draftResult = await this.generateBackgroundDraft(messageId, userId, organizationId);
+          
+          // 2. Extract patterns from the email (NEW functionality)
+          let patternExtractionSuccess = true;
+          try {
+            const email = await this.getEmailContent(messageId, userId);
+            if (email) {
+              const patterns = await this.extractPatternsFromEmail(email, userId, organizationId);
+              if (patterns && patterns.length > 0) {
+                extractedPatterns.push(...patterns);
+                console.log(`[EmailLearning] Extracted ${patterns.length} patterns from email ${messageId}`);
+              }
+            }
+          } catch (patternError) {
+            console.error(`[EmailLearning] Pattern extraction failed for ${messageId}:`, patternError);
+            patternExtractionSuccess = false;
+          }
+          
+          // Consider success if either draft generation OR pattern extraction succeeds
+          if (draftResult.success || patternExtractionSuccess) {
             successful++;
             return { emailId: messageId, success: true };
           } else {
             failed++;
-            return { emailId: messageId, success: false, error: result.error };
+            return { emailId: messageId, success: false, error: draftResult.error || 'Pattern extraction failed' };
           }
         } catch (error) {
           failed++;
@@ -1498,7 +1747,7 @@ BODY: [response body]`;
       
       batchResults.forEach((result) => {
         if (result.status === 'fulfilled') {
-          results.push(result.value);
+          results.push((result as PromiseFulfilledResult<any>).value);
         } else {
           failed++;
           results.push({ 
@@ -1520,13 +1769,393 @@ BODY: [response body]`;
       }
     }
     
-    console.log(`[EmailLearning] Batch processing completed: ${successful} successful, ${failed} failed`);
+    // Save all extracted patterns to database
+    if (extractedPatterns.length > 0) {
+      try {
+        console.log(`[EmailLearning] Saving ${extractedPatterns.length} extracted patterns to database`);
+        const savedCount = await this.saveLearnedPatterns(extractedPatterns, userId, organizationId);
+        console.log(`[EmailLearning] Successfully saved ${savedCount} patterns to database`);
+      } catch (error) {
+        console.error('[EmailLearning] Error saving patterns:', error);
+      }
+    }
+    
+    console.log(`[EmailLearning] Batch processing completed: ${successful} successful, ${failed} failed, ${extractedPatterns.length} patterns extracted`);
     
     return {
       successful,
       failed,
       results
     };
+  }
+
+  /**
+   * CRITICAL: Learn from new email when it arrives (CONTINUOUS LEARNING)
+   * This ensures the AI evolves with every new email interaction
+   */
+  async learnFromNewEmail(
+    messageId: string,
+    userId: string,
+    organizationId?: string,
+    isUserResponse?: boolean
+  ): Promise<{ patternsLearned: number; success: boolean }> {
+    try {
+      console.log(`[EmailLearning] Starting continuous learning from new email: ${messageId}`);
+      
+      const email = await this.getEmailContent(messageId, userId);
+      if (!email) {
+        return { patternsLearned: 0, success: false };
+      }
+
+      // Extract patterns from the new email
+      const patterns = await this.extractPatternsFromEmail(email, userId, organizationId);
+      
+      if (patterns.length === 0) {
+        console.log(`[EmailLearning] No patterns extracted from new email ${messageId}`);
+        return { patternsLearned: 0, success: true };
+      }
+
+      // For user responses, mark patterns as higher quality
+      if (isUserResponse) {
+        patterns.forEach(pattern => {
+          pattern.confidence_score = Math.min(pattern.confidence_score * 1.1, 1.0); // Boost confidence
+          pattern.success_rate = 0.9; // Higher success rate for actual user responses
+        });
+      }
+
+      // Save new patterns to database
+      const savedCount = await this.saveLearnedPatterns(patterns, userId, organizationId);
+      
+      // Update existing similar patterns (merge/improve)
+      await this.updateSimilarPatterns(patterns, userId, organizationId);
+      
+      console.log(`[EmailLearning] Continuous learning completed: ${savedCount} new patterns saved from email ${messageId}`);
+      
+      return { patternsLearned: savedCount, success: true };
+      
+    } catch (error) {
+      console.error(`[EmailLearning] Error in continuous learning for email ${messageId}:`, error);
+      return { patternsLearned: 0, success: false };
+    }
+  }
+
+  /**
+   * Update existing similar patterns with new information
+   */
+  private async updateSimilarPatterns(
+    newPatterns: EmailLearningPattern[],
+    userId: string,
+    organizationId?: string
+  ): Promise<void> {
+    try {
+      for (const newPattern of newPatterns) {
+        // Find similar existing patterns
+        const { data: existingPatterns } = await this.supabase
+          .from('email_patterns')
+          .select('*')
+          .eq('user_id', userId)
+          .eq('pattern_type', newPattern.pattern_type)
+          .eq('email_category', newPattern.context_category)
+          .gte('confidence', 0.4); // Only consider reasonably confident patterns
+
+        if (existingPatterns && existingPatterns.length > 0) {
+          for (const existing of existingPatterns) {
+            // Check content similarity
+            const similarity = this.calculateContentSimilarity(
+              existing.pattern_text,
+              newPattern.response_template
+            );
+
+            // If very similar (>70%), update the existing pattern
+            if (similarity > 0.7) {
+              const updatedPattern = {
+                // Merge trigger keywords and phrases
+                tags: [...new Set([...existing.tags, ...newPattern.trigger_keywords])],
+                
+                // Update confidence (weighted average)
+                confidence: (existing.confidence * existing.frequency_count + newPattern.confidence_score) / (existing.frequency_count + 1),
+                
+                // Increment frequency
+                frequency_count: existing.frequency_count + 1,
+                
+                // Update metadata with new information
+                metadata: {
+                  ...existing.metadata,
+                  ...newPattern.metadata,
+                  learning_version: '2.0',
+                  last_updated_from_new_email: new Date().toISOString(),
+                  similarity_updates: (existing.metadata?.similarity_updates || 0) + 1
+                },
+                
+                updated_at: new Date().toISOString()
+              };
+
+              await this.supabase
+                .from('email_patterns')
+                .update(updatedPattern)
+                .eq('id', existing.id);
+
+              console.log(`[EmailLearning] Updated existing pattern ${existing.id} with new learning`);
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error('[EmailLearning] Error updating similar patterns:', error);
+    }
+  }
+
+  /**
+   * Extract patterns from large emails by chunking content
+   */
+  private async extractPatternsFromLargeEmail(
+    email: any,
+    userId: string,
+    organizationId?: string
+  ): Promise<EmailLearningPattern[]> {
+    try {
+      // Create chunks of approximately 3000 characters
+      const chunkSize = 3000;
+      const content = email.content;
+      const chunks: string[] = [];
+      
+      // Try to split at paragraph boundaries for more natural chunks
+      const paragraphs = content.split(/\n\n+/);
+      let currentChunk = '';
+      
+      for (const paragraph of paragraphs) {
+        if ((currentChunk + paragraph).length <= chunkSize) {
+          currentChunk += (currentChunk ? '\n\n' : '') + paragraph;
+        } else {
+          if (currentChunk) {
+            chunks.push(currentChunk);
+          }
+          // If a single paragraph is longer than chunk size, split it
+          if (paragraph.length > chunkSize) {
+            const sentenceSplits = paragraph.split(/(?<=[.!?])\s+/);
+            currentChunk = '';
+            for (const sentence of sentenceSplits) {
+              if ((currentChunk + sentence).length <= chunkSize) {
+                currentChunk += (currentChunk ? ' ' : '') + sentence;
+              } else {
+                if (currentChunk) {
+                  chunks.push(currentChunk);
+                }
+                currentChunk = sentence;
+              }
+            }
+          } else {
+            currentChunk = paragraph;
+          }
+        }
+      }
+      
+      // Add the last chunk if it exists
+      if (currentChunk) {
+        chunks.push(currentChunk);
+      }
+      
+      console.log(`[EmailLearning] Split large email into ${chunks.length} chunks`);
+      
+      // Process each chunk (max 3 chunks to control costs)
+      const maxChunks = Math.min(3, chunks.length);
+      const allPatterns: EmailLearningPattern[] = [];
+      
+      for (let i = 0; i < maxChunks; i++) {
+        const chunkEmail = {
+          ...email,
+          content: chunks[i],
+          subject: i === 0 ? email.subject : `${email.subject} (continued part ${i+1})`,
+        };
+        
+        const chunkPatterns = await this.processEmailChunk(chunkEmail, userId, organizationId, i+1, maxChunks);
+        allPatterns.push(...chunkPatterns);
+      }
+      
+      // Deduplicate patterns
+      return this.deduplicatePatterns(allPatterns);
+    } catch (error) {
+      console.error('[EmailLearning] Error processing large email:', error);
+      return [];
+    }
+  }
+  
+  /**
+   * Process a single email chunk
+   */
+  private async processEmailChunk(
+    email: any,
+    userId: string,
+    organizationId?: string,
+    chunkNumber: number = 1,
+    totalChunks: number = 1
+  ): Promise<EmailLearningPattern[]> {
+    const prompt = `EMAIL PATTERN EXTRACTION (CHUNK ${chunkNumber}/${totalChunks})
+
+Extract key communication patterns from this email chunk to learn the user's style.
+
+EMAIL CHUNK:
+Subject: ${email.subject}
+From: ${email.sender}
+To: ${email.recipient || 'N/A'}
+Content: ${email.content}
+Type: ${email.is_sent ? 'SENT by user' : 'RECEIVED by user'}
+
+${email.is_sent ? `
+ANALYZE SENT EMAIL:
+1. Writing style (tone, formality, structure)
+2. Response patterns (how user answers questions, handles requests)
+3. Opening/closing styles (if present in this chunk)
+4. Key phrases and expressions
+` : `
+ANALYZE RECEIVED EMAIL:
+1. Question types and request patterns
+2. Sender relationship indicators
+3. Context and urgency markers
+4. Industry terminology
+`}
+
+REQUIRED OUTPUT FORMAT (JSON ARRAY):
+[
+  {
+    "pattern_type": "question_response|greeting_style|closing_style",
+    "context_category": "customer_inquiry|technical_support|general",
+    "language": "en|sl", 
+    "trigger_keywords": ["keyword1", "keyword2"],
+    "trigger_phrases": ["phrase1", "phrase2"],
+    "response_template": "Template response with [placeholders]",
+    "confidence_score": 0.8,
+    "metadata": {
+      "writing_style": "concise|detailed",
+      "formality": "formal|casual",
+      "relationship_context": "customer|vendor|internal"
+    }
+  }
+]
+
+INSTRUCTIONS:
+- Extract 2-5 clear patterns from this chunk
+- Focus only on patterns in this chunk
+- Include only essential metadata
+- Ensure valid JSON format
+- Prioritize quality over quantity`;
+
+    const response = await this.openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        {
+          role: 'system',
+          content: 'You are an email pattern analyzer. Extract clear, specific communication patterns from email chunks. Return only valid JSON with no additional text.'
+        },
+        {
+          role: 'user',
+          content: prompt
+        }
+      ],
+      temperature: 0.1,
+      max_tokens: 1000
+    });
+
+    const content = response.choices[0]?.message?.content;
+    if (!content) {
+      return [];
+    }
+
+    // Parse JSON response
+    let patterns: any[] = [];
+    try {
+      // Extract JSON from response (handle potential markdown formatting)
+      const jsonMatch = content.match(/\[[\s\S]*\]/);
+      if (jsonMatch) {
+        patterns = JSON.parse(jsonMatch[0]);
+      } else {
+        patterns = JSON.parse(content);
+      }
+    } catch (parseError) {
+      console.log('[EmailLearning] Could not parse pattern extraction response as JSON');
+      return [];
+    }
+
+    // Convert to EmailLearningPattern format
+    return patterns
+      .filter(p => p.pattern_type && p.response_template && p.confidence_score > 0.3)
+      .map(p => ({
+        pattern_type: p.pattern_type,
+        context_category: p.context_category || 'general',
+        trigger_keywords: Array.isArray(p.trigger_keywords) ? p.trigger_keywords : [],
+        trigger_phrases: Array.isArray(p.trigger_phrases) ? p.trigger_phrases : [],
+        sender_patterns: Array.isArray(p.sender_patterns) ? p.sender_patterns : [],
+        response_template: p.response_template,
+        confidence_score: Math.min(Math.max(p.confidence_score, 0), 1),
+        success_rate: 0.8,
+        usage_count: 0,
+        last_used_at: null,
+        example_pairs: [],
+        learning_quality: p.confidence_score > 0.8 ? 'high' : p.confidence_score > 0.5 ? 'medium' : 'low',
+        metadata: {
+          language: p.language || 'en',
+          writing_style_notes: p.metadata?.writing_style || '',
+          formality_level: p.metadata?.formality || 'neutral',
+          relationship_context: p.metadata?.relationship_context || '',
+        }
+      }));
+  }
+  
+  /**
+   * Deduplicate patterns based on similarity
+   */
+  private deduplicatePatterns(patterns: EmailLearningPattern[]): EmailLearningPattern[] {
+    const uniquePatterns: EmailLearningPattern[] = [];
+    const processed = new Set<number>();
+    
+    for (let i = 0; i < patterns.length; i++) {
+      if (processed.has(i)) continue;
+      
+      const currentPattern = patterns[i];
+      let isDuplicate = false;
+      
+      for (let j = 0; j < uniquePatterns.length; j++) {
+        const similarity = this.calculateContentSimilarity(
+          currentPattern.response_template,
+          uniquePatterns[j].response_template
+        );
+        
+        if (similarity > 0.7 && 
+            currentPattern.pattern_type === uniquePatterns[j].pattern_type) {
+          isDuplicate = true;
+          
+          // If current pattern has higher confidence, replace the existing one
+          if (currentPattern.confidence_score > uniquePatterns[j].confidence_score) {
+            uniquePatterns[j] = currentPattern;
+          }
+          break;
+        }
+      }
+      
+      if (!isDuplicate) {
+        uniquePatterns.push(currentPattern);
+      }
+      
+      processed.add(i);
+    }
+    
+    return uniquePatterns;
+  }
+
+  /**
+   * Calculate content similarity between two texts
+   */
+  private calculateContentSimilarity(text1: string, text2: string): number {
+    const words1 = text1.toLowerCase().split(/\s+/);
+    const words2 = text2.toLowerCase().split(/\s+/);
+    
+    const set1 = new Set(words1);
+    const set2 = new Set(words2);
+    
+    const intersection = new Set([...set1].filter(x => set2.has(x)));
+    const union = new Set([...set1, ...set2]);
+    
+    return intersection.size / union.size; // Jaccard similarity
   }
 }
 

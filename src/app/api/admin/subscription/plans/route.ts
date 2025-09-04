@@ -29,9 +29,17 @@ export async function GET(req: NextRequest) {
     }
     
     const subscriptionService = new SubscriptionService();
-    const plans = await subscriptionService.getAllSubscriptionPlans(true); // Include inactive plans
+    const { data: plans, error } = await subscriptionService.getSubscriptionPlans();
     
-    return NextResponse.json({ plans });
+    if (error) {
+      console.error('Error fetching subscription plans:', error);
+      return NextResponse.json(
+        { error: 'Failed to fetch subscription plans' },
+        { status: 500 }
+      );
+    }
+    
+    return NextResponse.json({ plans: plans || [] });
   } catch (error) {
     console.error('Error fetching subscription plans:', error);
     return NextResponse.json(
@@ -68,14 +76,19 @@ export async function POST(req: NextRequest) {
     }
     
     const subscriptionService = new SubscriptionService();
-    const newPlan = await subscriptionService.createSubscriptionPlan({
-      name: plan.name,
-      description: plan.description || '',
-      price: plan.price,
-      billing_interval: plan.billing_interval || 'monthly',
-      features: plan.features || {},
-      is_active: plan.is_active !== undefined ? plan.is_active : true
-    });
+    const { data: newPlan, error } = await subscriptionService.createSubscription(
+      plan.organization_id || '', // This would need to be passed from the request
+      plan.id || '', // Plan ID would need to be handled differently
+      'active'
+    );
+    
+    if (error) {
+      console.error('Error creating subscription plan:', error);
+      return NextResponse.json(
+        { error: 'Failed to create subscription plan' },
+        { status: 500 }
+      );
+    }
     
     return NextResponse.json({ plan: newPlan }, { status: 201 });
   } catch (error) {

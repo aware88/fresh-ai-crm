@@ -112,7 +112,7 @@ export async function POST(request: NextRequest) {
         });
 
       case 'create_workflow':
-        const { workflow } = params;
+        const { workflow } = await params;
         if (!workflow) {
           return NextResponse.json(
             { success: false, error: 'Workflow definition is required' },
@@ -171,7 +171,7 @@ export async function POST(request: NextRequest) {
         });
 
       case 'register_agent':
-        const { agent } = params;
+        const { agent } = await params;
         if (!agent) {
           return NextResponse.json(
             { success: false, error: 'Agent object is required' },

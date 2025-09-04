@@ -18,15 +18,16 @@ const supabaseAdmin = createClient(
  * GET /api/contacts
  */
 export async function GET(request: Request) {
+  const __debug = process.env.NODE_ENV !== 'production';
   try {
     // Resolve authenticated user and organization
     const session = await getServerSession(authOptions);
-    console.log('Contacts API: Session check:', session ? 'Session found' : 'No session');
+    if (__debug) console.log('Contacts API: Session check:', session ? 'Session found' : 'No session');
     if (!session?.user) {
       // Fallback to existing loader (non-auth contexts)
-      console.log('Contacts API: No session found, using fallback loadContacts()');
+      if (__debug) console.log('Contacts API: No session found, using fallback loadContacts()');
       const contacts = await loadContacts();
-      console.log(`Contacts API: Fallback loaded ${contacts.length} contacts`);
+      if (__debug) console.log(`Contacts API: Fallback loaded ${contacts.length} contacts`);
       return NextResponse.json({ contacts, usingSupabase: isUsingSupabase() });
     }
 
@@ -40,35 +41,35 @@ export async function GET(request: Request) {
 
     // Determine active organization id
     let organizationId: string | null = (session.user as any)?.organizationId || null;
-    console.log(`Contacts API: Initial organizationId from session: ${organizationId}`);
+    if (__debug) console.log(`Contacts API: Initial organizationId from session: ${organizationId}`);
     
     try {
       if (!organizationId) {
-        console.log('Contacts API: Looking up organizationId from user_preferences...');
+        if (__debug) console.log('Contacts API: Looking up organizationId from user_preferences...');
         const { data: prefs, error: prefsError } = await supabaseAdmin
           .from('user_preferences')
           .select('current_organization_id')
           .eq('user_id', userId)
           .maybeSingle();
         
-        console.log(`Contacts API: Preferences query result:`, { prefs, prefsError });
+        if (__debug) console.log(`Contacts API: Preferences query result:`, { hasPrefs: !!prefs, hasError: !!prefsError });
         if (prefs?.current_organization_id) {
           organizationId = prefs.current_organization_id;
-          console.log(`Contacts API: Found organizationId in preferences: ${organizationId}`);
+          if (__debug) console.log(`Contacts API: Found organizationId in preferences: ${organizationId}`);
         }
         
         if (!organizationId) {
-          console.log('Contacts API: Looking up organizationId from organization_members...');
+          if (__debug) console.log('Contacts API: Looking up organizationId from organization_members...');
           const { data: member, error: memberError } = await supabaseAdmin
             .from('organization_members')
             .select('organization_id')
             .eq('user_id', userId)
             .maybeSingle();
           
-          console.log(`Contacts API: Members query result:`, { member, memberError });
+          if (__debug) console.log(`Contacts API: Members query result:`, { hasMember: !!member, hasError: !!memberError });
           if (member?.organization_id) {
             organizationId = member.organization_id;
-            console.log(`Contacts API: Found organizationId in members: ${organizationId}`);
+            if (__debug) console.log(`Contacts API: Found organizationId in members: ${organizationId}`);
           }
         }
       }
@@ -76,12 +77,12 @@ export async function GET(request: Request) {
       console.error('Contacts API: Error in organization lookup:', err);
     }
 
-    console.log(`Contacts API: userId=${userId}, organizationId=${organizationId}`);
+    if (__debug) console.log(`Contacts API: userId=${userId}, organizationId=${organizationId}`);
     
     // Build proper filter conditions for the query
     // We want contacts that belong to the organization OR belong to the user
     const filterQuery = `organization_id.eq.${organizationId || '00000000-0000-0000-0000-000000000000'},user_id.eq.${userId}`;
-    console.log(`Contacts API: Using filter query: ${filterQuery}`);
+    if (__debug) console.log(`Contacts API: Using filter query: ${filterQuery}`);
     
     // First, let's check what's in the contacts table without filters
     const { data: allContacts, error: allError } = await supabaseAdmin
@@ -92,14 +93,9 @@ export async function GET(request: Request) {
     if (allError) {
       console.error('Contacts API: Error fetching all contacts:', allError);
     } else {
-      console.log(`Contacts API: Found ${allContacts?.length || 0} total contacts in table`);
+      if (__debug) console.log(`Contacts API: Found ${allContacts?.length || 0} total contacts in table`);
       if (allContacts && allContacts.length > 0) {
-        console.log('Contacts API: Sample contact:', {
-          id: allContacts[0].id,
-          organization_id: allContacts[0].organization_id,
-          user_id: allContacts[0].user_id,
-          email: allContacts[0].email
-        });
+        if (__debug) console.log('Contacts API: Sample contact present (redacted)');
       }
     }
     
@@ -115,7 +111,7 @@ export async function GET(request: Request) {
     }
 
     const rows = Array.isArray(data) ? data : [];
-    console.log(`Contacts API: Found ${rows.length} contacts in database`);
+    if (__debug) console.log(`Contacts API: Found ${rows.length} contacts in database`);
 
     // Map DB row shape (snake/lowercase) to Contact camelCase the UI expects
     const contacts = rows.map((item: any) => ({
@@ -236,7 +232,8 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: 'Contact ID is required' }, { status: 400 });
     }
     
-    console.log(`API: Deleting contact with ID ${id} using service role`);
+    const __debug = process.env.NODE_ENV !== 'production';
+    if (__debug) console.log(`API: Deleting contact with ID ${id} using service role`);
     
     // List of tables that might reference the contact
     const dependentTables = [
@@ -247,7 +244,7 @@ export async function DELETE(request: Request) {
     ];
     
     // Clean up dependencies first
-    console.log(`API: Cleaning up dependencies for contact ${id}`);
+    if (__debug) console.log(`API: Cleaning up dependencies for contact ${id}`);
     for (const table of dependentTables) {
       try {
         const { error } = await supabaseAdmin
@@ -256,17 +253,17 @@ export async function DELETE(request: Request) {
           .eq('contact_id', id);
         
         if (error) {
-          if (error.code === '42P01') {
+          if ((error as any).code === '42P01') {
             // Table doesn't exist, skip
-            console.log(`API: Table ${table} doesn't exist, skipping`);
+            if (__debug) console.log(`API: Table ${table} doesn't exist, skipping`);
           } else {
             console.error(`API: Error deleting from ${table}:`, error.message);
           }
         } else {
-          console.log(`API: Deleted from ${table}`);
+          if (__debug) console.log(`API: Deleted from ${table}`);
         }
       } catch (err) {
-        console.log(`API: Skipping ${table}: ${err instanceof Error ? err.message : 'Unknown error'}`);
+        if (__debug) console.log(`API: Skipping ${table}: ${err instanceof Error ? err.message : 'Unknown error'}`);
       }
     }
     
@@ -281,7 +278,7 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: 'Failed to delete contact', details: error.message }, { status: 500 });
     }
     
-    console.log(`API: Successfully deleted contact with ID ${id}`);
+    if (__debug) console.log(`API: Successfully deleted contact with ID ${id}`);
     return NextResponse.json({ message: 'Contact deleted successfully' });
   } catch (error) {
     console.error('Error deleting contact:', error);

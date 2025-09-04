@@ -209,7 +209,7 @@ class ProductionManager {
     const results = await Promise.allSettled(checks);
     results.forEach((result, index) => {
       if (result.status === 'fulfilled') {
-        this.healthChecks.set(result.value.service, result.value);
+        this.healthChecks.set((result as PromiseFulfilledResult<any>).value.service, (result as PromiseFulfilledResult<any>).value);
       }
     });
   }

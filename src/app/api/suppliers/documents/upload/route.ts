@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create Supabase client
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
     
     // Determine file type from file extension
     const fileName = file.name;

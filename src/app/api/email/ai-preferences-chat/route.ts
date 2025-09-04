@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
     const { message, conversationHistory } = await request.json();
     
     const openai = getOpenAIClient();
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // Get user's current preferences for context
     const currentPrefs = await aiPreferencesService.getUserPreferences(session.user.id);

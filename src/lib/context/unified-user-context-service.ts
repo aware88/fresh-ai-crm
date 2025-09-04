@@ -370,26 +370,26 @@ export class UnifiedUserContextService {
     
     // Basic user info
     if (results[resultIndex].status === 'fulfilled') {
-      Object.assign(context, results[resultIndex].value);
+      Object.assign(context, (results[resultIndex] as PromiseFulfilledResult<any>).value);
     }
     resultIndex++;
 
     // Organization info
     if (results[resultIndex].status === 'fulfilled') {
-      context.organization = results[resultIndex].value || { id: null };
+      context.organization = (results[resultIndex] as PromiseFulfilledResult<any>).value || { id: null };
     }
     resultIndex++;
 
     // User preferences
     if (results[resultIndex].status === 'fulfilled') {
-      context.preferences = results[resultIndex].value || {};
+      context.preferences = (results[resultIndex] as PromiseFulfilledResult<any>).value || {};
     }
     resultIndex++;
 
     // AI preferences (if requested)
     if (options.includeAIPreferences && results[resultIndex]) {
       if (results[resultIndex].status === 'fulfilled') {
-        context.aiPreferences = results[resultIndex].value || {};
+        context.aiPreferences = (results[resultIndex] as PromiseFulfilledResult<any>).value || {};
       }
       resultIndex++;
     }
@@ -397,7 +397,7 @@ export class UnifiedUserContextService {
     // Writing style (if requested)
     if (options.includeWritingStyle && results[resultIndex]) {
       if (results[resultIndex].status === 'fulfilled') {
-        context.writingStyle = { ...context.writingStyle, ...results[resultIndex].value };
+        context.writingStyle = { ...context.writingStyle, ...(results[resultIndex] as PromiseFulfilledResult<any>).value };
       }
       resultIndex++;
     }
@@ -405,7 +405,7 @@ export class UnifiedUserContextService {
     // Notification preferences (if requested)
     if (options.includeNotifications && results[resultIndex]) {
       if (results[resultIndex].status === 'fulfilled') {
-        context.notificationPreferences = results[resultIndex].value || { categories: {} };
+        context.notificationPreferences = (results[resultIndex] as PromiseFulfilledResult<any>).value || { categories: {} };
       }
       resultIndex++;
     }
@@ -413,7 +413,7 @@ export class UnifiedUserContextService {
     // Permissions (if requested)
     if (options.includePermissions && results[resultIndex]) {
       if (results[resultIndex].status === 'fulfilled') {
-        context.permissions = results[resultIndex].value || { roles: [], features: [] };
+        context.permissions = (results[resultIndex] as PromiseFulfilledResult<any>).value || { roles: [], features: [] };
       }
     }
 
@@ -656,7 +656,7 @@ export class UnifiedUserContextService {
     
     settled.forEach(result => {
       if (result.status === 'fulfilled') {
-        results.set(result.value.userId, result.value.context);
+        results.set((result as PromiseFulfilledResult<any>).value.userId, (result as PromiseFulfilledResult<any>).value.context);
       }
     });
 

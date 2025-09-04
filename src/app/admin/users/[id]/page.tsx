@@ -26,15 +26,30 @@ interface UserDetails {
   roles: { id: string; name: string; type: string }[];
 }
 
-export default function UserDetailPage({ params }: { params: { id: string } }) {
+interface PageProps {
+  params: Promise<{ id: string }>;
+}
+
+export default function UserDetailPage({ params }: PageProps) {
   const router = useRouter();
-  const userId = params.id;
+  const [userId, setUserId] = useState<string>('');
   
   const [user, setUser] = useState<UserDetails | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Extract user ID from params
   useEffect(() => {
+    const extractParams = async () => {
+      const resolvedParams = await params;
+      setUserId(resolvedParams.id);
+    };
+    extractParams();
+  }, [params]);
+
+  useEffect(() => {
+    if (!userId) return;
+    
     async function fetchUserDetails() {
       try {
         const response = await fetch(`/api/admin/users/${userId}`);

@@ -42,7 +42,7 @@ export async function getSalesDocumentMapping(
   userId: string
 ): Promise<SalesDocumentMapping | null> {
   try {
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
     
     const { data, error } = await supabase
       .from('metakocka_sales_document_mappings')
@@ -77,7 +77,7 @@ export async function getSalesDocumentMappings(
   userId: string
 ): Promise<SalesDocumentMapping[]> {
   try {
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
     
     const { data, error } = await supabase
       .from('metakocka_sales_document_mappings')
@@ -111,7 +111,7 @@ export async function getSalesDocumentMappingByMetakockaId(
   userId: string
 ): Promise<SalesDocumentMapping | null> {
   try {
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
     
     const { data, error } = await supabase
       .from('metakocka_sales_document_mappings')
@@ -146,7 +146,7 @@ export async function createSalesDocumentMapping(
   userId: string
 ): Promise<SalesDocumentMapping | null> {
   try {
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
     
     // Log the creation attempt
     MetakockaErrorLogger.logInfo(
@@ -204,7 +204,7 @@ export async function updateSalesDocumentMapping(
   userId: string
 ): Promise<SalesDocumentMapping | null> {
   try {
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
     
     // Prepare update data
     const updateData: Record<string, any> = {
@@ -310,7 +310,7 @@ export async function deleteSalesDocumentMapping(
   userId: string
 ): Promise<boolean> {
   try {
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
     
     // Log the deletion attempt
     MetakockaErrorLogger.logInfo(

@@ -33,6 +33,7 @@ const getOpenAIClient = () => {
 
 export async function POST(request: NextRequest) {
   try {
+    const __debug = process.env.NODE_ENV !== 'production';
     const session = await getServerSession(authOptions);
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -73,14 +74,14 @@ export async function POST(request: NextRequest) {
 
     if (passedEmailContent) {
       // Use email content passed from frontend (for IMAP emails)
-      console.log('Using email content from frontend');
+      if (__debug) console.log('Using email content from frontend');
       subject = passedEmailContent.subject || '(No Subject)';
       from = passedEmailContent.from || 'Unknown Sender';
       date = passedEmailContent.date || new Date().toISOString();
       body = passedEmailContent.body || '';
     } else if (dbEmail && !dbEmailError) {
       // Use email from database
-      console.log('Using email from database');
+      if (__debug) console.log('Using email from database');
       subject = dbEmail.subject || '(No Subject)';
       from = dbEmail.from_address || dbEmail.sender || 'Unknown Sender';
       date = dbEmail.received_date || dbEmail.created_at;
@@ -88,7 +89,7 @@ export async function POST(request: NextRequest) {
     } else {
       // Try to fetch from provider API based on account type
       const account = accounts[0];
-      console.log(`Trying to fetch email from ${account.provider_type} provider`);
+      if (__debug) console.log(`Trying to fetch email from ${account.provider_type} provider`);
       
       if (account.provider_type === 'google' && account.access_token) {
         // Gmail API logic
@@ -165,7 +166,7 @@ export async function POST(request: NextRequest) {
         }
       } else if (account.provider_type === 'imap') {
         // For IMAP accounts, email content should be passed from frontend
-        console.log('IMAP account - email content should be provided by frontend');
+        if (__debug) console.log('IMAP account - email content should be provided by frontend');
         if (!body && !subject) {
           return NextResponse.json({ error: 'Email content not available. Please refresh your emails and try again.' }, { status: 404 });
         }
@@ -219,13 +220,15 @@ export async function POST(request: NextRequest) {
     try {
       const { getUserOrganization } = await import('@/lib/context/unified-user-context-service');
       organizationId = await getUserOrganization(session.user.id);
-      if (organizationId) {
-        console.log('[Sales Agent] ✅ Found organization via unified context:', organizationId);
-      } else {
-        console.log('[Sales Agent] ❌ No organization found for user');
+      if (__debug) {
+        if (organizationId) {
+          console.log('[Sales Agent] ✅ Found organization via unified context');
+        } else {
+          console.log('[Sales Agent] ❌ No organization found for user');
+        }
       }
     } catch (error) {
-      console.warn('[Sales Agent] Unified context failed, using fallback:', error);
+      if (__debug) console.warn('[Sales Agent] Unified context failed, using fallback:', error);
       // Fallback to legacy implementation
       try {
         const { data: userOrg } = await supabase
@@ -235,7 +238,7 @@ export async function POST(request: NextRequest) {
           .single();
         organizationId = userOrg?.organization_id;
       } catch (fallbackError) {
-        console.log('[Sales Agent] No organization found for user (fallback)');
+        if (__debug) console.log('[Sales Agent] No organization found for user (fallback)');
       }
     }
 
@@ -325,7 +328,7 @@ Return JSON with lead_qualification (score 1-10, level hot/warm/cold, reasoning)
         };
       }
       
-      console.log(`✅ Sales draft generated: ${result.metadata.tokensUsed} tokens, $${result.metadata.costUsd.toFixed(4)} using ${result.metadata.modelUsed}`);
+      if (__debug) console.log(`✅ Sales draft generated: ${result.metadata.tokensUsed} tokens, $${result.metadata.costUsd.toFixed(4)} using ${result.metadata.modelUsed}`);
 
       // Store the analysis and draft for learning with versioning
       try {
@@ -358,7 +361,7 @@ Return JSON with lead_qualification (score 1-10, level hot/warm/cold, reasoning)
           created_at: new Date().toISOString()
         });
         
-        console.log(`💾 Saved unified sales analysis v${versionNumber} for email ${emailId}`);
+        if (__debug) console.log(`💾 Saved unified sales analysis v${versionNumber} for email ${emailId}`);
       } catch (dbError) {
         console.error('Failed to store analysis for learning:', dbError);
       }

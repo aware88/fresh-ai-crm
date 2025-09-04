@@ -8,7 +8,7 @@ import { AlertNotificationService } from '@/lib/services/alert-notification-serv
  */
 async function processAlerts() {
   console.log('Starting alert processing...');
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   
   try {
     // Get all active inventory alerts across all users
@@ -47,7 +47,8 @@ async function processSingleAlert(alert: any) {
   
   try {
     // Get current inventory for the product
-    const { data: inventory, error } = await createServerClient()
+    const supabase = await createServerClient();
+    const { data: inventory, error } = await supabase
       .from('product_inventory')
       .select('quantity_available')
       .eq('product_id', productId)

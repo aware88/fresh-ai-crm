@@ -2,13 +2,19 @@ import { NextRequest, NextResponse } from 'next/server';
 import { RoleService } from '@/services/role-service';
 import { requirePermission } from '@/middleware/auth-middleware';
 
+interface RouteParams {
+  params: Promise<{
+    id: string;
+  }>;
+}
+
 /**
  * GET /api/admin/roles/[id]
  * Get a role by ID with its permissions
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: RouteParams
 ) {
   try {
     // Check if user has permission to view roles
@@ -47,7 +53,7 @@ export async function GET(
  */
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: RouteParams
 ) {
   try {
     // Check if user has permission to edit roles
@@ -91,7 +97,7 @@ export async function PUT(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: RouteParams
 ) {
   try {
     // Check if user has permission to delete roles

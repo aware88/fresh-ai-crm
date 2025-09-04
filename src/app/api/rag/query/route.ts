@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create RAG service
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
     const ragService = new UnifiedRAGService(supabase, process.env.OPENAI_API_KEY!);
 
     if (generateResponse) {
@@ -147,7 +147,7 @@ export async function GET(request: NextRequest) {
     const includeEmbeddings = searchParams.get('include_embeddings') === 'true';
 
     // Create Supabase client
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
 
     // Get recent queries
     let query = supabase
@@ -180,14 +180,14 @@ export async function GET(request: NextRequest) {
 
     // Calculate summary statistics
     const totalQueries = recentQueries?.length || 0;
-    const successfulQueries = recentQueries?.filter(q => q.response_generated).length || 0;
+    const successfulQueries = recentQueries?.filter((q: any) => q.response_generated).length || 0;
     const avgProcessingTime = totalQueries > 0 
-      ? recentQueries!.reduce((sum, q) => sum + (q.processing_time_ms || 0), 0) / totalQueries
+      ? recentQueries!.reduce((sum: number, q: any) => sum + (q.processing_time_ms || 0), 0) / totalQueries
       : 0;
 
     // Get most common source types
     const sourceTypeCount: Record<string, number> = {};
-    recentQueries?.forEach(q => {
+    recentQueries?.forEach((q: any) => {
       if (q.source_types) {
         q.source_types.forEach((type: string) => {
           sourceTypeCount[type] = (sourceTypeCount[type] || 0) + 1;

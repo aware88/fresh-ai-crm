@@ -69,7 +69,7 @@ async function handleWithcarEmailGeneration(request: NextRequest, uid: string) {
     console.log(`[Withcar Email API] Generating response for ${senderEmail}`);
 
     // Create services
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
     const ragService = new UnifiedRAGService(supabase, process.env.OPENAI_API_KEY!);
     const liveMetakockaAdapter = new LiveMetakockaAdapter(ragService, supabase);
     const magentoAdapter = new MagentoMultiLanguageAdapter(ragService);
@@ -323,7 +323,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Create services
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
     const ragService = new UnifiedRAGService(supabase, process.env.OPENAI_API_KEY!);
     const magentoAdapter = new MagentoMultiLanguageAdapter(ragService);
 

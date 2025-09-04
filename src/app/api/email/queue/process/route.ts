@@ -28,7 +28,9 @@ export async function POST(request: NextRequest) {
     
     if (!isServiceRequest) {
       // Get authenticated user
-      const supabase = createRouteHandlerClient({ cookies: cookieStore });
+      // Get cookies using async pattern for Next.js 15+
+      const cookieStore = await cookies();
+      const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
       const { data: { user }, error: authError } = await supabase.auth.getUser();
       
       if (authError || !user) {

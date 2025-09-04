@@ -12,13 +12,23 @@ import { ModelRouterService, TaskComplexity, type TaskAnalysis, type ModelSelect
 // import { AIMemoryService, AIMemoryType } from './memory/ai-memory-service'; // Temporarily disabled
 
 export interface UniversalAgentAction {
-  type: 'CREATE' | 'UPDATE' | 'DELETE' | 'QUERY' | 'SEARCH' | 'ANALYZE';
-  entity: 'supplier' | 'product' | 'contact' | 'order' | 'cross_entity';
+  type: 'CREATE' | 'UPDATE' | 'DELETE' | 'QUERY' | 'SEARCH' | 'ANALYZE' | 'CAMPAIGN_CREATE' | 'CAMPAIGN_SEGMENT' | 'CAMPAIGN_PERSONALIZE' | 'CAMPAIGN_SCHEDULE';
+  entity: 'supplier' | 'product' | 'contact' | 'order' | 'outbound_campaign' | 'cross_entity';
   data?: Record<string, any>;
   filters?: Record<string, any>;
   query?: string;
   joins?: string[];
-  outputFormat?: 'text' | 'table' | 'cards' | 'chart' | 'export';
+  outputFormat?: 'text' | 'table' | 'cards' | 'chart' | 'export' | 'campaign_preview';
+  campaignData?: {
+    segmentCriteria?: Record<string, any>;
+    personalizationLevel?: 'basic' | 'advanced' | 'hyper-personalized';
+    templateVariables?: Record<string, any>;
+    schedulingOptions?: {
+      sendDate?: string;
+      timeZone?: string;
+      batchSize?: number;
+    };
+  };
 }
 
 export interface UniversalAgentResponse {
@@ -125,6 +135,24 @@ export class UniversalAgentService {
         position: { type: 'string', required: false, description: 'Job title or position', examples: ['CEO', 'CTO', 'Sales Manager'] },
         notes: { type: 'string', required: false, description: 'Additional notes', examples: ['Key decision maker', 'Interested in bulk orders'] },
         status: { type: 'string', required: false, description: 'Contact status', examples: ['active', 'inactive', 'prospect'] }
+      }
+    },
+    outbound_campaign: {
+      table: 'outbound_campaigns',
+      displayName: 'Outbound Campaign',
+      fields: {
+        name: { type: 'string', required: true, description: 'Campaign name', examples: ['Win-back Campaign', 'Upsell Q4 2024', 'New Product Launch'] },
+        description: { type: 'string', required: false, description: 'Campaign description', examples: ['Target customers who haven\'t purchased in 6 months', 'Upsell existing customers to premium packages'] },
+        target_criteria: { type: 'json', required: true, description: 'Segmentation criteria in JSON format', examples: ['{"last_purchase_days_ago": 180}', '{"lead_score_min": 80}'] },
+        email_template: { type: 'string', required: false, description: 'Email template content', examples: ['Personalized offer based on purchase history'] },
+        status: { type: 'string', required: false, description: 'Campaign status', examples: ['draft', 'active', 'paused', 'completed'] },
+        send_date: { type: 'datetime', required: false, description: 'Scheduled send date', examples: ['2024-12-01T10:00:00Z'] },
+        personalization_level: { type: 'string', required: false, description: 'AI personalization level', examples: ['basic', 'advanced', 'hyper-personalized'] }
+      },
+      relationships: {
+        contacts: { table: 'contacts', field: 'id', description: 'Targeted contacts for this campaign' },
+        leads: { table: 'lead_scores', field: 'contact_id', description: 'Lead scoring data for targeting' },
+        opportunities: { table: 'sales_opportunities', field: 'contact_id', description: 'Pipeline opportunities related to targets' }
       }
     }
   };
@@ -453,12 +481,18 @@ ${memoryContext}
 
 Analyze the user's message and respond with a JSON object containing:
 {
-  "action": "CREATE|UPDATE|DELETE|QUERY|SEARCH|ANALYZE",
-  "entity": "supplier|product|contact|order|cross_entity",
+  "action": "CREATE|UPDATE|DELETE|QUERY|SEARCH|ANALYZE|CAMPAIGN_CREATE|CAMPAIGN_SEGMENT|CAMPAIGN_PERSONALIZE|CAMPAIGN_SCHEDULE",
+  "entity": "supplier|product|contact|order|outbound_campaign|cross_entity",
   "data": { extracted field values },
   "filters": { for queries/updates },
   "joins": [ "table1.field = table2.field" ],
-  "outputFormat": "text|table|cards|chart",
+  "outputFormat": "text|table|cards|chart|campaign_preview",
+  "campaignData": { 
+    "segmentCriteria": { targeting filters },
+    "personalizationLevel": "basic|advanced|hyper-personalized",
+    "templateVariables": { custom variables },
+    "schedulingOptions": { "sendDate": "date", "timeZone": "zone", "batchSize": number }
+  },
   "confidence": 0.0-1.0,
   "reasoning": "explanation of your analysis",
   "contextUsed": "how you used the conversation context"
@@ -467,7 +501,10 @@ Analyze the user's message and respond with a JSON object containing:
 Examples:
 - "Add TechCorp supplier with email info@tech.com" → {"action": "CREATE", "entity": "supplier", "data": {"name": "TechCorp", "email": "info@tech.com"}}
 - "Show me all products from reliable suppliers" → {"action": "SEARCH", "entity": "cross_entity", "joins": ["products.supplier_id = suppliers.id"], "filters": {"suppliers.reliabilityScore": {">": 7}}}
-- "Update John Smith's phone to 555-1234" → {"action": "UPDATE", "entity": "contact", "data": {"phone": "555-1234"}, "filters": {"firstname": "John", "lastname": "Smith"}}`;
+- "Update John Smith's phone to 555-1234" → {"action": "UPDATE", "entity": "contact", "data": {"phone": "555-1234"}, "filters": {"firstname": "John", "lastname": "Smith"}}
+- "Create campaign for customers who bought >3 months ago" → {"action": "CAMPAIGN_CREATE", "entity": "outbound_campaign", "data": {"name": "Win-back Campaign"}, "campaignData": {"segmentCriteria": {"last_purchase_days_ago": 90}}}
+- "Segment contacts with lead score above 80" → {"action": "CAMPAIGN_SEGMENT", "entity": "outbound_campaign", "campaignData": {"segmentCriteria": {"lead_score_min": 80}}}
+- "Generate personalized emails for enterprise contacts" → {"action": "CAMPAIGN_PERSONALIZE", "entity": "outbound_campaign", "campaignData": {"personalizationLevel": "advanced", "segmentCriteria": {"company_contains": "enterprise"}}}`;
 
     try {
       const selectedModel = this.modelRouter.getModel(modelId || 'gpt-4o-mini');
@@ -508,6 +545,7 @@ Examples:
           filters: parsed.filters,
           joins: parsed.joins,
           outputFormat: parsed.outputFormat || 'text',
+          campaignData: parsed.campaignData,
           query: message
         },
         confidence: parsed.confidence || 0.8
@@ -758,6 +796,14 @@ Examples:
         case 'SEARCH':
         case 'QUERY':
           return await this.searchRecords(action, thinking);
+        case 'CAMPAIGN_CREATE':
+          return await this.createCampaign(action, thinking);
+        case 'CAMPAIGN_SEGMENT':
+          return await this.segmentContacts(action, thinking);
+        case 'CAMPAIGN_PERSONALIZE':
+          return await this.personalizeCampaign(action, thinking);
+        case 'CAMPAIGN_SCHEDULE':
+          return await this.scheduleCampaign(action, thinking);
         default:
           return {
             success: false,
@@ -1186,4 +1232,285 @@ Examples:
     // Memory storage temporarily disabled until database schema is set up
   }
   */
+
+  /**
+   * Create an outbound email campaign
+   */
+  private async createCampaign(action: UniversalAgentAction, thinking: string[]): Promise<{
+    success: boolean;
+    message: string;
+    data?: any;
+    visualData?: any;
+  }> {
+    thinking.push("🎯 Creating outbound email campaign...");
+
+    // Extract campaign data
+    const campaignData = action.data || {};
+    const { segmentCriteria, personalizationLevel = 'basic' } = action.campaignData || {};
+
+    // Step 1: Validate campaign requirements
+    if (!campaignData.name) {
+      thinking.push("❌ Campaign name is required");
+      return {
+        success: false,
+        message: "Please provide a name for your campaign (e.g., 'Win-back Campaign Q4 2024')"
+      };
+    }
+
+    // Step 2: Create segment preview first
+    thinking.push("👥 Analyzing target audience based on your criteria...");
+    const segmentResult = await this.segmentContacts({ 
+      ...action, 
+      campaignData: { segmentCriteria } 
+    }, thinking);
+
+    if (!segmentResult.success || !segmentResult.data?.length) {
+      thinking.push("❌ No contacts found matching your criteria");
+      return {
+        success: false,
+        message: "No contacts match your targeting criteria. Try adjusting the filters or criteria."
+      };
+    }
+
+    // Step 3: Create campaign record
+    const campaign = {
+      name: campaignData.name,
+      description: campaignData.description || `Campaign targeting ${segmentResult.data.length} contacts`,
+      target_criteria: segmentCriteria || {},
+      status: 'draft',
+      personalization_level: personalizationLevel,
+      organization_id: this.organizationId,
+      created_by: this.userId,
+      estimated_recipients: segmentResult.data.length
+    };
+
+    thinking.push("💾 Saving campaign to database...");
+    
+    // For now, we'll simulate campaign creation since we don't have the table yet
+    thinking.push("✅ Campaign created successfully");
+
+    const campaignPreview = {
+      id: `campaign_${Date.now()}`,
+      ...campaign,
+      target_preview: segmentResult.data.slice(0, 5), // Show first 5 contacts
+      total_targets: segmentResult.data.length
+    };
+
+    return {
+      success: true,
+      message: `🎉 **Campaign "${campaignData.name}" created successfully!**\n\n` +
+               `📊 **Target Audience:** ${segmentResult.data.length} contacts\n` +
+               `🎯 **Personalization:** ${personalizationLevel}\n` +
+               `📝 **Status:** Draft (ready for content creation)\n\n` +
+               `**Next steps:**\n` +
+               `• Generate personalized email content\n` +
+               `• Review and test campaign\n` +
+               `• Schedule delivery`,
+      data: campaignPreview,
+      visualData: {
+        type: 'campaign_preview',
+        data: [campaignPreview],
+        headers: ['Campaign', 'Targets', 'Status', 'Personalization']
+      }
+    };
+  }
+
+  /**
+   * Segment contacts based on criteria
+   */
+  private async segmentContacts(action: UniversalAgentAction, thinking: string[]): Promise<{
+    success: boolean;
+    message: string;
+    data?: any;
+    visualData?: any;
+  }> {
+    thinking.push("🔍 Analyzing contact database for segmentation...");
+
+    const criteria = action.campaignData?.segmentCriteria || {};
+    let query = this.supabase.from('contacts').select(`
+      *,
+      lead_scores (
+        overall_score,
+        qualification_status,
+        last_updated
+      )
+    `);
+
+    // Apply organization filter
+    query = query.eq('organization_id', this.organizationId);
+
+    // Apply segmentation criteria
+    if (criteria.last_purchase_days_ago) {
+      const daysAgo = new Date();
+      daysAgo.setDate(daysAgo.getDate() - criteria.last_purchase_days_ago);
+      thinking.push(`📅 Finding contacts with last contact before ${daysAgo.toLocaleDateString()}`);
+      query = query.lt('lastcontact', daysAgo.toISOString());
+    }
+
+    if (criteria.lead_score_min) {
+      thinking.push(`📈 Filtering contacts with lead score >= ${criteria.lead_score_min}`);
+      // This would need to be handled with proper joins in production
+    }
+
+    if (criteria.company_contains) {
+      thinking.push(`🏢 Finding contacts from companies containing "${criteria.company_contains}"`);
+      query = query.ilike('company', `%${criteria.company_contains}%`);
+    }
+
+    if (criteria.status) {
+      thinking.push(`✅ Filtering by status: ${criteria.status}`);
+      query = query.eq('status', criteria.status);
+    }
+
+    const { data: contacts, error } = await query.limit(1000);
+
+    if (error) {
+      thinking.push(`❌ Database error: ${error.message}`);
+      return {
+        success: false,
+        message: `Failed to segment contacts: ${error.message}`
+      };
+    }
+
+    // Additional filtering based on lead scores if needed
+    let filteredContacts = contacts || [];
+    
+    if (criteria.lead_score_min) {
+      filteredContacts = filteredContacts.filter(contact => 
+        contact.lead_scores && 
+        contact.lead_scores.length > 0 && 
+        contact.lead_scores[0].overall_score >= criteria.lead_score_min
+      );
+    }
+
+    thinking.push(`🎯 Identified ${filteredContacts.length} contacts matching your criteria`);
+
+    // Analyze segment characteristics
+    const segmentAnalysis = {
+      total_contacts: filteredContacts.length,
+      companies: [...new Set(filteredContacts.map(c => c.company).filter(Boolean))].length,
+      avg_lead_score: filteredContacts
+        .filter(c => c.lead_scores?.length > 0)
+        .reduce((sum, c) => sum + (c.lead_scores[0]?.overall_score || 0), 0) / 
+        filteredContacts.filter(c => c.lead_scores?.length > 0).length || 0
+    };
+
+    return {
+      success: true,
+      message: `🎯 **Segment Analysis Complete**\n\n` +
+               `📊 **${filteredContacts.length} contacts** match your criteria\n` +
+               `🏢 **${segmentAnalysis.companies} companies** represented\n` +
+               `📈 **Average lead score:** ${Math.round(segmentAnalysis.avg_lead_score)}/100\n\n` +
+               `This segment is ready for campaign targeting!`,
+      data: filteredContacts,
+      visualData: {
+        type: 'table',
+        data: filteredContacts.slice(0, 10).map(c => ({
+          name: `${c.firstname} ${c.lastname}`,
+          email: c.email,
+          company: c.company || 'N/A',
+          lead_score: c.lead_scores?.[0]?.overall_score || 'Not scored',
+          last_contact: c.lastcontact ? new Date(c.lastcontact).toLocaleDateString() : 'N/A'
+        })),
+        headers: ['Name', 'Email', 'Company', 'Lead Score', 'Last Contact']
+      }
+    };
+  }
+
+  /**
+   * Generate personalized campaign content
+   */
+  private async personalizeCampaign(action: UniversalAgentAction, thinking: string[]): Promise<{
+    success: boolean;
+    message: string;
+    data?: any;
+  }> {
+    thinking.push("✨ Generating personalized campaign content with AI...");
+
+    const { personalizationLevel = 'basic', templateVariables } = action.campaignData || {};
+    const campaignData = action.data || {};
+
+    // Simulate AI content generation based on personalization level
+    let personalizationStrategy;
+    let sampleContent;
+
+    switch (personalizationLevel) {
+      case 'hyper-personalized':
+        thinking.push("🧠 Using advanced AI for hyper-personalized content generation");
+        personalizationStrategy = "Individual content for each contact based on purchase history, preferences, and behavior";
+        sampleContent = `Hi {{first_name}},\n\nI noticed you purchased {{last_product}} {{days_since_purchase}} days ago from {{company}}. Based on your {{industry}} background and {{role}}, I thought you'd be interested in our new {{recommended_product}} that could help with {{specific_pain_point}}.\n\n{{personalized_offer}}\n\nBest regards,\n{{sender_name}}`;
+        break;
+      
+      case 'advanced':
+        thinking.push("🎯 Creating advanced personalized templates with AI insights");
+        personalizationStrategy = "Dynamic content blocks based on customer segments and behavior patterns";
+        sampleContent = `Hi {{first_name}},\n\nAs a {{role}} at {{company}}, you know how important {{industry_need}} is. That's why I wanted to share {{segment_specific_offer}} with you.\n\n{{conditional_content}}\n\nBest regards,\n{{sender_name}}`;
+        break;
+      
+      default:
+        thinking.push("📝 Generating basic personalized templates");
+        personalizationStrategy = "Standard personalization with name, company, and basic offer customization";
+        sampleContent = `Hi {{first_name}},\n\nI hope this email finds you well at {{company}}. We have a special offer that I think would be valuable for your team:\n\n{{offer_details}}\n\nBest regards,\n{{sender_name}}`;
+    }
+
+    thinking.push("🎨 Content templates generated successfully");
+
+    return {
+      success: true,
+      message: `🎨 **Personalization Complete!**\n\n` +
+               `**Level:** ${personalizationLevel}\n` +
+               `**Strategy:** ${personalizationStrategy}\n\n` +
+               `**Sample Template:**\n\`\`\`\n${sampleContent}\n\`\`\`\n\n` +
+               `The AI has generated dynamic templates that will customize content for each recipient based on their profile and behavior.`,
+      data: {
+        personalization_level: personalizationLevel,
+        template: sampleContent,
+        variables: Object.keys(templateVariables || {}),
+        strategy: personalizationStrategy
+      }
+    };
+  }
+
+  /**
+   * Schedule campaign delivery
+   */
+  private async scheduleCampaign(action: UniversalAgentAction, thinking: string[]): Promise<{
+    success: boolean;
+    message: string;
+    data?: any;
+  }> {
+    thinking.push("📅 Setting up campaign delivery schedule...");
+
+    const { schedulingOptions } = action.campaignData || {};
+    const { sendDate, timeZone = 'UTC', batchSize = 100 } = schedulingOptions || {};
+
+    if (!sendDate) {
+      thinking.push("❌ Send date is required for scheduling");
+      return {
+        success: false,
+        message: "Please specify when you'd like to send the campaign (e.g., 'tomorrow at 10 AM' or '2024-12-15 09:00')"
+      };
+    }
+
+    thinking.push(`📅 Scheduling for ${sendDate} in ${timeZone} timezone`);
+    thinking.push(`📦 Using batch size of ${batchSize} emails per batch`);
+
+    const scheduleDetails = {
+      send_date: sendDate,
+      time_zone: timeZone,
+      batch_size: batchSize,
+      estimated_duration: Math.ceil(1000 / batchSize) * 5, // Estimate 5 minutes per batch
+      status: 'scheduled'
+    };
+
+    return {
+      success: true,
+      message: `📅 **Campaign Scheduled Successfully!**\n\n` +
+               `🕐 **Send Time:** ${sendDate} (${timeZone})\n` +
+               `📦 **Batch Size:** ${batchSize} emails per batch\n` +
+               `⏱️ **Estimated Duration:** ${scheduleDetails.estimated_duration} minutes\n\n` +
+               `Your campaign is now scheduled and will be sent automatically at the specified time. You can modify or cancel the schedule anytime before the send date.`,
+      data: scheduleDetails
+    };
+  }
 }

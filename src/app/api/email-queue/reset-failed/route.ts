@@ -12,7 +12,7 @@ import { resetFailedQueueItems } from '@/lib/email/emailQueueWorker';
 // POST /api/email-queue/reset-failed - Reset failed queue items
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
     
     // Get the current user
     const { data: { user } } = await supabase.auth.getUser();

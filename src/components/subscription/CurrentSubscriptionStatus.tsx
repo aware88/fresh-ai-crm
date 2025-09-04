@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useSubscription } from '@/contexts/SubscriptionContext';
 import { getSubscriptionPlan } from '@/lib/subscription-plans';
 import { SubscriptionPlan, OrganizationSubscription } from '@/lib/services/subscription-service';
 
@@ -10,39 +11,38 @@ interface CurrentSubscriptionStatusProps {
 }
 
 export default function CurrentSubscriptionStatus({ organizationId }: CurrentSubscriptionStatusProps) {
-  const [loading, setLoading] = useState(true);
-  const [subscription, setSubscription] = useState<OrganizationSubscription | null>(null);
-  const [plan, setPlan] = useState<SubscriptionPlan | null>(null);
+  const { subscription: contextSubscription, isLoading } = useSubscription();
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
-  useEffect(() => {
-    const fetchSubscriptionData = async () => {
-      try {
-        setLoading(true);
-        
-        // Fetch the organization's subscription
-        const subscriptionRes = await fetch(`/api/organizations/${organizationId}/subscription`);
-        
-        if (!subscriptionRes.ok) {
-          throw new Error('Failed to fetch subscription data');
-        }
-        
-        const subscriptionData = await subscriptionRes.json();
-        setSubscription(subscriptionData.subscription);
-        setPlan(subscriptionData.plan);
-      } catch (err) {
-        console.error('Error fetching subscription:', err);
-        setError('Failed to load subscription information');
-      } finally {
-        setLoading(false);
-      }
-    };
+  // Transform context subscription to component format
+  const subscription = contextSubscription ? {
+    id: 'context-sub',
+    organization_id: organizationId,
+    subscription_plan_id: contextSubscription.tier,
+    status: 'active' as const,
+    current_period_start: new Date().toISOString(),
+    current_period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+    cancel_at_period_end: false,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  } : null;
 
-    if (organizationId) {
-      fetchSubscriptionData();
-    }
-  }, [organizationId]);
+  const plan = contextSubscription ? {
+    id: contextSubscription.tier,
+    name: contextSubscription.tier.charAt(0).toUpperCase() + contextSubscription.tier.slice(1),
+    description: `${contextSubscription.tier} plan`,
+    price: contextSubscription.tier === 'starter' ? 0 : 
+           contextSubscription.tier === 'pro' ? 29 : 
+           contextSubscription.tier === 'premium' ? 99 : 199,
+    billing_interval: 'monthly' as const,
+    features: {
+      aiTokens: contextSubscription.limits.aiTokens,
+      emailAccounts: contextSubscription.limits.emailAccounts,
+      teamMembers: contextSubscription.limits.teamMembers
+    },
+    is_active: true
+  } : null;
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -72,7 +72,7 @@ export default function CurrentSubscriptionStatus({ organizationId }: CurrentSub
     router.push(`/organizations/${organizationId}/subscription`);
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="bg-white shadow rounded-lg p-6 animate-pulse">
         <div className="h-6 bg-gray-200 rounded w-1/4 mb-4"></div>

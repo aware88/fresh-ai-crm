@@ -59,12 +59,6 @@ export function EmailList({ onEmailSelect }: EmailListProps = {}) {
 
   useEffect(() => {
     async function fetchEmails() {
-      if (!session?.accessToken) {
-        setError('Not authenticated with Microsoft Graph');
-        setLoading(false);
-        return;
-      }
-      
       try {
         setLoading(true);
         const response = await fetch('/api/emails?top=20', {
@@ -75,6 +69,11 @@ export function EmailList({ onEmailSelect }: EmailListProps = {}) {
         });
         
         if (!response.ok) {
+          if (response.status === 401) {
+            setError('Not authenticated with Microsoft Graph');
+            setLoading(false);
+            return;
+          }
           throw new Error(`Error fetching emails: ${response.statusText}`);
         }
         

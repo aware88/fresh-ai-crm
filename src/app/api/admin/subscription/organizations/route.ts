@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
     
-    const supabase = createClient();
+    const supabase = await createClient();
     
     // Get all organization subscriptions with organization and plan details
     const { data: subscriptions, error } = await supabase

@@ -17,7 +17,7 @@ export async function PATCH(
       );
     }
 
-    const { messageId } = params;
+    const { messageId } = await params;
     const { isRead } = await request.json();
     
     if (typeof isRead !== 'boolean') {
@@ -31,18 +31,30 @@ export async function PATCH(
 
     // Update the read status in email_index
     // First verify the user owns this email through email_accounts
+    // Use a more direct approach that doesn't rely on joins which might fail with RLS
     const { data: emailData, error: verifyError } = await supabase
       .from('email_index')
-      .select(`
-        id,
-        email_accounts!inner (
-          user_id
-        )
-      `)
+      .select('id, email_account_id')
       .eq('message_id', messageId)
       .single();
 
-    if (verifyError || !emailData || emailData.email_accounts.user_id !== session.user.id) {
+    if (verifyError || !emailData) {
+      console.error('Error finding email:', verifyError || 'Email not found');
+      return NextResponse.json(
+        { success: false, error: 'Email not found' },
+        { status: 404 }
+      );
+    }
+    
+    // Now check if the user owns this email account
+    const { data: accountData, error: accountError } = await supabase
+      .from('email_accounts')
+      .select('id')
+      .eq('id', emailData.email_account_id)
+      .eq('user_id', session.user.id)
+      .single();
+      
+    if (accountError || !accountData) {
       return NextResponse.json(
         { success: false, error: 'Email not found or access denied' },
         { status: 404 }

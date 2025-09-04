@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create services
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
     const ragService = new UnifiedRAGService(supabase, process.env.OPENAI_API_KEY!);
     
     const metakockaAdapter = new MetakockaRAGAdapter(ragService, supabase);
@@ -203,7 +203,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Create services
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
     const ragService = new UnifiedRAGService(supabase, process.env.OPENAI_API_KEY!);
     
     const metakockaAdapter = new MetakockaRAGAdapter(ragService, supabase);
@@ -269,7 +269,7 @@ export async function DELETE(request: NextRequest) {
     } = body;
 
     // Create services
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
     const ragService = new UnifiedRAGService(supabase, process.env.OPENAI_API_KEY!);
     
     const metakockaAdapter = new MetakockaRAGAdapter(ragService, supabase);

@@ -1,9 +1,8 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Bold, Italic, Underline, List, ListOrdered, Link, Type } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
 
 interface RichTextEditorProps {
   value: string;
@@ -20,47 +19,100 @@ export default function RichTextEditor({
   className = "",
   height = "300px"
 }: RichTextEditorProps) {
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const [isRichMode, setIsRichMode] = useState(false);
+  const editorRef = useRef<HTMLDivElement>(null);
+  const [isRichMode, setIsRichMode] = useState(true);
+  const [htmlContent, setHtmlContent] = useState('');
 
-  const insertText = (before: string, after: string = '') => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
-
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const selectedText = value.substring(start, end);
-    
-    const newText = value.substring(0, start) + before + selectedText + after + value.substring(end);
-    onChange(newText);
-    
-    // Restore cursor position
-    setTimeout(() => {
-      textarea.focus();
-      textarea.setSelectionRange(start + before.length, end + before.length);
-    }, 0);
+  // Convert HTML to plain text and vice versa
+  const convertMarkdownToHtml = (markdown: string) => {
+    return markdown
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.*?)\*/g, '<em>$1</em>')
+      .replace(/<u>(.*?)<\/u>/g, '<u>$1</u>')
+      .replace(/\n/g, '<br>');
   };
 
-  const formatBold = () => insertText('**', '**');
-  const formatItalic = () => insertText('*', '*');
-  const formatUnderline = () => insertText('<u>', '</u>');
-  const formatBulletList = () => {
-    const lines = value.split('\n');
-    const start = textareaRef.current?.selectionStart || 0;
-    const lineStart = value.lastIndexOf('\n', start - 1) + 1;
-    insertText('\n• ', '');
+  const convertHtmlToMarkdown = (html: string) => {
+    return html
+      .replace(/<strong>(.*?)<\/strong>/g, '**$1**')
+      .replace(/<em>(.*?)<\/em>/g, '*$1*')
+      .replace(/<u>(.*?)<\/u>/g, '<u>$1</u>')
+      .replace(/<br\s*\/?>/g, '\n')
+      .replace(/<[^>]*>/g, ''); // Remove any other HTML tags
   };
-  const formatNumberedList = () => {
-    insertText('\n1. ', '');
+
+  // Initialize and update HTML content
+  useEffect(() => {
+    if (isRichMode && editorRef.current) {
+      const expectedHtml = convertMarkdownToHtml(value);
+      
+      // Initialize content if empty or different
+      if (editorRef.current.innerHTML !== expectedHtml) {
+        editorRef.current.innerHTML = expectedHtml;
+        setHtmlContent(expectedHtml);
+      }
+    }
+  }, [isRichMode]);
+
+  // Update content when value changes from parent (but not during user input)
+  useEffect(() => {
+    if (isRichMode && editorRef.current && !editorRef.current.contains(document.activeElement)) {
+      const expectedHtml = convertMarkdownToHtml(value);
+      if (editorRef.current.innerHTML !== expectedHtml) {
+        editorRef.current.innerHTML = expectedHtml;
+        setHtmlContent(expectedHtml);
+      }
+    }
+  }, [value]);
+
+  const executeCommand = (command: string, value?: string) => {
+    document.execCommand(command, false, value);
+    updateContent();
   };
-  const formatLink = () => insertText('[', '](url)');
+
+  const updateContent = () => {
+    if (editorRef.current) {
+      const html = editorRef.current.innerHTML;
+      const markdown = convertHtmlToMarkdown(html);
+      setHtmlContent(html);
+      onChange(markdown);
+    }
+  };
+
+  const formatBold = () => executeCommand('bold');
+  const formatItalic = () => executeCommand('italic');
+  const formatUnderline = () => executeCommand('underline');
+  const formatBulletList = () => executeCommand('insertUnorderedList');
+  const formatNumberedList = () => executeCommand('insertOrderedList');
+  const formatLink = () => {
+    const url = prompt('Enter URL:');
+    if (url) executeCommand('createLink', url);
+  };
 
   const toggleRichMode = () => {
+    if (isRichMode) {
+      // Switching to plain text
+      const markdown = convertHtmlToMarkdown(editorRef.current?.innerHTML || '');
+      onChange(markdown);
+    } else {
+      // Switching to rich text
+      setHtmlContent(convertMarkdownToHtml(value));
+    }
     setIsRichMode(!isRichMode);
   };
 
   return (
     <div className={`rich-text-editor border rounded-lg ${className}`}>
+      <style jsx>{`
+        [contenteditable]:empty:before {
+          content: attr(data-placeholder);
+          color: #9ca3af;
+          pointer-events: none;
+        }
+        [contenteditable]:focus:before {
+          content: '';
+        }
+      `}</style>
       {/* Toolbar */}
       <div className="flex items-center gap-1 p-2 border-b bg-gray-50 rounded-t-lg">
         <Button
@@ -138,21 +190,32 @@ export default function RichTextEditor({
         </Button>
       </div>
 
-      {/* Text Area */}
+      {/* Editor Area */}
       <div className="relative">
-        <Textarea
-          ref={textareaRef}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder={placeholder}
-          className="border-0 rounded-none rounded-b-lg resize-none focus:ring-0 focus:border-0"
-          style={{ minHeight: height }}
-          rows={parseInt(height.replace('px', '')) / 20 || 15}
-        />
+        {isRichMode ? (
+          <div
+            ref={editorRef}
+            contentEditable
+            onInput={updateContent}
+            className="border-0 rounded-none rounded-b-lg p-3 focus:outline-none focus:ring-0 min-h-[300px] prose prose-sm max-w-none"
+            style={{ minHeight: height }}
+            suppressContentEditableWarning={true}
+            data-placeholder={placeholder}
+          />
+        ) : (
+          <textarea
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder={placeholder}
+            className="border-0 rounded-none rounded-b-lg resize-none focus:ring-0 focus:border-0 p-3 w-full font-mono text-sm"
+            style={{ minHeight: height }}
+            rows={parseInt(height.replace('px', '')) / 20 || 15}
+          />
+        )}
         
         {/* Helper text */}
-        <div className="absolute bottom-2 right-2 text-xs text-gray-400 bg-white px-2 py-1 rounded">
-          {isRichMode ? 'Markdown supported' : 'Plain text mode'}
+        <div className="absolute bottom-2 right-2 text-xs text-gray-400 bg-white px-2 py-1 rounded shadow-sm">
+          {isRichMode ? 'Rich text mode' : 'Plain text mode'}
         </div>
       </div>
 

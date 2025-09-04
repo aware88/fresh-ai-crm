@@ -11,7 +11,7 @@ function CheckoutSuccessContent() {
   const [planId, setPlanId] = useState<string>('');
   
   useEffect(() => {
-    const planParam = searchParams.get('plan');
+    const planParam = searchParams?.get('plan');
     if (planParam) {
       setPlanId(planParam);
     }

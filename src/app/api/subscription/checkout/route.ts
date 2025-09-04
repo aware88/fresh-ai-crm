@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if user has permission to manage subscriptions for this organization
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data: userRole, error: roleError } = await supabase
       .rpc('user_has_role', {
         p_user_id: session.user.id,

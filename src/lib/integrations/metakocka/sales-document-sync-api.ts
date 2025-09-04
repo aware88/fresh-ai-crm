@@ -56,7 +56,7 @@ export async function getBulkSalesDocumentSyncStatus(documentIds: string[]) {
     // Split into batches of 50 if there are many IDs to avoid URL length limits
     if (documentIds.length > 50) {
       console.log(`Large batch of ${documentIds.length} documents detected, splitting into smaller batches`);
-      const results = { mappings: [] };
+      const results: { mappings: Array<{documentId: string, metakockaId: string, status: string}> } = { mappings: [] };
       
       // Process in batches of 50
       for (let i = 0; i < documentIds.length; i += 50) {
@@ -224,12 +224,13 @@ export async function syncSalesDocumentsFromMetakocka(metakockaIds?: string[]) {
     // If we have a dedicated bulk endpoint in the future, use it here
     // For now, we'll implement an optimized version of individual syncs
     
+    let idsToSync: string[] = [];
     if (!metakockaIds || metakockaIds.length === 0) {
       // Get all unsynced documents first
       const unsyncedResult = await getUnsyncedSalesDocumentsFromMetakocka();
-      metakockaIds = unsyncedResult.data?.documents?.map((doc: any) => doc.id) || [];
+      idsToSync = unsyncedResult.data?.documents?.map((doc: any) => doc.id) || [];
       
-      if (metakockaIds.length === 0) {
+      if (idsToSync.length === 0) {
         return {
           total: 0,
           synced: 0,
@@ -238,11 +239,13 @@ export async function syncSalesDocumentsFromMetakocka(metakockaIds?: string[]) {
           message: "No unsynced documents found"
         };
       }
+    } else {
+      idsToSync = metakockaIds;
     }
     
     // Prepare results object
     const results = {
-      total: metakockaIds.length,
+      total: idsToSync.length,
       synced: 0,
       failed: 0,
       details: [] as Array<{id: string; success: boolean; documentId?: string; error?: string}>
@@ -252,8 +255,8 @@ export async function syncSalesDocumentsFromMetakocka(metakockaIds?: string[]) {
     // Process in batches of 5 to avoid overwhelming the server
     const batchSize = 5;
     
-    for (let i = 0; i < metakockaIds.length; i += batchSize) {
-      const batch = metakockaIds.slice(i, i + batchSize);
+    for (let i = 0; i < idsToSync.length; i += batchSize) {
+      const batch = idsToSync.slice(i, i + batchSize);
       
       // Process batch in parallel
       const batchPromises = batch.map(id => {
@@ -271,7 +274,7 @@ export async function syncSalesDocumentsFromMetakocka(metakockaIds?: string[]) {
       // Process batch results
       batchResults.forEach((result, index) => {
         if (result.status === 'fulfilled') {
-          const syncResult = result.value;
+          const syncResult = (result as PromiseFulfilledResult<any>).value;
           results.details.push(syncResult);
           
           if (syncResult.success) {
@@ -291,7 +294,7 @@ export async function syncSalesDocumentsFromMetakocka(metakockaIds?: string[]) {
       });
       
       // Small delay between batches to avoid rate limiting
-      if (i + batchSize < metakockaIds.length) {
+      if (i + batchSize < idsToSync.length) {
         await new Promise(resolve => setTimeout(resolve, 200));
       }
     }

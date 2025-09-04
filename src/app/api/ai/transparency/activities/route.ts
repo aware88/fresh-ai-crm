@@ -10,8 +10,6 @@ import { cookies } from 'next/headers';
 import { TransparencyService } from '@/lib/ai/transparency/transparency-service';
 
 export async function GET(request: Request) {
-  // Get cookies using async pattern for Next.js 15+
-  const cookieStore = await cookies();
   try {
     const url = new URL(request.url);
     const searchParams = url.searchParams;
@@ -26,8 +24,8 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Agent ID is required' }, { status: 400 });
     }
     
-    // Initialize Supabase client
-    const supabase = createRouteHandlerClient({ cookies: cookieStore });
+    // Initialize Supabase client with correct async cookie pattern
+    const supabase = createRouteHandlerClient({ cookies });
     
     // Get user session
     const { data: { session } } = await supabase.auth.getSession();

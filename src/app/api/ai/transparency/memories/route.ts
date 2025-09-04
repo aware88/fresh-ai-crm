@@ -12,8 +12,6 @@ import { cookies } from 'next/headers';
 import { MemoryService } from '@/lib/ai/memory/memory.service';
 
 export async function GET(request: Request) {
-  // Get cookies using async pattern for Next.js 15+
-  const cookieStore = await cookies();
   try {
     const url = new URL(request.url);
     const searchParams = url.searchParams;
@@ -25,8 +23,8 @@ export async function GET(request: Request) {
     const offset = parseInt(searchParams.get('offset') || '0');
     const query = searchParams.get('query') || '';
     
-    // Initialize Supabase client
-    const supabase = createRouteHandlerClient({ cookies: cookieStore });
+    // Initialize Supabase client with correct async cookie pattern
+    const supabase = createRouteHandlerClient({ cookies });
     
     // Get user session
     const { data: { session } } = await supabase.auth.getSession();
@@ -41,13 +39,12 @@ export async function GET(request: Request) {
     
     if (query) {
       // Perform semantic search if query is provided
-      memories = await memoryService.searchMemories(
+      memories = await memoryService.searchMemories({
+        organization_id: session.user.user_metadata.organization_id,
         query,
-        memoryType ? [memoryType] : undefined,
-        contactId || undefined,
-        limit,
-        offset
-      );
+        memory_type: memoryType || undefined,
+        limit
+      });
     } else {
       // Otherwise, get memories by filters
       const { data, error } = await supabase
@@ -83,8 +80,8 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: 'Memory ID is required' }, { status: 400 });
     }
     
-    // Initialize Supabase client
-    const supabase = createRouteHandlerClient({ cookies: cookieStore });
+    // Initialize Supabase client with correct async cookie pattern
+    const supabase = createRouteHandlerClient({ cookies });
     
     // Get user session
     const { data: { session } } = await supabase.auth.getSession();
@@ -96,9 +93,10 @@ export async function DELETE(request: Request) {
     const memoryService = new MemoryService(supabase);
     
     // Delete memory
-    const success = await memoryService.deleteMemory(memoryId);
-    
-    if (!success) {
+    try {
+      await memoryService.deleteMemory(memoryId, session.user.user_metadata.organization_id);
+      return NextResponse.json({ success: true });
+    } catch (error) {
       return NextResponse.json({ error: 'Failed to delete memory' }, { status: 500 });
     }
     
@@ -118,8 +116,8 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: 'Memory ID is required' }, { status: 400 });
     }
     
-    // Initialize Supabase client
-    const supabase = createRouteHandlerClient({ cookies: cookieStore });
+    // Initialize Supabase client with correct async cookie pattern
+    const supabase = createRouteHandlerClient({ cookies });
     
     // Get user session
     const { data: { session } } = await supabase.auth.getSession();

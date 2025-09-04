@@ -27,10 +27,11 @@ import AIDraftWindow from '../AIDraftWindow';
 import { UpsellBadge } from '../UpsellIndicator';
 import { EmailViewProvider, useEmailView } from '@/contexts/EmailViewContext';
 import { motion, AnimatePresence } from 'framer-motion';
-import { EmailColorLegend } from '../EmailColorLegend';
+// import { EmailColorLegend } from '../EmailColorLegend';
 import { sortEmailsSmart, getEmailBorderColor, markEmailAsReplied } from '@/lib/email/smart-email-sorting';
 import { ProgressiveEmailLoader } from '@/lib/email/progressive-email-loader';
 import { PermanentEmailStorage } from '@/lib/email/permanent-email-storage';
+import { shouldEnableSmartSorting, shouldShowOpportunityBadges } from '@/lib/settings/display-settings';
 
 interface Email {
   id: string;
@@ -51,6 +52,57 @@ interface Email {
   // Reply tracking
   replied?: boolean;
   last_reply_at?: string;
+}
+
+// Create a compatible interface for sorting that matches the EmailForSorting from smart-email-sorting.ts
+interface EmailForSorting {
+  id: string;
+  date: string;
+  read: boolean;
+  assigned_agent?: 'customer' | 'sales' | 'dispute' | 'billing' | 'auto_reply';
+  highlight_color?: string;
+  agent_priority?: 'low' | 'medium' | 'high' | 'urgent';
+  upsellData?: {
+    hasUpsellOpportunity: boolean;
+    highestConfidence?: 'high' | 'medium' | 'low';
+    totalPotentialValue?: number;
+  };
+  replied?: boolean;
+  last_reply_at?: string;
+}
+
+// Helper function to convert Email to EmailForSorting
+function emailToSortingFormat(email: Email): EmailForSorting {
+  return {
+    id: email.id,
+    date: email.date,
+    read: email.read,
+    assigned_agent: email.assigned_agent,
+    highlight_color: email.highlight_color,
+    agent_priority: email.agent_priority,
+    upsellData: email.upsellData ? {
+      hasUpsellOpportunity: email.upsellData.hasUpsellOpportunity,
+      highestConfidence: email.upsellData.highestConfidence === null ? undefined : email.upsellData.highestConfidence,
+      totalPotentialValue: email.upsellData.totalPotentialValue
+    } : undefined,
+    replied: email.replied,
+    last_reply_at: email.last_reply_at
+  };
+}
+
+// Helper function to convert EmailForSorting back to Email (for state updates)
+function sortingToEmailFormat(email: EmailForSorting, originalEmail: Email): Email {
+  return {
+    ...originalEmail,
+    id: email.id,
+    date: email.date,
+    read: email.read,
+    assigned_agent: email.assigned_agent,
+    highlight_color: email.highlight_color,
+    agent_priority: email.agent_priority,
+    replied: email.replied,
+    last_reply_at: email.last_reply_at
+  };
 }
 
 interface ImapClientProps {
@@ -159,7 +211,7 @@ function ImapClientContent({ account, folder = 'Inbox', onSalesAgent, isSalesPro
 
       // Use permanent storage system - handles caching, AI analysis, and progressive loading
       const emailStorage = new PermanentEmailStorage();
-      const storedEmails = await emailStorage.loadEmails(account.id, folder, 50);
+      const storedEmails = await emailStorage.loadEmails(account.id, account.organization_id, folder, 50);
       
       console.log(`Loaded ${storedEmails.length} emails from permanent storage`);
       
@@ -177,7 +229,7 @@ function ImapClientContent({ account, folder = 'Inbox', onSalesAgent, isSalesPro
         assigned_agent: email.assigned_agent,
         highlight_color: email.highlight_color,
         agent_priority: email.agent_priority,
-        upsellData: email.upsell_data,
+        upsellData: email.upsell_data,  // This should work correctly now
         replied: email.replied,
         auto_reply_enabled: false
       }));
@@ -214,7 +266,7 @@ function ImapClientContent({ account, folder = 'Inbox', onSalesAgent, isSalesPro
       setIsLoadingMore(true);
       
       const emailStorage = new PermanentEmailStorage();
-      const moreEmails = await emailStorage.loadEmails(account.id, currentFolder, 20, emails.length);
+      const moreEmails = await emailStorage.loadEmails(account.id, account.organization_id, currentFolder, 20);
       
       if (moreEmails.length === 0) {
         setHasMoreEmails(false);
@@ -349,59 +401,38 @@ function ImapClientContent({ account, folder = 'Inbox', onSalesAgent, isSalesPro
   useEffect(() => {
     if (session?.user) {
       loadFolders();
-      loadEmails(currentFolder);
+      loadEmails();
     }
-  }, [session?.user?.id, account?.id]); // Load emails when user or account changes
+  }, [session, account?.id, currentFolder]);
 
   const handleEmailClick = (email: Email) => {
     setSelectedEmail(email);
     setSelectedEmailId(email.id);
-    setEmailData(email);
+    setEmailData({
+      subject: email.subject,
+      body: email.body,
+      from: email.from,
+      to: ''
+    });
     setViewMode('detail');
-    
-    // Mark as read locally only (dev-phase)
-    if (!email.read) {
-      const updatedReadEmails = new Set([...readEmails, email.id]);
-      setReadEmails(updatedReadEmails);
-      
-      const updatedEmails = emails.map(e => 
-        e.id === email.id ? { ...e, read: true } : e
-      );
-      setEmails(updatedEmails);
-    }
   };
 
-  // Handle reply actions and mark email as replied
   const handleReply = () => {
     if (selectedEmail) {
-      startReply(selectedEmail.id, selectedEmail, 'reply');
-      // Mark email as replied to remove highlighting
-      markEmailReplied(selectedEmail.id);
+      startReply(selectedEmail.id, {
+        subject: `Re: ${selectedEmail.subject}`,
+        body: `<br/><br/>On ${new Date(selectedEmail.date).toLocaleString()}, ${selectedEmail.from} wrote:<br/>`,
+        from: selectedEmail.from,
+        to: ''
+      }, 'reply');
     }
   };
 
-  const handleReplyAll = () => {
-    if (selectedEmail) {
-      startReply(selectedEmail.id, selectedEmail, 'replyAll');
-      // Mark email as replied to remove highlighting
-      markEmailReplied(selectedEmail.id);
-    }
-  };
-
-  const handleForward = () => {
-    if (selectedEmail) {
-      startReply(selectedEmail.id, selectedEmail, 'forward');
-      // Mark email as replied to remove highlighting
-      markEmailReplied(selectedEmail.id);
-    }
-  };
-
-  // Function to mark email as replied and update state
-  const markEmailReplied = (emailId: string) => {
+  const handleMarkAsReplied = (emailId: string) => {
     setEmails(prevEmails => 
       prevEmails.map(email => 
         email.id === emailId 
-          ? markEmailAsReplied(email)
+          ? sortingToEmailFormat(markEmailAsReplied(emailToSortingFormat(email)), email)
           : email
       )
     );
@@ -474,8 +505,8 @@ function ImapClientContent({ account, folder = 'Inbox', onSalesAgent, isSalesPro
 
 
   // Sort emails based on user preference
-  const sortedEmails = typeof shouldEnableSmartSorting === 'function' && shouldEnableSmartSorting() 
-    ? sortEmailsSmart(emails) 
+  const sortedEmails = shouldEnableSmartSorting() 
+    ? sortEmailsSmart(emails.map(emailToSortingFormat)) 
     : [...emails].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   const displayedEmails = sortedEmails.slice(0, displayCount);
 
@@ -524,7 +555,7 @@ function ImapClientContent({ account, folder = 'Inbox', onSalesAgent, isSalesPro
                 <h3 className="text-sm font-medium text-gray-900">
                   Emails ({emails.length})
                 </h3>
-                <EmailColorLegend />
+                {/* <EmailColorLegend /> */}
               </div>
               <div className="h-full overflow-y-auto" id="email-scroll-container" style={{ height: 'calc(100% - 60px)' }}>
                 <div className="p-2">
@@ -549,10 +580,10 @@ function ImapClientContent({ account, folder = 'Inbox', onSalesAgent, isSalesPro
                                 ? 'bg-white border-gray-200 hover:bg-gray-50 hover:border-gray-300'
                                 : 'unread bg-blue-25 border-blue-200 hover:bg-blue-50 hover:border-blue-300'
                             }`}
-                            onClick={() => handleEmailClick(email)}
+                            onClick={() => handleEmailClick(email as Email)}
                                         style={{
-              borderLeft: typeof shouldEnableSmartSorting === 'function' && shouldEnableSmartSorting() 
-                ? `4px solid ${getEmailBorderColor(email, selectedEmail?.id === email.id)}`
+              borderLeft: shouldEnableSmartSorting() 
+                ? `4px solid ${getEmailBorderColor(emailToSortingFormat(email as Email), selectedEmail?.id === email.id)}`
                 : selectedEmail?.id === email.id 
                 ? '4px solid #3B82F6'
                 : !email.read 
@@ -565,9 +596,9 @@ function ImapClientContent({ account, folder = 'Inbox', onSalesAgent, isSalesPro
                                   <p className={`text-xs font-medium truncate flex-1 pr-1 ${
                                     email.read ? 'text-gray-600' : 'text-gray-800'
                                   }`}
-                                   title={email.from}
+                                   title={(email as Email).from}
                                    style={{ maxWidth: 'calc(100% - 70px)' }}>
-                                    {email.from}
+                                    {(email as Email).from}
                                   </p>
                                   <div className="flex items-center space-x-2 flex-shrink-0 min-w-[70px] justify-end">
                                     {!email.read && (
@@ -589,8 +620,8 @@ function ImapClientContent({ account, folder = 'Inbox', onSalesAgent, isSalesPro
                                      overflow: 'hidden',
                                      textOverflow: 'ellipsis'
                                    }}
-                                   title={email.subject}>
-                                  {email.subject}
+                                   title={(email as Email).subject}>
+                                  {(email as Email).subject}
                                 </p>
                                 
                                 {/* Agent, Priority, and Upsell Badges */}
@@ -609,12 +640,12 @@ function ImapClientContent({ account, folder = 'Inbox', onSalesAgent, isSalesPro
                                     </Badge>
                                   )}
                                   {getPriorityIcon(email.agent_priority)}
-                                  {email.upsellData && typeof shouldShowOpportunityBadges === 'function' && shouldShowOpportunityBadges() && (
+                                  {(email as Email).upsellData && shouldShowOpportunityBadges() && (
                                     <UpsellBadge 
-                                      upsellData={email.upsellData}
+                                      upsellData={(email as Email).upsellData!}
                                       onClick={() => {
                                         // Optional: Could open upsell details modal
-                                        console.log('Upsell opportunity clicked:', email.upsellData);
+                                        console.log('Upsell opportunity clicked:', (email as Email).upsellData);
                                       }}
                                     />
                                   )}
@@ -628,7 +659,7 @@ function ImapClientContent({ account, folder = 'Inbox', onSalesAgent, isSalesPro
                                      overflow: 'hidden',
                                      textOverflow: 'ellipsis'
                                    }}>
-                                  {generateEmailPreview(email.body, 70)}
+                                  {generateEmailPreview((email as Email).body, 70)}
                                 </p>
                               </div>
                           </div>
@@ -807,7 +838,7 @@ function ImapClientContent({ account, folder = 'Inbox', onSalesAgent, isSalesPro
                           console.log('Regenerating draft...');
                         }}
                         className="h-full"
-                        position="bottom"
+                        position="inline"
                       />
                     </motion.div>
                   </motion.div>

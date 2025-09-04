@@ -14,8 +14,8 @@ export async function GET(request: Request) {
     }
 
     // Create Supabase client with proper cookies handling for Next.js 15+
-    const cookieStore = await cookies();
-    const supabase = createRouteHandlerClient<Database>({ cookies: cookieStore });
+    const cookieStore = cookies();
+    const supabase = createRouteHandlerClient<Database>({ cookies: () => cookieStore });
     
     // Get organization ID from query params
     const { searchParams } = new URL(request.url);
@@ -50,7 +50,18 @@ export async function GET(request: Request) {
         .order('created_at', { ascending: false })
     ]);
 
-    // Calculate metrics
+    // Check for errors in the results
+    if (subscriptionsResult.error) {
+      throw new Error(subscriptionsResult.error.message);
+    }
+    if (plansResult.error) {
+      throw new Error(plansResult.error.message);
+    }
+    if (invoicesResult.error) {
+      throw new Error(invoicesResult.error.message);
+    }
+
+    // Extract data safely
     const subscriptions = subscriptionsResult.data || [];
     const plans = plansResult.data || [];
     const invoices = invoicesResult.data || [];
@@ -58,44 +69,44 @@ export async function GET(request: Request) {
     // Calculate revenue metrics
     const totalRevenue = invoices
       .filter(invoice => invoice.status === 'paid')
-      .reduce((sum, invoice) => sum + invoice.amount, 0);
+      .reduce((sum, invoice) => sum + (invoice.amount || 0), 0);
 
     const lastMonthRevenue = invoices
       .filter(invoice => {
-        const invoiceDate = new Date(invoice.created_at);
+        const invoiceDate = new Date(invoice.created_at || '');
         const lastMonth = new Date();
         lastMonth.setMonth(lastMonth.getMonth() - 1);
         return invoice.status === 'paid' && 
                invoiceDate.getMonth() === lastMonth.getMonth() && 
                invoiceDate.getFullYear() === lastMonth.getFullYear();
       })
-      .reduce((sum, invoice) => sum + invoice.amount, 0);
+      .reduce((sum, invoice) => sum + (invoice.amount || 0), 0);
 
     // Calculate subscription metrics
     const activeSubscriptions = subscriptions.filter(sub => 
-      ['active', 'trialing'].includes(sub.status)
+      ['active', 'trialing'].includes(sub.status || '')
     ).length;
 
     const cancelledSubscriptions = subscriptions.filter(sub => 
-      sub.status === 'active' && sub.cancel_at_period_end === true
+      (sub.status || '') === 'active' && (sub.cancel_at_period_end || false) === true
     ).length;
 
     // Calculate plan distribution
     const planDistribution = plans.map(plan => {
       const count = subscriptions.filter(sub => 
         sub.subscription_plan_id === plan.id && 
-        ['active', 'trialing'].includes(sub.status)
+        ['active', 'trialing'].includes(sub.status || '')
       ).length;
       
       return {
-        name: plan.name,
+        name: plan.name || '',
         count,
         revenue: invoices
           .filter(invoice => {
             const sub = subscriptions.find(s => s.id === invoice.subscription_id);
-            return sub && sub.subscription_plan_id === plan.id && invoice.status === 'paid';
+            return sub && sub.subscription_plan_id === plan.id && (invoice.status || '') === 'paid';
           })
-          .reduce((sum, invoice) => sum + invoice.amount, 0)
+          .reduce((sum, invoice) => sum + (invoice.amount || 0), 0)
       };
     });
 
@@ -110,12 +121,12 @@ export async function GET(request: Request) {
       
       const revenue = invoices
         .filter(invoice => {
-          const invoiceDate = new Date(invoice.created_at);
-          return invoice.status === 'paid' && 
+          const invoiceDate = new Date(invoice.created_at || '');
+          return (invoice.status || '') === 'paid' && 
                  invoiceDate.getMonth() === month.getMonth() && 
                  invoiceDate.getFullYear() === month.getFullYear();
         })
-        .reduce((sum, invoice) => sum + invoice.amount, 0);
+        .reduce((sum, invoice) => sum + (invoice.amount || 0), 0);
       
       monthlyRevenue.push({
         month: `${monthName} ${year}`,

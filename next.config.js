@@ -12,16 +12,17 @@
  */
 const nextConfig = {
   // Enable React's Strict Mode (helps catch potential issues during development)
-  reactStrictMode: false,
+  reactStrictMode: true,
   
-  // Disable ESLint during build
+  // Gradually enable ESLint - for now keep disabled but with better structure for future
   eslint: {
-    ignoreDuringBuilds: true,
+    ignoreDuringBuilds: true, // Will re-enable after fixing major issues
+    dirs: ['src'],
   },
   
-  // Disable TypeScript type checking during build
+  // Gradually enable TypeScript - for now keep disabled but improve incrementally
   typescript: {
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: true, // Will re-enable after fixing type issues
   },
   
   // Configure images
@@ -55,62 +56,46 @@ const nextConfig = {
   skipMiddlewareUrlNormalize: true,
   skipTrailingSlashRedirect: true,
   
-  // Webpack configuration to handle dynamic imports
+  // Unified Webpack configuration (merged)
   webpack: (config, { isServer }) => {
     // Ignore critical dependency warnings
     config.ignoreWarnings = [
       { module: /node_modules\/@supabase\/realtime-js/ },
       { message: /Critical dependency: the request of a dependency is an expression/ }
     ];
-    
+
     // Add polyfills for browser APIs during server-side builds
     if (isServer) {
-      // Define browser APIs as undefined during server builds
+      const { DefinePlugin } = config.webpack || require('webpack');
       config.plugins.push(
-        new config.webpack.DefinePlugin({
+        new DefinePlugin({
           'typeof File': JSON.stringify('undefined'),
           'typeof FormData': JSON.stringify('function'),
           'typeof Blob': JSON.stringify('undefined'),
         })
       );
     }
-    
+
+    // Handle SVGs: support ?url and SVGR
+    const fileLoaderRule = config.module.rules.find((rule) => rule.test?.test?.('.svg'));
+    if (fileLoaderRule) {
+      config.module.rules.push(
+        {
+          ...fileLoaderRule,
+          test: /\.svg\?url$/,
+          resourceQuery: /url/,
+        },
+        {
+          test: /\.svg$/i,
+          issuer: /\.[jt]sx?$/,
+          resourceQuery: { not: /url/ },
+          use: ['@svgr/webpack'],
+        }
+      );
+      fileLoaderRule.exclude = /\.svg$/i;
+    }
+
     return config;
-  },
-
-  /**
-   * Webpack configuration for handling SVGs and other assets
-   * This setup allows two ways to import SVGs:
-   * 1. As React components: `import Logo from './logo.svg'`
-   * 2. As URLs: `import logoUrl from './logo.svg?url'`
-   */
-  webpack(config) {
-    // Find the existing file loader rule that handles SVG files
-    const fileLoaderRule = config.module.rules.find((rule) =>
-      rule.test?.test?.('.svg')
-    )
-
-    // Add new rules for SVG handling
-    config.module.rules.push(
-      // Handle SVG imports with ?url suffix as file URLs
-      {
-        ...fileLoaderRule,
-        test: /\.svg\?url$/,
-        resourceQuery: /url/, // Matches ?url in import statements
-      },
-      // Convert all other SVG imports to React components
-      {
-        test: /\.svg$/i,
-        issuer: /\.[jt]sx?$/, // Only process SVGs imported in JS/TS/JSX/TSX files
-        resourceQuery: { not: /url/ }, // Exclude SVGs with ?url
-        use: ['@svgr/webpack'], // Use SVGR to transform SVGs into React components
-      }
-    )
-
-    // Exclude SVGs from the default file loader since we're handling them above
-    fileLoaderRule.exclude = /\.svg$/i
-
-    return config
   },
 }
 

@@ -114,14 +114,21 @@ export interface AutomationStats {
 }
 
 export class FollowUpAutomationService {
-  private supabase: SupabaseClient;
+  private supabasePromise: Promise<SupabaseClient>;
   private followUpService: FollowUpService;
   private aiService: FollowUpAIService;
 
   constructor() {
-    this.supabase = createLazyServerClient();
+    this.supabasePromise = Promise.resolve(createLazyServerClient());
     this.followUpService = new FollowUpService();
     this.aiService = new FollowUpAIService();
+  }
+
+  /**
+   * Get initialized Supabase client
+   */
+  private async getSupabase(): Promise<SupabaseClient> {
+    return await this.supabasePromise;
   }
 
   /**
@@ -129,7 +136,8 @@ export class FollowUpAutomationService {
    */
   async createAutomationRule(rule: Omit<AutomationRule, 'id' | 'created_at' | 'updated_at'>): Promise<AutomationRule | null> {
     try {
-      const { data, error } = await this.supabase
+      const supabase = await this.getSupabase();
+      const { data, error } = await supabase
         .from('email_followup_automation_rules')
         .insert({
           ...rule,
@@ -156,7 +164,8 @@ export class FollowUpAutomationService {
    */
   async getAutomationRules(userId: string, organizationId?: string): Promise<AutomationRule[]> {
     try {
-      let query = this.supabase
+      const supabase = await this.getSupabase();
+      let query = supabase
         .from('email_followup_automation_rules')
         .select('*')
         .eq('user_id', userId)
@@ -189,7 +198,8 @@ export class FollowUpAutomationService {
       console.log('[FollowUpAutomation] Starting automation processing...');
 
       // Get all active automation rules
-      const { data: rules, error: rulesError } = await this.supabase
+      const supabase = await this.getSupabase();
+      const { data: rules, error: rulesError } = await supabase
         .from('email_followup_automation_rules')
         .select('*')
         .eq('is_active', true);
@@ -308,7 +318,8 @@ export class FollowUpAutomationService {
    */
   private async getExistingExecution(ruleId: string, followupId: string): Promise<AutomationExecution | null> {
     try {
-      const { data, error } = await this.supabase
+      const supabase = await this.getSupabase();
+      const { data, error } = await supabase
         .from('email_followup_automation_executions')
         .select('*')
         .eq('rule_id', ruleId)
@@ -345,7 +356,8 @@ export class FollowUpAutomationService {
         }
       };
 
-      const { data, error } = await this.supabase
+      const supabase = await this.getSupabase();
+      const { data, error } = await supabase
         .from('email_followup_automation_executions')
         .insert(execution)
         .select()
@@ -513,7 +525,8 @@ export class FollowUpAutomationService {
         ...additionalData
       };
 
-      const { error } = await this.supabase
+      const supabase = await this.getSupabase();
+      const { error } = await supabase
         .from('email_followup_automation_executions')
         .update(updateData)
         .eq('id', executionId);
@@ -537,7 +550,8 @@ export class FollowUpAutomationService {
   ): Promise<boolean> {
     try {
       // Get the execution
-      const { data: execution, error } = await this.supabase
+      const supabase = await this.getSupabase();
+      const { data: execution, error } = await supabase
         .from('email_followup_automation_executions')
         .select('*')
         .eq('id', executionId)
@@ -558,7 +572,7 @@ export class FollowUpAutomationService {
       });
 
       // Get the rule to check approval requirements
-      const { data: rule } = await this.supabase
+      const { data: rule } = await supabase
         .from('email_followup_automation_rules')
         .select('*')
         .eq('id', execution.rule_id)
@@ -579,7 +593,7 @@ export class FollowUpAutomationService {
         // Check if all approvers have approved
         const requiredApprovers = approvalWorkflow.approvers || [];
         const approvedBy = approvals.filter(a => a.approved).map(a => a.approver_id);
-        const allApproved = requiredApprovers.every(approverId => approvedBy.includes(approverId));
+        const allApproved = requiredApprovers.every(approverIdParam => approvedBy.includes(approverIdParam));
         
         if (allApproved) {
           finalStatus = 'approved';
@@ -614,8 +628,10 @@ export class FollowUpAutomationService {
    */
   async getAutomationStats(userId: string, organizationId?: string): Promise<AutomationStats> {
     try {
+      const supabase = await this.getSupabase();
+        
       // Get rules count
-      let rulesQuery = this.supabase
+      let rulesQuery = supabase
         .from('email_followup_automation_rules')
         .select('id, is_active')
         .eq('user_id', userId);
@@ -627,7 +643,7 @@ export class FollowUpAutomationService {
       const { data: rules } = await rulesQuery;
 
       // Get executions count and stats
-      let executionsQuery = this.supabase
+      let executionsQuery = supabase
         .from('email_followup_automation_executions')
         .select('status, response_received, response_time_hours, created_at')
         .eq('user_id', userId);
@@ -635,15 +651,15 @@ export class FollowUpAutomationService {
       const { data: executions } = await executionsQuery;
 
       const totalRules = rules?.length || 0;
-      const activeRules = rules?.filter(r => r.is_active).length || 0;
+      const activeRules = rules?.filter((r: any) => r.is_active).length || 0;
       const totalExecutions = executions?.length || 0;
-      const pendingApprovals = executions?.filter(e => e.status === 'awaiting_approval').length || 0;
-      const successfulExecutions = executions?.filter(e => e.status === 'sent').length || 0;
+      const pendingApprovals = executions?.filter((e: any) => e.status === 'awaiting_approval').length || 0;
+      const successfulExecutions = executions?.filter((e: any) => e.status === 'sent').length || 0;
       const successRate = totalExecutions > 0 ? (successfulExecutions / totalExecutions) * 100 : 0;
       
-      const responseTimes = executions?.filter(e => e.response_time_hours).map(e => e.response_time_hours) || [];
+      const responseTimes = executions?.filter((e: any) => e.response_time_hours).map((e: any) => e.response_time_hours) || [];
       const avgResponseTime = responseTimes.length > 0 
-        ? responseTimes.reduce((sum, time) => sum + time, 0) / responseTimes.length 
+        ? responseTimes.reduce((sum: any, time: any) => sum + time, 0) / responseTimes.length 
         : 0;
 
       // Estimate cost and time savings (these would be calculated based on actual usage)
@@ -680,7 +696,8 @@ export class FollowUpAutomationService {
    */
   async getPendingApprovals(approverId: string): Promise<AutomationExecution[]> {
     try {
-      const { data, error } = await this.supabase
+      const supabase = await this.getSupabase();
+      const { data, error } = await supabase
         .from('email_followup_automation_executions')
         .select(`
           *,
@@ -709,5 +726,4 @@ export class FollowUpAutomationService {
   }
 }
 
-
-
+export type { AutomationRule, AutomationExecution, AutomationStats };

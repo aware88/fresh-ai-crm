@@ -32,7 +32,7 @@ function createDefaultOrganization(userId: string): Organization {
     secondary_color: null,
     domain: null,
     is_active: true,
-    subscription_tier: 'free',
+    subscription_tier: 'pro', // Default to pro instead of free
     subscription_status: 'active',
     subscription_start_date: null,
     subscription_end_date: null,

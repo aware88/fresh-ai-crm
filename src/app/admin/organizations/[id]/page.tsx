@@ -30,16 +30,31 @@ export interface Organization {
   user_count?: number;
 }
 
-export default function OrganizationDetailPage({ params }: { params: { id: string } }) {
+interface PageProps {
+  params: Promise<{ id: string }>;
+}
+
+export default function OrganizationDetailPage({ params }: PageProps) {
   const [organization, setOrganization] = useState<Organization | null>(null);
   const [activeTab, setActiveTab] = useState('details');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [organizationId, setOrganizationId] = useState<string>('');
   const router = useRouter();
-  const organizationId = params.id;
+
+  // Extract organization ID from params
+  useEffect(() => {
+    const extractParams = async () => {
+      const resolvedParams = await params;
+      setOrganizationId(resolvedParams.id);
+    };
+    extractParams();
+  }, [params]);
 
   // Fetch organization data
   useEffect(() => {
+    if (!organizationId) return;
+    
     async function fetchOrganization() {
       try {
         const response = await fetch(`/api/admin/organizations/${organizationId}`);

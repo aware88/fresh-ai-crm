@@ -13,7 +13,7 @@ export class AlertNotificationService {
    */
   static async sendAlertNotification(userId: string, alert: AlertNotification) {
     try {
-      const supabase = createServerClient();
+      const supabase = await createServerClient();
       
       // Get user's email preferences
       const { data: userPrefs } = await supabase
@@ -147,7 +147,7 @@ export class AlertNotificationService {
    * Log notification in the database
    */
   private static async logNotification(userId: string, alertId: string, type: 'email' | 'sms') {
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
     
     await supabase.from('notification_logs').insert([{
       user_id: userId,

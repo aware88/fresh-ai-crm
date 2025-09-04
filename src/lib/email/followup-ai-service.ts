@@ -75,14 +75,21 @@ export interface FollowUpDraftResult {
 }
 
 export class FollowUpAIService {
-  private supabase: SupabaseClient;
+  private supabasePromise: Promise<SupabaseClient>;
   private draftingService: UnifiedAIDraftingService | null = null;
   private modelRouter: ModelRouterService | null = null;
   private openai: ReturnType<typeof getOpenAIClient>;
 
   constructor() {
-    this.supabase = createLazyServerClient();
+    this.supabasePromise = createLazyServerClient();
     this.openai = getOpenAIClient();
+  }
+
+  /**
+   * Get initialized Supabase client
+   */
+  private async getSupabase(): Promise<SupabaseClient> {
+    return await this.supabasePromise;
   }
 
   /**
@@ -90,8 +97,9 @@ export class FollowUpAIService {
    */
   private async initializeServices(organizationId: string, userId: string) {
     if (!this.draftingService) {
+      const supabase = await this.getSupabase();
       this.draftingService = new UnifiedAIDraftingService(
-        this.supabase,
+        supabase,
         this.openai,
         organizationId,
         userId
@@ -512,7 +520,8 @@ Please generate an effective follow-up email that addresses the situation approp
     metadata: any
   ): Promise<void> {
     try {
-      await this.supabase
+      const supabase = await this.getSupabase();
+      await supabase
         .from('email_followup_drafts')
         .insert({
           followup_id: context.followupId,

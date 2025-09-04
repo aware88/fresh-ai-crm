@@ -18,19 +18,20 @@ export const PermissionExample: React.FC = () => {
       
       <div className="mb-8">
         <h2 className="text-xl font-semibold mb-4">Your Permissions</h2>
-        {permissions.length === 0 ? (
+        {permissions.size === 0 ? (
           <p>You don't have any permissions.</p>
         ) : (
           <ul className="list-disc pl-5">
-            {permissions.map(permission => (
-              <li key={permission.resource_type} className="mb-1">
-                <span className="font-mono bg-gray-100 px-2 py-1 rounded">
-                  {permission.resource_type}
-                </span>
-                {' - '}
-                <span>{permission.description}</span>
-              </li>
-            ))}
+            {Array.from(permissions).map((permissionKey) => {
+              const [resourceType, action] = permissionKey.split(':');
+              return (
+                <li key={permissionKey} className="mb-1">
+                  <span className="font-mono bg-gray-100 px-2 py-1 rounded">
+                    {resourceType}:{action}
+                  </span>
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>
@@ -40,9 +41,9 @@ export const PermissionExample: React.FC = () => {
         <div className="border rounded-lg p-4">
           <h3 className="font-semibold mb-2">Direct Permission Check</h3>
           <div className="mb-4">
-            <code>hasPermission('organization.users.view')</code>
+            <code>hasPermission('organization.users', 'view')</code>
             <div className="mt-2">
-              Result: {hasPermission('organization.users.view') ? (
+              Result: {hasPermission('organization.users', 'view') ? (
                 <span className="text-green-600 font-semibold">✓ Has Access</span>
               ) : (
                 <span className="text-red-600 font-semibold">✗ No Access</span>

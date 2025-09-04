@@ -3,6 +3,12 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { SubscriptionService } from '@/lib/services/subscription-service';
 
+interface RouteParams {
+  params: Promise<{
+    id: string;
+  }>;
+}
+
 // Helper function to check if user is an admin
 async function isAdmin(userId: string) {
   // This is a placeholder - implement your actual admin check logic
@@ -10,7 +16,7 @@ async function isAdmin(userId: string) {
 }
 
 // POST /api/admin/subscription/organizations/[id]/cancel - Cancel subscription
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, { params }: RouteParams) {
   try {
     const session = await getServerSession(authOptions);
     
@@ -26,7 +32,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
     
-    const { id } = params;
+    const { id } = await params;
     const { cancelAtPeriodEnd = true } = await req.json();
     
     const subscriptionService = new SubscriptionService();

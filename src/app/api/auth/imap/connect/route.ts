@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
 import { createServiceRoleClient } from '@/lib/supabase/service-role';
+import { canAddMoreEmailAccounts } from '@/lib/subscription-feature-check';
 import * as crypto from 'crypto';
 
 // Encrypt password with AES-256-GCM
@@ -95,14 +96,66 @@ export async function POST(request: Request) {
     // Initialize supabase client with service role to bypass RLS
     const supabase = createServiceRoleClient();
     
-    // Check if this email already exists for this user
+    // Get user's current organization for subscription checking
+    const { data: userPrefs, error: prefsError } = await supabase
+      .from('user_preferences')
+      .select('current_organization_id')
+      .eq('user_id', session.user.id)
+      .single();
+
+    if (prefsError || !userPrefs?.current_organization_id) {
+      console.error('IMAP connect: Could not find user organization:', prefsError);
+      return NextResponse.json(
+        { success: false, error: 'Could not determine organization for subscription check' },
+        { status: 400 }
+      );
+    }
+
+    const organizationId = userPrefs.current_organization_id;
+
+    // Check if this email already exists for this user or organization
     const { data: existingAccount, error: checkError } = await supabase
       .from('email_accounts')
       .select('id')
-      .eq('user_id', session.user.id)
+      .or(`user_id.eq.${session.user.id},organization_id.eq.${organizationId}`)
       .eq('email', email)
       .eq('provider_type', providerType || 'imap')
       .maybeSingle();
+
+    // If this is a new account (not updating existing), check subscription limits
+    if (!existingAccount) {
+      // Count current email accounts for this organization
+      const { count: currentEmailAccountCount, error: countError } = await supabase
+        .from('email_accounts')
+        .select('*', { count: 'exact', head: true })
+        .eq('organization_id', organizationId);
+
+      if (countError) {
+        console.error('Error counting email accounts:', countError);
+        return NextResponse.json(
+          { success: false, error: 'Failed to check email account limits' },
+          { status: 500 }
+        );
+      }
+
+      // Check if organization can add more email accounts
+      const { canAdd, reason, limit } = await canAddMoreEmailAccounts(
+        organizationId, 
+        currentEmailAccountCount || 0
+      );
+
+      if (!canAdd) {
+        return NextResponse.json(
+          { 
+            success: false, 
+            error: reason || 'Email account limit reached',
+            limit,
+            currentCount: currentEmailAccountCount || 0
+          },
+          { status: 403 }
+        );
+      }
+    }
     
     let result;
     
@@ -132,6 +185,7 @@ export async function POST(request: Request) {
         .insert([
           {
             user_id: session.user.id,
+            organization_id: organizationId,
             email,
             display_name: name || email,
             provider_type: providerType || 'imap',

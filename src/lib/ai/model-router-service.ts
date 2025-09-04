@@ -386,13 +386,21 @@ export class ModelRouterService {
   /**
    * Select the best model for a given complexity level
    */
-  private selectBestModel(complexity: TaskComplexity, userPreference?: string): string {
+  private selectBestModel(complexity: TaskComplexity, userPreference?: string, taskType?: string): string {
     // Check user preference first
     if (userPreference && this.models.has(userPreference)) {
       const model = this.models.get(userPreference)!;
       if (model.suitableFor.includes(complexity)) {
         return userPreference;
       }
+    }
+    
+    // Special case for email learning tasks - always prefer GPT-4o-mini
+    if (taskType && 
+        (taskType.includes('email_learning') || 
+         taskType.includes('pattern_extraction') || 
+         taskType.includes('pattern_based_draft'))) {
+      return 'gpt-4o-mini';
     }
 
     // Get models suitable for this complexity
@@ -412,7 +420,7 @@ export class ModelRouterService {
       case TaskComplexity.STANDARD:
         return suitableModels.find(m => m.id === 'gpt-4o-mini')?.id || 'gpt-4o';
       case TaskComplexity.COMPLEX:
-        return suitableModels.find(m => m.id === 'gpt-4o')?.id || 'gpt-4';
+        return suitableModels.find(m => m.id === 'gpt-4o-mini')?.id || 'gpt-4o';
       default:
         return 'gpt-4o-mini';
     }
@@ -696,24 +704,25 @@ export class ModelRouterService {
       // Get all ratings for the user and aggregate in memory since Supabase client doesn't support .group()
       const { data: allRatings } = await query
         .select('model_id, user_feedback')
-        .not('user_feedback', 'is', null)
         .order('created_at', { ascending: false });
 
       // Aggregate the data in memory
-      const modelStats = new Map();
-      allRatings?.forEach(rating => {
+      const modelStats = new Map<string, { ratings: number[], count: number }>();
+      allRatings?.forEach((rating: { model_id: string, user_feedback: number | null }) => {
+        if (rating.user_feedback === null) return; // Skip null ratings
+        
         if (!modelStats.has(rating.model_id)) {
           modelStats.set(rating.model_id, { ratings: [], count: 0 });
         }
-        modelStats.get(rating.model_id).ratings.push(rating.user_feedback);
-        modelStats.get(rating.model_id).count++;
+        modelStats.get(rating.model_id)!.ratings.push(rating.user_feedback);
+        modelStats.get(rating.model_id)!.count++;
       });
 
       // Calculate averages and sort by preference
       const userPreferences = Array.from(modelStats.entries())
         .map(([model_id, stats]) => ({
           model_id,
-          avg_rating: stats.ratings.reduce((a, b) => a + b, 0) / stats.ratings.length,
+          avg_rating: stats.ratings.reduce((a: number, b: number) => a + b, 0) / stats.ratings.length,
           usage_count: stats.count
         }))
         .sort((a, b) => b.avg_rating - a.avg_rating || b.usage_count - a.usage_count)
@@ -734,6 +743,14 @@ export class ModelRouterService {
     taskType: string = 'general',
     userPreference?: string
   ): Promise<string> {
+    // Special case for email learning tasks - always prefer GPT-4o-mini
+    if (taskType && 
+        (taskType.includes('email_learning') || 
+         taskType.includes('pattern_extraction') || 
+         taskType.includes('pattern_based_draft'))) {
+      return 'gpt-4o-mini';
+    }
+    
     // If user has explicit preference, use it if suitable
     if (userPreference && this.models.has(userPreference)) {
       const model = this.models.get(userPreference)!;

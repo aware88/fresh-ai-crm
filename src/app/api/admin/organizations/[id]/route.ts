@@ -3,7 +3,7 @@ import { createServerClient } from '@/lib/supabase/server';
 import { requirePermission } from '@/lib/auth/middleware';
 
 // GET /api/admin/organizations/[id] - Get a specific organization
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     // Check if user has permission to view organizations
     const auth = await requirePermission('admin.organizations.view');
@@ -16,7 +16,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     // Use async pattern for params in Next.js 15+
     const { id } = await params;
     const organizationId = id;
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
 
     // Get organization with user count
     const { data: organization, error } = await supabase
@@ -82,7 +82,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 }
 
 // PUT /api/admin/organizations/[id] - Update a specific organization
-export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     // Check if user has permission to update organizations
     const auth = await requirePermission('admin.organizations.edit');
@@ -114,7 +114,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       );
     }
 
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
 
     // Check if slug is already in use by another organization
     const { data: existingOrg } = await supabase
@@ -158,7 +158,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
 }
 
 // DELETE /api/admin/organizations/[id] - Delete a specific organization
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     // Check if user has permission to delete organizations
     const auth = await requirePermission('admin.organizations.delete');
@@ -171,7 +171,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
     // Use async pattern for params in Next.js 15+
     const { id } = await params;
     const organizationId = id;
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
 
     // Check if organization exists
     const { data: existingOrg, error: checkError } = await supabase

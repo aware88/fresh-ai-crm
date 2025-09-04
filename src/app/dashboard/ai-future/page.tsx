@@ -27,7 +27,8 @@ import {
   BarChart3,
   Database,
   Cpu,
-  Shield
+  Shield,
+  Mail
 } from 'lucide-react';
 import AIFutureChat from '@/components/ai/AIFutureChat';
 import AIFutureSubscriptionGate from '@/components/ai/AIFutureSubscriptionGate';
@@ -162,6 +163,17 @@ export default function AIFuturePage() {
         'Show products from suppliers with reliability > 8',
         'Find customers who bought from our top 3 suppliers',
         'List contacts from companies with pending orders'
+      ]
+    },
+    {
+      icon: Mail,
+      title: 'Outbound Email Campaigns',
+      description: 'AI-powered campaign creation and management',
+      examples: [
+        'Create campaign for customers who bought >3 months ago',
+        'Segment contacts with lead score above 80',
+        'Generate personalized emails for enterprise prospects',
+        'Schedule holiday promotion campaign'
       ]
     }
   ];

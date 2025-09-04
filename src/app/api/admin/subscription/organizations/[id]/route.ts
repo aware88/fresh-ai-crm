@@ -27,9 +27,9 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
     
-    const { id } = params;
+    const { id } = await params;
     
-    const supabase = createClient();
+    const supabase = await createClient();
     
     // Get the specific subscription with organization and plan details
     const { data: subscription, error } = await supabase
@@ -95,7 +95,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
     
-    const { id } = params;
+    const { id } = await params;
     const updates = await req.json();
     
     const subscriptionService = new SubscriptionService();

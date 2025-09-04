@@ -19,7 +19,9 @@ import {
   Package2,
   ShoppingCart,
   MessageSquare,
-  Sparkles
+  Sparkles,
+  GitBranch,
+  Target
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useMobileMenu } from '@/hooks/use-mobile-menu';
@@ -71,6 +73,16 @@ const NAVIGATION_CONFIG = [
       title: 'Contacts',
       href: '/dashboard/contacts',
       icon: <Users className="h-5 w-5" />,
+    },
+    {
+      title: 'Pipeline',
+      href: '/dashboard/pipeline',
+      icon: <GitBranch className="h-5 w-5" />,
+    },
+    {
+      title: 'Lead Scoring',
+      href: '/dashboard/leads',
+      icon: <Target className="h-5 w-5" />,
     },
     {
       title: 'Team Collaboration',

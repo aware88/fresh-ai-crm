@@ -12,7 +12,7 @@ import { getEmailsRequiringReview } from '@/lib/email/emailQueueService';
 // GET /api/email-queue/review - Get emails requiring manual review
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
     
     // Get the current user
     const { data: { user } } = await supabase.auth.getUser();

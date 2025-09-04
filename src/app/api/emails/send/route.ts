@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from '@/lib/auth';
 import { MicrosoftGraphService } from '@/lib/services/microsoft-graph-service';
 import { FollowUpService } from '@/lib/email/follow-up-service';
+import { createServiceRoleClient } from '@/lib/supabase/service-role';
+import { getValidMicrosoftAccessToken } from '@/lib/services/microsoft-token';
 
 /**
  * POST handler for sending emails via Microsoft Graph API
@@ -9,9 +11,18 @@ import { FollowUpService } from '@/lib/email/follow-up-service';
 export async function POST(req: NextRequest) {
   try {
     const session = await getServerSession();
-    
-    if (!session?.accessToken) {
-      return NextResponse.json({ error: 'Unauthorized or missing Microsoft Graph access token' }, { status: 401 });
+
+    let accessToken: string | null = (session as any)?.accessToken || null;
+    if (!accessToken && session?.user?.id) {
+      const valid = await getValidMicrosoftAccessToken({ userId: (session.user as any).id });
+      accessToken = valid?.accessToken || null;
+    }
+
+    if (!accessToken) {
+      return NextResponse.json(
+        { error: 'Unauthorized or missing Microsoft Graph access token' },
+        { status: 401 },
+      );
     }
     
     const body = await req.json();
@@ -25,7 +36,7 @@ export async function POST(req: NextRequest) {
     }
     
     // Create Microsoft Graph service
-    const graphService = new MicrosoftGraphService(session.accessToken);
+    const graphService = new MicrosoftGraphService(accessToken);
     
     // Format the message for Microsoft Graph API
     const message = {

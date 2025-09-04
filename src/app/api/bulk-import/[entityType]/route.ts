@@ -174,7 +174,7 @@ export async function POST(
 ) {
   try {
     // Get entity type from URL
-    const { entityType } = params;
+    const { entityType } = await params;
     
     // Validate entity type
     const validEntityTypes = ['contacts', 'suppliers', 'products', 'prices'];

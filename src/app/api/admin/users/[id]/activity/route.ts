@@ -3,7 +3,7 @@ import { createServerClient } from '@/utils/supabase/server';
 import { isAdmin } from '@/utils/auth/admin';
 
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   
   // Check if user is admin
   const isUserAdmin = await isAdmin();

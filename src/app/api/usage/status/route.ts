@@ -124,6 +124,14 @@ export async function GET(request: NextRequest) {
 
     const response = {
       status,
+      subscription: {
+        current: usageStatus.subscription.current,
+        limit: usageStatus.subscription.limit,
+        remaining: usageStatus.subscription.remaining,
+        percentage: usagePercentage,
+        exceeded: usageStatus.subscription.exceeded,
+        unlimited: usageStatus.subscription.limit === -1
+      },
       usage: {
         subscription: {
           current: usageStatus.subscription.current,

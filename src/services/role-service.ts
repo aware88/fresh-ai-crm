@@ -6,7 +6,7 @@ export class RoleService {
    * Get all roles
    */
   static async getAllRoles(): Promise<Role[]> {
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
     const { data, error } = await supabase
       .from('roles')
       .select('*')
@@ -24,7 +24,7 @@ export class RoleService {
    * Get roles for an organization
    */
   static async getOrganizationRoles(organizationId: string): Promise<Role[]> {
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
     const { data, error } = await supabase
       .from('roles')
       .select('*')
@@ -43,7 +43,7 @@ export class RoleService {
    * Get a role by ID with its permissions
    */
   static async getRoleWithPermissions(roleId: string): Promise<RoleWithPermissions | null> {
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
     
     // Get the role
     const { data: role, error: roleError } = await supabase
@@ -83,7 +83,7 @@ export class RoleService {
    * Create a new role
    */
   static async createRole(role: Partial<Role>): Promise<Role> {
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
     const { data, error } = await supabase
       .from('roles')
       .insert(role)
@@ -102,7 +102,7 @@ export class RoleService {
    * Update a role
    */
   static async updateRole(roleId: string, updates: Partial<Role>): Promise<Role> {
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
     const { data, error } = await supabase
       .from('roles')
       .update(updates)
@@ -122,7 +122,7 @@ export class RoleService {
    * Delete a role
    */
   static async deleteRole(roleId: string): Promise<void> {
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
     const { error } = await supabase
       .from('roles')
       .delete()
@@ -138,7 +138,7 @@ export class RoleService {
    * Assign permissions to a role
    */
   static async assignPermissionsToRole(roleId: string, permissionIds: string[]): Promise<void> {
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
     
     // First, remove all existing permissions for this role
     const { error: deleteError } = await supabase
@@ -171,7 +171,7 @@ export class RoleService {
    * Get all permissions
    */
   static async getAllPermissions(): Promise<Permission[]> {
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
     const { data, error } = await supabase
       .from('permissions')
       .select('*')
@@ -189,7 +189,7 @@ export class RoleService {
    * Get permissions for a role
    */
   static async getRolePermissions(roleId: string): Promise<Permission[]> {
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
     const { data, error } = await supabase
       .from('role_permissions')
       .select('permissions(*)')
@@ -208,7 +208,7 @@ export class RoleService {
    * Get user roles
    */
   static async getUserRoles(userId: string): Promise<Role[]> {
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
     const { data, error } = await supabase
       .from('user_roles')
       .select('roles(*)')
@@ -227,7 +227,7 @@ export class RoleService {
    * Get user permissions
    */
   static async getUserPermissions(userId: string): Promise<Permission[]> {
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
     
     // Get all roles for the user
     const { data: userRoles, error: rolesError } = await supabase
@@ -268,7 +268,7 @@ export class RoleService {
    * Assign a role to a user
    */
   static async assignRoleToUser(userId: string, roleId: string): Promise<void> {
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
     const { error } = await supabase
       .from('user_roles')
       .insert({ user_id: userId, role_id: roleId });
@@ -283,7 +283,7 @@ export class RoleService {
    * Remove a role from a user
    */
   static async removeRoleFromUser(userId: string, roleId: string): Promise<void> {
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
     const { error } = await supabase
       .from('user_roles')
       .delete()

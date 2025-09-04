@@ -8,6 +8,9 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
+    // Await params to fix Next.js 15 requirement
+    const { id } = await params;
+    
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -19,7 +22,7 @@ export async function DELETE(
     const { error } = await supabase
       .from('email_notes')
       .delete()
-      .eq('id', params.id)
+      .eq('id', id)
       .eq('user_id', session.user.id);
 
     if (error) {

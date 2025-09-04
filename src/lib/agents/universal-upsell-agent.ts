@@ -10,6 +10,7 @@ import { OrganizationSettingsService, UpsellingFrameworkConfig } from '@/lib/ser
 import { EmailLearningService } from '@/lib/email/email-learning-service';
 import { getMetakockaDataForAIContext } from '@/lib/integrations/metakocka/metakocka-ai-integration';
 import OpenAI from 'openai';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 export interface UpsellOpportunity {
   id: string;
@@ -34,6 +35,7 @@ export interface UpsellOpportunity {
     customer_history?: any;
     email_context: string;
     previous_rejections?: number;
+    learned_from_pattern?: string;
   };
 }
 
@@ -65,6 +67,11 @@ export class UniversalUpsellAgent {
     this.settingsService = new OrganizationSettingsService();
     this.emailLearningService = new EmailLearningService();
     this.supabase = createLazyServerClient();
+  }
+
+  // Helper method to get the awaited Supabase client
+  private async getSupabase(): Promise<SupabaseClient> {
+    return await this.supabase;
   }
 
   /**

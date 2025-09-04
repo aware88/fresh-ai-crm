@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createServiceRoleClient } from '@/lib/supabase/service-role';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { canAddMoreEmailAccounts } from '@/lib/subscription-feature-check';
 
 // Google OAuth configuration
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
@@ -104,11 +105,25 @@ export async function GET(request: Request) {
     // Ensure OAuth columns exist
     await ensureOAuthColumns(supabase);
     
-    // Check if this email already exists for this user
+    // Get user's current organization for subscription checking
+    const { data: userPrefs, error: prefsError } = await supabase
+      .from('user_preferences')
+      .select('current_organization_id')
+      .eq('user_id', session.user.id)
+      .single();
+
+    if (prefsError || !userPrefs?.current_organization_id) {
+      console.error('Google OAuth: Could not find user organization:', prefsError);
+      return NextResponse.redirect(new URL('/settings/email-accounts?error=Could not determine organization for subscription check', BASE_URL));
+    }
+
+    const organizationId = userPrefs.current_organization_id;
+
+    // Check if this email already exists for this user or organization
     const { data: existingAccount, error: checkError } = await supabase
       .from('email_accounts')
       .select('id')
-      .eq('user_id', session.user.id)
+      .or(`user_id.eq.${session.user.id},organization_id.eq.${organizationId}`)
       .eq('email', userInfo.email)
       .eq('provider_type', 'google')
       .maybeSingle();
@@ -116,10 +131,35 @@ export async function GET(request: Request) {
     if (checkError && checkError.code !== 'PGRST116') {
       console.error('Error checking existing account:', checkError);
     }
+
+    // If this is a new account (not updating existing), check subscription limits
+    if (!existingAccount) {
+      // Count current email accounts for this organization
+      const { count: currentEmailAccountCount, error: countError } = await supabase
+        .from('email_accounts')
+        .select('*', { count: 'exact', head: true })
+        .eq('organization_id', organizationId);
+
+      if (countError) {
+        console.error('Error counting email accounts:', countError);
+        return NextResponse.redirect(new URL('/settings/email-accounts?error=Failed to check email account limits', BASE_URL));
+      }
+
+      // Check if organization can add more email accounts
+      const { canAdd, reason } = await canAddMoreEmailAccounts(
+        organizationId, 
+        currentEmailAccountCount || 0
+      );
+
+      if (!canAdd) {
+        return NextResponse.redirect(new URL(`/settings/email-accounts?error=${encodeURIComponent(reason || 'Email account limit reached')}`, BASE_URL));
+      }
+    }
     
     // Prepare the account data with fallback for missing columns
     const accountData = {
       user_id: session.user.id,
+      organization_id: organizationId,
       email: userInfo.email,
       provider_type: 'google',
       display_name: userInfo.name || userInfo.email,

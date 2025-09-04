@@ -4,6 +4,10 @@ import { authOptions } from '@/lib/auth';
 import { SubscriptionInitializationService } from '@/lib/services/subscription-initialization';
 import { EnhancedSubscriptionService } from '@/lib/services/subscription-service-extension';
 
+// Cache subscription results for development mode to avoid repeated creation
+const DEV_SUBSCRIPTION_CACHE = new Map<string, any>();
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
 // GET /api/organizations/[id]/subscription
 export async function GET(
   request: NextRequest,
@@ -27,6 +31,18 @@ export async function GET(
     
     // For your development organization, check if premium subscription exists first
     if (organizationId === '577485fb-50b4-4bb2-a4c6-54b97e1545ad' && process.env.NODE_ENV === 'development') {
+      // Check cache first
+      const cacheKey = `dev-subscription-${organizationId}`;
+      const cached = DEV_SUBSCRIPTION_CACHE.get(cacheKey);
+      
+      if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+        console.log('📦 Using cached development subscription');
+        return NextResponse.json(
+          { subscription: cached.subscription, plan: cached.plan },
+          { status: 200 }
+        );
+      }
+      
       console.log('🚧 Development mode: Checking for existing premium subscription...');
       
       // First check if subscription already exists
@@ -34,6 +50,14 @@ export async function GET(
       
       if (existingResult.subscription && existingResult.plan) {
         console.log('✅ Existing development subscription found');
+        
+        // Cache the result
+        DEV_SUBSCRIPTION_CACHE.set(cacheKey, {
+          subscription: existingResult.subscription,
+          plan: existingResult.plan,
+          timestamp: Date.now()
+        });
+        
         return NextResponse.json(
           { subscription: existingResult.subscription, plan: existingResult.plan },
           { status: 200 }
@@ -49,6 +73,14 @@ export async function GET(
         // Fall back to normal flow
       } else if (result.subscription && result.plan) {
         console.log('✅ Development premium subscription created successfully');
+        
+        // Cache the result
+        DEV_SUBSCRIPTION_CACHE.set(cacheKey, {
+          subscription: result.subscription,
+          plan: result.plan,
+          timestamp: Date.now()
+        });
+        
         return NextResponse.json(
           { subscription: result.subscription, plan: result.plan },
           { status: 200 }

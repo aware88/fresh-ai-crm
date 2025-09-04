@@ -13,7 +13,7 @@ import { addEmailToQueue, EmailQueuePriority } from '@/lib/email/emailQueueServi
 // POST /api/email-queue - Add an email to the queue
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
     
     // Get the current user
     const { data: { user } } = await supabase.auth.getUser();
@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
 // GET /api/email-queue - Get queue items with optional filters
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
     
     // Get the current user
     const { data: { user } } = await supabase.auth.getUser();

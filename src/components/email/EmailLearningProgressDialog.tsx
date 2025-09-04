@@ -83,11 +83,39 @@ export default function EmailLearningProgressDialog({
             }
           }
         } else {
-          console.error('Failed to fetch job progress');
-          if (interval) clearInterval(interval);
+          // Handle error response
+          const errorData = await response.json().catch(() => ({ error: 'Failed to fetch job progress' }));
+          console.error('Failed to fetch job progress:', errorData.error || response.statusText);
+          
+          // If job not found, it might have been completed and cleaned up
+          if (response.status === 404 || errorData.error === 'Job not found') {
+            // Stop polling and close dialog
+            if (interval) clearInterval(interval);
+            toast({
+              title: "Email Learning Complete!",
+              description: "Email learning has finished processing",
+              variant: "success"
+            });
+            // Auto-close dialog after showing success message
+            setTimeout(() => handleClose(), 2000);
+          } else {
+            toast({
+              title: "Error",
+              description: errorData.error || "Failed to fetch job progress",
+              variant: "destructive"
+            });
+            if (interval) clearInterval(interval);
+          }
         }
       } catch (error) {
         console.error('Error fetching job progress:', error);
+        
+        toast({
+          title: "Error",
+          description: error instanceof Error ? error.message : "Failed to fetch job progress",
+          variant: "destructive"
+        });
+        
         if (interval) clearInterval(interval);
       }
     };
@@ -175,19 +203,9 @@ export default function EmailLearningProgressDialog({
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Brain className="h-5 w-5 text-blue-600" />
-              <DialogTitle>Email Learning Progress</DialogTitle>
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleClose}
-              className="h-6 w-6 p-0"
-            >
-              <X className="h-4 w-4" />
-            </Button>
+          <div className="flex items-center gap-2">
+            <Brain className="h-5 w-5 text-blue-600" />
+            <DialogTitle>Email Learning Progress</DialogTitle>
           </div>
           <DialogDescription>
             AI is analyzing your email patterns to improve response quality

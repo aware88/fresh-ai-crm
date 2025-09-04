@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
     
     // Create a service-level Supabase client that can access all users' data
     // This is necessary because this endpoint is called by a cron job, not a user
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
     
     // Get unprocessed emails
     const { data: emails, error: emailsError } = await supabase

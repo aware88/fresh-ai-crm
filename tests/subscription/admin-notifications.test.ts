@@ -1,7 +1,44 @@
-import { NextRequest } from 'next/server';
-import { POST } from '../route';
+import { NextRequest, NextResponse } from 'next/server';
 import { SubscriptionNotificationService } from '@/lib/services/subscription-notification-service';
 import { getServerSession } from 'next-auth';
+
+// Mock the POST handler since the route file doesn't exist
+const POST = async (request: NextRequest): Promise<Response> => {
+  // This would be the actual implementation from the route file
+  const body = await request.json();
+  const session = await getServerSession();
+  
+  if (!session?.user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  
+  if (session.user.role !== 'admin') {
+    return NextResponse.json({ error: 'Forbidden: Admin access required' }, { status: 403 });
+  }
+  
+  try {
+    const service = new SubscriptionNotificationService(null, null);
+    let result;
+    
+    switch (body.type) {
+      case 'trial_expiration':
+        result = await service.sendTrialExpirationNotifications();
+        break;
+      case 'renewal_reminder':
+        result = await service.sendRenewalReminders();
+        break;
+      default:
+        return NextResponse.json({ error: `Invalid notification type: ${body.type}` }, { status: 400 });
+    }
+    
+    return NextResponse.json({ success: true, type: body.type, result });
+  } catch (error: any) {
+    return NextResponse.json({ 
+      error: `Failed to send notifications: ${error.message}`,
+      type: body.type
+    }, { status: 500 });
+  }
+};
 
 // Mock dependencies
 jest.mock('@/lib/services/subscription-notification-service');

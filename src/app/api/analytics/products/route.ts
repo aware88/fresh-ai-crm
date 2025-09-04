@@ -6,8 +6,7 @@ import { Database } from '@/types/supabase';
 export async function GET(request: Request) {
   try {
     // Create Supabase client with proper cookies handling for Next.js 15+
-    const cookieStore = await cookies();
-    const supabase = createRouteHandlerClient<Database>({ cookies: cookieStore });
+    const supabase = createRouteHandlerClient<Database>({ cookies });
     
     // Check if user is authenticated
     const { data: { session } } = await supabase.auth.getSession();
@@ -38,7 +37,7 @@ export async function GET(request: Request) {
       data.forEach(product => {
         // Check if product has category property
         if (product && typeof product === 'object') {
-          const category = (product as any).category || 'Uncategorized';
+          const category = product.category || 'Uncategorized';
           categoryCount[category] = (categoryCount[category] || 0) + 1;
         }
       });

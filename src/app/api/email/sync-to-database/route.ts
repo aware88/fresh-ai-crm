@@ -140,8 +140,8 @@ export async function POST(request: NextRequest) {
       // Sync Sent emails (smaller batch for testing)
       const sentBatchSize = Math.min(100, Math.floor(maxEmails / 2)); // Start with 100 emails
       console.log(`📤 Starting Sent sync (${sentBatchSize} emails)...`);
-      const sentEmails = await fetchEmailsFromFolder(client, 'Sent', sentBatchSize);
-      console.log(`📧 Fetched ${sentEmails.length} emails from Sent`);
+      const sentEmails = await fetchEmailsFromFolder(client, 'INBOX.Sent', sentBatchSize);
+      console.log(`📧 Fetched ${sentEmails.length} emails from INBOX.Sent`);
       
       const savedSent = await saveEmailsToDatabase(supabase, userId || account.user_id, sentEmails, 'sent', accountId);
       console.log(`💾 Saved ${savedSent} Sent emails to database`);
@@ -286,7 +286,19 @@ async function saveEmailsToDatabase(supabase: any, userId: string, emails: any[]
       if (!email.parsed) continue;
       
       const parsed = email.parsed;
-      const messageId = parsed.messageId || `sync-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      let messageId = parsed.messageId || `sync-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      
+      // Validate and clean message ID
+      if (messageId && typeof messageId === 'string') {
+        // Remove angle brackets if present
+        messageId = messageId.replace(/^<|>$/g, '');
+        
+        // If it still looks like an email address or is suspiciously long, generate a new one
+        if (messageId.includes('@') || messageId.length > 200) {
+          console.warn('Replacing malformed message ID:', messageId);
+          messageId = `sync-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        }
+      }
       
       // Check for duplicates in email_index
       const { data: existing } = await supabase
@@ -298,17 +310,21 @@ async function saveEmailsToDatabase(supabase: any, userId: string, emails: any[]
         
       if (existing) continue;
       
-      // Create email_index record (using only existing columns)
+      // Create email_index record without thread_id to avoid constraint issues
       const emailIndexRecord = {
         message_id: messageId,
         email_account_id: accountId,
         subject: parsed.subject || 'No Subject',
         sender_email: parsed.from?.value?.[0]?.address || parsed.from?.text || 'unknown',
         sender_name: parsed.from?.value?.[0]?.name || null,
+        recipient_email: parsed.to?.value?.[0]?.address || parsed.to?.text || null,
+        email_type: emailType, // 'sent' or 'received'
+        folder_name: emailType === 'sent' ? 'Sent' : 'INBOX', // Set proper folder name
+        thread_id: messageId, // Use message_id as thread_id for simplicity
+        sent_at: emailType === 'sent' ? (parsed.date ? parsed.date.toISOString() : new Date().toISOString()) : null,
         received_at: parsed.date ? parsed.date.toISOString() : new Date().toISOString(),
         has_attachments: (parsed.attachments && parsed.attachments.length > 0) || false,
         is_read: email.flags ? email.flags.has('\\Seen') : false, // Set read status from IMAP flags
-        // Don't include thread_id if it causes constraint issues
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       };
@@ -326,13 +342,42 @@ async function saveEmailsToDatabase(supabase: any, userId: string, emails: any[]
     }
     
     if (emailIndexRecords.length > 0) {
+      // First, create thread entries for each unique thread_id
+      const uniqueThreadIds = [...new Set(emailIndexRecords.map(record => record.message_id))];
+      
+      for (const threadId of uniqueThreadIds) {
+        try {
+          // Try to create thread entry (ignore if already exists)
+          await supabase
+            .from('email_threads')
+            .upsert({ 
+              id: threadId,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            }, {
+              onConflict: 'id',
+              ignoreDuplicates: true
+            });
+        } catch (threadError) {
+          // Ignore thread creation errors (might already exist)
+          console.log(`Thread ${threadId} might already exist, continuing...`);
+        }
+      }
+      
+      // Now add thread_id to email records
+      const emailIndexRecordsWithThreads = emailIndexRecords.map(record => ({
+        ...record,
+        thread_id: record.message_id // Use message_id as thread_id for now
+      }));
+      
       // Insert into email_index
       const { error: indexError } = await supabase
         .from('email_index')
-        .insert(emailIndexRecords);
+        .insert(emailIndexRecordsWithThreads);
         
       if (indexError) {
         console.error(`❌ Error inserting email_index batch:`, indexError.message);
+        console.error('Full error:', indexError);
         continue;
       }
       

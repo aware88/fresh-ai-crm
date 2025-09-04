@@ -27,6 +27,9 @@ function encryptPassword(password: string): string {
 
 export async function PUT(request: Request, { params }: { params: { id: string } }) {
   try {
+    // Await params to fix Next.js 15 requirement
+    const { id } = await params;
+    
     // Check if the user is authenticated
     const session = await getServerSession(authOptions);
     
@@ -77,7 +80,7 @@ export async function PUT(request: Request, { params }: { params: { id: string }
     const { data: existingAccount, error: checkError } = await supabase
       .from('email_accounts')
       .select('id')
-      .eq('id', params.id)
+      .eq('id', id)
       .eq('user_id', session.user.id)
       .single();
     
@@ -120,7 +123,7 @@ export async function PUT(request: Request, { params }: { params: { id: string }
     const { data, error } = await supabase
       .from('email_accounts')
       .update(updateData)
-      .eq('id', params.id)
+      .eq('id', id)
       .select();
       
     if (error) {

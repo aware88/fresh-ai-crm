@@ -83,16 +83,25 @@ export default function EmailLearningSettings() {
     }
   }, [session]);
 
-  // Poll for active jobs
+  // Poll for active jobs only when there are active jobs
   useEffect(() => {
     if (!session?.user?.id) return;
+
+    // Only poll if there are active jobs (processing or queued)
+    const hasActiveJobs = activeJobs.some(job => 
+      job.status === 'processing' || job.status === 'queued'
+    );
+
+    if (!hasActiveJobs) {
+      return; // No interval needed
+    }
 
     const interval = setInterval(() => {
       loadActiveJobs();
     }, 5000); // Poll every 5 seconds
 
     return () => clearInterval(interval);
-  }, [session]);
+  }, [session, activeJobs]); // Re-evaluate when activeJobs change
 
   const loadLearningStatus = async () => {
     try {
@@ -200,6 +209,8 @@ export default function EmailLearningSettings() {
   const getActiveJobsStatus = () => {
     const processingJobs = activeJobs.filter(job => job.status === 'processing');
     const queuedJobs = activeJobs.filter(job => job.status === 'queued');
+    const completedJobs = activeJobs.filter(job => job.status === 'completed');
+    const failedJobs = activeJobs.filter(job => job.status === 'failed');
     
     if (processingJobs.length > 0) {
       return {
@@ -215,6 +226,39 @@ export default function EmailLearningSettings() {
         message: 'Learning job is queued',
         job: queuedJobs[0]
       };
+    }
+    
+    // Show completed status for recently completed jobs (within last 30 seconds)
+    if (completedJobs.length > 0) {
+      const recentCompleted = completedJobs.find(job => {
+        const completedTime = new Date(job.endTime || job.completedAt);
+        const now = new Date();
+        return (now.getTime() - completedTime.getTime()) < 30000; // 30 seconds
+      });
+      
+      if (recentCompleted) {
+        return {
+          status: 'completed',
+          message: `Completed! Processed ${recentCompleted.successfulEmails || 0} emails successfully`,
+          job: recentCompleted
+        };
+      }
+    }
+    
+    if (failedJobs.length > 0) {
+      const recentFailed = failedJobs.find(job => {
+        const failedTime = new Date(job.endTime || job.completedAt);
+        const now = new Date();
+        return (now.getTime() - failedTime.getTime()) < 60000; // 1 minute
+      });
+      
+      if (recentFailed) {
+        return {
+          status: 'failed',
+          message: `Learning failed: ${recentFailed.errorMessage || 'Unknown error'}`,
+          job: recentFailed
+        };
+      }
     }
     
     return null;
@@ -324,32 +368,63 @@ export default function EmailLearningSettings() {
 
           {/* Active Job Status */}
           {getActiveJobsStatus() && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+            <div className={`border rounded-lg p-4 mb-4 ${
+              getActiveJobsStatus()?.status === 'completed' 
+                ? 'bg-green-50 border-green-200' 
+                : getActiveJobsStatus()?.status === 'failed'
+                ? 'bg-red-50 border-red-200'
+                : 'bg-blue-50 border-blue-200'
+            }`}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   {getActiveJobsStatus()?.status === 'processing' ? (
                     <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
+                  ) : getActiveJobsStatus()?.status === 'completed' ? (
+                    <CheckCircle className="h-5 w-5 text-green-600" />
+                  ) : getActiveJobsStatus()?.status === 'failed' ? (
+                    <AlertCircle className="h-5 w-5 text-red-600" />
                   ) : (
                     <Clock className="h-5 w-5 text-blue-600" />
                   )}
                   <div>
-                    <div className="font-medium text-blue-900">
-                      {getActiveJobsStatus()?.status === 'processing' ? 'Learning in Progress' : 'Learning Queued'}
+                    <div className={`font-medium ${
+                      getActiveJobsStatus()?.status === 'completed' 
+                        ? 'text-green-900' 
+                        : getActiveJobsStatus()?.status === 'failed'
+                        ? 'text-red-900'
+                        : 'text-blue-900'
+                    }`}>
+                      {getActiveJobsStatus()?.status === 'processing' ? 'Learning in Progress' 
+                       : getActiveJobsStatus()?.status === 'completed' ? 'Learning Completed!'
+                       : getActiveJobsStatus()?.status === 'failed' ? 'Learning Failed'
+                       : 'Learning Queued'}
                     </div>
-                    <div className="text-sm text-blue-700">
+                    <div className={`text-sm ${
+                      getActiveJobsStatus()?.status === 'completed' 
+                        ? 'text-green-700' 
+                        : getActiveJobsStatus()?.status === 'failed'
+                        ? 'text-red-700'
+                        : 'text-blue-700'
+                    }`}>
                       {getActiveJobsStatus()?.message}
                     </div>
                   </div>
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => viewJobProgress(getActiveJobsStatus()?.job?.jobId)}
-                  className="border-blue-300 text-blue-700 hover:bg-blue-100"
-                >
-                  <Eye className="h-4 w-4 mr-2" />
-                  View Progress
-                </Button>
+                {getActiveJobsStatus()?.status !== 'completed' && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => viewJobProgress(getActiveJobsStatus()?.job?.jobId)}
+                    className={
+                      getActiveJobsStatus()?.status === 'failed'
+                        ? 'border-red-300 text-red-700 hover:bg-red-100'
+                        : 'border-blue-300 text-blue-700 hover:bg-blue-100'
+                    }
+                  >
+                    <Eye className="h-4 w-4 mr-2" />
+                    View Progress
+                  </Button>
+                )}
               </div>
             </div>
           )}

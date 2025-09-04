@@ -47,7 +47,7 @@ export interface OrderDataForAI {
  */
 export async function getOrderDataForAI(orderId: string, userId: string): Promise<OrderDataForAI | null> {
   try {
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
     
     // Fetch order data from the database
     const { data: orderData, error } = await supabase
@@ -155,7 +155,7 @@ export async function getRecentOrdersForCustomer(
   limit: number = 5
 ): Promise<OrderDataForAI[]> {
   try {
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
     
     // Fetch recent orders for the customer
     const { data: orders, error } = await supabase

@@ -6,8 +6,7 @@ import { Database } from '@/types/supabase';
 export async function GET(request: Request) {
   try {
     // Create Supabase client with proper cookies handling for Next.js 15+
-    const cookieStore = await cookies();
-    const supabase = createRouteHandlerClient<Database>({ cookies: cookieStore });
+    const supabase = createRouteHandlerClient<Database>({ cookies });
     
     // Check if user is authenticated
     const { data: { session } } = await supabase.auth.getSession();
@@ -38,8 +37,7 @@ export async function GET(request: Request) {
           name
         )
       `)
-      // Type assertion to handle TypeScript error with string parameter
-      .eq('user_id', userId as any);
+      .eq('user_id', userId);
 
     if (error) {
       throw error;
@@ -53,8 +51,8 @@ export async function GET(request: Request) {
       data.forEach(item => {
         // Safely access properties with type checking
         if (item && typeof item === 'object' && 'created_at' in item && 'price' in item) {
-          const createdAt = (item as any).created_at;
-          const price = Number((item as any).price) || 0;
+          const createdAt = item.created_at;
+          const price = Number(item.price) || 0;
           
           if (createdAt && !isNaN(price)) {
             const date = new Date(createdAt);

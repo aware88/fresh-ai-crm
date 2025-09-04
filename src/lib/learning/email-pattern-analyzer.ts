@@ -208,11 +208,43 @@ export async function storeEmailPatterns(
 export async function getLearnedPatterns(
   userId: string,
   category?: string,
-  patternType?: string
+  patternType?: string,
+  emailContent?: string,
+  emailSubject?: string,
+  senderEmail?: string
 ): Promise<EmailPattern[]> {
   try {
     const supabase = createServiceRoleClient();
     
+    // If we have email context, use enhanced pattern matching
+    if (emailContent) {
+      const { data: patterns, error } = await supabase.rpc('find_best_pattern_match', {
+        user_id_param: userId,
+        email_content: emailContent,
+        email_subject: emailSubject || '',
+        sender_email: senderEmail || '',
+        context_category: category || 'general',
+        language_preference: 'en'
+      });
+
+      if (error) {
+        console.error('Error fetching enhanced pattern matches:', error);
+        // Fallback to simple query
+      } else if (patterns && patterns.length > 0) {
+        return patterns.map((row: any) => ({
+          patternType: row.pattern_type,
+          emailCategory: row.email_category,
+          patternText: row.pattern_text,
+          context: row.metadata?.context || '',
+          confidence: row.confidence,
+          tags: row.tags || [],
+          language: row.metadata?.language || 'en',
+          relevanceScore: row.match_score
+        }));
+      }
+    }
+
+    // Fallback to simple database query
     let query = supabase
       .from('email_patterns')
       .select('*')
@@ -243,7 +275,8 @@ export async function getLearnedPatterns(
       patternText: row.pattern_text,
       context: row.context,
       confidence: row.confidence,
-      tags: row.tags || []
+      tags: row.tags || [],
+      language: row.metadata?.language || 'en'
     }));
 
   } catch (error) {

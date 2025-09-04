@@ -199,7 +199,7 @@ export async function POST(request: NextRequest) {
         });
 
       case 'generate_profile':
-        const { agentId } = params;
+        const { agentId } = await params;
         if (!agentId) {
           return NextResponse.json(
             { success: false, error: 'Agent ID is required' },
@@ -214,7 +214,7 @@ export async function POST(request: NextRequest) {
         });
 
       case 'start_trace':
-        const { executionId } = params;
+        const { executionId } = await params;
         if (!executionId) {
           return NextResponse.json(
             { success: false, error: 'Execution ID is required' },
@@ -344,7 +344,7 @@ export async function PUT(request: NextRequest) {
 
     switch (action) {
       case 'update_config':
-        const { config } = params;
+        const { config } = await params;
         if (!config) {
           return NextResponse.json(
             { success: false, error: 'Configuration is required' },

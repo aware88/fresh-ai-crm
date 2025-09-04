@@ -34,8 +34,10 @@ function decryptPassword(encryptedValue: string): string {
   return decrypted;
 }
 
-export async function POST(request: Request, { params }: { params: { id: string } }) {
+export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    // Await params to fix Next.js 15 requirement
+    const { id } = await params;
     // Check if the user is authenticated
     const session = await getServerSession(authOptions);
     
@@ -53,7 +55,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
     const { data: account, error: fetchError } = await supabase
       .from('email_accounts')
       .select('*')
-      .eq('id', params.id)
+      .eq('id', id)
       .eq('user_id', session.user.id)
       .single();
     
@@ -159,7 +161,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
         last_tested: new Date().toISOString(),
         last_test_successful: true
       })
-      .eq('id', params.id);
+      .eq('id', id);
 
     return NextResponse.json({
       success: true,
@@ -177,7 +179,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
           last_tested: new Date().toISOString(),
           last_test_successful: false
         })
-        .eq('id', params.id);
+        .eq('id', id);
     } catch (updateError) {
       console.error('Failed to update test status:', updateError);
     }

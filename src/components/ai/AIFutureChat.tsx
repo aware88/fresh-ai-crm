@@ -105,12 +105,16 @@ I'm your intelligent AI business partner. I can help you manage your entire CRM 
 
 **🧠 Smart Model Selection**: I automatically choose the best AI model for each task to optimize quality and cost.
 
+**🎯 NEW: Outbound Email Campaigns**: Create AI-powered email campaigns using natural language!
+
 **Quick examples:**
 • "Add TechCorp supplier with email info@tech.com"
 • "Show me all products from suppliers with reliability > 8"
-• "Find contacts from Microsoft"
+• "Create campaign for customers who bought >3 months ago"
+• "Segment contacts with lead score above 80"
+• "Generate personalized upsell emails for enterprise contacts"
 
-**Try asking me anything about your business data!**`,
+**Try asking me anything about your business data or campaigns!**`,
         timestamp: new Date()
         // No success/confidence for welcome message
       }
@@ -420,6 +424,64 @@ I'm your intelligent AI business partner. I can help you manage your entire CRM 
                       </span>
                     </div>
                   ))}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        );
+
+      case 'campaign_preview':
+        return (
+          <div className="mt-4 space-y-4">
+            {visualData.data?.map((campaign: any, index: number) => (
+              <Card key={index} className="border-2 border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50">
+                <CardContent className="p-6">
+                  <div className="flex items-start justify-between mb-4">
+                    <div>
+                      <h3 className="text-lg font-bold text-blue-900 mb-1">{campaign.name}</h3>
+                      <p className="text-sm text-blue-700">{campaign.description}</p>
+                    </div>
+                    <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-300">
+                      {campaign.status || 'Draft'}
+                    </Badge>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-blue-900">{campaign.total_targets || campaign.estimated_recipients}</div>
+                      <div className="text-xs text-blue-600">Target Contacts</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-purple-900">{campaign.personalization_level}</div>
+                      <div className="text-xs text-purple-600">Personalization</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-green-900">Ready</div>
+                      <div className="text-xs text-green-600">Status</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-orange-900">AI</div>
+                      <div className="text-xs text-orange-600">Powered</div>
+                    </div>
+                  </div>
+
+                  {campaign.target_preview && campaign.target_preview.length > 0 && (
+                    <div className="mt-4 pt-4 border-t border-blue-200">
+                      <h4 className="text-sm font-medium text-blue-900 mb-2">Sample Targets:</h4>
+                      <div className="flex flex-wrap gap-2">
+                        {campaign.target_preview.slice(0, 3).map((contact: any, idx: number) => (
+                          <Badge key={idx} variant="secondary" className="bg-white text-blue-700">
+                            {contact.firstname} {contact.lastname}
+                          </Badge>
+                        ))}
+                        {campaign.total_targets > 3 && (
+                          <Badge variant="secondary" className="bg-white text-blue-700">
+                            +{campaign.total_targets - 3} more
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             ))}
@@ -780,7 +842,7 @@ I'm your intelligent AI business partner. I can help you manage your entire CRM 
             <Input
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Ask me anything about your business... (e.g., 'Add TechCorp supplier' or 'Show all products')"
+              placeholder="Ask me about your business or campaigns... (e.g., 'Create outbound campaign' or 'Show all products')"
               disabled={isLoading}
               className="flex-1 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
             />
@@ -799,7 +861,7 @@ I'm your intelligent AI business partner. I can help you manage your entire CRM 
           
           <div className="flex items-center justify-between mt-3 text-xs text-gray-500">
             <div className="flex items-center gap-1">
-              <span>💡 Try: "Add supplier TechCorp" • "Show all products" • "Find contacts from Microsoft"</span>
+              <span>💡 Try: "Create campaign for inactive customers" • "Show all products" • "Segment high-score leads"</span>
             </div>
             <div className="flex items-center gap-2">
               {selectedModel !== 'auto' && (

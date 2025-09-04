@@ -5,6 +5,7 @@
  */
 
 import { createLazyServerClient } from '@/lib/supabase/lazy-client';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 // Define types for organization settings (will be added to Database types after migration)
 export interface OrganizationSettings {
@@ -256,6 +257,11 @@ export class OrganizationSettingsService {
 
   constructor() {
     this.supabase = createLazyServerClient();
+  }
+
+  // Helper method to get the awaited Supabase client
+  private async getSupabase(): Promise<SupabaseClient> {
+    return await this.supabase;
   }
 
   /**

@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
 
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
 
     // Get all users with their organization and role information
     const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
 
     // Create a map of user_id to organization name
     const userOrgMap: Record<string, string> = {};
-    userOrgs.forEach(userOrg => {
+    userOrgs.forEach((userOrg: any) => {
       if (userOrg.organizations) {
         userOrgMap[userOrg.user_id] = userOrg.organizations.name;
       }
@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
 
     // Create a map of user_id to role
     const userRoleMap: Record<string, string[]> = {};
-    userRoles.forEach(userRole => {
+    userRoles.forEach((userRole: any) => {
       if (userRole.roles && userRole.roles.name) {
         if (!userRoleMap[userRole.user_id]) {
           userRoleMap[userRole.user_id] = [];
@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
     });
 
     // Format the user data
-    const users = authUsers.users.map(user => {
+    const users = authUsers.users.map((user: any) => {
       // Determine user status
       let status = 'Active';
       if (!user.email_confirmed_at) {

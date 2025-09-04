@@ -14,11 +14,11 @@ import { OrderFulfillment } from '@/types/order';
  * POST handler for fulfilling orders in Metakocka
  */
 export async function POST(request: NextRequest) {
-  // Get cookies using async pattern for Next.js 15+
-  const cookieStore = await cookies();
   try {
+    // Get cookies using async pattern for Next.js 15+
+    const cookieStore = await cookies();
     // Get the user session
-    const supabase = createRouteHandlerClient({ cookies: cookieStore });
+    const supabase = createRouteHandlerClient({ cookies: async () => cookieStore });
     const { data: { session } } = await supabase.auth.getSession();
     
     if (!session) {
@@ -34,11 +34,13 @@ export async function POST(request: NextRequest) {
     }
     
     // Get Metakocka credentials
-    const credentials = await getMetakockaCredentials(userId);
+    const credentialsResult = await getMetakockaCredentials(userId);
     
-    if (!credentials) {
+    if (!credentialsResult || !credentialsResult.data) {
       throw new ApiError(400, 'Metakocka credentials not found');
     }
+    
+    const credentials = credentialsResult.data;
     
     // Get the order mapping to find the Metakocka ID
     const { data: mapping, error: mappingError } = await supabase
@@ -67,8 +69,8 @@ export async function POST(request: NextRequest) {
     
     // Initialize the order service
     const orderService = new OrderService(
-      credentials.secretKey,
-      credentials.companyId,
+      credentials.secret_key,
+      credentials.company_id,
       userId
     );
     
@@ -76,7 +78,7 @@ export async function POST(request: NextRequest) {
     const fulfillment: OrderFulfillment = fulfillmentData || {
       order_id: orderId,
       fulfillment_date: new Date().toISOString().split('T')[0],
-      items: order.items.map(item => ({
+      items: order.items.map((item: any) => ({
         product_id: item.product_id,
         quantity: item.quantity
       }))

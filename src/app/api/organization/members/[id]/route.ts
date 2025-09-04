@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { createClient } from '@supabase/supabase-js';
 
 // PATCH /api/organization/members/[id] - Update member role
@@ -120,8 +120,11 @@ export async function DELETE(
     const userId = session.user.id;
     const { id: memberId } = await params;
     
-    // Get user's current organization from preferences
-    const supabase = await createServerClient();
+    // Use service role key for server-side operations to bypass RLS
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
     const { data: preferences, error: prefsError } = await supabase
       .from('user_preferences')
       .select('current_organization_id')

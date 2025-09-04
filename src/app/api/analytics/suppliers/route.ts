@@ -6,8 +6,7 @@ import { Database } from '@/types/supabase';
 export async function GET(request: Request) {
   try {
     // Create Supabase client with proper cookies handling for Next.js 15+
-    const cookieStore = await cookies();
-    const supabase = createRouteHandlerClient<Database>({ cookies: cookieStore });
+    const supabase = createRouteHandlerClient<Database>({ cookies });
     
     // Check if user is authenticated
     const { data: { session } } = await supabase.auth.getSession();
@@ -23,7 +22,7 @@ export async function GET(request: Request) {
     // Get supplier distribution data
     const { data, error } = await supabase
       .from('suppliers')
-      .select('name, id, reliabilityScore')
+      .select('name, id, reliability_score')
       .eq('user_id', userId);
 
     if (error) {
@@ -32,9 +31,9 @@ export async function GET(request: Request) {
 
     // Process data for chart display
     const supplierData = data.map(supplier => ({
-      name: supplier.name,
+      name: supplier.name || 'Unknown',
       count: 1, // Each supplier counts as 1
-      reliabilityScore: supplier.reliabilityScore || 0
+      reliabilityScore: supplier.reliability_score || 0
     }));
 
     // Return the supplier distribution data

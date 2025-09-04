@@ -26,7 +26,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
     
-    const { id } = params;
+    const { id } = await params;
     const { planId } = await req.json();
     
     if (!planId) {

@@ -25,7 +25,7 @@ async function isAdmin(): Promise<boolean> {
       return false;
     }
 
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
     
     // Get the current user
     const { data: userData, error: userError } = await supabase.auth.getUser();
@@ -55,7 +55,7 @@ async function isAdmin(): Promise<boolean> {
 }
 
 // GET /api/admin/organizations/[id]/branding - Get organization branding
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     // If we should skip Supabase operations, return empty branding data
     if (shouldSkipSupabaseOperations()) {
@@ -72,7 +72,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     // Use async pattern for params in Next.js 15+
     const { id } = await params;
     const organizationId = id;
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
 
     // Check if organization exists
     const { data: organization, error: orgError } = await supabase
@@ -108,7 +108,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 }
 
 // PUT /api/admin/organizations/[id]/branding - Update organization branding
-export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     // If we should skip Supabase operations, return mock success response
     if (shouldSkipSupabaseOperations()) {
@@ -118,7 +118,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     }
 
     // Check if user is admin and get user info
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
     const { data: userData, error: userError } = await supabase.auth.getUser();
     if (userError || !userData.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

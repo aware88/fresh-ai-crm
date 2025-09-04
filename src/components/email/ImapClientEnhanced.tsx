@@ -476,7 +476,7 @@ export default function ImapClientEnhanced({ account }: ImapClientEnhancedProps)
               <Phase2IntelligenceDisplay
                 intelligence={phase2Intelligence}
                 isLoading={isAnalyzing}
-                onActionSelect={(action) => {
+                onActionSelect={(action: any) => {
                   console.log('Selected action:', action);
                   // Handle action selection
                 }}
@@ -524,7 +524,7 @@ export default function ImapClientEnhanced({ account }: ImapClientEnhancedProps)
                     analysis_metadata: phase2SalesIntelligence.analysis_metadata
                   }}
                   isLoading={isSalesProcessing}
-                  onActionSelect={(action) => {
+                  onActionSelect={(action: any) => {
                     console.log('Selected sales action:', action);
                     // Handle sales action selection
                   }}

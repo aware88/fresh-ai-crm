@@ -175,24 +175,52 @@ export class AIUsageService {
         console.error('RPC function failed, using fallback logic:', rpcError);
       }
 
-      // Fallback: Get current usage and check against default limits
+      // Fallback: Get current usage and check against actual subscription limits
       const currentUsage = await this.getCurrentUsage(organizationId);
       const currentMessages = currentUsage?.currentMessages || 0;
       
-      // Default limits based on subscription (simplified)
-      const defaultLimit = 300; // Starter plan default
-      const remaining = Math.max(0, defaultLimit - currentMessages);
-      const limitExceeded = currentMessages >= defaultLimit;
+      // Get organization's subscription to determine proper limits
+      let subscriptionLimit = 300; // Default starter limit
+      
+      try {
+        const { data: orgData, error: orgError } = await supabase
+          .from('organizations')
+          .select('subscription_tier')
+          .eq('id', organizationId)
+          .single();
+
+        if (!orgError && orgData?.subscription_tier) {
+          const tier = orgData.subscription_tier.toLowerCase();
+          
+          // Set limits based on actual subscription tiers
+          if (tier.includes('premium-enterprise') || tier.includes('premium_enterprise')) {
+            subscriptionLimit = -1; // Unlimited for Premium Enterprise
+          } else if (tier.includes('premium')) {
+            subscriptionLimit = 10000; // High limit for other Premium plans
+          } else if (tier.includes('pro')) {
+            subscriptionLimit = 1000; // Pro plan limit
+          } else {
+            subscriptionLimit = 300; // Starter plan limit
+          }
+        }
+      } catch (subError) {
+        console.error('Error fetching organization subscription:', subError);
+      }
+
+      const isUnlimited = subscriptionLimit === -1;
+      const remaining = isUnlimited ? -1 : Math.max(0, subscriptionLimit - currentMessages);
+      const limitExceeded = isUnlimited ? false : currentMessages >= subscriptionLimit;
 
       return {
         limitExceeded,
         currentUsage: currentMessages,
-        limitAmount: defaultLimit,
+        limitAmount: subscriptionLimit,
         remaining
       };
 
     } catch (error) {
       console.error('Exception checking AI limit:', error);
+      // Return safe default (Starter plan limits)
       return {
         limitExceeded: false,
         currentUsage: 0,

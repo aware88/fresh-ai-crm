@@ -1,20 +1,37 @@
 import { NextResponse } from 'next/server';
 import { createServiceRoleClient } from '@/lib/supabase/service-role';
+import { canAddMoreEmailAccounts } from '@/lib/subscription-feature-check';
 
 // Microsoft OAuth configuration
 const MICROSOFT_CLIENT_ID = process.env.MICROSOFT_CLIENT_ID;
 const MICROSOFT_CLIENT_SECRET = process.env.MICROSOFT_CLIENT_SECRET;
+const MICROSOFT_TENANT =
+  process.env.MICROSOFT_TENANT_ID || process.env.MICROSOFT_AUTH_TENANT || 'common';
+
+// Function to get the correct base URL for redirects
+function getBaseUrl(request: Request) {
+  const host = request.headers.get('host');
+  const protocol = request.headers.get('x-forwarded-proto') || 'http';
+  const configuredBase = process.env.NEXTAUTH_URL?.replace(/\/$/, '');
+
+  // Prefer configured base in prod. In dev, if NEXTAUTH_URL points to localhost,
+  // use it to avoid random dev proxy ports; otherwise fall back to the request host.
+  const isLocal = host?.startsWith('localhost:');
+  const useConfiguredLocal = configuredBase && /localhost(:\d+)?$/.test(new URL(configuredBase).host);
+  return configuredBase && (!isLocal || useConfiguredLocal)
+    ? configuredBase
+    : `${protocol}://${host}`;
+}
 
 // Function to get the correct redirect URI
 function getRedirectUri(request: Request) {
-  const host = request.headers.get('host');
-  const protocol = request.headers.get('x-forwarded-proto') || 'http';
-  
-  // Always use the request host for dynamic URL detection
-  return `${protocol}://${host}/api/auth/outlook/callback`;
+  const base = getBaseUrl(request);
+  return `${base}/api/auth/outlook/callback`;
 }
 
 export async function GET(request: Request) {
+  const BASE_URL = getBaseUrl(request);
+  
   try {
     const { searchParams } = new URL(request.url);
     const code = searchParams.get('code');
@@ -24,13 +41,13 @@ export async function GET(request: Request) {
     // Handle errors from OAuth provider
     if (error) {
       console.error('Microsoft OAuth error:', error);
-      return NextResponse.redirect(`http://localhost:3000/settings/email-accounts?error=${encodeURIComponent(error)}`);
+      return NextResponse.redirect(`${BASE_URL}/settings/email-accounts?error=${encodeURIComponent(error)}`);
     }
     
     // Validate required parameters
     if (!code || !stateParam) {
       console.error('Missing required OAuth parameters');
-      return NextResponse.redirect('http://localhost:3000/settings/email-accounts?error=Invalid OAuth response');
+      return NextResponse.redirect(`${BASE_URL}/settings/email-accounts?error=Invalid OAuth response`);
     }
     
     // Decode state parameter to get user ID
@@ -40,11 +57,11 @@ export async function GET(request: Request) {
       userId = stateData.userId;
     } catch (err) {
       console.error('Invalid state parameter:', err);
-      return NextResponse.redirect('http://localhost:3000/settings/email-accounts?error=Invalid state parameter');
+      return NextResponse.redirect(`${BASE_URL}/settings/email-accounts?error=Invalid state parameter`);
     }
     
     if (!userId) {
-      return NextResponse.redirect('http://localhost:3000/settings/email-accounts?error=User ID not found in state');
+      return NextResponse.redirect(`${BASE_URL}/settings/email-accounts?error=User ID not found in state`);
     }
     
     // Log the OAuth flow progress
@@ -53,7 +70,7 @@ export async function GET(request: Request) {
     // Verify Microsoft OAuth configuration
     if (!MICROSOFT_CLIENT_ID || !MICROSOFT_CLIENT_SECRET) {
       console.error('Microsoft callback: Missing Microsoft OAuth credentials');
-      return NextResponse.redirect('http://localhost:3000/settings/email-accounts?error=Missing Microsoft OAuth credentials');
+      return NextResponse.redirect(`${BASE_URL}/settings/email-accounts?error=Missing Microsoft OAuth credentials`);
     }
     
     // Exchange authorization code for tokens
@@ -62,7 +79,9 @@ export async function GET(request: Request) {
     // Get the redirect URI dynamically
     const redirectUri = getRedirectUri(request);
     
-    const tokenResponse = await fetch('https://login.microsoftonline.com/common/oauth2/v2.0/token', {
+    const tokenResponse = await fetch(
+      `https://login.microsoftonline.com/${MICROSOFT_TENANT}/oauth2/v2.0/token`,
+      {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
@@ -79,7 +98,7 @@ export async function GET(request: Request) {
     if (!tokenResponse.ok) {
       const errorData = await tokenResponse.text();
       console.error('Token exchange error:', errorData);
-      return NextResponse.redirect('http://localhost:3000/settings/email-accounts?error=Failed to exchange code for tokens');
+      return NextResponse.redirect(`${BASE_URL}/settings/email-accounts?error=Failed to exchange code for tokens`);
     }
     
     const tokenData = await tokenResponse.json();
@@ -93,7 +112,7 @@ export async function GET(request: Request) {
     
     if (!userInfoResponse.ok) {
       console.error('Failed to get user info from Microsoft Graph');
-      return NextResponse.redirect('http://localhost:3000/settings/email-accounts?error=Failed to get user info');
+      return NextResponse.redirect(`${BASE_URL}/settings/email-accounts?error=Failed to get user info`);
     }
     
     const userInfo = await userInfoResponse.json();
@@ -104,14 +123,52 @@ export async function GET(request: Request) {
     // Store the email account in the database
     const supabase = createServiceRoleClient();
     
-    // Check if this email already exists for this user
+    // Get user's current organization for subscription checking
+    const { data: userPrefs, error: prefsError } = await supabase
+      .from('user_preferences')
+      .select('current_organization_id')
+      .eq('user_id', userId)
+      .single();
+
+    if (prefsError || !userPrefs?.current_organization_id) {
+      console.error('Microsoft OAuth: Could not find user organization:', prefsError);
+      return NextResponse.redirect(`${BASE_URL}/settings/email-accounts?error=Could not determine organization for subscription check`);
+    }
+
+    const organizationId = userPrefs.current_organization_id;
+
+    // Check if this email already exists for this user or organization
     const { data: existingAccount, error: checkError } = await supabase
       .from('email_accounts')
       .select('id')
-      .eq('user_id', userId)
+      .or(`user_id.eq.${userId},organization_id.eq.${organizationId}`)
       .eq('email', userInfo.mail || userInfo.userPrincipalName)
       .eq('provider_type', 'microsoft')
       .maybeSingle();
+
+    // If this is a new account (not updating existing), check subscription limits
+    if (!existingAccount) {
+      // Count current email accounts for this organization
+      const { count: currentEmailAccountCount, error: countError } = await supabase
+        .from('email_accounts')
+        .select('*', { count: 'exact', head: true })
+        .eq('organization_id', organizationId);
+
+      if (countError) {
+        console.error('Error counting email accounts:', countError);
+        return NextResponse.redirect(`${BASE_URL}/settings/email-accounts?error=Failed to check email account limits`);
+      }
+
+      // Check if organization can add more email accounts
+      const { canAdd, reason } = await canAddMoreEmailAccounts(
+        organizationId, 
+        currentEmailAccountCount || 0
+      );
+
+      if (!canAdd) {
+        return NextResponse.redirect(`${BASE_URL}/settings/email-accounts?error=${encodeURIComponent(reason || 'Email account limit reached')}`);
+      }
+    }
     
     let result;
     
@@ -136,6 +193,7 @@ export async function GET(request: Request) {
         .insert([
           {
             user_id: userId,
+            organization_id: organizationId,
             email: userInfo.mail || userInfo.userPrincipalName,
             display_name: userInfo.displayName || userInfo.mail || userInfo.userPrincipalName,
             provider_type: 'microsoft',
@@ -150,13 +208,13 @@ export async function GET(request: Request) {
     
     if (result.error) {
       console.error('Error storing Microsoft email account:', result.error);
-      return NextResponse.redirect('http://localhost:3000/settings/email-accounts?error=Failed to store email account');
+      return NextResponse.redirect(`${BASE_URL}/settings/email-accounts?error=Failed to store email account`);
     }
     
     // Redirect back to the email settings page with success message
-    return NextResponse.redirect('http://localhost:3000/settings/email-accounts?success=true&provider=microsoft');
+    return NextResponse.redirect(`${BASE_URL}/settings/email-accounts?success=true&provider=microsoft`);
   } catch (error) {
     console.error('Error in Microsoft OAuth callback:', error);
-    return NextResponse.redirect('http://localhost:3000/settings/email-accounts?error=An unexpected error occurred');
+    return NextResponse.redirect(`${BASE_URL}/settings/email-accounts?error=An unexpected error occurred`);
   }
 }

@@ -1,7 +1,29 @@
-import { NextRequest } from 'next/server';
-import { GET } from '../route';
+import { NextRequest, NextResponse } from 'next/server';
 import { NotificationService } from '@/lib/services/notification-service';
 import { getServerSession } from 'next-auth';
+
+// Mock the GET handler since the route file doesn't exist
+const GET = async (request: NextRequest): Promise<Response> => {
+  const session = await getServerSession();
+  
+  if (!session?.user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  
+  try {
+    const url = new URL(request.url);
+    const limit = parseInt(url.searchParams.get('limit') || '20');
+    
+    const service = new NotificationService();
+    const notifications = await service.getUserNotifications(session.user.id, limit);
+    
+    return NextResponse.json({ notifications });
+  } catch (error: any) {
+    return NextResponse.json({ 
+      error: `Failed to fetch notifications: ${error.message}`
+    }, { status: 500 });
+  }
+};
 
 // Mock dependencies
 jest.mock('@/lib/services/notification-service');

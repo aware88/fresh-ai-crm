@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Create Supabase client
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
     
     // Determine which table/view to query
     const table = useView ? 'supplier_product_pricing' : 'supplier_pricing';
@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
     }
     
     // Create Supabase client
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
     
     // Add organization_id and user_id to the pricing data
     const pricingData = {
@@ -137,7 +137,7 @@ export async function PUT(request: NextRequest) {
     }
     
     // Create Supabase client
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
     
     // Update in database (organization members can update shared pricing)
     const { data, error } = await supabase
@@ -181,7 +181,7 @@ export async function DELETE(request: NextRequest) {
     }
     
     // Create Supabase client
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
     
     // Delete from database (organization members can delete shared pricing)
     const { error } = await supabase

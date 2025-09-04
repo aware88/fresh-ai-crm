@@ -139,12 +139,19 @@ export interface MLTrainingData {
 }
 
 export class FollowUpMLService {
-  private supabase: SupabaseClient;
+  private supabasePromise: Promise<SupabaseClient>;
   private modelCache: Map<string, any> = new Map();
   private profileCache: Map<string, ContactBehaviorProfile> = new Map();
 
   constructor() {
-    this.supabase = createLazyServerClient();
+    this.supabasePromise = createLazyServerClient();
+  }
+
+  /**
+   * Get initialized Supabase client
+   */
+  private async getSupabase(): Promise<SupabaseClient> {
+    return await this.supabasePromise;
   }
 
   /**
@@ -317,7 +324,8 @@ export class FollowUpMLService {
       }
 
       // Try to get existing profile
-      const { data: existingProfile } = await this.supabase
+      const supabase = await this.getSupabase();
+      const { data: existingProfile } = await supabase
         .from('contact_behavior_profiles')
         .select('*')
         .eq('email_pattern', email)
@@ -347,7 +355,8 @@ export class FollowUpMLService {
   private async createBehaviorProfile(email: string): Promise<ContactBehaviorProfile | null> {
     try {
       // Get historical follow-up data for this contact
-      const { data: historicalData } = await this.supabase
+      const supabase = await this.getSupabase();
+      const { data: historicalData } = await supabase
         .from('email_followups')
         .select(`
           *,
@@ -408,7 +417,7 @@ export class FollowUpMLService {
       };
 
       // Store the profile
-      await this.supabase
+      await supabase
         .from('contact_behavior_profiles')
         .insert(profile);
 
@@ -740,7 +749,8 @@ export class FollowUpMLService {
    */
   private async storePrediction(followupId: string, prediction: MLPrediction): Promise<void> {
     try {
-      await this.supabase
+      const supabase = await this.getSupabase();
+      await supabase
         .from('email_followup_ml_predictions')
         .insert({
           followup_id: followupId,
@@ -770,7 +780,8 @@ export class FollowUpMLService {
   ): Promise<void> {
     try {
       // Get predictions for this follow-up
-      const { data: predictions } = await this.supabase
+      const supabase = await this.getSupabase();
+      const { data: predictions } = await supabase
         .from('email_followup_ml_predictions')
         .select('*')
         .eq('followup_id', followupId);
@@ -798,7 +809,8 @@ export class FollowUpMLService {
         }
 
         // Update prediction with accuracy
-        await this.supabase
+        const supabase2 = await this.getSupabase();
+        await supabase2
           .from('email_followup_ml_predictions')
           .update({
             actual_outcome: actualOutcome,

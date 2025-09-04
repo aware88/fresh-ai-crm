@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
     
     // If documentId is provided, verify the user has access to it
     if (documentId) {
-      const supabase = createServerClient();
+      const supabase = await createServerClient();
       
       // Check if the document belongs to the user or their organization
       const { data: document, error } = await supabase

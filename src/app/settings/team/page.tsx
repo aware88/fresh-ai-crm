@@ -91,23 +91,54 @@ export default function TeamSettingsPage() {
     }
   }, [organization?.id]);
 
+  // Add timeout to prevent infinite loading
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      if (isLoading) {
+        console.warn('🏢 Team Settings: Loading timeout reached, forcing completion');
+        setIsLoading(false);
+        toast({
+          title: "Loading Timeout",
+          description: "Team information took too long to load. Please refresh the page.",
+          variant: "destructive",
+        });
+      }
+    }, 15000); // 15 second timeout
+
+    return () => clearTimeout(timeout);
+  }, [isLoading]);
+
   const loadTeamData = async () => {
-    if (!organization?.id) return;
+    if (!organization?.id) {
+      console.log('🏢 Team Settings: No organization ID, skipping load');
+      setIsLoading(false);
+      return;
+    }
     
     try {
       setIsLoading(true);
+      console.log('🏢 Team Settings: Starting to load team data for org:', organization.id);
       
       // Load team members
+      console.log('🏢 Team Settings: Fetching team members...');
       const membersResponse = await fetch(`/api/organization/members`);
       if (membersResponse.ok) {
         const membersData = await membersResponse.json();
+        console.log('🏢 Team Settings: Received members data:', membersData);
         setMembers(membersData.members || []);
+      } else {
+        console.error('🏢 Team Settings: Failed to load members:', membersResponse.status);
+        const errorText = await membersResponse.text();
+        console.error('🏢 Team Settings: Members error details:', errorText);
       }
       
       // Load organization stats
+      console.log('🏢 Team Settings: Fetching organization stats...');
       const statsResponse = await fetch(`/api/organization/stats`);
       if (statsResponse.ok) {
         const statsData = await statsResponse.json();
+        console.log('🏢 Team Settings: Received stats data:', statsData);
+        
         const nextStats: OrganizationStats = statsData;
         // Try to enrich with quick AI metrics from admin org endpoint if permitted
         try {
@@ -121,18 +152,28 @@ export default function TeamSettingsPage() {
               nextStats.aiMonthlyAutoApproved = m.monthly_auto_approved;
             }
           }
-        } catch {}
+        } catch (adminError) {
+          console.log('🏢 Team Settings: Admin metrics not available:', adminError);
+        }
         setStats(nextStats);
+        console.log('🏢 Team Settings: Final stats set:', nextStats);
+      } else {
+        console.error('🏢 Team Settings: Failed to load stats:', statsResponse.status);
+        const errorText = await statsResponse.text();
+        console.error('🏢 Team Settings: Stats error details:', errorText);
       }
       
+      console.log('🏢 Team Settings: Team data loading completed successfully');
+      
     } catch (error) {
-      console.error('Error loading team data:', error);
+      console.error('🏢 Team Settings: Error loading team data:', error);
       toast({
         title: "Error",
-        description: "Failed to load team information.",
+        description: "Failed to load team information. Please try refreshing the page.",
         variant: "destructive",
       });
     } finally {
+      console.log('🏢 Team Settings: Setting loading to false');
       setIsLoading(false);
     }
   };
@@ -369,8 +410,12 @@ export default function TeamSettingsPage() {
                   <div className="text-sm text-muted-foreground">Invited</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-purple-600">{stats.subscriptionLimit}</div>
-                  <div className="text-sm text-muted-foreground">User Limit</div>
+                  <div className="text-2xl font-bold text-purple-600">
+                    {stats.subscriptionLimit === -1 ? '∞' : stats.subscriptionLimit}
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    {stats.subscriptionLimit === -1 ? 'Unlimited Users' : 'User Limit'}
+                  </div>
                 </div>
               </div>
               {typeof stats.aiMonthlyMessages === 'number' && (

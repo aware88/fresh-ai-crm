@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
     const usagePercentage = await aiUsageService.getUsagePercentage(organizationId);
 
     // Get organization details
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data: org, error: orgError } = await supabase
       .from('organizations')
       .select('name, subscription_tier, subscription_status')

@@ -268,8 +268,13 @@ export function parseEmailContent(content: string): ParsedEmailContent {
     // Step 1: Sanitize the HTML content
     const sanitizedHTML = sanitizeHTML(content);
     
+    // Process content to handle inline attachments with cid: references
+    let processedHTML = sanitizedHTML.replace(/src=["']cid:([^"']+)["']/gi, (match, cid) => {
+      return `src="cid:${cid}" data-attachment-cid="${cid}"`;
+    });
+    
     // Step 2: Enhance with Gmail-like styling
-    const styledHTML = enhanceEmailStyles(sanitizedHTML);
+    const styledHTML = enhanceEmailStyles(processedHTML);
     
     // Step 3: Extract plain text
     const plainText = extractPlainText(sanitizedHTML);

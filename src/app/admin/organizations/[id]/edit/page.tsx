@@ -12,18 +12,33 @@ interface OrganizationData {
   updated_at: string;
 }
 
-export default function EditOrganizationPage({ params }: { params: { id: string } }) {
+interface PageProps {
+  params: Promise<{ id: string }>;
+}
+
+export default function EditOrganizationPage({ params }: PageProps) {
   const [organization, setOrganization] = useState<OrganizationData | null>(null);
   const [name, setName] = useState('');
   const [slug, setSlug] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [organizationId, setOrganizationId] = useState<string>('');
   const router = useRouter();
-  const organizationId = params.id;
+
+  // Extract organization ID from params
+  useEffect(() => {
+    const extractParams = async () => {
+      const resolvedParams = await params;
+      setOrganizationId(resolvedParams.id);
+    };
+    extractParams();
+  }, [params]);
 
   // Fetch organization data
   useEffect(() => {
+    if (!organizationId) return;
+    
     async function fetchOrganization() {
       try {
         const response = await fetch(`/api/admin/organizations/${organizationId}`);

@@ -56,7 +56,7 @@ async function handleRAGEmailGeneration(request: NextRequest, uid: string) {
     console.log(`[RAG Email API] Generating RAG-enhanced response for user ${uid}`);
 
     // Create services
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
     const ragService = new UnifiedRAGService(supabase, process.env.OPENAI_API_KEY!);
     const enhancedEmailService = new EnhancedEmailService(ragService, supabase);
 
@@ -165,7 +165,7 @@ export async function GET(request: NextRequest) {
     const days = parseInt(searchParams.get('days') || '30');
 
     // Create services
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
     const ragService = new UnifiedRAGService(supabase, process.env.OPENAI_API_KEY!);
     const enhancedEmailService = new EnhancedEmailService(ragService, supabase);
 

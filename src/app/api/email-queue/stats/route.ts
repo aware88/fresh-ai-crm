@@ -12,7 +12,7 @@ import { getQueueStatistics } from '@/lib/email/emailQueueWorker';
 // GET /api/email-queue/stats - Get queue statistics
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
     
     // Get the current user
     const { data: { user } } = await supabase.auth.getUser();

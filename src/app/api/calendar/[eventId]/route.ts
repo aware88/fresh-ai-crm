@@ -16,7 +16,7 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized or missing Microsoft Graph access token' }, { status: 401 });
     }
     
-    const { eventId } = params;
+    const { eventId } = await params;
     
     // Create Microsoft Graph service and fetch the event
     const graphService = new MicrosoftGraphService(session.accessToken);
@@ -48,7 +48,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'Unauthorized or missing Microsoft Graph access token' }, { status: 401 });
     }
     
-    const { eventId } = params;
+    const { eventId } = await params;
     const body = await req.json();
     
     // Create Microsoft Graph service
@@ -83,7 +83,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized or missing Microsoft Graph access token' }, { status: 401 });
     }
     
-    const { eventId } = params;
+    const { eventId } = await params;
     
     // Create Microsoft Graph service
     const graphService = new MicrosoftGraphService(session.accessToken);

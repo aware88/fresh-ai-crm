@@ -30,23 +30,22 @@ export default function ProfileSettings() {
   // Load saved profile data from localStorage on mount and initialize with session data
   useEffect(() => {
     if (user) {
-      // First set the default values from session
-      // If user.name is empty, try to get it from localStorage or use email prefix
-      let userName = user.name;
-      if (!userName) {
-        const savedProfile = localStorage.getItem('user-profile');
-        if (savedProfile) {
-          try {
-            const parsed = JSON.parse(savedProfile);
-            userName = parsed.name;
-          } catch (e) {
-            // Ignore parsing errors
-          }
-        }
-        // Final fallback to email prefix
-        if (!userName) {
-          userName = user.email?.split('@')[0] || '';
-        }
+      console.log('👤 Profile Settings: Loading user data:', {
+        userId: user.id,
+        email: user.email,
+        sessionName: user.name,
+        sessionMetadata: user.user_metadata
+      });
+
+      // Start with empty name - don't use email prefix as fallback anymore
+      let userName = '';
+      
+      // Only use session name if it's actually provided by the user
+      if (user.name && user.name.trim() && 
+          !user.name.includes('@') && // Not an email
+          user.name !== user.email?.split('@')[0]) { // Not auto-generated from email
+        userName = user.name.trim();
+        console.log('👤 Profile Settings: Using session name:', userName);
       }
 
       const defaultFormData = {
@@ -55,21 +54,23 @@ export default function ProfileSettings() {
         company: ''
       };
 
-      // Then check for saved profile data
+      // Check for saved profile data in localStorage
       const savedProfile = localStorage.getItem('user-profile');
       if (savedProfile) {
         try {
           const parsed = JSON.parse(savedProfile);
+          console.log('👤 Profile Settings: Found saved profile data:', parsed);
           setFormData({
             name: parsed.name || userName,
             bio: parsed.bio || '',
             company: parsed.company || ''
           });
         } catch (error) {
-          console.warn('Failed to parse saved profile data');
+          console.warn('👤 Profile Settings: Failed to parse saved profile data');
           setFormData(defaultFormData);
         }
       } else {
+        console.log('👤 Profile Settings: No saved profile data, using defaults');
         setFormData(defaultFormData);
       }
     }
@@ -297,7 +298,7 @@ export default function ProfileSettings() {
                   // Emit custom formdata event for SettingsForm
                   document.dispatchEvent(new CustomEvent('formdata', { detail: newData }));
                 }}
-                placeholder="Enter your display name"
+                placeholder="Enter your full name (e.g., John Smith)"
               />
             </div>
 

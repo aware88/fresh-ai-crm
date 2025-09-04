@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create Supabase client and RAG service
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
     const ragService = new UnifiedRAGService(supabase, process.env.OPENAI_API_KEY!);
 
     // Prepare content for ingestion
@@ -119,7 +119,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Create RAG service
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
     const ragService = new UnifiedRAGService(supabase, process.env.OPENAI_API_KEY!);
 
     // Get system statistics

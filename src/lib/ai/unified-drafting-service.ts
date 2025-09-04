@@ -198,19 +198,42 @@ export class UnifiedAIDraftingService {
   private async getRelevantPatterns(context: DraftingContext) {
     try {
       const { getLearnedPatterns } = await import('@/lib/learning/email-pattern-analyzer');
-      const allPatterns = await getLearnedPatterns(context.userId);
       
-      if (allPatterns.length === 0) {
-        return [];
-      }
-
       // Detect email language
       const emailLanguage = this.detectLanguage(context.originalEmail.body + ' ' + context.originalEmail.subject);
       
       // Analyze email content to determine category/topic
       const emailCategory = this.categorizeEmail(context.originalEmail);
       
-      // Score and rank patterns by relevance
+      // Use enhanced pattern matching with email context
+      const enhancedPatterns = await getLearnedPatterns(
+        context.userId,
+        emailCategory,
+        undefined, // patternType - let it find all types
+        context.originalEmail.body + ' ' + context.originalEmail.subject, // emailContent for context matching
+        context.originalEmail.subject,
+        context.originalEmail.from
+      );
+      
+      if (enhancedPatterns.length > 0) {
+        // Enhanced patterns already come with relevance scoring
+        console.log(`[UnifiedDrafting] Enhanced pattern matching found ${enhancedPatterns.length} relevant patterns`);
+        return enhancedPatterns
+          .slice(0, 3) // Top 3 matches
+          .map(pattern => ({
+            ...pattern,
+            language: pattern.language || emailLanguage
+          }));
+      }
+
+      // Fallback to simple patterns if enhanced matching returns nothing
+      const allPatterns = await getLearnedPatterns(context.userId, emailCategory);
+      
+      if (allPatterns.length === 0) {
+        return [];
+      }
+      
+      // Score and rank patterns by relevance (fallback method)
       const scoredPatterns = allPatterns.map(pattern => {
         let relevanceScore = 0;
         

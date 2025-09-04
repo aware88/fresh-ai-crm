@@ -69,7 +69,9 @@ export default function SignUpForm() {
   // Set default plan when organization selection changes
   useEffect(() => {
     if (isOrganization) {
-      setSubscriptionPlan('premium'); // Only Premium for organizations
+      // For organizations, we need to show that Premium plans are invitation-only
+      // Set no default plan so user must make a conscious choice
+      setSubscriptionPlan('');
     } else {
       setSubscriptionPlan('pro'); // Default to Pro for individuals (most popular)
     }
@@ -125,6 +127,12 @@ export default function SignUpForm() {
 
     if (!subscriptionPlan) {
       setError('Please select a subscription plan');
+      return false;
+    }
+
+    // Prevent Premium plan self-signup - these require invitations
+    if (isOrganization && subscriptionPlan.includes('premium')) {
+      setError('Premium plans require an invitation from an administrator. Please contact us for Premium access.');
       return false;
     }
 
@@ -428,58 +436,90 @@ export default function SignUpForm() {
                 {isOrganization ? 'Organization Plan' : 'Choose Your Plan'}
               </Label>
               
-              {availablePlans.map((plan) => (
-                <div
-                  key={plan.id}
-                  className={`relative p-4 border-2 rounded-xl cursor-pointer transition-all ${
-                    subscriptionPlan === plan.id
-                      ? 'border-purple-500 bg-purple-50'
-                      : 'border-gray-200 hover:border-gray-300'
-                  }`}
-                  onClick={() => setSubscriptionPlan(plan.id)}
-                >
-                  <div className="flex items-center space-x-3">
-                    <div className="flex-shrink-0">
-                      <div className={`w-4 h-4 rounded-full border-2 ${
-                        subscriptionPlan === plan.id
-                          ? 'bg-purple-500 border-purple-500'
-                          : 'border-gray-300'
-                      }`}>
-                        {subscriptionPlan === plan.id && (
-                          <div className="w-full h-full bg-white rounded-full transform scale-50" />
-                        )}
+              {availablePlans.map((plan) => {
+                const isPremiumPlan = plan.isOrganizationPlan && plan.id.includes('premium');
+                const isRestricted = isPremiumPlan; // For now, all Premium plans are invitation-only
+                
+                return (
+                  <div
+                    key={plan.id}
+                    className={`relative p-4 border-2 rounded-xl transition-all ${
+                      isRestricted 
+                        ? 'border-gray-300 bg-gray-50 opacity-60 cursor-not-allowed' 
+                        : subscriptionPlan === plan.id
+                          ? 'border-purple-500 bg-purple-50 cursor-pointer'
+                          : 'border-gray-200 hover:border-gray-300 cursor-pointer'
+                    }`}
+                    onClick={() => !isRestricted && setSubscriptionPlan(plan.id)}
+                  >
+                    {isRestricted && (
+                      <div className="absolute top-2 right-2">
+                        <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-300 text-xs">
+                          Invitation Only
+                        </Badge>
                       </div>
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-2">
-                        <h3 className="font-semibold text-gray-900">{plan.name}</h3>
-                        {plan.badge && (
-                          <Badge variant="secondary" className="text-xs">
-                            {plan.badge}
-                          </Badge>
-                        )}
-                        {plan.popular && (
-                          <Badge className="text-xs bg-purple-100 text-purple-800">
-                            Most Popular
-                          </Badge>
-                        )}
+                    )}
+                    <div className="flex items-center space-x-3">
+                      <div className="flex-shrink-0">
+                        <div className={`w-4 h-4 rounded-full border-2 ${
+                          isRestricted
+                            ? 'border-gray-300 bg-gray-200'
+                            : subscriptionPlan === plan.id
+                              ? 'bg-purple-500 border-purple-500'
+                              : 'border-gray-300'
+                        }`}>
+                          {subscriptionPlan === plan.id && !isRestricted && (
+                            <div className="w-full h-full bg-white rounded-full transform scale-50" />
+                          )}
+                        </div>
                       </div>
-                      <p className="text-sm text-gray-600 mt-1">{plan.description}</p>
-                      <div className="flex items-center space-x-2 mt-2">
-                        <span className="text-2xl font-bold text-gray-900">
-                          {formatPrice(plan.monthlyPrice)}
-                        </span>
-                        <span className="text-sm text-gray-500">/month</span>
-                        {plan.highlight && (
-                          <span className="text-sm text-purple-600 font-medium">
-                            • {plan.highlight}
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-2">
+                          <h3 className={`font-semibold ${isRestricted ? 'text-gray-500' : 'text-gray-900'}`}>
+                            {plan.name}
+                          </h3>
+                          {plan.badge && (
+                            <Badge variant="secondary" className="text-xs">
+                              {plan.badge}
+                            </Badge>
+                          )}
+                          {plan.popular && !isRestricted && (
+                            <Badge className="text-xs bg-purple-100 text-purple-800">
+                              Most Popular
+                            </Badge>
+                          )}
+                        </div>
+                        <p className={`text-sm mt-1 ${isRestricted ? 'text-gray-500' : 'text-gray-600'}`}>
+                          {isRestricted 
+                            ? 'Premium plans require an invitation from an administrator'
+                            : plan.description
+                          }
+                        </p>
+                        <div className="flex items-center space-x-2 mt-2">
+                          <span className={`text-2xl font-bold ${isRestricted ? 'text-gray-500' : 'text-gray-900'}`}>
+                            {formatPrice(plan.monthlyPrice)}
                           </span>
+                          <span className={`text-sm ${isRestricted ? 'text-gray-400' : 'text-gray-500'}`}>
+                            /month
+                          </span>
+                          {plan.highlight && !isRestricted && (
+                            <span className="text-sm text-purple-600 font-medium">
+                              • {plan.highlight}
+                            </span>
+                          )}
+                        </div>
+                        {isRestricted && (
+                          <div className="mt-2 text-xs text-blue-600">
+                            <Link href="/contact" className="underline hover:text-blue-800">
+                              Contact us for Premium access
+                            </Link>
+                          </div>
                         )}
                       </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             <Button 

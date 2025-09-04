@@ -11,7 +11,7 @@ function CheckoutContent() {
   const { data: session, status } = useSession();
   
   const [planId, setPlanId] = useState<string>('');
-  const [billingInterval, setBillingInterval] = useState<'monthly' | 'yearly'>('monthly');
+  const [billingInterval, setBillingInterval] = useState<'monthly' | 'annual' | 'yearly'>('monthly');
   const [userCount, setUserCount] = useState<number>(1);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
@@ -22,15 +22,16 @@ function CheckoutContent() {
       return;
     }
     
-    const planParam = searchParams.get('plan');
-    const billingParam = searchParams.get('billing');
+    const planParam = searchParams?.get('plan');
+    const billingParam = searchParams?.get('billing');
     
     if (planParam) {
       setPlanId(planParam);
     }
     
-    if (billingParam === 'yearly' || billingParam === 'monthly') {
-      setBillingInterval(billingParam);
+    // Fix the billing interval type to match SubscriptionPlan interface
+    if (billingParam === 'annual' || billingParam === 'monthly' || billingParam === 'yearly') {
+      setBillingInterval(billingParam as 'monthly' | 'annual' | 'yearly');
     }
   }, [searchParams, status, router]);
   
@@ -84,7 +85,10 @@ function CheckoutContent() {
     );
   }
   
-  const totalPrice = calculateTotalPrice(plan, userCount, billingInterval);
+  // Convert billing interval to match calculateTotalPrice function signature
+  // Handle 'yearly' as 'annual' for calculation purposes
+  const calcBillingInterval = billingInterval === 'yearly' ? 'annual' : billingInterval;
+  const totalPrice = calculateTotalPrice(plan, userCount, calcBillingInterval);
   
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
@@ -109,7 +113,7 @@ function CheckoutContent() {
                   <div className="flex justify-between">
                     <span className="text-gray-700">{plan.name} Plan</span>
                     <span className="font-medium">
-                      ${billingInterval === 'yearly' ? plan.annualPrice : plan.monthlyPrice}/mo
+                      ${billingInterval === 'annual' || billingInterval === 'yearly' ? plan.annualPrice : plan.monthlyPrice}/mo
                     </span>
                   </div>
                   
@@ -140,8 +144,8 @@ function CheckoutContent() {
                       <span>${totalPrice}/mo</span>
                     </div>
                     <div className="mt-1 text-sm text-gray-500">
-                      Billed {billingInterval === 'yearly' ? 'annually' : 'monthly'}
-                      {billingInterval === 'yearly' && (
+                      Billed {billingInterval === 'annual' || billingInterval === 'yearly' ? 'annually' : 'monthly'}
+                      {(billingInterval === 'annual' || billingInterval === 'yearly') && (
                         <span className="text-green-600 ml-1">
                           (Save {plan.annualSavingsPercent}%)
                         </span>

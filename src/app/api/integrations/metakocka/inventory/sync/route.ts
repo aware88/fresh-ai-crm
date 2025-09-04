@@ -4,7 +4,7 @@ import { InventoryService } from '@/lib/integrations/metakocka/inventory-service
 
 export async function POST() {
   try {
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
     const { data: { session } } = await supabase.auth.getSession();
     
     if (!session?.user?.id) {

@@ -16,7 +16,20 @@ import EmailComposer from '@/components/suppliers/EmailComposer';
 export default function SupplierDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const supplierId = params.id as string;
+  const supplierId = params?.id as string;
+  
+  if (!supplierId) {
+    return (
+      <div className="flex h-[50vh] w-full flex-col items-center justify-center gap-4">
+        <p className="text-lg text-muted-foreground">
+          Supplier ID not found
+        </p>
+        <Button asChild>
+          <Link href="/suppliers">Back to Suppliers</Link>
+        </Button>
+      </div>
+    );
+  }
   
   const [supplier, setSupplier] = useState<Supplier | null>(null);
   const [loading, setLoading] = useState(true);

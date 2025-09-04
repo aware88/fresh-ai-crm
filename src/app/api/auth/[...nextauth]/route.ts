@@ -195,37 +195,43 @@ const authOptions: NextAuthOptions = {
     },
   ],
   callbacks: {
+    // Merge of previously duplicated session callbacks to avoid silent override.
+    // Preserves existing behavior by combining both sets of assignments.
     async session({ session, token }) {
-      if (token && session.user) {
-        // Use token.id (set in jwt callback) if available, otherwise fall back to token.sub
-        session.user.id = token.id || token.sub!;
-        session.user.name = token.name;
-        session.user.email = token.email;
-        session.user.image = token.picture;
-        
-        // Add current organization ID for theme validation
-        session.currentOrganizationId = token.currentOrganizationId;
-        
-        // Add OAuth tokens to session for API calls
-        if (token.accessToken) {
-          session.accessToken = token.accessToken as string;
+      if (token) {
+        // Ensure user object exists
+        if (!session.user) {
+          session.user = {
+            id: (token as any).id || (token as any).sub!,
+            name: (token as any).name,
+            email: (token as any).email as string,
+            image: ((token as any).picture as string) ?? null,
+          };
         }
-        if (token.refreshToken) {
-          session.refreshToken = token.refreshToken as string;
+
+        // Apply core user fields
+        session.user.id = (token as any).id || (token as any).sub!;
+        if ((token as any).name !== undefined) session.user.name = (token as any).name as any;
+        if ((token as any).email !== undefined) session.user.email = (token as any).email as any;
+        if ((token as any).picture !== undefined) session.user.image = (token as any).picture as any;
+
+        // Bring over OAuth/token context if present
+        if ((token as any).accessToken) session.accessToken = (token as any).accessToken as string;
+        if ((token as any).refreshToken) session.refreshToken = (token as any).refreshToken as string;
+        if ((token as any).provider) session.provider = (token as any).provider as string;
+
+        // Organization context
+        if ((token as any).currentOrganizationId !== undefined) {
+          session.currentOrganizationId = (token as any).currentOrganizationId as any;
         }
-        if (token.provider) {
-          session.provider = token.provider as string;
+
+        // Branding context (used by UI themes)
+        if ((token as any).organizationBranding) {
+          (session as any).organizationBranding = (token as any).organizationBranding;
         }
-      } else if (token && !session.user) {
-        // Create user object if it doesn't exist but token does
-        session.user = {
-          id: token.id || token.sub!,
-          name: token.name,
-          email: token.email as string,
-          image: token.picture as string | null
-        };
-        // Add current organization ID for theme validation
-        session.currentOrganizationId = token.currentOrganizationId;
+
+        // Setup status
+        (session as any).organizationSetup = (token as any).organizationSetup || false;
       }
       return session;
     },
@@ -336,37 +342,6 @@ const authOptions: NextAuthOptions = {
       }
       
       return token;
-    },
-    async session({ session, token }) {
-      // Ensure session.user.id is set from token
-      if (token?.id) {
-        session.user.id = token.id;
-      }
-      
-      // Pass branding data to session for immediate availability
-      if (token?.organizationBranding) {
-        session.organizationBranding = token.organizationBranding;
-      }
-      
-      // Pass organization ID to session
-      if (token?.currentOrganizationId) {
-        session.currentOrganizationId = token.currentOrganizationId;
-      }
-      
-      // Add organization info to session if available
-      if (token?.currentOrganizationId) {
-        session.currentOrganizationId = token.currentOrganizationId;
-      }
-      
-      // Add organization branding to session for immediate theme application
-      if (token?.organizationBranding) {
-        session.organizationBranding = token.organizationBranding;
-      }
-      
-      // Add organization setup status to session
-      session.organizationSetup = token.organizationSetup || false;
-      
-      return session;
     },
   },
   pages: {

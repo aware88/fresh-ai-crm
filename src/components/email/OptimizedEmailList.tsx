@@ -7,7 +7,8 @@
 
 'use client';
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useOptimizedEmails, useEmailContent } from '@/hooks/useOptimizedEmails';
 import { Badge } from '@/components/ui/badge';
@@ -16,6 +17,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
+import { generateEmailPreview } from '@/lib/email/email-content-parser';
 import { 
   Mail, 
   MailOpen, 
@@ -33,7 +35,8 @@ import {
   Bot,
   Clock,
   Database,
-  Zap
+  Zap,
+  Paperclip
 } from 'lucide-react';
 
 interface OptimizedEmailListProps {
@@ -51,8 +54,9 @@ export default function OptimizedEmailList({
   onAnalyzeEmail,
   onSalesAgent
 }: OptimizedEmailListProps) {
-  const [searchQuery, setSearchQuery] = useState('');
+  console.log(`🔥 [OptimizedEmailList] Component rendered with accountId: ${emailAccountId}, folder: ${folder}`);
   const [selectedEmailId, setSelectedEmailId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState<string>('');
   
   const {
     emails,
@@ -66,6 +70,7 @@ export default function OptimizedEmailList({
     searchEmails,
     markAsRead,
     markAsReplied,
+    markAsUnread,
     analyzeEmail,
     stats,
     contentLoading,
@@ -74,7 +79,8 @@ export default function OptimizedEmailList({
     emailAccountId,
     folder,
     autoLoad: true,
-    enableRealTimeSync: true
+    enableRealTimeSync: true,
+    loadContentOnInit: true // Preload email content on initial load
   });
 
   // Handle email selection
@@ -84,12 +90,11 @@ export default function OptimizedEmailList({
     // Mark as read
     await markAsRead(messageId);
     
-    // Load content on-demand
-    await getEmailContent(messageId);
+    // Content is now preloaded, so no need to load it on-demand
     
     // Notify parent
     onEmailSelect?.(messageId);
-  }, [markAsRead, getEmailContent, onEmailSelect]);
+  }, [markAsRead, onEmailSelect]);
 
   // Handle search
   const handleSearch = useCallback(async (query: string) => {
@@ -153,12 +158,17 @@ export default function OptimizedEmailList({
     const now = new Date();
     const diffHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
     
+    // Format the time part
+    const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    
     if (diffHours < 24) {
-      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      return timeStr;
+    } else if (diffHours < 48) {
+      return `Yesterday, ${timeStr}`;
     } else if (diffHours < 168) { // 7 days
-      return date.toLocaleDateString([], { weekday: 'short' });
+      return `${date.toLocaleDateString([], { weekday: 'short' })}, ${timeStr}`;
     } else {
-      return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+      return `${date.toLocaleDateString([], { month: 'short', day: 'numeric' })}`;
     }
   };
 
@@ -180,10 +190,20 @@ export default function OptimizedEmailList({
     );
   }
 
+  // Virtualization setup
+  const viewportRef = useRef<HTMLDivElement | null>(null);
+  const itemSizeEstimate = 110; // approximate row height incl. padding/borders (increased for better styling)
+  const rowVirtualizer = useVirtualizer({
+    count: emails.length,
+    getScrollElement: () => viewportRef.current,
+    estimateSize: () => itemSizeEstimate,
+    overscan: 8,
+  });
+
   return (
     <div className="h-full flex flex-col">
       {/* Header with search and stats */}
-      <Card className="mb-4">
+      <Card className="mb-4 shadow-sm">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg font-semibold">
@@ -195,185 +215,282 @@ export default function OptimizedEmailList({
                 size="sm"
                 onClick={refreshEmails}
                 disabled={loading}
+                className="h-8 px-2"
+                aria-label="Refresh emails"
+                title="Refresh emails"
               >
-                <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+                <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} aria-hidden="true" />
               </Button>
             </div>
           </div>
           
           {/* Search */}
-          <div className="relative">
+          <div className="relative mt-2">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
             <Input
               placeholder="Search emails..."
               value={searchQuery}
               onChange={(e) => handleSearch(e.target.value)}
-              className="pl-10"
+              className="pl-10 h-9"
+              aria-label="Search emails"
             />
           </div>
 
-          {/* Performance Stats */}
-          <div className="flex items-center space-x-4 text-sm text-gray-500">
-            <div className="flex items-center space-x-1">
-              <Database className="h-3 w-3" />
-              <span>Saved: {stats.storageSavedMB}MB</span>
-            </div>
-            <div className="flex items-center space-x-1">
-              <Zap className="h-3 w-3" />
-              <span>Cached: {stats.cachedEmails}</span>
-            </div>
-            <div className="flex items-center space-x-1">
-              <Bot className="h-3 w-3" />
-              <span>Analyzed: {stats.analyzedEmails}</span>
-            </div>
-          </div>
         </CardHeader>
       </Card>
 
       {/* Email List */}
-      <Card className="flex-1">
-        <ScrollArea className="h-full">
-          <CardContent className="p-0">
-            <AnimatePresence>
-              {loading && emails.length === 0 ? (
-                // Loading skeleton
-                <div className="p-4 space-y-3">
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <div key={i} className="border rounded-lg p-3">
-                      <div className="flex items-start justify-between mb-2">
-                        <Skeleton className="h-4 w-32" />
-                        <Skeleton className="h-3 w-16" />
-                      </div>
-                      <Skeleton className="h-4 w-3/4 mb-2" />
-                      <Skeleton className="h-3 w-full" />
+      <Card className="flex-1 min-h-0 shadow-sm border-gray-200 overflow-hidden">
+        <CardContent className="p-0 h-full flex flex-col">
+          <AnimatePresence>
+            {loading && emails.length === 0 ? (
+              // Loading skeleton
+              <div className="p-4 space-y-3">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <div key={i} className="border rounded-lg p-3">
+                    <div className="flex items-start justify-between mb-2">
+                      <Skeleton className="h-4 w-32" />
+                      <Skeleton className="h-3 w-16" />
                     </div>
-                  ))}
-                </div>
-              ) : emails.length === 0 ? (
-                // Empty state
-                <div className="flex items-center justify-center h-64">
-                  <div className="text-center">
-                    <Mail className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-500 font-medium">No emails found</p>
-                    <p className="text-sm text-gray-400">
-                      {searchQuery ? 'Try adjusting your search' : 'Your emails will appear here'}
-                    </p>
+                    <Skeleton className="h-4 w-3/4 mb-2" />
+                    <Skeleton className="h-3 w-full" />
                   </div>
+                ))}
+              </div>
+            ) : emails.length === 0 ? (
+              // Empty state
+              <div className="flex items-center justify-center h-64">
+                <div className="text-center">
+                  <Mail className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-500 font-medium">No emails found</p>
+                  <p className="text-sm text-gray-400">
+                    {searchQuery ? 'Try adjusting your search' : 'Your emails will appear here'}
+                  </p>
                 </div>
-              ) : (
-                // Email list
-                <div className="divide-y divide-gray-100">
-                  {emails.map((email, index) => (
-                    <motion.div
-                      key={`${email.message_id}-${email.id || index}-${email.received_at}`}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -20 }}
-                      className={`p-4 cursor-pointer transition-all duration-200 ${
-                        selectedEmailId === email.message_id
-                          ? 'bg-blue-50 border-l-4 border-l-blue-500'
-                          : email.is_read
-                          ? 'hover:bg-gray-50'
-                          : 'bg-blue-25 hover:bg-blue-50 border-l-4 border-l-blue-200'
-                      } ${getPriorityColor(email.agent_priority)}`}
-                      onClick={() => handleEmailClick(email.message_id)}
-                    >
-                      <div className="flex items-start justify-between mb-2">
-                        <div className="flex items-center space-x-2 min-w-0 flex-1">
-                          {!email.is_read && (
-                            <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0" />
-                          )}
-                          <span className="font-medium text-sm truncate">
-                            {email.sender_name || email.sender_email}
-                          </span>
-                          {email.assigned_agent && (
-                            <Badge variant="secondary" className="flex items-center space-x-1">
-                              {getAgentIcon(email.assigned_agent)}
-                              <span className="text-xs">{email.assigned_agent}</span>
-                            </Badge>
-                          )}
-                          {email.upsell_data?.hasUpsellOpportunity && (
-                            <Badge variant="default" className="bg-green-100 text-green-800">
-                              ${email.opportunity_value}
-                            </Badge>
-                          )}
-                        </div>
-                        <div className="flex items-center space-x-2 flex-shrink-0">
-                          <span className="text-xs text-gray-500">
-                            {formatDate(email.received_at)}
-                          </span>
-                          {contentLoading.has(email.message_id) && (
-                            <div className="animate-spin h-3 w-3 border border-gray-300 border-t-blue-500 rounded-full" />
-                          )}
-                        </div>
-                      </div>
+              </div>
+            ) : (
+              // Virtualized email list
+              <div 
+                className="overflow-auto h-full" 
+                ref={viewportRef}
+                style={{ maxHeight: '600px' }}
+              >
+                <div
+                  style={{ 
+                    height: `${rowVirtualizer.getTotalSize()}px`, 
+                    width: '100%', 
+                    position: 'relative' 
+                  }}
+                >
+                    {(() => {
+                      const virtualItems = rowVirtualizer.getVirtualItems();
+                      console.log(`🎯 [OptimizedEmailList] Virtual items to render: ${virtualItems.length}/${emails.length}, totalSize: ${rowVirtualizer.getTotalSize()}px`);
+                      
+                      // Debug: Check if emails array has unique items
+                      if (emails.length > 0) {
+                        const uniqueIds = new Set(emails.map(e => e.message_id));
+                        if (uniqueIds.size !== emails.length) {
+                          console.warn(`⚠️ Duplicate emails detected! ${emails.length} emails but only ${uniqueIds.size} unique IDs`);
+                        }
+                        // Log first 3 emails to verify they're different
+                        console.log('First 3 emails in list:', emails.slice(0, 3).map(e => ({ 
+                          id: e.message_id?.substring(0, 20), 
+                          subject: e.subject?.substring(0, 30) 
+                        })));
+                      }
+                      
+                      return virtualItems.map((virtualRow) => {
+                      const index = virtualRow.index;
+                      const email = emails[index];
+                      
+                      if (!email) {
+                        console.error(`❌ No email at index ${index}`);
+                        return null;
+                      }
+                      
+                      return (
+                        <motion.div
+                          key={`email-${email.message_id}-${index}`}
+                          data-index={virtualRow.index}
+                          ref={(node) => rowVirtualizer.measureElement?.(node)}
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          exit={{ opacity: 0 }}
+                          className={`p-4 cursor-pointer transition-all duration-200 border-b border-gray-100 ${
+                            selectedEmailId === email.message_id
+                              ? 'selected bg-blue-50 border-blue-200 shadow-sm'
+                              : email.is_read
+                              ? 'bg-white hover:bg-gray-50'
+                              : 'unread bg-blue-50/30 hover:bg-blue-50/50 border-blue-100'
+                          } ${
+                            virtualRow.index % 2 ? 'ListItemOdd' : 'ListItemEven'
+                          }`}
+                          onClick={() => handleEmailClick(email.message_id)}
+                          role="button"
+                          tabIndex={0}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              handleEmailClick(email.message_id);
+                            }
+                          }}
+                          style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            width: '100%',
+                            height: `${virtualRow.size}px`,
+                            transform: `translateY(${virtualRow.start}px)`,
+                            borderLeft: selectedEmailId === email.message_id
+                              ? '4px solid #3B82F6'
+                              : !email.is_read
+                              ? '4px solid #3B82F6'
+                              : '4px solid transparent'
+                          }}
+                        >
+                          <div className="w-full">
+                            <div className="flex items-center justify-between mb-2">
+                              <p className={`text-sm font-semibold truncate flex-1 pr-2 ${
+                                email.is_read ? 'text-gray-800' : 'text-gray-900'
+                              }`}
+                               title={email.sender_name || email.sender_email}
+                               style={{ maxWidth: 'calc(100% - 80px)' }}>
+                                {email.sender_name || email.sender_email}
+                              </p>
+                              <div className="flex items-center space-x-2 flex-shrink-0 min-w-[80px] justify-end">
+                                {!email.is_read && (
+                                  <div className="w-2.5 h-2.5 bg-blue-500 rounded-full"></div>
+                                )}
+                                {email.has_attachments && (
+                                  <div title={`${email.attachment_count || 1} attachment${email.attachment_count > 1 ? 's' : ''}`}>
+                                    <Paperclip className="h-4 w-4 text-blue-600" />
+                                  </div>
+                                )}
+                                <span className={`text-xs font-medium whitespace-nowrap ${!email.is_read ? 'text-blue-700' : 'text-gray-500'}`}>
+                                  {formatDate(email.received_at)}
+                                </span>
+                              </div>
+                            </div>
 
-                      <div className="mb-2">
-                        <h3 className="text-sm font-medium truncate text-gray-900">
-                          {email.subject || '(No Subject)'}
-                        </h3>
-                      </div>
+                            <p className={`text-sm mb-2 leading-tight ${
+                              email.is_read ? 'font-semibold text-gray-800' : 'font-bold text-gray-900'
+                            }`}
+                               style={{
+                                 display: '-webkit-box',
+                                 WebkitLineClamp: 2,
+                                 WebkitBoxOrient: 'vertical',
+                                 overflow: 'hidden',
+                                 textOverflow: 'ellipsis'
+                               }}
+                               title={email.subject}>
+                              {email.subject || '(No Subject)'}
+                            </p>
 
-                      <div className="text-xs text-gray-600 line-clamp-2 mb-2">
-                        {email.preview_text || 'No preview available'}
-                      </div>
-
-                      {/* Action buttons */}
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-2">
-                          {email.has_attachments && (
-                            <Badge variant="outline" className="text-xs">
-                              📎 {email.attachment_count || 1}
-                            </Badge>
-                          )}
-                          {email.replied && (
-                            <Badge variant="outline" className="text-xs">
-                              ↩️ Replied
-                            </Badge>
-                          )}
-                        </div>
-
-                        <div className="flex items-center space-x-1">
-                          {!email.ai_analyzed && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleAnalyzeEmail(email.message_id);
-                              }}
-                              disabled={analysisLoading.has(email.message_id)}
-                            >
-                              {analysisLoading.has(email.message_id) ? (
-                                <div className="animate-spin h-3 w-3 border border-gray-300 border-t-blue-500 rounded-full" />
-                              ) : (
-                                <Bot className="h-3 w-3" />
+                            <div className="flex items-center flex-wrap gap-1.5 mb-1">
+                              {email.assigned_agent && (
+                                <Badge 
+                                  variant="outline" 
+                                  className="text-xs px-1.5 py-0 h-5 bg-white border-gray-200"
+                                  style={{ 
+                                    backgroundColor: email.highlight_color ? `${email.highlight_color}15` : undefined,
+                                    borderColor: email.highlight_color || undefined 
+                                  }}
+                                >
+                                  {getAgentIcon(email.assigned_agent)}
+                                  <span className="ml-1">{email.assigned_agent}</span>
+                                </Badge>
                               )}
-                            </Button>
-                          )}
-                          
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleSalesAgent(email.message_id);
-                            }}
-                          >
-                            <DollarSign className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      </div>
-                    </motion.div>
-                  ))}
+                              {email.upsell_data?.hasUpsellOpportunity && (
+                                <Badge variant="default" className="bg-green-100 text-green-800 text-xs px-1.5 py-0 h-5">
+                                  ${email.opportunity_value}
+                                </Badge>
+                              )}
+                            </div>
 
+                            <p className="text-xs text-gray-500 leading-tight" 
+                               style={{
+                                 display: '-webkit-box',
+                                 WebkitLineClamp: 1,
+                                 WebkitBoxOrient: 'vertical',
+                                 overflow: 'hidden',
+                                 textOverflow: 'ellipsis'
+                               }}>
+                              {email.preview_text || generateEmailPreview(email.html_content || email.plain_content || '', 80) || 'No preview available'}
+                            </p>
+                          </div>
+
+                          <div className="flex items-center justify-between mt-1">
+                            <div className="flex items-center space-x-1.5">
+                              {email.replied && (
+                                <Badge variant="outline" className="text-xs px-1.5 py-0 h-5 bg-gray-50 border-gray-200 text-gray-600">
+                                  <Reply className="h-3 w-3 mr-0.5" /> Replied
+                                </Badge>
+                              )}
+                            </div>
+
+                            <div className="flex items-center space-x-1">
+                              {email.is_read && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 w-7 p-0 rounded-full hover:bg-gray-50"
+                                  aria-label="Mark as unread"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    markAsUnread(email.message_id);
+                                  }}
+                                >
+                                  <Mail className="h-3 w-3" />
+                                </Button>
+                              )}
+                              {!email.ai_analyzed && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 w-7 p-0 rounded-full hover:bg-blue-50"
+                                  aria-label="Analyze email with AI"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleAnalyzeEmail(email.message_id);
+                                  }}
+                                  disabled={analysisLoading.has(email.message_id)}
+                                >
+                                  {analysisLoading.has(email.message_id) ? (
+                                    <div className="animate-spin h-3 w-3 border border-gray-300 border-t-blue-500 rounded-full" />
+                                  ) : (
+                                    <Bot className="h-3 w-3" />
+                                  )}
+                                </Button>
+                              )}
+
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 w-7 p-0 rounded-full hover:bg-green-50"
+                                aria-label="Open sales agent for email"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleSalesAgent(email.message_id);
+                                }}
+                              >
+                                <DollarSign className="h-3 w-3 text-green-600" />
+                              </Button>
+                            </div>
+                          </div>
+                        </motion.div>
+                      );
+                    });
+                    })()}
+                  </div>
+                
                   {/* Load more button */}
                   {hasMore && (
-                    <div className="p-4 text-center">
+                    <div className="p-4 text-center border-t">
                       <Button
                         variant="outline"
                         onClick={loadMoreEmails}
                         disabled={loading}
+                        className="px-4 py-2 h-9"
                       >
                         {loading ? (
                           <>
@@ -389,8 +506,7 @@ export default function OptimizedEmailList({
                 </div>
               )}
             </AnimatePresence>
-          </CardContent>
-        </ScrollArea>
+        </CardContent>
       </Card>
     </div>
   );

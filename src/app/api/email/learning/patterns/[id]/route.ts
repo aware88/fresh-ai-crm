@@ -24,7 +24,8 @@ export async function PATCH(
     }
 
     const userId = session.user.id;
-    const patternId = params.id;
+    const { id } = await params;
+    const patternId = id;
     const body = await request.json();
 
     // Get Supabase client
@@ -104,7 +105,8 @@ export async function DELETE(
     }
 
     const userId = session.user.id;
-    const patternId = params.id;
+    const { id } = await params;
+    const patternId = id;
 
     // Get Supabase client
     const cookieStore = await cookies();

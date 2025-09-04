@@ -15,6 +15,59 @@ This document provides comprehensive information about the CRM Mind database sch
 
 ### Core Tables
 
+#### `email_accounts` (Multi-Email Account System)
+**Added: 2025-01-01**  
+Stores multiple email accounts per organization with subscription-based limits.
+
+```sql
+CREATE TABLE email_accounts (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE,
+  email TEXT NOT NULL,
+  display_name TEXT,
+  provider_type TEXT NOT NULL CHECK (provider_type IN ('google', 'microsoft', 'outlook', 'imap')),
+  
+  -- OAuth tokens (Google/Microsoft)
+  access_token TEXT,
+  refresh_token TEXT,
+  token_expires_at TIMESTAMP WITH TIME ZONE,
+  
+  -- IMAP credentials (encrypted)
+  username TEXT,
+  password_encrypted TEXT,
+  imap_host TEXT,
+  imap_port INTEGER,
+  imap_security TEXT CHECK (imap_security IN ('SSL/TLS', 'STARTTLS', 'None')),
+  smtp_host TEXT,
+  smtp_port INTEGER,
+  smtp_security TEXT CHECK (smtp_security IN ('SSL/TLS', 'STARTTLS', 'None')),
+  
+  -- Status fields
+  is_active BOOLEAN DEFAULT true,
+  is_primary BOOLEAN DEFAULT false,
+  last_sync_at TIMESTAMP WITH TIME ZONE,
+  sync_error TEXT,
+  
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  
+  UNIQUE(organization_id, email, provider_type)
+);
+```
+
+**Email Account Limits by Subscription:**
+- **Starter:** 1 email account
+- **Pro:** 2 email accounts  
+- **Premium:** 3 email accounts
+
+**Features:**
+- Subscription-based account limits enforced at API level
+- Support for Google OAuth, Microsoft OAuth, and IMAP
+- Visual account switcher in Email dashboard
+- Primary/Secondary account designation
+- Organization-based multi-tenant access
+
 #### `inventory_alerts`
 Stores inventory alert configurations.
 

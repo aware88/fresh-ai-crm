@@ -169,7 +169,8 @@ export class EmailAgentSettingsService {
     reasoning: string,
     autoReplyEnabled: boolean
   ): Promise<void> {
-    const { error } = await this.supabase.rpc('update_email_agent_assignment', {
+    const supabase = await this.getSupabase();
+    const { error } = await supabase.rpc('update_email_agent_assignment', {
       p_email_id: emailId,
       p_organization_id: organizationId,
       p_assigned_agent: assignedAgent,

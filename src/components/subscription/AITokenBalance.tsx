@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useOrganization } from '@/hooks/useOrganization';
+import { useSubscription } from '@/contexts/SubscriptionContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -47,40 +47,35 @@ export default function AITokenBalance({
   showTopUpButton = true,
   className = '' 
 }: AITokenBalanceProps) {
-  const { organization } = useOrganization();
-  const [usage, setUsage] = useState<TokenUsageData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const { subscription, isLoading: subscriptionLoading, refetch } = useSubscription();
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const fetchUsageData = async (showRefreshLoader = false) => {
-    if (!organization?.id) return;
-    
-    if (showRefreshLoader) setIsRefreshing(true);
-    else setIsLoading(true);
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await refetch();
+    setIsRefreshing(false);
+  };
 
-    try {
-      const response = await fetch(`/api/usage/status?organizationId=${organization.id}`);
-      if (response.ok) {
-        const data = await response.json();
-        setUsage(data);
-      }
-    } catch (error) {
-      console.error('Error fetching usage data:', error);
-    } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
+  // Transform subscription data to match the expected usage format
+  const usage: TokenUsageData | null = subscription ? {
+    subscription: {
+      current: subscription.limits?.aiTokensUsed || 0,
+      limit: subscription.limits?.aiTokens || 0,
+      remaining: Math.max(0, (subscription.limits?.aiTokens || 0) - (subscription.limits?.aiTokensUsed || 0)),
+      exceeded: (subscription.limits?.aiTokensUsed || 0) > (subscription.limits?.aiTokens || 0),
+    },
+    topup: {
+      available: 0, // TODO: Add topup tracking to subscription context
+      totalSpent: 0,
+      totalPurchases: 0,
+    },
+    total: {
+      available: subscription.isUnlimited ? -1 : Math.max(0, (subscription.limits?.aiTokens || 0) - (subscription.limits?.aiTokensUsed || 0)),
+      canMakeRequest: subscription.isUnlimited || (subscription.limits?.aiTokens || 0) > (subscription.limits?.aiTokensUsed || 0),
     }
-  };
+  } : null;
 
-  useEffect(() => {
-    fetchUsageData();
-  }, [organization?.id]);
-
-  const handleRefresh = () => {
-    fetchUsageData(true);
-  };
-
-  if (isLoading) {
+  if (subscriptionLoading) {
     return (
       <Card className={className}>
         <CardContent className="p-6">
@@ -197,11 +192,11 @@ export default function AITokenBalance({
             Track your AI usage and manage your token balance
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <CardContent className="space-y-4 py-4">
           {/* Subscription Usage */}
-          <div className="space-y-3">
+          <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <h4 className="font-medium">Subscription Tokens</h4>
+              <h4 className="text-sm font-medium">Subscription Tokens</h4>
               <Badge variant={usage.subscription?.exceeded ? 'destructive' : 'secondary'}>
                 {isUnlimited 
                   ? `${usage.subscription?.current || 0} used (Unlimited)`
@@ -222,13 +217,13 @@ export default function AITokenBalance({
               </>
             )}
             {isUnlimited && (
-              <div className="p-3 bg-green-50 rounded-lg border border-green-200">
+              <div className="p-2 bg-green-50 rounded border border-green-200">
                 <div className="flex items-center gap-2 text-green-700">
-                  <Sparkles className="h-4 w-4" />
-                  <span className="font-medium">Unlimited AI Messages</span>
+                  <Sparkles className="h-3 w-3" />
+                  <span className="text-sm font-medium">Unlimited AI Messages</span>
                 </div>
-                <p className="text-sm text-green-600 mt-1">
-                  You have unlimited AI messages with your Premium Enterprise plan
+                <p className="text-xs text-green-600 mt-1">
+                  Premium Enterprise plan
                 </p>
               </div>
             )}
@@ -236,51 +231,51 @@ export default function AITokenBalance({
 
           {/* Top-up Balance */}
           {(usage.topup?.available || 0) > 0 && (
-            <div className="space-y-3">
+            <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <h4 className="font-medium flex items-center gap-2">
-                  <Plus className="h-4 w-4 text-green-600" />
+                <h4 className="text-sm font-medium flex items-center gap-2">
+                  <Plus className="h-3 w-3 text-green-600" />
                   Top-up Tokens
                 </h4>
-                <Badge variant="outline" className="text-green-700 border-green-300">
+                <Badge variant="outline" className="text-xs text-green-700 border-green-300">
                   {usage.topup?.available || 0} available
                 </Badge>
               </div>
-              <div className="text-sm text-gray-600">
+              <div className="text-xs text-gray-600">
                 Total spent: ${(usage.topup?.totalSpent || 0).toFixed(2)} ({usage.topup?.totalPurchases || 0} purchases)
               </div>
             </div>
           )}
 
           {/* Total Available */}
-          <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+          <div className="p-3 bg-blue-50 rounded border border-blue-200">
             <div className="flex items-center justify-between">
               <div>
-                <h4 className="font-semibold text-blue-900">Total Available</h4>
-                <p className="text-sm text-blue-700">
+                <h4 className="text-sm font-semibold text-blue-900">Total Available</h4>
+                <p className="text-xs text-blue-700">
                   {isUnlimited 
                     ? 'Unlimited tokens ready to use'
                     : `${usage.total?.available?.toLocaleString() || 0} tokens ready to use`
                   }
                 </p>
               </div>
-              <TrendingUp className="h-6 w-6 text-blue-600" />
+              <TrendingUp className="h-4 w-4 text-blue-600" />
             </div>
           </div>
 
           {/* Action Buttons */}
-          <div className="flex space-x-3">
+          <div className="flex space-x-2 pt-2">
             {showTopUpButton && !isUnlimited && (
               <Link href="/settings/subscription" className="flex-1">
-                <Button className="w-full">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Buy Top-up Tokens
-                  <ArrowRight className="h-4 w-4 ml-2" />
+                <Button size="sm" className="w-full">
+                  <Plus className="h-3 w-3 mr-1" />
+                  Buy Top-up
+                  <ArrowRight className="h-3 w-3 ml-1" />
                 </Button>
               </Link>
             )}
             <Link href="/settings/subscription">
-              <Button variant="outline">
+              <Button size="sm" variant="outline">
                 Manage Plan
               </Button>
             </Link>

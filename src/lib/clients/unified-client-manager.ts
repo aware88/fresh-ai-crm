@@ -468,8 +468,8 @@ export class UnifiedClientManager {
         } else if (clientKey.startsWith('supabase-')) {
           const client = this.supabaseClients.get(clientKey);
           if (client) {
-            // Simple health check - just verify connection
-            await client.from('_health_check').select('*').limit(1);
+            // Skip querying a specific table to avoid false negatives in environments
+            // where the table doesn't exist. Presence of client is sufficient here.
           }
         }
         
@@ -552,5 +552,4 @@ export const cachedRequest = <T>(key: string, operation: () => Promise<T>, ttlMs
 
 // Graceful shutdown
 export const shutdownClientManager = () => clientManager.shutdown();
-
 

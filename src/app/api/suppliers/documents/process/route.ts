@@ -139,7 +139,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create Supabase client
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
     
     // Get the document to verify ownership (skip check for service requests)
     if (!isServiceRequest && uid) {
@@ -248,7 +248,7 @@ export async function PUT(request: NextRequest) {
     }
 
     // Create Supabase client
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
     
     // Get the document to verify it's in pending_review status
     const { data: document, error: fetchError } = await supabase
@@ -315,7 +315,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Create Supabase client
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
     
     // Get query parameters
     const { searchParams } = new URL(request.url);

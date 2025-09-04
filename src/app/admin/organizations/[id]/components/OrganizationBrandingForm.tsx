@@ -157,7 +157,7 @@ setTimeout(() => document.body.removeChild(errorToast), 3000);
             <p className="text-sm text-gray-500 mb-1">Accent Color:</p>
             <div 
               className="h-10 rounded-md" 
-              style={{ backgroundColor: accentColor }}
+              style={{ backgroundColor: accentColor || undefined }}
             />
           </div>
           <div>
@@ -180,7 +180,7 @@ setTimeout(() => document.body.removeChild(errorToast), 3000);
           <div className="flex gap-2">
             <Button 
               size="sm" 
-              style={{ backgroundColor: accentColor }}
+              style={{ backgroundColor: accentColor || undefined }}
             >
               Primary Button
             </Button>

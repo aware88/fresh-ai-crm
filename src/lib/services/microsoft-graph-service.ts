@@ -54,7 +54,7 @@ export class MicrosoftGraphService {
         .orderby('receivedDateTime DESC')
         .get();
         
-      return result.value;
+      return (result as PromiseFulfilledResult<any>).value;
     } catch (error) {
       console.error('Error fetching emails:', error);
       throw error;
@@ -179,7 +179,7 @@ export class MicrosoftGraphService {
       }
       
       const result = await request.get();
-      return result.value;
+      return (result as PromiseFulfilledResult<any>).value;
     } catch (error) {
       console.error('Error fetching calendar events:', error);
       throw error;
@@ -204,7 +204,7 @@ export class MicrosoftGraphService {
         .orderby('displayName ASC')
         .get();
         
-      return result.value;
+      return (result as PromiseFulfilledResult<any>).value;
     } catch (error) {
       console.error('Error fetching contacts:', error);
       throw error;

@@ -439,9 +439,10 @@ async function getProductSyncStatus(
   return withAuth(request, async (userId, request) => {
     try {
       // Get product ID from URL
-      const productId = params.productId;
+      const { productId } = await params;
+      const productId_ = productId;
       
-      if (!productId) {
+      if (!productId_) {
         return NextResponse.json(
           { error: 'Product ID is required' },
           { status: 400 }
@@ -455,7 +456,7 @@ async function getProductSyncStatus(
           return NextResponse.json(
             { 
               error: 'Product not found',
-              productId: productId,
+              productId: productId_,
               status: 'not_found'
             },
             { status: 404 }
@@ -464,7 +465,7 @@ async function getProductSyncStatus(
         
         // Return mock data for testing
         return NextResponse.json({
-          product: { id: productId, name: 'Test Product' },
+          product: { id: productId_, name: 'Test Product' },
           syncStatus: 'synced',
           metakockaId: 'test-mk-id'
         });
@@ -501,7 +502,7 @@ async function getProductSyncStatus(
       const { data: products, error } = await supabaseServiceClient
         .from('products')
         .select('*')
-        .eq('id', productId)
+        .eq('id', productId_)
         .in('organization_id', orgIds);
       
       // Check if product exists
@@ -519,7 +520,7 @@ async function getProductSyncStatus(
         return NextResponse.json(
           { 
             error: 'Product not found',
-            productId: productId,
+            productId: productId_,
             status: 'not_found'
           },
           { status: 404 }

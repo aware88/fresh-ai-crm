@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git log:*)",
+      "Bash(npm run build:*)",
+      "Bash(npx tsc:*)",
+      "Bash(psql:*)",
+      "Bash(find:*)",
+      "Bash(sed:*)",
+      "Bash(npx next lint:*)",
+      "Bash(pkill:*)",
+      "Bash(node:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

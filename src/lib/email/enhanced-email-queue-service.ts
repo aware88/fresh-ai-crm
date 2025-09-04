@@ -8,6 +8,7 @@ import { AIHubService, EmailProcessingContext } from '@/lib/ai/ai-hub-service';
 import { OrganizationSettingsService } from '@/lib/services/organization-settings-service';
 import { createLazyServerClient } from '@/lib/supabase/lazy-client';
 import { EmailQueueStatus } from './emailQueueService';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 export interface EnhancedEmailQueueItem {
   id: string;
@@ -61,6 +62,11 @@ export class EnhancedEmailQueueService {
     this.aiHub = new AIHubService();
     this.settingsService = new OrganizationSettingsService();
     this.supabase = createLazyServerClient();
+  }
+
+  // Helper method to get the awaited Supabase client
+  private async getSupabase(): Promise<SupabaseClient> {
+    return await this.supabase;
   }
 
   /**

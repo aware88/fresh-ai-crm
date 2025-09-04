@@ -6,23 +6,25 @@ import { SubscriptionService } from '@/lib/services/subscription-service';
 jest.mock('@/lib/services/notification-service');
 jest.mock('@/lib/services/subscription-service');
 
+// Create mock instances
+const mockNotificationService = {
+  createOrganizationNotification: jest.fn().mockResolvedValue([{ id: 'notification-1' }]),
+} as jest.Mocked<NotificationService>;
+
+const mockSubscriptionService = {
+  getExpiringTrialSubscriptions: jest.fn(),
+  getUpcomingRenewals: jest.fn(),
+  getOrganizationSubscription: jest.fn(),
+} as jest.Mocked<SubscriptionService>;
+
 describe('SubscriptionNotificationService', () => {
   let subscriptionNotificationService: SubscriptionNotificationService;
-  let mockNotificationService: jest.Mocked<NotificationService>;
-  let mockSubscriptionService: jest.Mocked<SubscriptionService>;
   
   beforeEach(() => {
     jest.clearAllMocks();
-    mockNotificationService = new NotificationService() as jest.Mocked<NotificationService>;
-    mockSubscriptionService = new SubscriptionService() as jest.Mocked<SubscriptionService>;
     
-    // Add missing methods to mock
-    mockSubscriptionService.getExpiringTrialSubscriptions = jest.fn();
-    mockSubscriptionService.getUpcomingRenewals = jest.fn();
-    
-    // Create the service with dependencies
+    // Create the service and inject mocks
     subscriptionNotificationService = new SubscriptionNotificationService();
-    // Replace the private properties with our mocks
     (subscriptionNotificationService as any).notificationService = mockNotificationService;
     (subscriptionNotificationService as any).subscriptionService = mockSubscriptionService;
   });

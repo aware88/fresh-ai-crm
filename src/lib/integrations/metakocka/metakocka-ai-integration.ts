@@ -5,6 +5,7 @@
  */
 
 import { createLazyServerClient } from '@/lib/supabase/lazy-client';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 export interface MetakockaAIContext {
   products: ProductForAI[];
@@ -157,6 +158,11 @@ export class MetakockaAIIntegrationService {
 
   constructor() {
     this.supabase = createLazyServerClient();
+  }
+
+  // Helper method to get the awaited Supabase client
+  private async getSupabase(): Promise<SupabaseClient> {
+    return await this.supabase;
   }
 
   /**

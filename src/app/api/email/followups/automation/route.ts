@@ -2,10 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createLazyServerClient } from '@/lib/supabase/lazy-client';
 import { FollowUpAutomationService, AutomationRule } from '@/lib/email/followup-automation-service';
 
-const supabase = createLazyServerClient();
-
 export async function GET(request: NextRequest) {
   try {
+    const supabase = await createLazyServerClient();
     const { data: { session } } = await supabase.auth.getSession();
     
     if (!session) {
@@ -30,6 +29,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const supabase = await createLazyServerClient();
     const { data: { session } } = await supabase.auth.getSession();
     
     if (!session) {

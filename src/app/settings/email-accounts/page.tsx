@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, Suspense } from 'react';
 import { useOptimizedAuth } from '@/hooks/useOptimizedAuth';
+import { useSubscription } from '@/contexts/SubscriptionContext';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import Link from 'next/link';
@@ -9,6 +10,7 @@ import { useToast } from '@/components/ui/use-toast';
 
 function EmailAccountsContent() {
   const { data: session, status, isLoading } = useOptimizedAuth();
+  const { subscription } = useSubscription();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(true);
@@ -26,6 +28,14 @@ function EmailAccountsContent() {
     error?: string;
   } | null>(null);
   const { toast } = useToast();
+
+  // Get subscription limits from context instead of API call
+  const subscriptionLimits = subscription ? {
+    emailAccountLimit: subscription.limits.emailAccounts,
+    currentCount: emailAccounts.length, // Current count from loaded accounts
+    canAdd: subscription.limits.emailAccounts === -1 || emailAccounts.length < subscription.limits.emailAccounts,
+    planName: subscription.tier.charAt(0).toUpperCase() + subscription.tier.slice(1)
+  } : null;
 
   useEffect(() => {
     if (searchParams) {
@@ -108,7 +118,119 @@ function EmailAccountsContent() {
       });
     }
   };
+
+  const handleGraphImport = async (accountId: string, folder: string = 'inbox') => {
+    setSyncingAccounts(prev => new Set([...prev, accountId]));
+
+    try {
+      const response = await fetch('/api/emails/graph/sync', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ accountId, folder, maxEmails: 500 }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setSyncResult({
+          success: true,
+          totalSaved: result.totalSaved,
+          breakdown: result.breakdown || { inbox: result.totalSaved },
+          syncedAt: result.syncedAt
+        });
+        fetchEmailAccounts();
+      } else {
+        setSyncResult({
+          success: false,
+          totalSaved: 0,
+          breakdown: { inbox: 0, sent: 0 },
+          syncedAt: new Date().toISOString(),
+          error: result.error || 'Failed to import from Microsoft'
+        });
+      }
+    } catch (error) {
+      console.error('Error importing emails from Microsoft:', error);
+      setSyncResult({
+        success: false,
+        totalSaved: 0,
+        breakdown: { inbox: 0, sent: 0 },
+        syncedAt: new Date().toISOString(),
+        error: 'An error occurred while importing emails'
+      });
+    } finally {
+      setSyncingAccounts(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(accountId);
+        return newSet;
+      });
+    }
+  };
+
+  const handleGmailImport = async (accountId: string, folder: string = 'inbox') => {
+    setSyncingAccounts(prev => new Set([...prev, accountId]));
+    try {
+      const response = await fetch('/api/emails/gmail/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accountId, folder, maxEmails: 500 }),
+      });
+      const result = await response.json();
+      if (result.success) {
+        setSyncResult({
+          success: true,
+          totalSaved: result.totalSaved,
+          breakdown: result.breakdown,
+          syncedAt: result.syncedAt,
+        });
+        fetchEmailAccounts();
+      } else {
+        setSyncResult({
+          success: false,
+          totalSaved: 0,
+          breakdown: { inbox: 0, sent: 0 },
+          syncedAt: new Date().toISOString(),
+          error: result.error || 'Failed to import from Gmail',
+        });
+      }
+    } catch (error) {
+      console.error('Error importing emails from Gmail:', error);
+      setSyncResult({
+        success: false,
+        totalSaved: 0,
+        breakdown: { inbox: 0, sent: 0 },
+        syncedAt: new Date().toISOString(),
+        error: 'An error occurred while importing emails',
+      });
+    } finally {
+      setSyncingAccounts(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(accountId);
+        return newSet;
+      });
+    }
+  };
+
+  const handleRunLearning = async () => {
+    try {
+      const resp = await fetch('/api/email/learning/process-all', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ maxEmails: 1000, daysBack: 120 }),
+      });
+      const result = await resp.json();
+      if ((resp as any).ok) {
+        toast({ title: 'Learning started', description: `Analyzing ${result.results?.totalEmails ?? 'selected'} emails` });
+      } else {
+        toast({ title: 'Learning error', description: result.error || 'Failed to start learning' });
+      }
+    } catch (e) {
+      toast({ title: 'Learning error', description: 'Network or server error' });
+    }
+  };
   
+
   const fetchEmailAccounts = async () => {
     if (!session?.user || !('id' in session.user) || !session.user.id) return;
     
@@ -222,11 +344,38 @@ function EmailAccountsContent() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h3 className="text-2xl font-bold text-gray-900">Connect Your Email Accounts</h3>
-        <p className="text-gray-600 mt-2">
-          Connect your email accounts to start managing and analyzing your emails with AI. Choose from Gmail, Outlook, or any IMAP-compatible email provider.
-        </p>
+      <div className="space-y-4">
+        <div className="flex justify-between items-start">
+          <div>
+            <h3 className="text-2xl font-bold text-gray-900">Connect Your Email Accounts</h3>
+            <p className="text-gray-600 mt-2">
+              Connect your email accounts to start managing and analyzing your emails with AI. Choose from Gmail, Outlook, or any IMAP-compatible email provider.
+            </p>
+          </div>
+          
+          {subscriptionLimits && (
+            <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-4 min-w-[200px]">
+              <div className="text-center">
+                <div className="text-sm font-medium text-purple-600 mb-1">
+                  {subscriptionLimits.planName} Plan
+                </div>
+                <div className="text-2xl font-bold text-purple-800">
+                  {subscriptionLimits.currentCount}
+                  <span className="text-sm text-purple-600 mx-1">of</span>
+                  {subscriptionLimits.emailAccountLimit}
+                </div>
+                <div className="text-xs text-purple-600">
+                  Email Accounts
+                </div>
+                {!subscriptionLimits.canAdd && (
+                  <div className="mt-2 text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded">
+                    Limit reached - Upgrade to add more
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
       
       <div className="flex justify-between items-center">
@@ -234,9 +383,22 @@ function EmailAccountsContent() {
         <div className="flex space-x-2">
           <button 
             onClick={() => {
-              window.location.href = '/api/auth/google/connect';
+              if (subscriptionLimits?.canAdd !== false) {
+                window.location.href = '/api/auth/google/connect';
+              } else {
+                toast({
+                  title: "Account Limit Reached",
+                  description: `Your ${subscriptionLimits?.planName} plan is limited to ${subscriptionLimits?.emailAccountLimit} email account${subscriptionLimits?.emailAccountLimit === 1 ? '' : 's'}. Please upgrade to add more accounts.`,
+                  variant: "destructive"
+                });
+              }
             }}
-            className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md text-sm font-medium flex items-center gap-2"
+            disabled={subscriptionLimits?.canAdd === false}
+            className={`px-4 py-2 rounded-md text-sm font-medium flex items-center gap-2 ${
+              subscriptionLimits?.canAdd === false 
+                ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
+                : 'bg-red-600 hover:bg-red-700 text-white'
+            }`}
           >
             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
               <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -248,18 +410,51 @@ function EmailAccountsContent() {
           </button>
           <button 
             onClick={() => {
-              window.location.href = '/api/auth/outlook/connect';
+              if (subscriptionLimits?.canAdd !== false) {
+                window.location.href = '/api/auth/outlook/connect';
+              } else {
+                toast({
+                  title: "Account Limit Reached",
+                  description: `Your ${subscriptionLimits?.planName} plan is limited to ${subscriptionLimits?.emailAccountLimit} email account${subscriptionLimits?.emailAccountLimit === 1 ? '' : 's'}. Please upgrade to add more accounts.`,
+                  variant: "destructive"
+                });
+              }
             }}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium"
+            disabled={subscriptionLimits?.canAdd === false}
+            className={`px-4 py-2 rounded-md text-sm font-medium ${
+              subscriptionLimits?.canAdd === false 
+                ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
+                : 'bg-blue-600 hover:bg-blue-700 text-white'
+            }`}
           >
             Add Outlook Account
           </button>
           <Link 
-            href="/settings/email-accounts/add-imap"
-            className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md text-sm font-medium"
+            href={subscriptionLimits?.canAdd === false ? '#' : "/settings/email-accounts/add-imap"}
+            onClick={(e) => {
+              if (subscriptionLimits?.canAdd === false) {
+                e.preventDefault();
+                toast({
+                  title: "Account Limit Reached",
+                  description: `Your ${subscriptionLimits?.planName} plan is limited to ${subscriptionLimits?.emailAccountLimit} email account${subscriptionLimits?.emailAccountLimit === 1 ? '' : 's'}. Please upgrade to add more accounts.`,
+                  variant: "destructive"
+                });
+              }
+            }}
+            className={`px-4 py-2 rounded-md text-sm font-medium ${
+              subscriptionLimits?.canAdd === false 
+                ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
+                : 'bg-green-600 hover:bg-green-700 text-white'
+            }`}
           >
             Add IMAP Account
           </Link>
+          <button
+            onClick={handleRunLearning}
+            className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-md text-sm font-medium"
+          >
+            Run Learning Now
+          </button>
         </div>
       </div>
       
@@ -352,6 +547,9 @@ function EmailAccountsContent() {
                       Email Address
                     </th>
                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                      Role
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                       Provider Type
                     </th>
                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
@@ -371,24 +569,52 @@ function EmailAccountsContent() {
                 <tbody className="bg-card divide-y divide-border">
                   {emailAccounts && emailAccounts.length > 0 ? (
                     emailAccounts.map((account) => (
-                      <tr key={account.id}>
+                      <tr key={account.id} className={`${account.is_primary ? 'bg-blue-50 border-l-4 border-blue-500' : ''}`}>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-medium">{account.email}</div>
+                          <div className="flex items-center">
+                            <div>
+                              <div className="text-sm font-medium">{account.email}</div>
+                              {account.display_name && account.display_name !== account.email && (
+                                <div className="text-xs text-gray-500">{account.display_name}</div>
+                              )}
+                            </div>
+                            {account.is_primary && (
+                              <span className="ml-2 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                Primary
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                            account.provider_type === 'outlook' || account.provider_type === 'microsoft'
+                            account.is_primary 
                               ? 'bg-blue-100 text-blue-800' 
-                              : account.provider_type === 'google'
-                              ? 'bg-red-100 text-red-800'
-                              : 'bg-green-100 text-green-800'
+                              : 'bg-gray-100 text-gray-800'
                           }`}>
-                            {account.provider_type === 'outlook' || account.provider_type === 'microsoft'
-                              ? 'Microsoft Outlook' 
-                              : account.provider_type === 'google'
-                              ? 'Google Gmail'
-                              : 'IMAP/SMTP'}
+                            {account.is_primary ? 'Primary Account' : 'Secondary Account'}
                           </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex flex-col items-start gap-1">
+                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                              account.provider_type === 'outlook' || account.provider_type === 'microsoft'
+                                ? 'bg-blue-100 text-blue-800' 
+                                : account.provider_type === 'google'
+                                ? 'bg-red-100 text-red-800'
+                                : 'bg-green-100 text-green-800'
+                            }`}>
+                              {account.provider_type === 'outlook' || account.provider_type === 'microsoft'
+                                ? 'Microsoft Outlook' 
+                                : account.provider_type === 'google'
+                                ? 'Google Gmail'
+                                : 'IMAP/SMTP'}
+                            </span>
+                            {(account.provider_type === 'outlook' || account.provider_type === 'microsoft') && (
+                              <span className="px-1 py-0.5 bg-green-50 text-green-700 text-xs rounded border border-green-200">
+                                📮 Real-time sync
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
@@ -423,13 +649,49 @@ function EmailAccountsContent() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium w-48">
                           <div className="flex justify-end space-x-2">
-                            <button
-                              onClick={() => handleSyncEmails(account.id)}
-                              disabled={syncingAccounts.has(account.id)}
-                              className="text-green-600 hover:text-green-900 disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                              {syncingAccounts.has(account.id) ? 'Syncing...' : 'Sync'}
-                            </button>
+                            {account.provider_type === 'imap' ? (
+                              <button
+                                onClick={() => handleSyncEmails(account.id)}
+                                disabled={syncingAccounts.has(account.id)}
+                                className="text-green-600 hover:text-green-900 disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                {syncingAccounts.has(account.id) ? 'Syncing...' : 'Sync'}
+                              </button>
+                            ) : (account.provider_type === 'microsoft' || account.provider_type === 'outlook') ? (
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={() => handleGraphImport(account.id, 'inbox')}
+                                  disabled={syncingAccounts.has(account.id)}
+                                  className="text-blue-600 hover:text-blue-900 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  {syncingAccounts.has(account.id) ? 'Importing…' : 'Import Inbox'}
+                                </button>
+                                <button
+                                  onClick={() => handleGraphImport(account.id, 'sent')}
+                                  disabled={syncingAccounts.has(account.id)}
+                                  className="text-blue-600 hover:text-blue-900 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  {syncingAccounts.has(account.id) ? 'Importing…' : 'Import Sent'}
+                                </button>
+                              </div>
+                            ) : account.provider_type === 'google' ? (
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={() => handleGmailImport(account.id, 'inbox')}
+                                  disabled={syncingAccounts.has(account.id)}
+                                  className="text-blue-600 hover:text-blue-900 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  {syncingAccounts.has(account.id) ? 'Importing…' : 'Import Inbox'}
+                                </button>
+                                <button
+                                  onClick={() => handleGmailImport(account.id, 'sent')}
+                                  disabled={syncingAccounts.has(account.id)}
+                                  className="text-blue-600 hover:text-blue-900 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  {syncingAccounts.has(account.id) ? 'Importing…' : 'Import Sent'}
+                                </button>
+                              </div>
+                            ) : null}
                             <Link 
                               href={`/settings/email-accounts/test/${account.id}`}
                               className="text-blue-600 hover:text-blue-900"
@@ -454,7 +716,7 @@ function EmailAccountsContent() {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={6} className="px-6 py-4 text-center text-sm text-muted-foreground">
+                      <td colSpan={7} className="px-6 py-4 text-center text-sm text-muted-foreground">
                         No email accounts connected yet. Add an account to get started.
                       </td>
                     </tr>

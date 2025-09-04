@@ -6,6 +6,7 @@
  */
 
 import { createLazyServerClient } from '@/lib/supabase/lazy-client';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 export interface EmailFilter {
   id: string;
@@ -89,6 +90,11 @@ export class AIPreferencesService {
   constructor() {
     this.supabase = createLazyServerClient();
     this.cache = new Map();
+  }
+
+  // Helper method to get the awaited Supabase client
+  private async getSupabase(): Promise<SupabaseClient> {
+    return await this.supabase;
   }
 
   /**

@@ -12,7 +12,7 @@ import { processEmailQueueWithRecommendations } from '@/lib/email/emailQueueWork
 // POST /api/email-queue/process-with-recommendations - Process emails in the queue with product recommendations
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
     
     // Get the current user
     const { data: { user } } = await supabase.auth.getUser();

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from '@/lib/auth';
 import { MicrosoftGraphService } from '@/lib/services/microsoft-graph-service';
+import { createServiceRoleClient } from '@/lib/supabase/service-role';
+import { getValidMicrosoftAccessToken } from '@/lib/services/microsoft-token';
 
 /**
  * GET handler for fetching emails from Microsoft Graph API
@@ -8,9 +10,19 @@ import { MicrosoftGraphService } from '@/lib/services/microsoft-graph-service';
 export async function GET(req: NextRequest) {
   try {
     const session = await getServerSession();
-    
-    if (!session?.accessToken) {
-      return NextResponse.json({ error: 'Unauthorized or missing Microsoft Graph access token' }, { status: 401 });
+
+    // Try session token first; fall back to stored account token with auto-refresh
+    let accessToken: string | null = (session as any)?.accessToken || null;
+    if (!accessToken && session?.user?.id) {
+      const valid = await getValidMicrosoftAccessToken({ userId: (session.user as any).id });
+      accessToken = valid?.accessToken || null;
+    }
+
+    if (!accessToken) {
+      return NextResponse.json(
+        { error: 'Unauthorized or missing Microsoft Graph access token' },
+        { status: 401 },
+      );
     }
     
     // Parse query parameters
@@ -20,7 +32,7 @@ export async function GET(req: NextRequest) {
     const filter = searchParams.get('filter') || '';
     
     // Create Microsoft Graph service and fetch emails
-    const graphService = new MicrosoftGraphService(session.accessToken);
+    const graphService = new MicrosoftGraphService(accessToken);
     const emails = await graphService.getEmails({ top, skip, filter });
     
     return NextResponse.json({ data: emails });

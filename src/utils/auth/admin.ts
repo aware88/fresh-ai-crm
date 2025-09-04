@@ -6,7 +6,7 @@ import { createServerClient } from '@/lib/supabase/server';
  */
 export async function isAdmin(): Promise<boolean> {
   try {
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
     
     // Get the current user
     const { data: userData, error: userError } = await supabase.auth.getUser();
@@ -42,7 +42,7 @@ export async function isAdmin(): Promise<boolean> {
  */
 export async function isOrganizationAdmin(organizationId: string): Promise<boolean> {
   try {
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
     
     // Get the current user
     const { data: userData, error: userError } = await supabase.auth.getUser();

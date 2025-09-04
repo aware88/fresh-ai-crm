@@ -7,14 +7,26 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+
 import { useEmailContent } from '@/hooks/useOptimizedEmails';
+
+// Define attachment interface
+interface EmailAttachment {
+  filename: string;
+  contentType?: string;
+  content?: string;
+  contentId?: string;
+  size: number;
+  url?: string;
+}
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { ScrollArea } from '@/components/ui/scroll-area';
+
 import { Skeleton } from '@/components/ui/skeleton';
+import { EmailRenderer } from './EmailRenderer';
+import CustomerInfoWidget from './CustomerInfoWidget';
 import { 
   Reply, 
   ReplyAll, 
@@ -32,7 +44,10 @@ import {
   CheckCircle,
   Loader2,
   Eye,
-  EyeOff
+  EyeOff,
+  FileText,
+  FileSpreadsheet,
+  Image
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -71,11 +86,18 @@ export default function OptimizedEmailDetail({
       });
 
       if (response.ok) {
-        // Trigger a refresh of the email content and list
-        reload();
+        // Dispatch event to update other components first
         window.dispatchEvent(new CustomEvent('emailReadStatusChanged', { 
           detail: { messageId, isRead: !content.is_read } 
         }));
+        
+        // Reload to get the updated state from the database
+        try {
+          await reload();
+        } catch (error) {
+          console.warn('Failed to reload email content after read status change:', error);
+          // Don't show error to user for this, the read status change was successful
+        }
       }
     } catch (error) {
       console.error('Failed to update read status:', error);
@@ -97,20 +119,146 @@ export default function OptimizedEmailDetail({
     const date = new Date(dateString);
     return {
       relative: formatDistanceToNow(date, { addSuffix: true }),
-      absolute: date.toLocaleString()
+      absolute: date.toLocaleString(undefined, {
+        weekday: 'short',
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      })
     };
   };
 
+  // Process attachments to replace CID references in HTML content
+  useEffect(() => {
+    if (!content) return;
+    
+    const handleCidImages = (event: CustomEvent) => {
+      const cids = event.detail?.cids;
+      if (!cids || !content.attachments) return;
+      
+      // Find matching attachments by CID
+      const cidAttachments = content.attachments.filter((att: EmailAttachment) => 
+        cids.includes(att.contentId)
+      );
+      
+      if (cidAttachments.length > 0) {
+        console.log('Found CID attachments:', cidAttachments.length);
+      }
+    };
+    
+    // Add event listener for CID image replacement
+    document.addEventListener('email-cid-images', handleCidImages as EventListener);
+    
+    return () => {
+      document.removeEventListener('email-cid-images', handleCidImages as EventListener);
+    };
+  }, [content]);
+  
   // Render attachment
-  const renderAttachment = (attachment: any) => (
-    <div key={attachment.filename} className="flex items-center space-x-2 p-2 bg-gray-50 rounded-lg">
-      <Paperclip className="h-4 w-4 text-gray-400" />
-      <span className="text-sm font-medium">{attachment.filename}</span>
-      <span className="text-xs text-gray-500">
-        ({(attachment.size / 1024).toFixed(1)} KB)
-      </span>
-    </div>
-  );
+  const renderAttachment = (attachment: EmailAttachment) => {
+    const handleDownload = async () => {
+      try {
+        // Try to download via API first
+        const response = await fetch('/api/emails/attachment', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            messageId: content.message_id,
+            attachmentId: attachment.contentId,
+            filename: attachment.filename
+          })
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.content) {
+            // Create download link
+            const link = document.createElement('a');
+            link.href = `data:${data.contentType || 'application/octet-stream'};base64,${data.content}`;
+            link.download = data.filename || attachment.filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            return;
+          }
+        }
+        
+        // Fallback methods if API fails
+        if (attachment.url) {
+          window.open(attachment.url, '_blank');
+        } else if (attachment.content) {
+          // If attachment has content directly
+          const link = document.createElement('a');
+          link.href = `data:${attachment.contentType || 'application/octet-stream'};base64,${attachment.content}`;
+          link.download = attachment.filename;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        } else {
+          throw new Error('No attachment content available');
+        }
+      } catch (error) {
+        console.error('Failed to download attachment:', error);
+        alert('Failed to download attachment. Please try again.');
+      }
+    };
+    
+    // Determine icon based on file type
+    const getAttachmentIcon = () => {
+      const fileType = attachment.contentType || '';
+      if (fileType.includes('image')) {
+        return <Image className="h-4 w-4 text-blue-500" />;
+      } else if (fileType.includes('pdf')) {
+        return <FileText className="h-4 w-4 text-red-500" />;
+      } else if (fileType.includes('word') || fileType.includes('document')) {
+        return <FileText className="h-4 w-4 text-blue-600" />;
+      } else if (fileType.includes('excel') || fileType.includes('spreadsheet')) {
+        return <FileSpreadsheet className="h-4 w-4 text-green-600" />;
+      } else {
+        return <Paperclip className="h-4 w-4 text-blue-500" />;
+      }
+    };
+    
+    return (
+      <div key={attachment.contentId || attachment.filename} 
+           className="flex items-center justify-between p-2 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100">
+        <div className="flex items-center space-x-2">
+          {getAttachmentIcon()}
+          <span className="text-sm font-medium">{attachment.filename}</span>
+          <span className="text-xs text-gray-500">
+            ({(attachment.size / 1024).toFixed(1)} KB)
+          </span>
+        </div>
+        <div className="flex space-x-2">
+          {attachment.contentType?.startsWith('image/') && (
+            <Button 
+              variant="outline" 
+              size="sm"
+              className="h-7 px-2 text-xs"
+              onClick={() => {
+                if (attachment.content) {
+                  window.open(`data:${attachment.contentType};base64,${attachment.content}`, '_blank');
+                }
+              }}
+            >
+              View
+            </Button>
+          )}
+          <Button 
+            variant="ghost" 
+            size="sm"
+            className="h-7 px-2 text-xs"
+            onClick={handleDownload}
+          >
+            Download
+          </Button>
+        </div>
+      </div>
+    );
+  };
 
   if (loading) {
     return (
@@ -190,13 +338,9 @@ export default function OptimizedEmailDetail({
   const dateInfo = formatDate(content.received_at);
 
   return (
-    <motion.div
-      initial={{ opacity: 0, x: 20 }}
-      animate={{ opacity: 1, x: 0 }}
-      className="h-full flex flex-col"
-    >
-      <Card className="flex-1">
-        <CardHeader className="border-b">
+    <div className="h-full flex flex-col overflow-hidden email-detail-with-attachments">
+      <Card className="flex-1 flex flex-col overflow-hidden">
+        <CardHeader className="border-b flex-shrink-0">
           <div className="flex items-start justify-between">
             <div className="flex-1 min-w-0">
               <CardTitle className="text-xl font-semibold mb-2 line-clamp-2">
@@ -214,22 +358,17 @@ export default function OptimizedEmailDetail({
                 <div className="flex items-center space-x-2">
                   <Mail className="h-4 w-4 text-gray-400" />
                   <span className="text-sm text-gray-600">
-                    to {content.recipient_email}
+                    to {content.recipient_email || 'me'}
                   </span>
                 </div>
                 
                 <div className="flex items-center space-x-4 text-xs text-gray-500">
                   <div className="flex items-center space-x-1">
                     <Clock className="h-3 w-3" />
-                    <span title={dateInfo.absolute}>{dateInfo.relative}</span>
+                    <span title={dateInfo.relative}>{dateInfo.absolute}</span>
                   </div>
                   
-                  {content.content_cached && (
-                    <Badge variant="outline" className="text-xs">
-                      <CheckCircle className="h-3 w-3 mr-1" />
-                      Cached
-                    </Badge>
-                  )}
+
                   
                   {content.ai_analyzed && (
                     <Badge variant="secondary" className="text-xs">
@@ -282,9 +421,8 @@ export default function OptimizedEmailDetail({
           </div>
         </CardHeader>
 
-        <CardContent className="flex-1 p-0">
-          <ScrollArea className="h-full">
-            <div className="p-6">
+        <CardContent className="flex-1 p-6 overflow-y-auto">
+            <div className="space-y-6">
               {/* Attachments */}
               {content.attachments && content.attachments.length > 0 && (
                 <div className="mb-6">
@@ -299,30 +437,43 @@ export default function OptimizedEmailDetail({
               )}
 
               {/* Email content */}
-              <div className="prose prose-sm max-w-none">
-                {content.html_content ? (
-                  <div 
-                    className="email-content"
-                    dangerouslySetInnerHTML={{ 
-                      __html: content.html_content 
-                    }}
-                    style={{
-                      fontFamily: 'inherit',
-                      fontSize: '14px',
-                      lineHeight: '1.6'
-                    }}
-                  />
-                ) : content.plain_content ? (
-                  <pre className="whitespace-pre-wrap font-sans text-sm">
-                    {content.plain_content}
-                  </pre>
+              <div className="bg-gray-50 border rounded-lg p-4">
+                {/* Inline attachments display */}
+                {content.html_content && content.attachments && content.attachments.length > 0 && (
+                  <div className="mb-4">
+                    {content.attachments
+                      .filter((att: EmailAttachment) => att.contentId && att.contentType?.startsWith('image/'))
+                      .map((att: EmailAttachment) => (
+                        <div key={`inline-${att.contentId}`} className="inline-attachment mb-2">
+                          <img 
+                            src={`data:${att.contentType};base64,${att.content}`}
+                            alt={att.filename || 'Embedded image'}
+                            style={{ maxWidth: '100%', height: 'auto', margin: '0 auto', display: 'block' }}
+                          />
+                        </div>
+                      ))
+                    }
+                  </div>
+                )}
+                
+                {/* Main email content */}
+                {(content.html_content || content.plain_content || content.raw_content) ? (
+                  <div className="prose prose-sm max-w-none break-words">
+                    <EmailRenderer 
+                      content={content.html_content || content.plain_content || content.raw_content || ''}
+                      className="text-sm leading-relaxed"
+                    />
+                  </div>
                 ) : (
                   <div className="text-center py-8 text-gray-500">
                     <Mail className="h-8 w-8 mx-auto mb-2 opacity-50" />
                     <p>No content available</p>
+                    <p className="text-xs mt-2">This email may not have been synced yet</p>
                   </div>
                 )}
               </div>
+
+
 
               {/* Email headers (expandable) */}
               {content.raw_content && (
@@ -345,10 +496,9 @@ export default function OptimizedEmailDetail({
                 </div>
               )}
             </div>
-          </ScrollArea>
         </CardContent>
       </Card>
-    </motion.div>
+    </div>
   );
 }
 
@@ -358,38 +508,93 @@ const emailContentStyles = `
   font-family: inherit;
   font-size: 14px;
   line-height: 1.6;
+  color: #374151;
 }
 
 .email-content img {
   max-width: 100%;
   height: auto;
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .email-content table {
   border-collapse: collapse;
   width: 100%;
+  margin: 16px 0;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  overflow: hidden;
 }
 
 .email-content td, .email-content th {
-  border: 1px solid #ddd;
-  padding: 8px;
+  border: 1px solid #e5e7eb;
+  padding: 12px;
   text-align: left;
 }
 
+.email-content th {
+  background-color: #f9fafb;
+  font-weight: 600;
+}
+
 .email-content blockquote {
-  border-left: 4px solid #ddd;
+  border-left: 4px solid #e5e7eb;
   margin: 16px 0;
   padding-left: 16px;
-  color: #666;
+  color: #6b7280;
+  font-style: italic;
+  background-color: #f9fafb;
+  padding: 12px 16px;
+  border-radius: 0 6px 6px 0;
 }
 
 .email-content a {
   color: #3b82f6;
   text-decoration: underline;
+  transition: color 0.2s;
 }
 
 .email-content a:hover {
+  color: #1d4ed8;
   text-decoration: none;
+}
+
+.email-content p {
+  margin: 12px 0;
+}
+
+.email-content h1, .email-content h2, .email-content h3, .email-content h4, .email-content h5, .email-content h6 {
+  margin: 16px 0 8px 0;
+  font-weight: 600;
+  color: #111827;
+}
+
+.email-content ul, .email-content ol {
+  margin: 12px 0;
+  padding-left: 24px;
+}
+
+.email-content li {
+  margin: 4px 0;
+}
+
+.email-content pre {
+  background-color: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 12px;
+  overflow-x: auto;
+  font-size: 13px;
+  margin: 16px 0;
+}
+
+.email-content code {
+  background-color: #f3f4f6;
+  border-radius: 3px;
+  padding: 2px 4px;
+  font-size: 13px;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
 }
 `;
 

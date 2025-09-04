@@ -151,11 +151,11 @@ export async function GET(request: Request) {
 
     // Safely extract results with fallbacks
     const getCount = (result: PromiseSettledResult<any>) => {
-      return result.status === 'fulfilled' && result.value.count !== null ? result.value.count : 0;
+      return result.status === 'fulfilled' && (result as PromiseFulfilledResult<any>).value.count !== null ? (result as PromiseFulfilledResult<any>).value.count : 0;
     };
 
     const getData = (result: PromiseSettledResult<any>) => {
-      return result.status === 'fulfilled' && result.value.data ? result.value.data : [];
+      return result.status === 'fulfilled' && (result as PromiseFulfilledResult<any>).value.data ? (result as PromiseFulfilledResult<any>).value.data : [];
     };
 
     // Calculate price statistics

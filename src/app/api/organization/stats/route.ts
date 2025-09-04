@@ -95,6 +95,7 @@ export async function GET(request: NextRequest) {
       'free': 3,
       'starter': 1,
       'pro': 5,
+      'premium': -1, // Unlimited for Premium
       'premium_basic': 20,
       'premium_advanced': 50,
       'premium_enterprise': 100,
@@ -102,31 +103,42 @@ export async function GET(request: NextRequest) {
       'enterprise': 1000
     };
 
-    // Fetch real subscription plan directly from user metadata (avoiding internal API calls)
+    // Fetch organization's subscription plan from the organizations table
     let plan = 'pro';
     try {
-      console.log('🔍 Organization Stats: Fetching subscription plan directly...');
+      console.log('🔍 Organization Stats: Fetching organization subscription plan...');
       console.log(`   Organization ID: ${organizationId}`);
       console.log(`   User ID: ${userId}`);
       
-      // Get user data directly from Supabase auth to check their subscription plan
-      const { data: userData, error: userError } = await supabase.auth.admin.getUserById(userId);
+      // Get organization subscription plan from the organizations table
+      const { data: orgSubscription, error: subscriptionError } = await supabase
+        .from('organizations')
+        .select('subscription_tier, beta_early_adopter, subscription_metadata')
+        .eq('id', organizationId)
+        .single();
       
-      if (userError || !userData.user) {
-        console.log('   Error fetching user data:', userError);
+      if (subscriptionError || !orgSubscription) {
+        console.log('   Error fetching organization subscription:', subscriptionError);
+        console.log('   Falling back to starter plan');
+        plan = 'starter';
       } else {
-        const userSubscriptionPlan = userData.user.user_metadata?.subscription_plan || 'starter';
-        console.log(`   User subscription plan from metadata: ${userSubscriptionPlan}`);
+        const organizationPlan = orgSubscription.subscription_tier || 'starter';
+        console.log(`   Organization subscription tier: ${organizationPlan}`);
+        console.log(`   Beta early adopter: ${orgSubscription.beta_early_adopter}`);
         
-        if (userSubscriptionPlan) {
-          plan = userSubscriptionPlan.toLowerCase().replace(/\s+/g, '_');
-          console.log(`   Normalized plan: "${plan}"`);
-        }
+        plan = organizationPlan.toLowerCase().replace(/\s+/g, '_');
+        console.log(`   Normalized plan: "${plan}"`);
       }
     } catch (error) {
-      console.error('   Error fetching subscription:', error);
+      console.error('   Error fetching organization subscription:', error);
+      plan = 'starter';
     }
     const subscriptionLimit = subscriptionLimits[plan] || 3;
+    
+    console.log('🔍 Subscription limit calculation:', { 
+      plan, 
+      subscriptionLimit: subscriptionLimit === -1 ? 'Unlimited' : subscriptionLimit 
+    });
 
     const stats = {
       totalMembers: totalMembers || 0,
@@ -136,6 +148,14 @@ export async function GET(request: NextRequest) {
       plan,
       subscriptionStatus: 'active'
     };
+
+    console.log('🎯 Organization Stats Final Result:', {
+      organizationId,
+      userId,
+      plan,
+      subscriptionLimit,
+      totalMembers: stats.totalMembers
+    });
 
     return NextResponse.json(stats);
 

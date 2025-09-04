@@ -226,7 +226,7 @@ export default function SetupOrganizationsPage() {
                     <p><strong>Organization:</strong> {result.organization.name}</p>
                     <p><strong>Added Admins:</strong> {result.addedAdmins?.length || 0}</p>
                     {result.missingAdmins?.length > 0 && (
-                      <p><strong>Missing Admins:</strong> {result.missingAdmins.map(a => a.email).join(', ')}</p>
+                      <p><strong>Missing Admins:</strong> {result.missingAdmins.map((a: any) => a.email).join(', ')}</p>
                     )}
                   </div>
                 </AlertDescription>

@@ -49,7 +49,7 @@ export async function GET(req: NextRequest) {
         break;
     }
     
-    const supabase = createClient();
+    const supabase = await createClient();
     
     // Get subscription counts by status
     const { data: subscriptionCounts, error: countError } = await supabase
@@ -111,13 +111,13 @@ export async function GET(req: NextRequest) {
     
     // Process subscription counts by status
     const totalSubscriptions = subscriptionCounts.length;
-    const activeSubscriptions = subscriptionCounts.filter(s => s.status === 'active').length;
-    const trialingSubscriptions = subscriptionCounts.filter(s => s.status === 'trialing').length;
-    const canceledSubscriptions = subscriptionCounts.filter(s => s.status === 'canceled').length;
+    const activeSubscriptions = subscriptionCounts.filter((s: any) => s.status === 'active').length;
+    const trialingSubscriptions = subscriptionCounts.filter((s: any) => s.status === 'trialing').length;
+    const canceledSubscriptions = subscriptionCounts.filter((s: any) => s.status === 'canceled').length;
     
     // Process plan distribution
     const planDistribution: Record<string, number> = {};
-    planCounts.forEach(item => {
+    planCounts.forEach((item: any) => {
       const planName = item.subscription_plans?.name || 'Unknown';
       planDistribution[planName] = (planDistribution[planName] || 0) + 1;
     });
@@ -131,7 +131,7 @@ export async function GET(req: NextRequest) {
     const subscriptionsByMonth: Record<string, number> = {};
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     
-    subscriptionsByDate.forEach(item => {
+    subscriptionsByDate.forEach((item: any) => {
       const date = new Date(item.created_at);
       const monthKey = months[date.getMonth()];
       subscriptionsByMonth[monthKey] = (subscriptionsByMonth[monthKey] || 0) + 1;
@@ -139,7 +139,7 @@ export async function GET(req: NextRequest) {
     
     // Calculate MRR
     let mrr = 0;
-    mrrData.forEach(item => {
+    mrrData.forEach((item: any) => {
       if (item.subscription_plans) {
         const price = item.subscription_plans.price || 0;
         const interval = item.subscription_plans.billing_interval;
@@ -183,7 +183,7 @@ export async function GET(req: NextRequest) {
       );
     }
     
-    cohortData.forEach(subscription => {
+    cohortData.forEach((subscription: any) => {
       const date = new Date(subscription.created_at);
       const cohortKey = `${months[date.getMonth()]}-${date.getFullYear()}`;
       
@@ -232,7 +232,7 @@ export async function GET(req: NextRequest) {
       : 0;
     
     // Calculate ARPU (Average Revenue Per User)
-    const totalUsers = userCounts.reduce((sum, org) => sum + (org.count || 1), 0);
+    const totalUsers = userCounts.reduce((sum: number, org: any) => sum + (org.count || 1), 0);
     const arpu = totalUsers > 0 ? Math.round(mrr / totalUsers) : 0;
     
     // Calculate average subscription value
@@ -252,7 +252,7 @@ export async function GET(req: NextRequest) {
     
     // Get plan distribution by revenue
     const planRevenueDistribution: Record<string, number> = {};
-    mrrData.forEach(item => {
+    mrrData.forEach((item: any) => {
       if (item.subscription_plans) {
         const planName = item.subscription_plans.name || 'Unknown';
         const price = item.subscription_plans.price || 0;

@@ -1,23 +1,12 @@
 import { InventoryAlertService } from '@/lib/services/inventory-alert-service';
-import { createServerClient } from '@/lib/supabase/server';
+import { mockSupabaseClient } from '../../setupTests';
 
-// Mock the Supabase client
-jest.mock('@/lib/supabase/server');
+// Mock the server client import
+jest.mock('@/lib/supabase/server', () => ({
+  createServerClient: jest.fn(() => mockSupabaseClient),
+}));
 
 describe('InventoryAlertService', () => {
-  const mockSupabase = {
-    from: jest.fn().mockReturnThis(),
-    select: jest.fn().mockReturnThis(),
-    insert: jest.fn().mockReturnThis(),
-    update: jest.fn().mockReturnThis(),
-    delete: jest.fn().mockReturnThis(),
-    eq: jest.fn().mockReturnThis(),
-    single: jest.fn(),
-    rpc: jest.fn().mockReturnThis(),
-    data: [],
-    error: null,
-  };
-
   const testUserId = 'test-user-id';
   const testAlertId = 'test-alert-id';
   const testProductId = 'test-product-id';
@@ -35,21 +24,29 @@ describe('InventoryAlertService', () => {
 
   const testAlertWithProduct = {
     ...testAlert,
-    product_name: 'Test Product',
-    product_sku: 'TEST-123',
-    current_quantity: 5,
+    products: {
+      id: testProductId,
+      name: 'Test Product',
+      sku: 'TEST-123',
+    },
   };
 
   beforeEach(() => {
     jest.clearAllMocks();
-    (createServerClient as jest.Mock).mockReturnValue(mockSupabase);
+    // Reset all mock implementations to return the chain
+    mockSupabaseClient.from.mockReturnValue(mockSupabaseClient);
+    mockSupabaseClient.select.mockReturnValue(mockSupabaseClient);
+    mockSupabaseClient.insert.mockReturnValue(mockSupabaseClient);
+    mockSupabaseClient.update.mockReturnValue(mockSupabaseClient);
+    mockSupabaseClient.delete.mockReturnValue(mockSupabaseClient);
+    mockSupabaseClient.eq.mockReturnValue(mockSupabaseClient);
   });
 
   describe('getAlerts', () => {
     it('should fetch all alerts for a user', async () => {
       // Setup
       const testAlerts = [testAlertWithProduct];
-      mockSupabase.select.mockResolvedValueOnce({
+      mockSupabaseClient.select.mockResolvedValueOnce({
         data: testAlerts,
         error: null,
       });
@@ -58,19 +55,19 @@ describe('InventoryAlertService', () => {
       const result = await InventoryAlertService.getAlerts(testUserId);
 
       // Verify
-      expect(mockSupabase.from).toHaveBeenCalledWith('inventory_alerts');
-      expect(mockSupabase.select).toHaveBeenCalledWith(`
+      expect(mockSupabaseClient.from).toHaveBeenCalledWith('inventory_alerts');
+      expect(mockSupabaseClient.select).toHaveBeenCalledWith(`
         *,
         products:product_id (id, name, sku)
       `);
-      expect(mockSupabase.eq).toHaveBeenCalledWith('user_id', testUserId);
+      expect(mockSupabaseClient.eq).toHaveBeenCalledWith('user_id', testUserId);
       expect(result).toEqual(testAlerts);
     });
 
     it('should handle database errors', async () => {
       // Setup
       const testError = new Error('Database error');
-      mockSupabase.select.mockResolvedValueOnce({
+      mockSupabaseClient.select.mockResolvedValueOnce({
         data: null,
         error: testError,
       });
@@ -83,7 +80,7 @@ describe('InventoryAlertService', () => {
   describe('getAlertById', () => {
     it('should fetch a specific alert by ID', async () => {
       // Setup
-      mockSupabase.single.mockResolvedValueOnce({
+      mockSupabaseClient.single.mockResolvedValueOnce({
         data: testAlertWithProduct,
         error: null,
       });
@@ -92,14 +89,14 @@ describe('InventoryAlertService', () => {
       const result = await InventoryAlertService.getAlertById(testUserId, testAlertId);
 
       // Verify
-      expect(mockSupabase.from).toHaveBeenCalledWith('inventory_alerts');
-      expect(mockSupabase.select).toHaveBeenCalledWith(`
+      expect(mockSupabaseClient.from).toHaveBeenCalledWith('inventory_alerts');
+      expect(mockSupabaseClient.select).toHaveBeenCalledWith(`
         *,
         products:product_id (id, name, sku)
       `);
-      expect(mockSupabase.eq).toHaveBeenCalledWith('id', testAlertId);
-      expect(mockSupabase.eq).toHaveBeenCalledWith('user_id', testUserId);
-      expect(mockSupabase.single).toHaveBeenCalled();
+      expect(mockSupabaseClient.eq).toHaveBeenCalledWith('id', testAlertId);
+      expect(mockSupabaseClient.eq).toHaveBeenCalledWith('user_id', testUserId);
+      expect(mockSupabaseClient.single).toHaveBeenCalled();
       expect(result).toEqual(testAlertWithProduct);
     });
   });
@@ -113,7 +110,7 @@ describe('InventoryAlertService', () => {
         is_active: true,
       };
 
-      mockSupabase.single.mockResolvedValueOnce({
+      mockSupabaseClient.single.mockResolvedValueOnce({
         data: testAlert,
         error: null,
       });
@@ -122,14 +119,14 @@ describe('InventoryAlertService', () => {
       const result = await InventoryAlertService.createAlert(testUserId, newAlert);
 
       // Verify
-      expect(mockSupabase.from).toHaveBeenCalledWith('inventory_alerts');
-      expect(mockSupabase.insert).toHaveBeenCalledWith([
+      expect(mockSupabaseClient.from).toHaveBeenCalledWith('inventory_alerts');
+      expect(mockSupabaseClient.insert).toHaveBeenCalledWith([
         {
           ...newAlert,
           user_id: testUserId,
         },
       ]);
-      expect(mockSupabase.select).toHaveBeenCalled();
+      expect(mockSupabaseClient.select).toHaveBeenCalled();
       expect(result).toEqual(testAlert);
     });
   });
@@ -147,7 +144,7 @@ describe('InventoryAlertService', () => {
         ...updates,
       };
 
-      mockSupabase.single.mockResolvedValueOnce({
+      mockSupabaseClient.single.mockResolvedValueOnce({
         data: updatedAlert,
         error: null,
       });
@@ -156,13 +153,13 @@ describe('InventoryAlertService', () => {
       const result = await InventoryAlertService.updateAlert(testUserId, testAlertId, updates);
 
       // Verify
-      expect(mockSupabase.from).toHaveBeenCalledWith('inventory_alerts');
-      expect(mockSupabase.update).toHaveBeenCalledWith({
+      expect(mockSupabaseClient.from).toHaveBeenCalledWith('inventory_alerts');
+      expect(mockSupabaseClient.update).toHaveBeenCalledWith({
         ...updates,
         updated_at: expect.any(String),
       });
-      expect(mockSupabase.eq).toHaveBeenCalledWith('id', testAlertId);
-      expect(mockSupabase.eq).toHaveBeenCalledWith('user_id', testUserId);
+      expect(mockSupabaseClient.eq).toHaveBeenCalledWith('id', testAlertId);
+      expect(mockSupabaseClient.eq).toHaveBeenCalledWith('user_id', testUserId);
       expect(result).toEqual(updatedAlert);
     });
   });

@@ -247,7 +247,7 @@ async function fetchFromIMAP(
       imap.once('ready', () => {
         console.log('📧 IMAP connection ready');
         
-        imap.openBox(folder, true, (err, box) => {
+        imap.openBox(folder, true, (err: any, box: any) => {
           if (err) {
             console.error('Failed to open mailbox:', err);
             resolve(emailContent);
@@ -259,7 +259,7 @@ async function fetchFromIMAP(
             ? [`UID ${imapUid}`]
             : [['HEADER', 'MESSAGE-ID', messageId]];
 
-          imap.search(searchCriteria, (err, results) => {
+          imap.search(searchCriteria, (err: any, results: any) => {
             if (err || !results.length) {
               console.error('Message not found:', err);
               imap.end();
@@ -273,11 +273,11 @@ async function fetchFromIMAP(
               envelope: true
             });
 
-            fetch.on('message', (msg, seqno) => {
+            fetch.on('message', (msg: any, seqno: any) => {
               let rawEmail = '';
               
-              msg.on('body', (stream) => {
-                stream.on('data', (chunk) => {
+              msg.on('body', (stream: any) => {
+                stream.on('data', (chunk: any) => {
                   rawEmail += chunk.toString();
                 });
               });
@@ -315,7 +315,7 @@ async function fetchFromIMAP(
               resolve(emailContent);
             });
 
-            fetch.once('error', (err) => {
+            fetch.once('error', (err: any) => {
               console.error('Fetch error:', err);
               imap.end();
               resolve(emailContent);
@@ -324,7 +324,7 @@ async function fetchFromIMAP(
         });
       });
 
-      imap.once('error', (err) => {
+      imap.once('error', (err: any) => {
         console.error('IMAP connection error:', err);
         resolve(emailContent);
       });

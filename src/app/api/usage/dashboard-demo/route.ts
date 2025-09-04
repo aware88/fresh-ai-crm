@@ -25,8 +25,8 @@ export async function GET(request: Request) {
     // Calculate metrics from real data
     const usage = usageData || [];
     const totalRequests = usage.length;
-    const totalTokensUsed = usage.reduce((sum, record) => sum + (record.tokens_used || 0), 0);
-    const totalCostUsd = usage.reduce((sum, record) => sum + (record.cost_usd || 0), 0);
+    const totalTokensUsed = usage.reduce((sum: number, record: any) => sum + (record.tokens_used || 0), 0);
+    const totalCostUsd = usage.reduce((sum: number, record: any) => sum + (record.cost_usd || 0), 0);
     
     // Calculate time savings (estimate 5 minutes saved per AI request)
     const totalMinutesSaved = totalRequests * 5;
@@ -38,7 +38,7 @@ export async function GET(request: Request) {
     const costSavedUsd = totalHoursSaved * hourlyRateUsd;
     
     // Group usage by type
-    const usageByType = usage.reduce((acc, record) => {
+    const usageByType = usage.reduce((acc: Record<string, number>, record: any) => {
       const type = record.agent_type || 'general';
       acc[type] = (acc[type] || 0) + (record.tokens_used || 0);
       return acc;
@@ -98,7 +98,7 @@ export async function GET(request: Request) {
           completed: Math.floor(totalRequests * 0.1)
         }
       },
-      history: usage.slice(0, 10).map(record => ({
+      history: usage.slice(0, 10).map((record: any) => ({
         timestamp: record.created_at,
         type: record.agent_type || 'general',
         tokens: record.tokens_used || 0,

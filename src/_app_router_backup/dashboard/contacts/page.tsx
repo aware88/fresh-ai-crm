@@ -62,7 +62,7 @@ export default function ContactsPage() {
         setContacts(data.contacts || []);
         
         // Check if we need to select a specific contact from URL
-        const contactId = searchParams.get('id');
+        const contactId = searchParams?.get('id');
         if (contactId && data.contacts) {
           const contact = data.contacts.find((c: Contact) => c.id === contactId);
           if (contact) {

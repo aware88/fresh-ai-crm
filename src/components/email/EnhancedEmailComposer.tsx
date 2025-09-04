@@ -4,12 +4,12 @@ import React, { useState, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import RichTextEditor from './RichTextEditor';
 import EmailAttachments from './outlook/EmailAttachments';
-import { AIModelSelector } from '@/components/ui/ai-model-selector';
+
 import EmailAIMonitor from './EmailAIMonitor';
 import { 
   Send, 
@@ -50,7 +50,7 @@ interface EmailRecipient {
 }
 
 interface EnhancedEmailComposerProps {
-  mode?: 'new' | 'reply' | 'forward';
+  mode?: 'new' | 'reply' | 'replyAll' | 'forward';
   originalEmail?: {
     subject: string;
     body: string;
@@ -82,16 +82,20 @@ export default function EnhancedEmailComposer({
   className
 }: EnhancedEmailComposerProps) {
   // Form state
-  const [to, setTo] = useState('');
-  const [cc, setCc] = useState('');
+  const [to, setTo] = useState(
+    (mode === 'reply' || mode === 'replyAll') ? originalEmail?.from || '' : ''
+  );
+  const [cc, setCc] = useState(
+    mode === 'replyAll' ? originalEmail?.to || '' : ''
+  );
   const [bcc, setBcc] = useState('');
   const [subject, setSubject] = useState(
-    mode === 'reply' ? `Re: ${originalEmail?.subject || ''}` :
+    (mode === 'reply' || mode === 'replyAll') ? `Re: ${originalEmail?.subject || ''}` :
     mode === 'forward' ? `Fwd: ${originalEmail?.subject || ''}` : ''
   );
   const [body, setBody] = useState(
     mode === 'forward' ? `\n\n---------- Forwarded message ----------\nFrom: ${originalEmail?.from}\nSubject: ${originalEmail?.subject}\n\n${originalEmail?.body || ''}` :
-    mode === 'reply' ? `\n\n---------- Original message ----------\nFrom: ${originalEmail?.from}\nSubject: ${originalEmail?.subject}\n\n${originalEmail?.body || ''}` : ''
+    (mode === 'reply' || mode === 'replyAll') ? `\n\n---------- Original message ----------\nFrom: ${originalEmail?.from}\nSubject: ${originalEmail?.subject}\n\n${originalEmail?.body || ''}` : ''
   );
   const [attachments, setAttachments] = useState<Attachment[]>(
     mode === 'forward' ? originalEmail?.attachments || [] : []
@@ -108,7 +112,7 @@ export default function EnhancedEmailComposer({
   const [followUpDays, setFollowUpDays] = useState(3);
   const [showPreview, setShowPreview] = useState(false);
   const [priority, setPriority] = useState<'low' | 'normal' | 'high'>('normal');
-  const [selectedModel, setSelectedModel] = useState('auto');
+
   const [aiTaskId, setAiTaskId] = useState<string | null>(null);
   const [showAIMonitor, setShowAIMonitor] = useState(false);
 
@@ -176,7 +180,8 @@ export default function EnhancedEmailComposer({
         subject,
         body,
         attachments,
-        isHtml: isRichText
+        isHtml: isRichText,
+        priority
       };
 
       if (onSend) {
@@ -358,14 +363,15 @@ export default function EnhancedEmailComposer({
   };
 
   return (
-    <Card className={`w-full ${isFullscreen ? 'fixed inset-4 z-50 max-w-none mx-0' : 'max-w-5xl mx-auto'} ${className}`}>
-      <CardHeader className="pb-4">
+    <div className={`w-full h-full flex flex-col ${isFullscreen ? 'fixed inset-4 z-50 bg-white rounded-lg shadow-lg' : ''} ${className || ''}`}>
+      <div className="pb-4 px-4 pt-4 flex-shrink-0">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <CardTitle className="text-lg">
               {mode === 'new' ? 'Compose Email' :
                mode === 'reply' ? 'Reply' :
-               'Forward'}
+               mode === 'replyAll' ? 'Reply All' :
+               mode === 'forward' ? 'Forward' : 'Compose Email'}
             </CardTitle>
             {priority !== 'normal' && (
               <Badge variant={priority === 'high' ? 'destructive' : 'secondary'}>
@@ -389,12 +395,12 @@ export default function EnhancedEmailComposer({
             )}
           </div>
         </div>
-        <CardDescription>
+        <p className="text-sm text-gray-600">
           Create and send professional emails with rich formatting and attachments
-        </CardDescription>
-      </CardHeader>
+        </p>
+      </div>
 
-      <CardContent className="space-y-4">
+      <div className="space-y-4 flex-1 min-h-0 px-4 pb-4 overflow-y-auto">
         {/* AI Monitor Panel */}
         {showAIMonitor && (
           <EmailAIMonitor
@@ -492,14 +498,6 @@ export default function EnhancedEmailComposer({
             value={subject}
             onChange={(e) => setSubject(e.target.value)}
             className="text-sm"
-          />
-        </div>
-
-        {/* AI Model Selector */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <AIModelSelector
-            selectedModel={selectedModel}
-            onModelChange={setSelectedModel}
           />
         </div>
 
@@ -710,7 +708,7 @@ export default function EnhancedEmailComposer({
             </Button>
           </div>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

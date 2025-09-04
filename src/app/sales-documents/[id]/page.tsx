@@ -45,15 +45,31 @@ interface SalesDocumentItem {
   total_price: number;
 }
 
-export default function SalesDocumentDetailPage({ params }: { params: { id: string } }) {
+interface PageProps {
+  params: Promise<{ id: string }>;
+}
+
+export default function SalesDocumentDetailPage({ params }: PageProps) {
   const [document, setDocument] = useState<SalesDocument | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [documentId, setDocumentId] = useState<string>('');
   const router = useRouter();
   const { toast } = useToast();
   const supabase = createClientComponentClient();
 
+  // Extract document ID from params
+  useEffect(() => {
+    const extractId = async () => {
+      const { id } = await params;
+      setDocumentId(id);
+    };
+    extractId();
+  }, [params]);
+
   // Fetch sales document details
   useEffect(() => {
+    if (!documentId) return;
+    
     const fetchDocumentDetails = async () => {
       setIsLoading(true);
       try {
@@ -61,7 +77,7 @@ export default function SalesDocumentDetailPage({ params }: { params: { id: stri
         const { data: documentData, error: documentError } = await supabase
           .from('sales_documents')
           .select('*')
-          .eq('id', params.id)
+          .eq('id', documentId)
           .single();
 
         if (documentError) {
@@ -72,7 +88,7 @@ export default function SalesDocumentDetailPage({ params }: { params: { id: stri
         const { data: itemsData, error: itemsError } = await supabase
           .from('sales_document_items')
           .select('*')
-          .eq('document_id', params.id);
+          .eq('document_id', documentId);
 
         if (itemsError) {
           throw itemsError;
@@ -95,7 +111,7 @@ export default function SalesDocumentDetailPage({ params }: { params: { id: stri
     };
 
     fetchDocumentDetails();
-  }, [params.id, supabase, toast]);
+  }, [documentId, supabase, toast]);
 
   // Handle back button click
   const handleBackClick = () => {
@@ -104,7 +120,7 @@ export default function SalesDocumentDetailPage({ params }: { params: { id: stri
 
   // Handle edit button click
   const handleEditClick = () => {
-    router.push(`/sales-documents/${params.id}/edit`);
+    router.push(`/sales-documents/${documentId}/edit`);
   };
 
   // Handle delete button click
@@ -118,7 +134,7 @@ export default function SalesDocumentDetailPage({ params }: { params: { id: stri
       const { error: itemsError } = await supabase
         .from('sales_document_items')
         .delete()
-        .eq('document_id', params.id);
+        .eq('document_id', documentId);
 
       if (itemsError) {
         throw itemsError;
@@ -128,7 +144,7 @@ export default function SalesDocumentDetailPage({ params }: { params: { id: stri
       const { error: documentError } = await supabase
         .from('sales_documents')
         .delete()
-        .eq('id', params.id);
+        .eq('id', documentId);
 
       if (documentError) {
         throw documentError;
@@ -186,148 +202,107 @@ export default function SalesDocumentDetailPage({ params }: { params: { id: stri
   }
 
   return (
-    <div className="container mx-auto py-8 space-y-6">
-      <div className="flex justify-between items-center">
+    <div className="container mx-auto py-8">
+      <div className="flex items-center justify-between mb-6">
         <Button variant="outline" onClick={handleBackClick} className="flex items-center gap-2">
           <ArrowLeft className="h-4 w-4" />
-          Back to Documents
+          Back
         </Button>
-        <div className="flex items-center gap-2">
+        <div className="flex gap-2">
           <Button variant="outline" onClick={handleEditClick} className="flex items-center gap-2">
             <Edit className="h-4 w-4" />
             Edit
           </Button>
-          <Button variant="outline" onClick={handleDeleteClick} className="flex items-center gap-2">
+          <Button variant="outline" onClick={handleDeleteClick} className="flex items-center gap-2 text-destructive hover:text-destructive">
             <Trash2 className="h-4 w-4" />
             Delete
-          </Button>
-          <Button variant="outline" className="flex items-center gap-2">
-            <Download className="h-4 w-4" />
-            Download PDF
           </Button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="md:col-span-2">
-          <Card>
-            <CardHeader>
-              <div className="flex justify-between items-start">
-                <div>
-                  <CardTitle className="text-2xl">{document.name}</CardTitle>
-                  <p className="text-muted-foreground">#{document.document_number}</p>
-                </div>
-                <Badge
-                  variant={
-                    document.status === 'paid' ? 'success' :
-                    document.status === 'pending' ? 'warning' :
-                    'outline'
-                  }
-                  className="uppercase"
-                >
-                  {document.status}
-                </Badge>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <h3 className="font-medium mb-2">Client Information</h3>
-                  <div className="space-y-1">
-                    <p className="font-medium">{document.client_name}</p>
-                    <p>{document.client_email}</p>
-                    <p className="whitespace-pre-line">{document.client_address}</p>
-                  </div>
-                </div>
-                <div>
-                  <h3 className="font-medium mb-2">Document Details</h3>
-                  <div className="space-y-1">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Date:</span>
-                      <span>{formatDate(document.date)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Due Date:</span>
-                      <span>{formatDate(document.due_date)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Status:</span>
-                      <span className="capitalize">{document.status}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
+      <Card className="mb-6">
+        <CardHeader>
+          <div className="flex justify-between items-start">
+            <div>
+              <CardTitle className="text-2xl">{document.name}</CardTitle>
+              <p className="text-muted-foreground">Document #{document.document_number}</p>
+            </div>
+            <Badge variant={document.status === 'paid' ? 'default' : 'secondary'}>
+              {document.status.charAt(0).toUpperCase() + document.status.slice(1)}
+            </Badge>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div>
+              <h3 className="font-semibold mb-2">Client Information</h3>
+              <p className="text-sm">{document.client_name}</p>
+              <p className="text-sm text-muted-foreground">{document.client_email}</p>
+              <p className="text-sm text-muted-foreground">{document.client_address}</p>
+            </div>
+            <div>
+              <h3 className="font-semibold mb-2">Dates</h3>
+              <p className="text-sm">Issue Date: {formatDate(document.date)}</p>
+              <p className="text-sm">Due Date: {formatDate(document.due_date)}</p>
+            </div>
+            <div>
+              <h3 className="font-semibold mb-2">Amount</h3>
+              <p className="text-2xl font-bold">{formatCurrency(document.total_amount)}</p>
+              <p className="text-sm text-muted-foreground">Subtotal: {formatCurrency(document.subtotal_amount)}</p>
+              <p className="text-sm text-muted-foreground">Tax: {formatCurrency(document.tax_amount)}</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
-              <Separator />
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>Items</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Item</TableHead>
+                <TableHead>Description</TableHead>
+                <TableHead className="text-right">Quantity</TableHead>
+                <TableHead className="text-right">Unit Price</TableHead>
+                <TableHead className="text-right">Total</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {document.items.map((item) => (
+                <TableRow key={item.id}>
+                  <TableCell className="font-medium">{item.name}</TableCell>
+                  <TableCell>{item.description}</TableCell>
+                  <TableCell className="text-right">{item.quantity}</TableCell>
+                  <TableCell className="text-right">{formatCurrency(item.unit_price)}</TableCell>
+                  <TableCell className="text-right">{formatCurrency(item.total_price)}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
 
-              <div>
-                <h3 className="font-medium mb-2">Items</h3>
-                <div className="border rounded-md">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Item</TableHead>
-                        <TableHead>Description</TableHead>
-                        <TableHead className="text-right">Qty</TableHead>
-                        <TableHead className="text-right">Unit Price</TableHead>
-                        <TableHead className="text-right">Total</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {document.items.map((item) => (
-                        <TableRow key={item.id}>
-                          <TableCell className="font-medium">{item.name}</TableCell>
-                          <TableCell>{item.description}</TableCell>
-                          <TableCell className="text-right">{item.quantity}</TableCell>
-                          <TableCell className="text-right">{formatCurrency(item.unit_price)}</TableCell>
-                          <TableCell className="text-right">{formatCurrency(item.total_price)}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              </div>
+      {document.notes && (
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>Notes</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-muted-foreground">{document.notes}</p>
+          </CardContent>
+        </Card>
+      )}
 
-              <div className="flex justify-end">
-                <div className="w-full max-w-xs space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Subtotal:</span>
-                    <span>{formatCurrency(document.subtotal_amount)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Tax:</span>
-                    <span>{formatCurrency(document.tax_amount)}</span>
-                  </div>
-                  <Separator />
-                  <div className="flex justify-between font-medium">
-                    <span>Total:</span>
-                    <span>{formatCurrency(document.total_amount)}</span>
-                  </div>
-                </div>
-              </div>
+      <SalesDocumentSyncSection documentId={documentId} />
 
-              {document.notes && (
-                <>
-                  <Separator />
-                  <div>
-                    <h3 className="font-medium mb-2">Notes</h3>
-                    <p className="text-muted-foreground whitespace-pre-line">{document.notes}</p>
-                  </div>
-                </>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="space-y-6">
-          <SalesDocumentSyncSection 
-            documentId={document.id}
-            title="Metakocka Integration"
-            description="Sync this document with your Metakocka ERP system"
-          />
-          
-          {/* Additional side panels can be added here */}
-        </div>
+      <div className="flex justify-end mt-6">
+        <Button className="flex items-center gap-2">
+          <Download className="h-4 w-4" />
+          Download PDF
+        </Button>
       </div>
     </div>
   );

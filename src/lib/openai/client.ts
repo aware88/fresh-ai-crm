@@ -480,7 +480,7 @@ export const analyzeEmail = async (emailContent: string, senderEmail?: string, u
         const { getPersonalityDataForPrompt } = await import('@/lib/personality/data');
         const { getMatchingSalesTactics } = await import('@/lib/ai/sales-tactics');
         
-        const supabase = createClient();
+        const supabase = await createClient();
         
         // Get contact with AI profiler relationship
         const { data: contact } = await supabase

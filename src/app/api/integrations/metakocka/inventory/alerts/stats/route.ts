@@ -4,7 +4,7 @@ import { InventoryAlertService } from '@/lib/services/inventory-alert-service';
 
 export async function GET() {
   try {
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
     const { data: { session } } = await supabase.auth.getSession();
     
     if (!session?.user?.id) {

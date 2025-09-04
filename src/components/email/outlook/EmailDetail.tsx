@@ -96,12 +96,12 @@ export default function EmailDetail({ messageId, onReply, onReplyAll, onForward,
 
   useEffect(() => {
     async function fetchEmail() {
-      if (!session?.accessToken || !messageId) {
-        setError('Not authenticated or missing message ID');
+      if (!messageId) {
+        setError('Missing message ID');
         setLoading(false);
         return;
       }
-      
+
       try {
         setLoading(true);
         const response = await fetch(`/api/emails/${messageId}`, {
@@ -112,6 +112,11 @@ export default function EmailDetail({ messageId, onReply, onReplyAll, onForward,
         });
         
         if (!response.ok) {
+          if (response.status === 401) {
+            setError('Not authenticated with Microsoft Graph');
+            setLoading(false);
+            return;
+          }
           throw new Error(`Error fetching email: ${response.statusText}`);
         }
         

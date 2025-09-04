@@ -6,6 +6,7 @@
 
 import { createLazyServerClient } from '@/lib/supabase/lazy-client';
 import { AIProcessingResult } from '@/lib/ai/ai-hub-service';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 export interface EmailInteractionLog {
   id?: string;
@@ -84,6 +85,11 @@ export class EmailInteractionLogger {
 
   constructor() {
     this.supabase = createLazyServerClient();
+  }
+
+  // Helper method to get the awaited Supabase client
+  private async getSupabase(): Promise<SupabaseClient> {
+    return await this.supabase;
   }
 
   /**

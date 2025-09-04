@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { useOrganization } from '@/hooks/useOrganization';
+import { useSubscription } from '@/contexts/SubscriptionContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -76,6 +77,9 @@ export default function SubscriptionPage() {
   const router = useRouter();
   const { toast } = useToast();
   
+  // Use subscription context for basic subscription data
+  const { subscription, isLoading: subscriptionLoading } = useSubscription();
+  
   const [currentSubscription, setCurrentSubscription] = useState<OrganizationSubscription | null>(null);
   const [currentPlan, setCurrentPlan] = useState<SubscriptionPlan | null>(null);
   const [availablePlans, setAvailablePlans] = useState<SubscriptionPlan[]>([]);
@@ -103,24 +107,60 @@ export default function SubscriptionPage() {
     }
   }, [organizationId, isIndividualUser]);
 
+  // Transform subscription context data to currentPlan format
+  useEffect(() => {
+    if (subscription && !subscriptionLoading) {
+      // Create a simplified plan structure from subscription context
+      const transformedPlan: SubscriptionPlan = {
+        id: subscription.tier,
+        name: subscription.tier.charAt(0).toUpperCase() + subscription.tier.slice(1),
+        description: `${subscription.tier} plan with ${subscription.isUnlimited ? 'unlimited' : subscription.limits.aiTokens} AI tokens`,
+        price: subscription.tier === 'starter' ? 0 : 
+               subscription.tier === 'pro' ? 29 : 
+               subscription.tier === 'premium' ? 99 : 199,
+        billing_interval: 'monthly',
+        features: {
+          aiTokens: subscription.limits.aiTokens,
+          emailAccounts: subscription.limits.emailAccounts,
+          teamMembers: subscription.limits.teamMembers,
+          isUnlimited: subscription.isUnlimited
+        },
+        is_active: true,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+      
+      setCurrentPlan(transformedPlan);
+      
+      // Create a mock subscription object
+      const mockSubscription: OrganizationSubscription = {
+        id: 'context-sub',
+        organization_id: organizationId || 'individual',
+        subscription_plan_id: subscription.tier,
+        status: 'active',
+        current_period_start: new Date().toISOString(),
+        current_period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+        cancel_at_period_end: false,
+        payment_method_id: null,
+        subscription_provider: 'context',
+        provider_subscription_id: null,
+        metadata: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+      
+      setCurrentSubscription(mockSubscription);
+    }
+  }, [subscription, subscriptionLoading, organizationId]);
+
   const fetchSubscriptionData = async () => {
+    // Only fetch invoices and plans - subscription data comes from context
     setIsLoading(true);
     setError(null);
     
     try {
-      // Fetch current subscription - use different endpoints for individual vs organization
+      // Fetch recent invoices
       if (organizationId) {
-        // Organization subscription
-        const subscriptionResponse = await fetch(`/api/subscription/current?organizationId=${organizationId}`, {
-          credentials: 'include'
-        });
-        if (subscriptionResponse.ok) {
-          const subscriptionData = await subscriptionResponse.json();
-          setCurrentSubscription(subscriptionData.subscription);
-          setCurrentPlan(subscriptionData.plan);
-        }
-        
-        // Fetch recent invoices for organization
         const invoicesResponse = await fetch(`/api/subscription/invoices?organizationId=${organizationId}&limit=5`, {
           credentials: 'include'
         });
@@ -129,17 +169,6 @@ export default function SubscriptionPage() {
           setRecentInvoices(invoicesData.invoices || []);
         }
       } else if (isIndividualUser) {
-        // Individual user subscription - use user ID
-        const subscriptionResponse = await fetch(`/api/subscription/current?userId=${userId}`, {
-          credentials: 'include'
-        });
-        if (subscriptionResponse.ok) {
-          const subscriptionData = await subscriptionResponse.json();
-          setCurrentSubscription(subscriptionData.subscription);
-          setCurrentPlan(subscriptionData.plan);
-        }
-        
-        // Fetch recent invoices for individual user
         const invoicesResponse = await fetch(`/api/subscription/invoices?userId=${userId}&limit=5`, {
           credentials: 'include'
         });
@@ -149,7 +178,7 @@ export default function SubscriptionPage() {
         }
       }
       
-      // Fetch available plans (same for both)
+      // Fetch available plans
       const plansResponse = await fetch('/api/subscription/plans', {
         credentials: 'include'
       });
@@ -306,31 +335,8 @@ export default function SubscriptionPage() {
       setSelectedPlan(null); // Clear selected plan
       setShowUpgradeDialog(false);
       
-      // Refresh all subscription data
-      await Promise.all([
-        fetchSubscriptionData(),
-        // Force re-fetch of current subscription to update the UI
-        fetch(`/api/subscription/current?userId=${userId}`, { 
-          cache: 'no-store',
-          headers: { 'Cache-Control': 'no-cache' }
-        }).then(async (res) => {
-          if (res.ok) {
-            const { plan, subscription } = await res.json();
-            // Ensure billing cycle is preserved in the subscription metadata
-            const updatedSubscription = {
-              ...subscription,
-              subscription_plans: plan,
-              metadata: {
-                ...subscription.metadata,
-                billing_cycle: selectedBillingCycle // Use the billing cycle from the plan change
-              }
-            };
-            setCurrentSubscription(updatedSubscription);
-            setCurrentPlan(plan);
-            console.log('🔄 Updated current plan state:', plan.name, 'with billing cycle:', selectedBillingCycle);
-          }
-        })
-      ]);
+      // Refresh subscription data - context will be updated automatically
+      await fetchSubscriptionData();
       
     } catch (error: any) {
       console.error('❌ Error changing plan:', error);
@@ -349,7 +355,7 @@ export default function SubscriptionPage() {
     console.log('Cancel subscription');
   };
 
-  if (isLoading) {
+  if (subscriptionLoading || isLoading) {
     return (
       <div className="space-y-4">
         <div className="animate-pulse space-y-4">
@@ -508,14 +514,27 @@ export default function SubscriptionPage() {
             <div className="flex gap-2">
               {!currentSubscription.cancel_at_period_end && (
                 <>
-                  <Button 
-                    variant="outline" 
-                    onClick={() => setShowUpgradeDialog(true)}
-                    className="flex items-center gap-2"
-                  >
-                    <TrendingUp className="w-4 h-4" />
-                    Change Plan
-                  </Button>
+                  {/* Disable plan changes for Premium users */}
+                  {currentPlan?.name?.toLowerCase().includes('premium') ? (
+                    <Button 
+                      variant="outline" 
+                      disabled
+                      className="flex items-center gap-2 opacity-50 cursor-not-allowed"
+                      title="Premium plan changes are managed by administrators"
+                    >
+                      <TrendingUp className="w-4 h-4" />
+                      Change Plan (Contact Admin)
+                    </Button>
+                  ) : (
+                    <Button 
+                      variant="outline" 
+                      onClick={() => setShowUpgradeDialog(true)}
+                      className="flex items-center gap-2"
+                    >
+                      <TrendingUp className="w-4 h-4" />
+                      Change Plan
+                    </Button>
+                  )}
                   <Button 
                     variant="outline" 
                     onClick={() => setShowCancelDialog(true)}
@@ -548,13 +567,18 @@ export default function SubscriptionPage() {
         </Card>
       )}
 
-      {/* Available Plans - Always show for plan comparison */}
+      {/* Available Plans - Show for plan comparison (disabled for Premium users) */}
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
               <CardTitle>Choose Your Plan</CardTitle>
-              <CardDescription>Select a subscription plan to get started</CardDescription>
+              <CardDescription>
+                {currentPlan?.name?.toLowerCase().includes('premium') 
+                  ? 'Premium plan changes are managed by administrators' 
+                  : 'Select a subscription plan to get started'
+                }
+              </CardDescription>
             </div>
             <div className="flex flex-col items-end space-y-2">
               <div className="flex items-center space-x-2">
@@ -593,9 +617,9 @@ export default function SubscriptionPage() {
               <Button 
                 className="w-full mt-3" 
                 variant={isPlanActive('Starter') ? 'secondary' : 'default'}
-                disabled={isPlanActive('Starter') || isPlanActive('Premium')}
+                disabled={isPlanActive('Starter') || isPlanActive('Premium') || currentPlan?.name?.toLowerCase().includes('premium')}
                 onClick={() => {
-                  if (!isPlanActive('Starter') && !isPlanActive('Premium')) {
+                  if (!isPlanActive('Starter') && !isPlanActive('Premium') && !currentPlan?.name?.toLowerCase().includes('premium')) {
                     handleUpgradePlan({
                       id: 'starter',
                       name: 'Starter',
@@ -610,7 +634,9 @@ export default function SubscriptionPage() {
                   }
                 }}
               >
-                {isPlanActive('Starter') ? 'Current Plan' : isPlanActive('Premium') ? 'Not Available' : 'Get Started Free'}
+                {isPlanActive('Starter') ? 'Current Plan' : 
+                 isPlanActive('Premium') || currentPlan?.name?.toLowerCase().includes('premium') ? 'Contact Admin' : 
+                 'Get Started Free'}
               </Button>
             </div>
 
@@ -637,9 +663,9 @@ export default function SubscriptionPage() {
               <Button 
                 className="w-full mt-3" 
                 variant={isPlanActive('Pro') ? 'secondary' : 'default'}
-                disabled={isPlanActive('Pro') || isPlanActive('Premium')}
+                disabled={isPlanActive('Pro') || isPlanActive('Premium') || currentPlan?.name?.toLowerCase().includes('premium')}
                 onClick={() => {
-                  if (!isPlanActive('Pro') && !isPlanActive('Premium')) {
+                  if (!isPlanActive('Pro') && !isPlanActive('Premium') && !currentPlan?.name?.toLowerCase().includes('premium')) {
                     handleUpgradePlan({
                       id: 'pro',
                       name: 'Pro',
@@ -654,7 +680,9 @@ export default function SubscriptionPage() {
                   }
                 }}
               >
-                {isPlanActive('Pro') ? 'Current Plan' : isPlanActive('Premium') ? 'Not Available' : 'Start Pro'}
+                {isPlanActive('Pro') ? 'Current Plan' : 
+                 isPlanActive('Premium') || currentPlan?.name?.toLowerCase().includes('premium') ? 'Contact Admin' : 
+                 'Start Pro'}
               </Button>
             </div>
 
