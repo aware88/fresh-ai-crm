@@ -165,6 +165,62 @@ export async function POST(request: NextRequest) {
       
       console.log(`✅ Email sync complete: ${totalSaved} emails saved`);
       
+      // Trigger background AI processing for new emails (existing implementation)
+      const effectiveUserId = userId || account.user_id;
+      if (effectiveUserId && totalSaved > 0) {
+        try {
+          console.log('🤖 Triggering background AI processing for synced emails...');
+          const OpenAI = (await import('openai')).default;
+          const { getBackgroundProcessor } = await import('@/lib/email/background-ai-processor');
+          
+          const openai = new OpenAI({
+            apiKey: process.env.OPENAI_API_KEY
+          });
+          
+          if (openai.apiKey) {
+            const processor = getBackgroundProcessor(supabase, openai);
+            
+            // Get organization ID
+            const { data: preferences } = await supabase
+              .from('user_preferences')
+              .select('current_organization_id')
+              .eq('user_id', effectiveUserId)
+              .single();
+            
+            // Get last 50 emails to process
+            const { data: recentEmails } = await supabase
+              .from('email_index')
+              .select('message_id')
+              .eq('user_id', effectiveUserId)
+              .eq('folder', 'INBOX')
+              .order('sent_at', { ascending: false })
+              .limit(50);
+            
+            if (recentEmails && recentEmails.length > 0) {
+              // Process emails in background (don't wait)
+              const contexts = recentEmails.map(email => ({
+                emailId: email.message_id,
+                userId: effectiveUserId,
+                organizationId: preferences?.current_organization_id,
+                priority: 'low' as const,
+                skipDraft: false,
+                forceReprocess: false
+              }));
+              
+              processor.processBatch(contexts).then(results => {
+                const successful = results.filter(r => r.success).length;
+                console.log(`✅ Background processing complete: ${successful}/${results.length} emails processed`);
+              }).catch(error => {
+                console.error('❌ Background processing failed:', error);
+              });
+            }
+          }
+        } catch (error) {
+          console.error('⚠️ Could not start background processing:', error);
+          // Don't fail the sync if background processing fails
+        }
+      }
+      
       return NextResponse.json({
         success: true,
         message: `Successfully synced ${totalSaved} emails to database`,

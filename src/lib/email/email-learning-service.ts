@@ -138,6 +138,7 @@ export class EmailLearningService {
   /**
    * PHASE 1: Perform initial learning from user's email history
    * This analyzes up to maxEmails to extract communication patterns
+   * Uses learning exemption system (doesn't count against subscription limits)
    */
   async performInitialLearning(
     userId: string, 
@@ -150,16 +151,39 @@ export class EmailLearningService {
     
     console.log(`[EmailLearning] Starting initial learning for user ${userId} with max ${maxEmails} emails`);
 
+    // Check learning exemption eligibility
+    const { aiUsageService } = await import('@/lib/services/ai-usage-service');
+    const eligibility = await aiUsageService.checkLearningExemptionEligibility(userId, organizationId);
+    
+    if (!eligibility.eligible) {
+      throw new Error(`Learning exemption not available: ${eligibility.reason}`);
+    }
+
+    // Create learning session for exemption tracking
+    const sessionResult = await aiUsageService.createLearningSession(
+      userId, 
+      organizationId, 
+      'initial', 
+      maxEmails
+    );
+    
+    if (!sessionResult.sessionId) {
+      throw new Error(`Failed to create learning session: ${sessionResult.error}`);
+    }
+
+    const sessionId = sessionResult.sessionId;
+    console.log(`[EmailLearning] Created learning session ${sessionId} with exemption for ${maxEmails} emails`);
+
     try {
       await this.initializeModelRouter(userId, organizationId);
       
       // 1. Get user's learning configuration
       const learningConfig = await this.getUserLearningConfig(userId);
       
-      // 2. Fetch email pairs (received emails with their responses)
+      // 2. Fetch email pairs (received emails with their responses) - increased to 5000
       const emailPairs = await this.fetchEmailPairsForLearning(
         userId, 
-        Math.min(maxEmails, learningConfig.max_emails_to_analyze),
+        Math.min(maxEmails, learningConfig.max_emails_to_analyze || 5000),
         learningConfig,
         organizationId
       );
@@ -233,7 +257,33 @@ export class EmailLearningService {
         recommendations.push('More email interactions needed for better pattern recognition.');
       }
 
-      console.log(`[EmailLearning] Initial learning completed. Found ${savedPatterns} patterns with quality score ${qualityScore}`);
+      // Log usage with learning exemption (doesn't count against limits)
+      await aiUsageService.logUsageWithLearningExemption({
+        organizationId: organizationId || '',
+        userId,
+        messageType: 'initial_learning',
+        tokensUsed: totalTokens,
+        costUsd: totalCost,
+        featureUsed: 'email_learning',
+        metadata: {
+          emails_analyzed: emailPairs.length,
+          patterns_created: savedPatterns,
+          session_type: 'initial_learning'
+        },
+        isInitialLearning: true,
+        learningSessionId: sessionId,
+        exemptFromLimits: true
+      });
+
+      // Update learning session with final results
+      await aiUsageService.updateLearningSession(sessionId, {
+        totalEmailsProcessed: emailPairs.length,
+        totalTokensUsed: totalTokens,
+        totalCostUsd: totalCost,
+        status: 'completed'
+      });
+
+      console.log(`[EmailLearning] Initial learning completed. Found ${savedPatterns} patterns with quality score ${qualityScore} (EXEMPT from limits)`);
 
       return {
         patterns_found: savedPatterns,
@@ -246,7 +296,358 @@ export class EmailLearningService {
 
     } catch (error) {
       console.error('[EmailLearning] Error during initial learning:', error);
+      
+      // Mark session as failed
+      try {
+        await aiUsageService.updateLearningSession(sessionId, {
+          status: 'failed'
+        });
+      } catch (updateError) {
+        console.error('[EmailLearning] Failed to update session status:', updateError);
+      }
+      
       throw new Error(`Learning failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Progress-tracking version of initial learning with pre-selected email IDs
+   */
+  async performInitialLearningWithProgress(
+    userId: string, 
+    organizationId?: string,
+    maxEmails: number = 5000,
+    progressCallback?: (progress: number, message?: string) => Promise<void>,
+    preSelectedEmailIds?: string[]
+  ): Promise<LearningAnalysis> {
+    const startTime = Date.now();
+    let totalCost = 0;
+    let totalTokens = 0;
+    
+    console.log(`[EmailLearning] Starting progress-tracked learning for user ${userId} with ${preSelectedEmailIds ? preSelectedEmailIds.length : maxEmails} emails`);
+
+    // Progress tracking
+    if (progressCallback) {
+      await progressCallback(5, 'Initializing learning configuration...');
+    }
+
+    try {
+      // Check learning exemption eligibility
+      const { aiUsageService } = await import('@/lib/services/ai-usage-service');
+      const eligibility = await aiUsageService.checkLearningExemptionEligibility(userId, organizationId);
+      
+      if (!eligibility.eligible) {
+        throw new Error(`Learning not available: ${eligibility.reason}`);
+      }
+
+      // Create a learning session for tracking
+      const sessionId = await aiUsageService.createLearningSession({
+        organizationId: organizationId || '',
+        userId,
+        sessionType: 'initial_learning_with_progress',
+        metadata: {
+          max_emails: maxEmails,
+          pre_selected_emails: preSelectedEmailIds?.length || 0
+        }
+      });
+
+      if (progressCallback) {
+        await progressCallback(10, 'Loading learning configuration...');
+      }
+
+      // 1. Get user's learning configuration
+      const learningConfig = await this.getUserLearningConfig(userId);
+      
+      if (progressCallback) {
+        await progressCallback(15, 'Fetching email data...');
+      }
+
+      let emailPairs: any[];
+      
+      if (preSelectedEmailIds && preSelectedEmailIds.length > 0) {
+        // Use pre-selected emails from smart selection
+        emailPairs = await this.fetchEmailPairsFromSelectedIds(
+          userId,
+          preSelectedEmailIds,
+          learningConfig,
+          organizationId
+        );
+      } else {
+        // Fall back to original method
+        emailPairs = await this.fetchEmailPairsForLearning(
+          userId, 
+          Math.min(maxEmails, learningConfig.max_emails_to_analyze || 5000),
+          learningConfig,
+          organizationId
+        );
+      }
+      
+      console.log(`[EmailLearning] Found ${emailPairs.length} email pairs to analyze`);
+      
+      if (emailPairs.length === 0) {
+        if (progressCallback) {
+          await progressCallback(100, 'No email pairs found for learning');
+        }
+        return {
+          patterns_found: 0,
+          quality_score: 0,
+          recommendations: ['No email pairs found for learning. Send and receive more emails to improve learning.'],
+          processing_time_ms: Date.now() - startTime,
+          cost_usd: 0,
+          tokens_used: 0
+        };
+      }
+
+      if (progressCallback) {
+        await progressCallback(25, `Analyzing ${emailPairs.length} email pairs...`);
+      }
+
+      // 3. Group email pairs by language for better pattern recognition
+      const languageGroups = this.groupEmailPairsByLanguage(emailPairs);
+      console.log(`[EmailLearning] Language distribution:`, Object.keys(languageGroups).map(lang => `${lang}: ${languageGroups[lang].length}`).join(', '));
+
+      // 4. Analyze patterns separately for each language
+      const batchSize = 10; // Process 10 email pairs at a time
+      const patterns: EmailLearningPattern[] = [];
+      const recommendations: string[] = [];
+      let processedBatches = 0;
+      let totalBatches = 0;
+
+      // Count total batches
+      for (const langEmailPairs of Object.values(languageGroups)) {
+        totalBatches += Math.ceil(langEmailPairs.length / batchSize);
+      }
+
+      for (const [language, langEmailPairs] of Object.entries(languageGroups)) {
+        console.log(`[EmailLearning] Processing ${langEmailPairs.length} ${language} email pairs...`);
+        
+        for (let i = 0; i < langEmailPairs.length; i += batchSize) {
+          const batch = langEmailPairs.slice(i, i + batchSize);
+          processedBatches++;
+          
+          if (progressCallback) {
+            const progress = Math.min(90, 25 + (processedBatches / totalBatches) * 60);
+            await progressCallback(progress, `Processing ${language} patterns (batch ${processedBatches}/${totalBatches})`);
+          }
+          
+          console.log(`[EmailLearning] Processing ${language} batch ${Math.floor(i/batchSize) + 1}/${Math.ceil(langEmailPairs.length/batchSize)}`);
+          
+          const batchResult = await this.analyzeBatchPatterns(batch, userId, organizationId, language);
+          patterns.push(...batchResult.patterns);
+          recommendations.push(...batchResult.recommendations);
+          totalCost += batchResult.cost_usd;
+          totalTokens += batchResult.tokens_used;
+          
+          // Small delay to prevent rate limiting
+          if (i + batchSize < langEmailPairs.length) {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
+        }
+      }
+
+      if (progressCallback) {
+        await progressCallback(90, 'Saving learned patterns...');
+      }
+
+      // 5. Merge similar patterns to avoid duplication
+      const mergedPatterns = await this.mergeSimilarPatterns(patterns, 0.8);
+      
+      // 6. Save patterns to database
+      const savedPatterns = await this.saveLearnedPatterns(mergedPatterns, userId, organizationId);
+
+      if (progressCallback) {
+        await progressCallback(95, 'Finalizing learning session...');
+      }
+
+      // 7. Record analytics
+      await this.recordLearningAnalytics(userId, organizationId, {
+        session_start: new Date(startTime).toISOString(),
+        emails_analyzed: emailPairs.length,
+        patterns_discovered: savedPatterns,
+        languages_detected: Object.keys(languageGroups),
+        cost_usd: totalCost,
+        tokens_used: totalTokens
+      });
+
+      // 8. Calculate quality score
+      const qualityScore = this.calculateLearningQuality(mergedPatterns);
+      
+      // Add quality-based recommendations
+      if (qualityScore < 0.6) {
+        recommendations.push('Learning quality could be improved. Try to maintain consistent communication styles.');
+      }
+      if (patterns.length < 5) {
+        recommendations.push('More email interactions needed for better pattern recognition.');
+      }
+
+      // Log usage with learning exemption (doesn't count against limits)
+      await aiUsageService.logUsageWithLearningExemption({
+        organizationId: organizationId || '',
+        userId,
+        messageType: 'initial_learning_with_progress',
+        tokensUsed: totalTokens,
+        costUsd: totalCost,
+        featureUsed: 'email_learning',
+        metadata: {
+          emails_analyzed: emailPairs.length,
+          patterns_created: savedPatterns,
+          session_type: 'initial_learning_with_progress',
+          pre_selected_emails: preSelectedEmailIds?.length || 0
+        },
+        isInitialLearning: true,
+        learningSessionId: sessionId,
+        exemptFromLimits: true
+      });
+
+      // Update learning session with final results
+      await aiUsageService.updateLearningSession(sessionId, {
+        totalEmailsProcessed: emailPairs.length,
+        totalTokensUsed: totalTokens,
+        totalCostUsd: totalCost,
+        status: 'completed'
+      });
+
+      if (progressCallback) {
+        await progressCallback(100, `Learning completed! Found ${savedPatterns} patterns`);
+      }
+
+      console.log(`[EmailLearning] Progress-tracked learning completed. Found ${savedPatterns} patterns with quality score ${qualityScore} (EXEMPT from limits)`);
+
+      return {
+        patterns_found: savedPatterns,
+        quality_score: qualityScore,
+        recommendations,
+        processing_time_ms: Date.now() - startTime,
+        cost_usd: totalCost,
+        tokens_used: totalTokens
+      };
+
+    } catch (error) {
+      console.error('[EmailLearning] Error during progress-tracked learning:', error);
+      
+      if (progressCallback) {
+        await progressCallback(100, `Learning failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+      
+      throw new Error(`Learning failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Fetch email pairs from pre-selected email IDs
+   */
+  private async fetchEmailPairsFromSelectedIds(
+    userId: string,
+    emailIds: string[],
+    learningConfig: any,
+    organizationId?: string
+  ): Promise<EmailPair[]> {
+    const emailPairs: EmailPair[] = [];
+    
+    console.log(`[EmailLearning] Fetching email pairs from ${emailIds.length} pre-selected emails`);
+    
+    // Process emails in batches to avoid overwhelming the database
+    const batchSize = 50;
+    for (let i = 0; i < emailIds.length; i += batchSize) {
+      const batch = emailIds.slice(i, i + batchSize);
+      
+      // Get email details from email_index
+      const { data: emailsData, error: emailsError } = await this.supabase
+        .from('email_index')
+        .select(`
+          id,
+          message_id,
+          subject,
+          sender_email,
+          received_at,
+          folder_name,
+          email_account_id
+        `)
+        .in('id', batch)
+        .eq('email_accounts.user_id', userId);
+      
+      if (emailsError || !emailsData) {
+        console.error('[EmailLearning] Error fetching selected emails:', emailsError);
+        continue;
+      }
+      
+      // For each email, try to find its response if it was received
+      for (const email of emailsData) {
+        if (email.folder_name?.toLowerCase().includes('inbox') || 
+            email.folder_name?.toLowerCase().includes('received')) {
+          
+          // This is a received email, look for a sent response
+          const responseDate = new Date(new Date(email.received_at).getTime() + 7 * 24 * 60 * 60 * 1000);
+          
+          const { data: sentResponses, error: responseError } = await this.supabase
+            .from('email_index')
+            .select('*')
+            .eq('email_account_id', email.email_account_id)
+            .in('folder_name', ['SENT', 'Sent', 'sent', 'Sent Items'])
+            .gte('received_at', email.received_at)
+            .lte('received_at', responseDate.toISOString())
+            .or(`subject.ilike.%${email.subject?.replace('Re: ', '').replace('RE: ', '')}%`)
+            .order('received_at', { ascending: true })
+            .limit(1);
+          
+          // Get content for both emails
+          const receivedContent = await this.getEmailContentById(email.message_id);
+          let sentContent = null;
+          
+          if (sentResponses && sentResponses.length > 0) {
+            sentContent = await this.getEmailContentById(sentResponses[0].message_id);
+          }
+          
+          const emailPair: EmailPair = {
+            received_email: {
+              id: email.message_id,
+              subject: email.subject || '',
+              body: receivedContent || '',
+              sender: email.sender_email || '',
+              received_at: email.received_at
+            }
+          };
+          
+          if (sentContent && sentResponses && sentResponses.length > 0) {
+            emailPair.sent_response = {
+              id: sentResponses[0].message_id,
+              subject: sentResponses[0].subject || '',
+              body: sentContent,
+              sent_at: sentResponses[0].received_at
+            };
+          }
+          
+          // Only include pairs with responses for learning
+          if (emailPair.sent_response) {
+            emailPairs.push(emailPair);
+          }
+        }
+      }
+    }
+    
+    console.log(`[EmailLearning] Created ${emailPairs.length} email pairs from ${emailIds.length} selected emails`);
+    return emailPairs;
+  }
+
+  /**
+   * Get email content by message ID from content cache
+   */
+  private async getEmailContentById(messageId: string): Promise<string | null> {
+    try {
+      const { data: contentData, error } = await this.supabase
+        .from('email_content_cache')
+        .select('plain_content, html_content')
+        .eq('message_id', messageId)
+        .single();
+      
+      if (error || !contentData) {
+        return null;
+      }
+      
+      return contentData.plain_content || contentData.html_content || null;
+    } catch (error) {
+      console.error('[EmailLearning] Error fetching email content:', error);
+      return null;
     }
   }
 

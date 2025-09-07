@@ -193,7 +193,7 @@ export class ModelRouterService {
     
     // Use enhanced model selection with learning
     const taskType = this.extractTaskType(message);
-    const suggestedModel = await this.selectModelWithLearning(complexity, taskType);
+    const suggestedModel = await this.selectModelWithLearning(complexity, taskType, context);
     const alternatives = this.getAlternativeModels(complexity, suggestedModel);
     const estimatedTokens = this.estimateTokenUsage(message, complexity);
     const estimatedCost = this.calculateCost(estimatedTokens, suggestedModel);
@@ -232,6 +232,60 @@ export class ModelRouterService {
     }
     
     return 'general';
+  }
+
+  /**
+   * Enhanced context analysis to detect ERP/external data needs
+   */
+  private analyzeContext(message: string, context?: any): number {
+    let score = 0;
+    const lowerMessage = message.toLowerCase();
+    
+    // ERP Integration indicators (HIGH COMPLEXITY - Force GPT-4o)
+    const erpIndicators = [
+      'metakocka', 'magento', 'inventory', 'stock', 'order status',
+      'product availability', 'pricing', 'customer history', 'invoice',
+      'payment status', 'shipping status', 'purchase history', 'account balance',
+      'order tracking', 'delivery status', 'product catalog'
+    ];
+    
+    const hasErpNeeds = erpIndicators.some(indicator => 
+      lowerMessage.includes(indicator)
+    );
+    
+    if (hasErpNeeds) {
+      score += 8; // Force high complexity for ERP needs
+      console.log(`[ModelRouter] ERP integration detected: forcing high complexity`);
+    }
+    
+    // External data indicators
+    if (context?.has_customer_data || 
+        context?.has_sales_context || 
+        context?.requires_external_lookup ||
+        context?.requires_erp_integration) {
+      score += 6;
+      console.log(`[ModelRouter] External data context detected`);
+    }
+    
+    // Complex business logic indicators
+    const businessComplexity = [
+      'analyze sales', 'customer segmentation', 'revenue analysis',
+      'cross-sell', 'upsell', 'business intelligence', 'financial report',
+      'performance metrics', 'data analysis'
+    ];
+    
+    if (businessComplexity.some(term => lowerMessage.includes(term))) {
+      score += 4;
+    }
+    
+    // Multi-step process indicators
+    if (lowerMessage.includes('and then') || 
+        lowerMessage.includes('after that') ||
+        lowerMessage.includes('first') && lowerMessage.includes('second')) {
+      score += 2;
+    }
+    
+    return Math.min(score, 10);
   }
 
   /**
@@ -327,36 +381,6 @@ export class ModelRouterService {
     return Math.min(10, score);
   }
 
-  /**
-   * Context-based complexity analysis
-   */
-  private analyzeContext(message: string, context?: any): number {
-    let score = 3; // Base score
-
-    if (!context) return score;
-
-    // Multi-entity operations
-    if (context.lastEntity && message.toLowerCase().includes('and')) {
-      score += 2;
-    }
-
-    // Recent complex operations
-    if (context.lastAction === 'ANALYZE' || context.lastAction === 'CROSS_ENTITY') {
-      score += 2;
-    }
-
-    // Multiple recent entities
-    if (context.recentlyCreated && Object.keys(context.recentlyCreated).length > 1) {
-      score += 1;
-    }
-
-    // Conversation history complexity
-    if (context.conversationHistory && context.conversationHistory.length > 5) {
-      score += 1;
-    }
-
-    return Math.min(10, score);
-  }
 
   /**
    * Generate human-readable reasoning for complexity analysis
@@ -384,15 +408,29 @@ export class ModelRouterService {
   }
 
   /**
-   * Select the best model for a given complexity level
+   * Enhanced model selection with ERP awareness and proper complexity handling
    */
-  private selectBestModel(complexity: TaskComplexity, userPreference?: string, taskType?: string): string {
+  private selectBestModel(complexity: TaskComplexity, userPreference?: string, taskType?: string, context?: any): string {
     // Check user preference first
     if (userPreference && this.models.has(userPreference)) {
       const model = this.models.get(userPreference)!;
       if (model.suitableFor.includes(complexity)) {
+        console.log(`[ModelRouter] Using user preference: ${userPreference}`);
         return userPreference;
       }
+    }
+    
+    // FORCE GPT-4o for ERP integrations and external data (CRITICAL FIX)
+    if (context?.requires_erp_integration || 
+        context?.has_customer_data ||
+        context?.has_sales_context ||
+        context?.requires_external_lookup ||
+        taskType?.includes('erp_') ||
+        taskType?.includes('metakocka') ||
+        taskType?.includes('magento') ||
+        taskType?.includes('external_data')) {
+      console.log(`[ModelRouter] ERP/External data detected - forcing GPT-4o`);
+      return 'gpt-4o';
     }
     
     // Special case for email learning tasks - always prefer GPT-4o-mini
@@ -400,28 +438,23 @@ export class ModelRouterService {
         (taskType.includes('email_learning') || 
          taskType.includes('pattern_extraction') || 
          taskType.includes('pattern_based_draft'))) {
+      console.log(`[ModelRouter] Email learning task - using GPT-4o-mini`);
       return 'gpt-4o-mini';
     }
 
-    // Get models suitable for this complexity
-    const suitableModels = Array.from(this.models.values())
-      .filter(model => model.suitableFor.includes(complexity))
-      .sort((a, b) => {
-        // Sort by cost efficiency (accuracy/cost ratio)
-        const aEfficiency = a.capabilities.accuracy / a.costPer1kTokens;
-        const bEfficiency = b.capabilities.accuracy / b.costPer1kTokens;
-        return bEfficiency - aEfficiency;
-      });
-
-    // Default selection logic
+    // Enhanced selection logic based on complexity
     switch (complexity) {
       case TaskComplexity.SIMPLE:
-        return suitableModels.find(m => m.id === 'gpt-4o-mini')?.id || 'gpt-3.5-turbo';
+        console.log(`[ModelRouter] Simple task - using GPT-4o-mini`);
+        return 'gpt-4o-mini';
       case TaskComplexity.STANDARD:
-        return suitableModels.find(m => m.id === 'gpt-4o-mini')?.id || 'gpt-4o';
+        console.log(`[ModelRouter] Standard task - using GPT-4o-mini`);
+        return 'gpt-4o-mini'; // Still prefer mini for cost efficiency
       case TaskComplexity.COMPLEX:
-        return suitableModels.find(m => m.id === 'gpt-4o-mini')?.id || 'gpt-4o';
+        console.log(`[ModelRouter] Complex task - using GPT-4o`);
+        return 'gpt-4o'; // Use GPT-4o for truly complex tasks
       default:
+        console.log(`[ModelRouter] Default fallback - using GPT-4o-mini`);
         return 'gpt-4o-mini';
     }
   }
@@ -736,45 +769,15 @@ export class ModelRouterService {
   }
 
   /**
-   * Enhanced model selection with user preference learning
+   * Enhanced model selection with user preference learning and context awareness
    */
   async selectModelWithLearning(
     complexity: TaskComplexity,
     taskType: string = 'general',
+    context?: any,
     userPreference?: string
   ): Promise<string> {
-    // Special case for email learning tasks - always prefer GPT-4o-mini
-    if (taskType && 
-        (taskType.includes('email_learning') || 
-         taskType.includes('pattern_extraction') || 
-         taskType.includes('pattern_based_draft'))) {
-      return 'gpt-4o-mini';
-    }
-    
-    // If user has explicit preference, use it if suitable
-    if (userPreference && this.models.has(userPreference)) {
-      const model = this.models.get(userPreference)!;
-      if (model.suitableFor.includes(complexity)) {
-        return userPreference;
-      }
-    }
-
-    // Get user's historically preferred models
-    const preferredModels = await this.getUserPreferredModels(taskType, complexity);
-    
-    // If user has preferred models for this context, prioritize them
-    if (preferredModels.length > 0) {
-      const suitablePreferred = preferredModels.filter(modelId => {
-        const model = this.models.get(modelId);
-        return model && model.suitableFor.includes(complexity);
-      });
-      
-      if (suitablePreferred.length > 0) {
-        return suitablePreferred[0]; // Return top preferred model
-      }
-    }
-
-    // Fall back to performance-based recommendation
-    return this.getRecommendedModel(complexity, taskType);
+    // Use the enhanced selectBestModel method which handles ERP detection
+    return this.selectBestModel(complexity, userPreference, taskType, context);
   }
 }

@@ -47,7 +47,8 @@ import {
   EyeOff,
   FileText,
   FileSpreadsheet,
-  Image
+  Image,
+  RefreshCw
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -70,8 +71,12 @@ export default function OptimizedEmailDetail({
   onDelete,
   onBack
 }: OptimizedEmailDetailProps) {
+  console.log('🔥 [OptimizedEmailDetail] Component rendered with messageId:', messageId);
+  
   const { content, loading, error, reload } = useEmailContent(messageId);
   const [showFullHeaders, setShowFullHeaders] = useState(false);
+  
+  console.log('🔥 [OptimizedEmailDetail] Content state:', { content: !!content, loading, error });
   const [updatingReadStatus, setUpdatingReadStatus] = useState(false);
 
   const handleToggleReadStatus = async () => {
@@ -468,7 +473,30 @@ export default function OptimizedEmailDetail({
                   <div className="text-center py-8 text-gray-500">
                     <Mail className="h-8 w-8 mx-auto mb-2 opacity-50" />
                     <p>No content available</p>
-                    <p className="text-xs mt-2">This email may not have been synced yet</p>
+                    <p className="text-xs mt-2">This email content hasn't been cached yet.</p>
+                    <p className="text-xs mt-1">Try loading the content or refreshing the email list.</p>
+                    <div className="flex gap-2 mt-3">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={async () => {
+                          console.log('🔄 Force reloading email content...');
+                          await reload(); // This will trigger the API call with IMAP fallback
+                        }}
+                        disabled={loading}
+                      >
+                        <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+                        {loading ? 'Loading...' : 'Load Content'}
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => window.location.reload()}
+                      >
+                        <RefreshCw className="h-4 w-4 mr-2" />
+                        Refresh Page
+                      </Button>
+                    </div>
                   </div>
                 )}
               </div>

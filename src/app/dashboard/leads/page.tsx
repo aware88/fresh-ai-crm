@@ -54,6 +54,13 @@ import {
   Clock
 } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
+import { H1, Lead } from '@/components/ui/typography';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { StatusBadge } from '@/components/ui/status-badge';
+import { Skeleton } from '@/components/ui/skeleton';
+import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
+import { ARISLeads } from '@/components/leads/ARISLeads';
+import { EnhancedARISLeads } from '@/components/leads/EnhancedARISLeads';
 
 interface LeadScore {
   id: string;
@@ -102,6 +109,7 @@ export default function LeadsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [qualificationFilter, setQualificationFilter] = useState<string>('all');
   const [scoreFilter, setScoreFilter] = useState<string>('all');
+  const [useARISView, setUseARISView] = useState(true); // Toggle between ARIS and legacy view
   const router = useRouter();
 
   // Load contacts with lead scores
@@ -242,13 +250,50 @@ export default function LeadsPage() {
     });
   };
 
+  // Show ARIS leads view by default, with option to toggle to legacy view
+  if (useARISView) {
+    return (
+      <div className="space-y-6">
+        {/* View Toggle */}
+        <div className="flex justify-between items-center">
+          <div>
+            <H1 className="text-3xl">Leads</H1>
+            <Lead>Manage and track your sales prospects</Lead>
+          </div>
+          <Button 
+            variant="outline" 
+            onClick={() => setUseARISView(false)}
+            className="hover-lift"
+          >
+            Switch to Lead Scoring View
+          </Button>
+        </div>
+
+        {/* ARIS Leads View */}
+        <ARISLeads contacts={contacts} loading={loading} />
+      </div>
+    );
+  }
+
+  // Legacy Lead Scoring View (preserved completely)
   return (
     <div className="space-y-6">
+      {/* View Toggle */}
+      <div className="flex justify-end mb-4">
+        <Button 
+          variant="outline" 
+          onClick={() => setUseARISView(true)}
+          className="hover-lift"
+        >
+          Switch to ARIS View
+        </Button>
+      </div>
+
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Lead Scoring</h1>
-        <p className="text-muted-foreground">
+        <H1 className="text-3xl">Lead Scoring</H1>
+        <Lead>
           AI-powered lead qualification and scoring to prioritize your best prospects
-        </p>
+        </Lead>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -423,11 +468,18 @@ export default function LeadsPage() {
               </div>
 
               {loading ? (
-                <div className="flex justify-center items-center py-12">
-                  <div className="flex flex-col items-center space-y-4">
-                    <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
-                    <p className="text-gray-500">Loading lead scores...</p>
-                  </div>
+                <div className="space-y-4">
+                  {[1, 2, 3, 4, 5].map((i) => (
+                    <div key={i} className="flex items-center space-x-4 p-4">
+                      <Skeleton className="h-12 w-12 rounded-full" />
+                      <div className="space-y-2 flex-1">
+                        <Skeleton className="h-4 w-[250px]" />
+                        <Skeleton className="h-4 w-[200px]" />
+                      </div>
+                      <Skeleton className="h-8 w-[100px]" />
+                      <Skeleton className="h-8 w-[80px]" />
+                    </div>
+                  ))}
                 </div>
               ) : filteredContacts.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -492,11 +544,9 @@ export default function LeadsPage() {
                           </div>
                         </TableCell>
                         <TableCell>
-                          <Badge 
-                            className={`${getQualificationColor(contact.lead_score?.qualification_status || 'unqualified')} text-white`}
-                          >
+                          <StatusBadge status={contact.lead_score?.qualification_status || 'unqualified'}>
                             {contact.lead_score?.qualification_status?.toUpperCase() || 'UNQUALIFIED'}
-                          </Badge>
+                          </StatusBadge>
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">

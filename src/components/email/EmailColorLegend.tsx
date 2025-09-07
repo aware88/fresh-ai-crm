@@ -6,7 +6,7 @@
 import React, { useState } from 'react';
 import { HelpCircle, User, DollarSign, AlertTriangle, CreditCard, Bot } from 'lucide-react';
 import {
-  TooltipRoot,
+  Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
@@ -70,7 +70,7 @@ const colorLegend: ColorItem[] = [
 export function EmailColorLegend() {
   return (
     <TooltipProvider>
-      <TooltipRoot>
+      <Tooltip>
         <TooltipTrigger asChild>
           <button className="h-8 w-8 p-0 text-gray-500 hover:text-gray-700 bg-transparent border-none cursor-pointer">
             <HelpCircle className="h-4 w-4" />
@@ -117,7 +117,7 @@ export function EmailColorLegend() {
             </CardContent>
           </Card>
         </TooltipContent>
-      </TooltipRoot>
+      </Tooltip>
     </TooltipProvider>
   );
 }

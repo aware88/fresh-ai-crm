@@ -4,6 +4,12 @@ import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  InputOTP,
+  InputOTPGroup,
+  InputOTPSeparator,
+  InputOTPSlot,
+} from "@/components/ui/input-otp";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, AlertCircle, CheckCircle, Copy, RefreshCw, ShieldCheck } from "lucide-react";
@@ -275,15 +281,24 @@ export function TwoFactorAuthSetup({ userId, userEmail }: TwoFactorAuthSetupProp
               <p className="text-sm text-muted-foreground">
                 Enter a verification code from your authenticator app to disable 2FA.
               </p>
-              <div className="flex gap-2">
-                <Input
-                  type="text"
-                  placeholder="Enter 6-digit code"
+              <div className="flex gap-4 items-center">
+                <InputOTP
                   value={token}
-                  onChange={(e) => setToken(e.target.value)}
+                  onChange={(value) => setToken(value)}
                   maxLength={6}
-                  className="w-40"
-                />
+                >
+                  <InputOTPGroup>
+                    <InputOTPSlot index={0} />
+                    <InputOTPSlot index={1} />
+                    <InputOTPSlot index={2} />
+                  </InputOTPGroup>
+                  <InputOTPSeparator />
+                  <InputOTPGroup>
+                    <InputOTPSlot index={3} />
+                    <InputOTPSlot index={4} />
+                    <InputOTPSlot index={5} />
+                  </InputOTPGroup>
+                </InputOTP>
                 <Button 
                   variant="destructive" 
                   onClick={disable2FA}
@@ -380,15 +395,24 @@ export function TwoFactorAuthSetup({ userId, userEmail }: TwoFactorAuthSetupProp
               <p className="text-sm text-muted-foreground">
                 Enter the verification code from your authenticator app to complete setup.
               </p>
-              <div className="flex gap-2">
-                <Input
-                  type="text"
-                  placeholder="Enter 6-digit code"
+              <div className="flex gap-4 items-center">
+                <InputOTP
                   value={token}
-                  onChange={(e) => setToken(e.target.value)}
+                  onChange={(value) => setToken(value)}
                   maxLength={6}
-                  className="w-40"
-                />
+                >
+                  <InputOTPGroup>
+                    <InputOTPSlot index={0} />
+                    <InputOTPSlot index={1} />
+                    <InputOTPSlot index={2} />
+                  </InputOTPGroup>
+                  <InputOTPSeparator />
+                  <InputOTPGroup>
+                    <InputOTPSlot index={3} />
+                    <InputOTPSlot index={4} />
+                    <InputOTPSlot index={5} />
+                  </InputOTPGroup>
+                </InputOTP>
                 <Button 
                   onClick={verifyToken}
                   disabled={loading || token.length !== 6}

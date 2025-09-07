@@ -22,13 +22,13 @@ interface OrganizationBranding {
   organization_name?: string;
 }
 
-// ARIS Default Colors
+// ARIS Default Colors - Updated to new ARIS design system
 const ARIS_DEFAULTS = {
-  primary: '#3b82f6',      // ARIS Blue
-  secondary: '#8b5cf6',    // ARIS Purple  
-  dark: '#2563eb',         // Darker ARIS Blue
-  gradientStart: '#3b82f6', // ARIS gradient start
-  gradientEnd: '#8b5cf6',   // ARIS gradient end
+  primary: '#0099FF',      // New ARIS Blue hsl(210 100% 50%)
+  secondary: '#66B3FF',    // Lighter ARIS Blue
+  dark: '#0077CC',         // Darker ARIS Blue
+  gradientStart: '#0099FF', // ARIS gradient start
+  gradientEnd: '#66B3FF',   // ARIS gradient end
 };
 
 // Predefined organization themes (for organizations with custom branding)

@@ -207,4 +207,185 @@ export async function GET(request: Request) {
       { status: 500 }
     );
   }
+}
+
+// POST handler for fetching a single email by message ID
+export async function POST(request: Request) {
+  try {
+    // Check if the user is authenticated
+    const session = await getServerSession();
+    
+    if (!session || !session.user?.id) {
+      return NextResponse.json(
+        { success: false, error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    // Get request body
+    const { accountId, messageId, folder = 'INBOX' } = await request.json();
+    
+    if (!accountId || !messageId) {
+      return NextResponse.json(
+        { success: false, error: 'Account ID and Message ID are required' },
+        { status: 400 }
+      );
+    }
+
+    console.log(`📧 [IMAP-Fetch] POST request for messageId: ${messageId}, accountId: ${accountId}, folder: ${folder}`);
+
+    // Get Supabase client
+    const supabase = createServiceRoleClient();
+
+    // First, find the email in our index to get IMAP UID and verify access
+    const { data: emailIndex, error: indexError } = await supabase
+      .from('email_index')
+      .select('*, email_accounts!inner(*)')
+      .eq('message_id', messageId)
+      .eq('email_account_id', accountId)
+      .eq('email_accounts.user_id', session.user.id)
+      .single();
+
+    if (indexError || !emailIndex) {
+      console.log(`⚠️ [IMAP-Fetch] Email not found in index: ${messageId}`);
+      return NextResponse.json(
+        { success: false, error: 'Email not found or access denied' },
+        { status: 404 }
+      );
+    }
+
+    const account = emailIndex.email_accounts;
+
+    // Only proceed if this is an IMAP account
+    if (account.provider_type !== 'imap') {
+      console.log(`📧 [IMAP-Fetch] Skipping non-IMAP account: ${account.provider_type}`);
+      return NextResponse.json(
+        { success: false, error: 'This endpoint only supports IMAP accounts' },
+        { status: 400 }
+      );
+    }
+
+    // Decrypt the password
+    let password;
+    try {
+      password = decryptPassword(account.password_encrypted);
+    } catch (error) {
+      console.error('Failed to decrypt password:', error);
+      return NextResponse.json(
+        { success: false, error: 'Failed to decrypt stored credentials' },
+        { status: 500 }
+      );
+    }
+
+    // Configure IMAP client (same as GET handler)
+    const secure = account.imap_security === 'SSL/TLS';
+    const requireTLS = account.imap_security === 'STARTTLS';
+    
+    const clientOptions: any = {
+      host: account.imap_host,
+      port: account.imap_port || 993,
+      secure,
+      auth: {
+        user: account.username || account.email,
+        pass: password,
+      },
+      logger: false,
+      connectTimeout: 30000,
+      tls: {
+        rejectUnauthorized: false // Allow self-signed or mismatched certificates
+      }
+    };
+    
+    if (requireTLS) {
+      clientOptions.requireTLS = true;
+    }
+
+    const client = new ImapFlow(clientOptions);
+
+    try {
+      console.log(`📧 [IMAP-Fetch] Connecting to ${account.email} to fetch single message...`);
+      await client.connect();
+      
+      // Open the specified folder
+      await client.mailboxOpen(emailIndex.folder_name || folder);
+      
+      // Fetch the specific message by UID if available, otherwise by sequence number
+      let message;
+      if (emailIndex.imap_uid) {
+        console.log(`📧 [IMAP-Fetch] Fetching by UID: ${emailIndex.imap_uid}`);
+        message = await client.fetchOne(emailIndex.imap_uid, {
+          source: true,
+          envelope: true,
+          flags: true,
+          uid: true
+        });
+      } else {
+        // Fallback: search for message by Message-ID header
+        console.log(`📧 [IMAP-Fetch] Searching by Message-ID header: ${messageId}`);
+        const searchResults = await client.search({
+          header: ['message-id', messageId]
+        });
+        
+        if (searchResults.length === 0) {
+          await client.logout();
+          return NextResponse.json(
+            { success: false, error: 'Message not found on server' },
+            { status: 404 }
+          );
+        }
+        
+        message = await client.fetchOne(searchResults[0], {
+          source: true,
+          envelope: true,
+          flags: true
+        });
+      }
+      
+      if (!message || !message.source) {
+        await client.logout();
+        return NextResponse.json(
+          { success: false, error: 'Failed to retrieve message content' },
+          { status: 404 }
+        );
+      }
+      
+      // Parse the email content
+      const parsed = await simpleParser(message.source.toString());
+      
+      console.log(`✅ [IMAP-Fetch] Successfully fetched and parsed message: ${parsed.subject}`);
+      
+      // Return the content in the expected format
+      const emailContent = {
+        messageId: messageId,
+        html: parsed.html || null,
+        text: parsed.text || null,
+        raw: message.source.toString(),
+        attachments: parsed.attachments?.map(att => ({
+          filename: att.filename,
+          contentType: att.contentType,
+          size: att.size || att.content?.length || 0,
+          cid: att.cid || null
+        })) || []
+      };
+      
+      return NextResponse.json({
+        success: true,
+        ...emailContent
+      });
+      
+    } finally {
+      try {
+        await client.logout();
+      } catch (error) {
+        console.error('Error closing IMAP connection:', error);
+      }
+    }
+
+  } catch (error: any) {
+    console.error('Error in IMAP fetch POST:', error);
+    return NextResponse.json(
+      { success: false, error: error.message || 'Failed to fetch email content' },
+      { status: 500 }
+    );
+  }
 } 

@@ -73,6 +73,16 @@ export interface DraftingResult {
     languageDetected: string;
     versionNumber: number;
   };
+  modelInfo?: {
+    id: string;
+    name: string;
+    reasoning: string[];
+    cost: number;
+    tokensUsed: number;
+    alternatives?: string[];
+    complexity: string;
+    erpIntegrationDetected?: boolean;
+  };
   error?: string;
 }
 
@@ -153,6 +163,9 @@ export class UnifiedAIDraftingService {
       
       console.log(`[UnifiedDrafting] Draft generated successfully - ${tokensUsed} tokens, $${costUsd.toFixed(4)}`);
       
+      // Get model configuration for display
+      const modelConfig = this.modelRouter.getModel(modelSelection.model);
+      
       return {
         success: true,
         draft: {
@@ -170,6 +183,16 @@ export class UnifiedAIDraftingService {
           contextSources,
           languageDetected: comprehensiveContext.detectedLanguage,
           versionNumber
+        },
+        modelInfo: {
+          id: modelSelection.model,
+          name: modelConfig?.name || modelSelection.model,
+          reasoning: Array.isArray(modelSelection.reasoning) ? modelSelection.reasoning : [modelSelection.reasoning],
+          cost: costUsd,
+          tokensUsed,
+          alternatives: modelSelection.alternatives || [],
+          complexity: modelSelection.complexity || 'unknown',
+          erpIntegrationDetected: modelSelection.erpIntegrationDetected || false
         }
       };
 
@@ -570,7 +593,7 @@ ${context.originalEmail.body}`;
 
   /**
    * MODEL SELECTION
-   * Uses ModelRouterService for intelligent model selection
+   * Uses ModelRouterService for intelligent model selection with ERP detection
    */
   private async selectOptimalModel(context: DraftingContext, comprehensiveContext: any) {
     try {
@@ -578,10 +601,16 @@ ${context.originalEmail.body}`;
       if (context.settings?.model) {
         return {
           model: context.settings.model,
-          reasoning: 'User override'
+          reasoning: ['User override'],
+          complexity: 'user_selected',
+          erpIntegrationDetected: false,
+          alternatives: []
         };
       }
 
+      // Detect ERP integration needs
+      const erpIntegration = this.detectErpIntegrationNeeds(context.originalEmail, comprehensiveContext);
+      
       // Use model router for intelligent selection
       const complexity = this.assessTaskComplexity(context, comprehensiveContext);
       const selection = await this.modelRouter.analyzeTaskComplexity(
@@ -590,22 +619,86 @@ ${context.originalEmail.body}`;
           task_type: 'email_drafting',
           complexity: complexity,
           has_sales_context: !!context.salesContext,
-          has_customer_data: !!comprehensiveContext.contactContext
+          has_customer_data: !!comprehensiveContext.contactContext,
+          requires_erp_integration: erpIntegration.required,
+          requires_external_lookup: erpIntegration.required || !!comprehensiveContext.contactContext
         }
       );
 
+      console.log(`[UnifiedDrafting] Model selection - Complexity: ${complexity}, ERP: ${erpIntegration.required}, Model: ${selection.suggestedModel}`);
+
       return {
         model: selection.suggestedModel,
-        reasoning: selection.reasoning.join(', ')
+        reasoning: selection.reasoning,
+        complexity: selection.complexity,
+        erpIntegrationDetected: erpIntegration.required,
+        alternatives: selection.alternativeModels,
+        erpSystems: erpIntegration.systems
       };
 
     } catch (error) {
       console.error('[UnifiedDrafting] Error in model selection:', error);
       return {
         model: 'gpt-4o-mini', // Safe fallback
-        reasoning: 'Fallback due to model selection error'
+        reasoning: ['Fallback due to model selection error'],
+        complexity: 'error',
+        erpIntegrationDetected: false,
+        alternatives: []
       };
     }
+  }
+
+  /**
+   * Detect if email requires ERP integration
+   */
+  private detectErpIntegrationNeeds(email: any, context: any): {
+    required: boolean;
+    systems: string[];
+    reasoning: string[];
+  } {
+    const content = `${email.subject} ${email.body}`.toLowerCase();
+    const systems: string[] = [];
+    const reasoning: string[] = [];
+    
+    // Metakocka indicators
+    const metakockaIndicators = [
+      'order status', 'invoice', 'product availability', 'stock level',
+      'pricing', 'delivery', 'payment status', 'account balance',
+      'order tracking', 'shipping status', 'purchase history'
+    ];
+    
+    if (metakockaIndicators.some(indicator => content.includes(indicator))) {
+      systems.push('Metakocka ERP');
+      reasoning.push('Email contains ERP-related queries requiring real-time data');
+    }
+    
+    // Magento indicators
+    const magentoIndicators = [
+      'product catalog', 'customer order', 'shopping cart', 'checkout',
+      'product details', 'category', 'inventory'
+    ];
+    
+    if (magentoIndicators.some(indicator => content.includes(indicator))) {
+      systems.push('Magento');
+      reasoning.push('Email requires e-commerce platform integration');
+    }
+    
+    // Context-based detection
+    if (context.contactContext) {
+      systems.push('Customer Database');
+      reasoning.push('Customer context requires database lookup');
+    }
+    
+    if (context.salesContext) {
+      systems.push('Sales Intelligence');
+      reasoning.push('Sales context requires CRM data integration');
+    }
+    
+    return {
+      required: systems.length > 0,
+      systems,
+      reasoning
+    };
   }
 
   /**

@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { 
@@ -31,6 +30,11 @@ import { useOrganization } from '@/hooks/useOrganization';
 import { formatPriceUSD } from '@/lib/subscription-plans-v2';
 import AnalyticsSummaryCards from '@/components/dashboard/AnalyticsSummaryCards';
 import RecentActivityCards from '@/components/dashboard/RecentActivityCards';
+import { ARISDashboard } from '@/components/dashboard/ARISDashboard';
+import { ModernDashboard } from '@/components/dashboard/ModernDashboard';
+import { EnhancedModernDashboard } from '@/components/dashboard/EnhancedModernDashboard';
+import { Phase2EnhancedDashboard } from '@/components/dashboard/Phase2EnhancedDashboard';
+import { Phase3RefinedDashboard } from '@/components/dashboard/Phase3RefinedDashboard';
 
 
 // Types for dashboard statistics
@@ -57,6 +61,15 @@ export default function DashboardPage() {
   const isWithcar = (organization?.slug?.toLowerCase?.() === 'withcar') || (organization?.name?.toLowerCase?.() === 'withcar') || (organization?.id === '577485fb-50b4-4bb2-a4c6-54b97e1545ad');
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [useARISView, setUseARISView] = useState(true);
+
+  // Load dashboard preference from localStorage
+  useEffect(() => {
+    const savedPreference = localStorage.getItem('useARISView');
+    if (savedPreference !== null) {
+      setUseARISView(JSON.parse(savedPreference));
+    }
+  }, []); // Toggle between ARIS and original legacy view
   const [aiSavings, setAiSavings] = useState<null | {
     time: { minutes: number; hours: number; workDays: number };
     cost: { hourlyRateUsd: number; savedUsd: number };
@@ -77,26 +90,40 @@ export default function DashboardPage() {
       try {
         setLoading(true);
         
-        // Production endpoints
+        // Fetch real data from APIs
         const [dashboardRes, usageRes, emailAccountsRes] = await Promise.all([
           fetch('/api/dashboard/overview').then(r => r.ok ? r.json() : null),
           fetch('/api/usage/dashboard-v2').then(r => r.ok ? r.json() : null),
           fetch('/api/dashboard/email-accounts').then(r => r.ok ? r.json() : null)
         ]);
 
+        // Handle dashboard stats
         if (dashboardRes) {
           const stats: DashboardStats = {
-            totalContacts: dashboardRes.totalContacts,
-            totalSuppliers: dashboardRes.totalSuppliers,
-            totalProducts: dashboardRes.totalProducts,
-            totalOrders: dashboardRes.totalOrders,
+            totalContacts: dashboardRes.totalContacts || 0,
+            totalSuppliers: dashboardRes.totalSuppliers || 0,
+            totalProducts: dashboardRes.totalProducts || 0,
+            totalOrders: dashboardRes.totalOrders || 0,
             emailAccounts: emailAccountsRes?.count || dashboardRes.emailAccounts || 0,
             recentActivity: dashboardRes.recentActivity || []
           };
-          console.log('📊 Dashboard stats:', stats);
+          console.log('📊 Dashboard stats from API:', stats);
           setStats(stats);
+        } else {
+          // No API data available, set empty stats
+          const emptyStats: DashboardStats = {
+            totalContacts: 0,
+            totalSuppliers: 0,
+            totalProducts: 0,
+            totalOrders: 0,
+            emailAccounts: 0,
+            recentActivity: []
+          };
+          console.log('📊 No API data, using empty stats');
+          setStats(emptyStats);
         }
 
+        // Handle usage data if available
         if (usageRes && usageRes.savings) {
           setAiSavings({
             ...usageRes.savings,
@@ -153,8 +180,38 @@ export default function DashboardPage() {
     return colors[color as keyof typeof colors] || 'bg-gray-100 text-gray-700';
   };
 
+  // Show Phase 3 Refined Dashboard by default
+  if (useARISView) {
+    return (
+      <div>
+        {/* Phase 3 Refined Dashboard - Clean, professional, subtle animations */}
+        <Phase3RefinedDashboard 
+          stats={stats}
+          loading={loading}
+          organization={organization}
+          session={session}
+          aiSavings={aiSavings}
+          aiQuality={aiQuality}
+        />
+      </div>
+    );
+  }
+
+  // Legacy Dashboard View (completely original layout)
   return (
-    <div className="space-y-8 min-h-screen pb-8">
+    <>
+      {/* Switch back to original layout for legacy view */}
+      <div className="space-y-8 min-h-screen pb-8">
+        {/* Dashboard Toggle */}
+        <div className="flex justify-end mb-4">
+          <Button 
+            onClick={() => setUseARISView(true)}
+            className="btn-modern hover-lift"
+          >
+            Switch to Modern View
+          </Button>
+        </div>
+
       {/* Hero Section */}
       <div className="text-center py-8 rounded-2xl border border-gray-100 bg-white">
         <h1 className="text-4xl font-bold tracking-tight aris-text-gradient mb-2">
@@ -177,8 +234,6 @@ export default function DashboardPage() {
             </Link>
           </Button>
         </div>
-
-
       </div>
 
       {/* KPI Cards */}
@@ -596,6 +651,7 @@ export default function DashboardPage() {
           </div>
         </TabsContent>
       </Tabs>
-    </div>
+      </div>
+    </>
   );
 }

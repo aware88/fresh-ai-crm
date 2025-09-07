@@ -14,6 +14,9 @@ export interface AIUsageStats {
   currentCost: number;
   periodStart: string;
   periodEnd: string;
+  exemptMessages?: number;
+  exemptTokens?: number;
+  exemptCost?: number;
 }
 
 export interface AILimitCheck {
@@ -52,7 +55,7 @@ export class AIUsageService {
   }: {
     organizationId: string;
     userId: string;
-    messageType: 'email_response' | 'ai_future' | 'profiling' | 'general' | 'drafting';
+    messageType: 'email_response' | 'ai_future' | 'profiling' | 'general' | 'drafting' | 'initial_learning';
     tokensUsed?: number;
     costUsd?: number;
     featureUsed?: string;
@@ -83,15 +86,68 @@ export class AIUsageService {
   }
 
   /**
-   * Get current AI usage stats for an organization
+   * Log AI usage with learning exemption support
+   */
+  async logUsageWithLearningExemption({
+    organizationId,
+    userId,
+    messageType,
+    tokensUsed = 1,
+    costUsd = 0,
+    featureUsed,
+    metadata = {},
+    isInitialLearning = false,
+    learningSessionId,
+    exemptFromLimits = false
+  }: {
+    organizationId: string;
+    userId: string;
+    messageType: 'email_response' | 'ai_future' | 'profiling' | 'general' | 'drafting' | 'initial_learning';
+    tokensUsed?: number;
+    costUsd?: number;
+    featureUsed?: string;
+    metadata?: Record<string, any>;
+    isInitialLearning?: boolean;
+    learningSessionId?: string;
+    exemptFromLimits?: boolean;
+  }): Promise<string | null> {
+    try {
+      const supabase = await this.supabasePromise;
+      const { data, error } = await supabase.rpc('log_ai_usage_with_exemption', {
+        org_id: organizationId,
+        user_id: userId,
+        msg_type: messageType,
+        tokens: tokensUsed,
+        cost: costUsd,
+        feature: featureUsed,
+        metadata: metadata,
+        is_learning: isInitialLearning,
+        learning_session_id: learningSessionId,
+        exempt_from_limits: exemptFromLimits
+      });
+
+      if (error) {
+        console.error('Error logging AI usage with exemption:', error);
+        return null;
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Exception logging AI usage with exemption:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Get current AI usage stats for an organization (excluding exempt learning)
    */
   async getCurrentUsage(organizationId: string): Promise<AIUsageStats | null> {
     try {
       const supabase = await this.supabasePromise;
       
-      // Try RPC function first, fallback to direct query if it fails
+      // Try enhanced RPC function first that excludes exempt usage
       try {
-        const { data, error } = await supabase.rpc('get_current_ai_usage', {
+        const { data, error } = await supabase.rpc('get_current_ai_usage_excluding_exempt', {
           org_id: organizationId
         });
 
@@ -102,11 +158,34 @@ export class AIUsageService {
             currentTokens: usage.current_tokens || 0,
             currentCost: parseFloat(usage.current_cost || '0'),
             periodStart: usage.period_start,
-            periodEnd: usage.period_end
+            periodEnd: usage.period_end,
+            exemptMessages: usage.exempt_messages || 0,
+            exemptTokens: usage.exempt_tokens || 0,
+            exemptCost: parseFloat(usage.exempt_cost || '0')
           };
         }
       } catch (rpcError) {
-        console.error('RPC function failed, using fallback query:', rpcError);
+        console.error('Enhanced RPC function failed, trying fallback:', rpcError);
+        
+        // Fallback to original RPC function
+        try {
+          const { data, error } = await supabase.rpc('get_current_ai_usage', {
+            org_id: organizationId
+          });
+
+          if (!error && data && data.length > 0) {
+            const usage = data[0];
+            return {
+              currentMessages: usage.current_messages || 0,
+              currentTokens: usage.current_tokens || 0,
+              currentCost: parseFloat(usage.current_cost || '0'),
+              periodStart: usage.period_start,
+              periodEnd: usage.period_end
+            };
+          }
+        } catch (fallbackError) {
+          console.error('Fallback RPC function also failed, using direct query:', fallbackError);
+        }
       }
 
       // Fallback: Direct query to get current month usage
@@ -397,6 +476,130 @@ export class AIUsageService {
       return !!plan.features[feature];
     } catch (error) {
       console.error('Exception checking feature access:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Check if user is eligible for initial learning exemption
+   */
+  async checkLearningExemptionEligibility(
+    userId: string,
+    organizationId?: string
+  ): Promise<{
+    eligible: boolean;
+    reason: string;
+    completedAt?: string;
+    emailsProcessed?: number;
+    tokensUsed?: number;
+    costUsd?: number;
+    maxEmailsAllowed?: number;
+  }> {
+    try {
+      const supabase = await this.supabasePromise;
+      const { data, error } = await supabase.rpc('check_learning_exemption_eligibility', {
+        p_user_id: userId,
+        p_organization_id: organizationId
+      });
+
+      if (error) {
+        console.error('Error checking learning exemption eligibility:', error);
+        return {
+          eligible: false,
+          reason: 'Error checking eligibility'
+        };
+      }
+
+      return {
+        eligible: data.eligible,
+        reason: data.reason,
+        completedAt: data.completed_at,
+        emailsProcessed: data.emails_processed,
+        tokensUsed: data.tokens_used,
+        costUsd: data.cost_usd,
+        maxEmailsAllowed: data.max_emails_allowed
+      };
+    } catch (error) {
+      console.error('Exception checking learning exemption eligibility:', error);
+      return {
+        eligible: false,
+        reason: 'Exception occurred while checking eligibility'
+      };
+    }
+  }
+
+  /**
+   * Create a new learning session
+   */
+  async createLearningSession(
+    userId: string,
+    organizationId?: string,
+    sessionType: 'initial' | 'manual' = 'initial',
+    maxEmailsAllowed: number = 5000
+  ): Promise<{ sessionId: string | null; error?: string }> {
+    try {
+      const supabase = await this.supabasePromise;
+      const { data, error } = await supabase
+        .from('ai_learning_sessions')
+        .insert({
+          user_id: userId,
+          organization_id: organizationId,
+          session_type: sessionType,
+          max_emails_allowed: maxEmailsAllowed,
+          status: 'active'
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error creating learning session:', error);
+        return { sessionId: null, error: error.message };
+      }
+
+      return { sessionId: data.id };
+    } catch (error) {
+      console.error('Exception creating learning session:', error);
+      return { sessionId: null, error: 'Failed to create learning session' };
+    }
+  }
+
+  /**
+   * Update learning session progress
+   */
+  async updateLearningSession(
+    sessionId: string,
+    updates: {
+      totalEmailsProcessed?: number;
+      totalTokensUsed?: number;
+      totalCostUsd?: number;
+      status?: 'active' | 'completed' | 'failed';
+      completedAt?: string;
+    }
+  ): Promise<boolean> {
+    try {
+      const supabase = await this.supabasePromise;
+      const updateData: any = {
+        ...updates,
+        updated_at: new Date().toISOString()
+      };
+
+      if (updates.status === 'completed' && !updates.completedAt) {
+        updateData.completed_at = new Date().toISOString();
+      }
+
+      const { error } = await supabase
+        .from('ai_learning_sessions')
+        .update(updateData)
+        .eq('id', sessionId);
+
+      if (error) {
+        console.error('Error updating learning session:', error);
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Exception updating learning session:', error);
       return false;
     }
   }

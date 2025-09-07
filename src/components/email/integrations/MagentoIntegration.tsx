@@ -40,18 +40,35 @@ export default function MagentoIntegration({ emailAddress, onOrderSelect }: Mage
     async function checkConnection() {
       try {
         setLoading(true);
-        // In a real implementation, this would check the connection status with the API
-        await new Promise(resolve => setTimeout(resolve, 500));
+        setError(null);
         
-        // Mock connection status
-        setIsConnected(true);
+        console.log('[MagentoIntegration] Checking connection...');
         
-        if (emailAddress) {
-          fetchOrdersByEmail(emailAddress);
+        // Test the connection using the test endpoint
+        const response = await fetch('/api/magento/test', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+
+        const testResult = await response.json();
+        
+        if (testResult.success) {
+          setIsConnected(true);
+          console.log('[MagentoIntegration] Connection successful:', testResult.message);
+          
+          if (emailAddress) {
+            fetchOrdersByEmail(emailAddress);
+          }
+        } else {
+          setIsConnected(false);
+          setError(testResult.message || 'Connection test failed');
+          console.warn('[MagentoIntegration] Connection failed:', testResult.message);
         }
       } catch (err: any) {
         console.error('Failed to check Magento connection:', err);
-        setError('Failed to connect to Magento');
+        setError('Failed to connect to Magento API');
         setIsConnected(false);
       } finally {
         setLoading(false);
@@ -68,20 +85,34 @@ export default function MagentoIntegration({ emailAddress, onOrderSelect }: Mage
       setLoading(true);
       setError(null);
       
-      // In a real implementation, this would fetch from the Magento API
-      await new Promise(resolve => setTimeout(resolve, 800));
+      console.log(`[MagentoIntegration] Fetching orders for: ${email}`);
       
-      // Mock data - cleaned for testing
-      const mockOrders: MagentoOrder[] = [];
+      // Call the real API endpoint
+      const response = await fetch(`/api/magento/orders?email=${encodeURIComponent(email)}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      const fetchedOrders = data.orders || [];
       
-      setOrders(mockOrders);
-      setSuccess(`Found ${mockOrders.length} orders for ${email}`);
+      setOrders(fetchedOrders);
+      setSuccess(`Found ${fetchedOrders.length} orders for ${email}`);
+      
+      console.log(`[MagentoIntegration] Successfully loaded ${fetchedOrders.length} orders`);
       
       // Clear success message after 3 seconds
       setTimeout(() => setSuccess(null), 3000);
     } catch (err: any) {
       console.error('Failed to fetch Magento orders:', err);
-      setError('Failed to fetch orders from Magento');
+      setError(err.message || 'Failed to fetch orders from Magento');
       setOrders([]);
     } finally {
       setLoading(false);

@@ -232,8 +232,36 @@ export async function GET(request: Request) {
       console.log('⚠️  Stored Google account without OAuth tokens (columns missing)');
     }
     
-    // Success - redirect to email settings with success message
-    return NextResponse.redirect(new URL('/settings/email-accounts?success=Google account connected successfully', BASE_URL));
+    // Get the final account ID for setup trigger
+    const finalAccountId = result?.data?.id;
+    
+    // Success - trigger automatic setup for new accounts
+    if (finalAccountId && !existingAccount) {
+      console.log(`🚀 Triggering automatic setup for new Google account: ${finalAccountId}`);
+      
+      // Trigger setup in background (don't wait for completion)
+      fetch(`${BASE_URL}/api/email/setup-account`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'User-Agent': 'Internal-Auto-Setup'
+        },
+        body: JSON.stringify({
+          accountId: finalAccountId,
+          isNewAccount: true,
+          catchUpMode: false
+        })
+      }).catch(setupError => {
+        console.error('Background setup failed (non-blocking):', setupError);
+      });
+    }
+    
+    // Redirect with success message and setup info
+    const successMessage = existingAccount 
+      ? 'Google account updated successfully'
+      : 'Google account connected successfully - setup running in background';
+      
+    return NextResponse.redirect(new URL(`/settings/email-accounts?success=${encodeURIComponent(successMessage)}`, BASE_URL));
     
   } catch (error) {
     console.error('OAuth callback error:', error);

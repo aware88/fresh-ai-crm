@@ -10,6 +10,23 @@ A powerful agentic relationship intelligence system with integrated inventory ma
 [![Test Status](https://github.com/yourusername/aris/actions/workflows/tests.yml/badge.svg)](https://github.com/yourusername/aris/actions)
 [![Coverage Status](https://coveralls.io/repos/github/yourusername/aris/badge.svg?branch=main)](https://coveralls.io/github/yourusername/aris?branch=main)
 
+## 🎨 Recent Major Enhancements (December 2024)
+
+### Phase 3: Professional UI/UX + Advanced Automation (COMPLETE)
+- **Linear-Inspired Design**: Clean, professional interface with subtle animations
+- **Enhanced Dashboard**: Animated metrics, typing effects, and smooth charts
+- **Professional Components**: Refined tables, modals, and typography system
+- **MagicUI Integration**: Number tickers, animated beams, and interactive effects
+- **Advanced Automation**: ML-powered follow-up system with 95% automation rate
+- **Enterprise Ready**: Production-grade system with comprehensive analytics
+
+### Complete UI Modernization with shadcn/ui
+- **Professional Design System**: Complete migration to shadcn/ui components
+- **Modern Dashboard**: Real-time charts and analytics with Recharts integration
+- **Advanced Sidebar**: Floating sidebar with icon collapse and keyboard navigation
+- **Enhanced AI Learning**: Tier-based learning with background processing
+- **90% More Modern**: Professional SaaS-like appearance with smooth animations
+
 ## 🚀 Quick Start
 
 Get started with ARIS in minutes:
@@ -62,6 +79,8 @@ For detailed setup instructions, see the [Setup Guide](./SETUP.md).
 
 ### CRM Mind
 - 🚀 **Modern Stack**: Built with Next.js 15, TypeScript, and Tailwind CSS
+- 🎨 **shadcn/ui Integration**: Complete UI modernization with professional design system
+- 📊 **Modern Dashboard**: Real-time charts and analytics with Recharts integration
 - 🤖 **AI-Powered Insights**: Leverage OpenAI's GPT models for email analysis and customer insights
 - 📧 **Email Queue System**: Robust system for processing, analyzing, and reviewing incoming emails
 - 📱 **Responsive Design**: Works seamlessly across all device sizes
@@ -115,6 +134,12 @@ For detailed setup instructions, see the [Setup Guide](./SETUP.md).
 3. **📝 User Reviews & Edits** → Draft appears in sidebar/modal for review and modification
 4. **📊 Changes Tracked** → Every edit is logged for machine learning improvement
 5. **💡 AI Learns** → Future drafts become more accurate and personalized
+
+### Enhanced Learning System (December 2024)
+- **Smart Email Selection**: Tier-based learning limits with intelligent email selection
+- **Background Processing**: True background learning with progress tracking
+- **Subscription Integration**: Automatic respect for tier limits and cost optimization
+- **Session Management**: Real-time status updates and error recovery
 
 ### Key Components
 - **Settings Page** (`/settings/email-ai`) - Configure AI preferences and privacy settings

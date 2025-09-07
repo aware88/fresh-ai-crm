@@ -22,6 +22,7 @@ import EnhancedEmailComposer from '@/components/email/EnhancedEmailComposer';
 import OptimizedEmailList from '@/components/email/OptimizedEmailList';
 import OptimizedEmailDetail from '@/components/email/OptimizedEmailDetail';
 import EmailAccountSwitcher from '@/components/email/EmailAccountSwitcher';
+import ModernEmailInterface from '@/components/email/ModernEmailInterface';
 import { FaEnvelope, FaRobot, FaSearch, FaSync } from 'react-icons/fa';
 import {
   Mail,
@@ -66,6 +67,7 @@ export default function EmailPage() {
   const [selectedEmailId, setSelectedEmailId] = useState<string>('');
   const [syncStatus, setSyncStatus] = useState<string>('');
   const [syncing, setSyncing] = useState(false);
+  const [useModernInterface, setUseModernInterface] = useState(true); // New state for modern interface
   
   // Safety timeout to reset syncing state
   useEffect(() => {
@@ -824,16 +826,79 @@ export default function EmailPage() {
     );
   } else {
     // Connected state - show main email dashboard
+    // Use modern interface if enabled and IMAP accounts are available
+    if (useModernInterface && imapAccounts.length > 0) {
+      return (
+        <div className="h-full flex flex-col overflow-hidden p-4">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="h-full"
+          >
+            {/* Modern Email Interface */}
+            <ModernEmailInterface
+              emailAccountId={selectedEmailAccountId || selectedAccount}
+              accounts={imapAccounts}
+              onAccountChange={(accountId) => {
+                setSelectedEmailAccountId(accountId);
+                setSelectedAccount(accountId);
+              }}
+              onAnalyzeEmail={handleAnalyzeEmail}
+              onSalesAgent={handleSalesAgent}
+              onCompose={() => {
+                setActiveTab('compose');
+                setUseModernInterface(false); // Temporarily switch to classic for compose
+              }}
+            />
+          </motion.div>
+
+          {/* Analysis Results Modals */}
+          <AnalysisResultsModal
+            isOpen={analysisModalOpen}
+            onClose={() => setAnalysisModalOpen(false)}
+            result={analysisResult}
+            emailInfo={currentEmailInfo || { from: '', subject: '' }}
+          />
+          
+          <SalesAgentResultsModal
+            isOpen={salesModalOpen}
+            onClose={() => setSalesModalOpen(false)}
+            result={salesResult}
+            emailInfo={currentEmailInfo || { from: '', subject: '' }}
+          />
+
+          <SalesAgentLoadingModal
+            isOpen={isSalesProcessing}
+            onClose={() => {}}
+          />
+        </div>
+      );
+    }
+
+    // Classic interface fallback
     return (
-      <div className="h-full flex flex-col">
+      <div className="h-full flex flex-col overflow-hidden">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="h-full flex flex-col"
+          className="h-full flex flex-col overflow-hidden"
         >
+          {/* Toggle button to switch interfaces */}
+          <div className="px-4 py-2 bg-white border-b border-gray-200">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setUseModernInterface(!useModernInterface)}
+              className="text-xs"
+            >
+              Switch to {useModernInterface ? 'Classic' : 'Modern'} Interface
+            </Button>
+          </div>
+
           {/* Email Dashboard with Combined Navigation */}
-          <div className="flex gap-4 flex-1 min-h-0">
+          <div className="flex gap-4 flex-1 min-h-0 overflow-hidden">
             {/* Main Email Content */}
             <div className={`flex-1 transition-all duration-300`}>
               <Tabs value={activeTab} onValueChange={(value) => {
@@ -1134,14 +1199,20 @@ export default function EmailPage() {
                           {/* Show OptimizedEmailList for sent emails from our database */}
                           <div className="flex h-full">
                             {/* Email List - Fixed width sidebar */}
-                            <div className="w-96 border-r border-gray-200 flex-shrink-0">
-                              <OptimizedEmailList
-                                emailAccountId={selectedEmailAccountId || selectedAccount}
-                                folder="Sent"
-                                onEmailSelect={(messageId) => setSelectedEmailId(messageId)}
-                                onAnalyzeEmail={handleAnalyzeEmail}
-                                onSalesAgent={handleSalesAgent}
-                              />
+                            <div className="w-96 border-r border-gray-200 flex-shrink-0 flex flex-col h-full">
+                              <div className="flex-1 overflow-hidden">
+                                <OptimizedEmailList
+                                  emailAccountId={selectedEmailAccountId || selectedAccount}
+                                  folder="Sent"
+                                  selectedEmailId={selectedEmailId}
+                                  onEmailSelect={(messageId) => {
+                                    console.log('🔥 [EmailPage] Sent email selected:', messageId);
+                                    setSelectedEmailId(messageId);
+                                  }}
+                                  onAnalyzeEmail={handleAnalyzeEmail}
+                                  onSalesAgent={handleSalesAgent}
+                                />
+                              </div>
                             </div>
 
                             {/* Email Detail - Flexible width main content */}

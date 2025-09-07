@@ -17,6 +17,16 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+  DropdownMenuCheckboxItem,
+} from '@/components/ui/dropdown-menu';
 import { generateEmailPreview } from '@/lib/email/email-content-parser';
 import { 
   Mail, 
@@ -36,12 +46,18 @@ import {
   Clock,
   Database,
   Zap,
-  Paperclip
+  Paperclip,
+  MoreHorizontal,
+  ChevronDown,
+  Filter,
+  Tag,
+  Check
 } from 'lucide-react';
 
 interface OptimizedEmailListProps {
   emailAccountId: string;
   folder?: string;
+  selectedEmailId?: string;
   onEmailSelect?: (messageId: string) => void;
   onAnalyzeEmail?: (messageId: string) => void;
   onSalesAgent?: (messageId: string) => void;
@@ -50,13 +66,19 @@ interface OptimizedEmailListProps {
 export default function OptimizedEmailList({
   emailAccountId,
   folder = 'INBOX',
+  selectedEmailId: parentSelectedEmailId,
   onEmailSelect,
   onAnalyzeEmail,
   onSalesAgent
 }: OptimizedEmailListProps) {
   console.log(`🔥 [OptimizedEmailList] Component rendered with accountId: ${emailAccountId}, folder: ${folder}`);
-  const [selectedEmailId, setSelectedEmailId] = useState<string | null>(null);
+  // Use parent's selectedEmailId if provided, otherwise maintain local state
+  const [localSelectedEmailId, setLocalSelectedEmailId] = useState<string | null>(null);
+  const selectedEmailId = parentSelectedEmailId || localSelectedEmailId;
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [selectedEmails, setSelectedEmails] = useState<Set<string>>(new Set());
+  const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [filterAgent, setFilterAgent] = useState<string>('all');
   
   const {
     emails,
@@ -83,18 +105,74 @@ export default function OptimizedEmailList({
     loadContentOnInit: true // Preload email content on initial load
   });
 
+  // Handle checkbox selection
+  const handleCheckboxChange = useCallback((messageId: string, checked: boolean) => {
+    setSelectedEmails(prev => {
+      const newSet = new Set(prev);
+      if (checked) {
+        newSet.add(messageId);
+      } else {
+        newSet.delete(messageId);
+      }
+      return newSet;
+    });
+  }, []);
+
+  // Handle select all
+  const handleSelectAll = useCallback((checked: boolean) => {
+    if (checked) {
+      setSelectedEmails(new Set(emails.map(e => e.message_id)));
+    } else {
+      setSelectedEmails(new Set());
+    }
+  }, [emails]);
+
+  // Handle bulk actions
+  const handleBulkAction = useCallback(async (action: string) => {
+    const selectedArray = Array.from(selectedEmails);
+    
+    switch (action) {
+      case 'mark-read':
+        for (const id of selectedArray) {
+          await markAsRead(id);
+        }
+        break;
+      case 'mark-unread':
+        for (const id of selectedArray) {
+          await markAsUnread(id);
+        }
+        break;
+      case 'analyze':
+        for (const id of selectedArray) {
+          await analyzeEmail(id);
+        }
+        break;
+      // Add more bulk actions as needed
+    }
+    
+    setSelectedEmails(new Set());
+    await refreshEmails();
+  }, [selectedEmails, markAsRead, markAsUnread, analyzeEmail, refreshEmails]);
+
   // Handle email selection
   const handleEmailClick = useCallback(async (messageId: string) => {
-    setSelectedEmailId(messageId);
+    console.log('🔥 [OptimizedEmailList] Email clicked:', messageId);
+    
+    // Update local state if no parent control
+    if (!parentSelectedEmailId) {
+      setLocalSelectedEmailId(messageId);
+    }
     
     // Mark as read
     await markAsRead(messageId);
     
     // Content is now preloaded, so no need to load it on-demand
     
-    // Notify parent
+    // Notify parent (this should update parent's selectedEmailId)
     onEmailSelect?.(messageId);
-  }, [markAsRead, onEmailSelect]);
+    
+    console.log('🔥 [OptimizedEmailList] Parent notified with messageId:', messageId);
+  }, [markAsRead, onEmailSelect, parentSelectedEmailId]);
 
   // Handle search
   const handleSearch = useCallback(async (query: string) => {
@@ -128,6 +206,29 @@ export default function OptimizedEmailList({
       window.removeEventListener('emailReadStatusChanged', handleReadStatusChange);
     };
   }, [refreshEmails]);
+
+  // Filter emails based on status and agent
+  const filteredEmails = useMemo(() => {
+    return emails.filter(email => {
+      if (filterStatus !== 'all') {
+        if (filterStatus === 'unread' && email.is_read) return false;
+        if (filterStatus === 'read' && !email.is_read) return false;
+        if (filterStatus === 'replied' && !email.replied) return false;
+      }
+      
+      if (filterAgent !== 'all' && email.assigned_agent !== filterAgent) {
+        return false;
+      }
+      
+      return true;
+    });
+  }, [emails, filterStatus, filterAgent]);
+
+  // Get unique agents for filter
+  const uniqueAgents = useMemo(() => {
+    const agents = new Set(emails.map(e => e.assigned_agent).filter(Boolean));
+    return Array.from(agents);
+  }, [emails]);
 
   // Get agent icon
   const getAgentIcon = (agentType?: string) => {
@@ -271,9 +372,8 @@ export default function OptimizedEmailList({
             ) : (
               // Virtualized email list
               <div 
-                className="overflow-auto h-full" 
+                className="overflow-auto flex-1 min-h-0" 
                 ref={viewportRef}
-                style={{ maxHeight: '600px' }}
               >
                 <div
                   style={{ 

@@ -210,9 +210,37 @@ export async function GET(request: Request) {
       console.error('Error storing Microsoft email account:', result.error);
       return NextResponse.redirect(`${BASE_URL}/settings/email-accounts?error=Failed to store email account`);
     }
+
+    // Get the account ID and trigger automatic setup for new accounts
+    const newAccountId = result.data?.[0]?.id;
+    const isNewAccount = !existingAccount;
+    
+    if (newAccountId && isNewAccount) {
+      console.log(`🚀 Triggering automatic setup for new Microsoft account: ${newAccountId}`);
+      
+      // Trigger setup in background (don't wait for completion)
+      fetch(`${BASE_URL}/api/email/setup-account`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'User-Agent': 'Internal-Auto-Setup'
+        },
+        body: JSON.stringify({
+          accountId: newAccountId,
+          isNewAccount: true,
+          catchUpMode: false
+        })
+      }).catch(setupError => {
+        console.error('Background setup failed (non-blocking):', setupError);
+      });
+    }
     
     // Redirect back to the email settings page with success message
-    return NextResponse.redirect(`${BASE_URL}/settings/email-accounts?success=true&provider=microsoft`);
+    const successMessage = isNewAccount 
+      ? 'Microsoft account connected - setup running in background'
+      : 'Microsoft account updated successfully';
+      
+    return NextResponse.redirect(`${BASE_URL}/settings/email-accounts?success=${encodeURIComponent(successMessage)}&provider=microsoft`);
   } catch (error) {
     console.error('Error in Microsoft OAuth callback:', error);
     return NextResponse.redirect(`${BASE_URL}/settings/email-accounts?error=An unexpected error occurred`);

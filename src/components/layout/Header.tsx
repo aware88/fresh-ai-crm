@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { usePathname } from "next/navigation";
-import NotificationCenter from "@/components/notifications/NotificationCenter";
+import { NotificationCenter } from "@/components/notifications/NotificationCenter";
 import { useSession } from "next-auth/react";
 
 export function Header() {

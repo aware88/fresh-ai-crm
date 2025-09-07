@@ -213,57 +213,32 @@ export async function POST(request: Request) {
 
     const account = result.data?.[0];
     
-    // Automatically trigger email sync for new accounts
+    // Automatically trigger comprehensive setup for new accounts
     if (!existingAccount && account) {
-      console.log('🔄 Triggering automatic email sync for new account...');
-      try {
-        // Call the sync API internally
-        const syncResponse = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/email/sync-to-database`, {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'User-Agent': 'Internal-IMAP-Setup'
-          },
-          body: JSON.stringify({ 
-            accountId: account.id, 
-            maxEmails: 10000 
-          })
-        });
-        
-        const syncResult = await syncResponse.json();
-        
-        if (syncResult.success) {
-          console.log(`✅ Auto-sync completed: ${syncResult.totalSaved} emails synced`);
-          
-          return NextResponse.json({
-            success: true,
-            message: `IMAP account connected and ${syncResult.totalSaved} emails synced successfully!`,
-            accountId: account.id,
-            syncResult: {
-              totalSaved: syncResult.totalSaved,
-              breakdown: syncResult.breakdown
-            }
-          });
-        } else {
-          console.warn('⚠️ Auto-sync failed but account created:', syncResult.error);
-          
-          return NextResponse.json({
-            success: true,
-            message: 'IMAP account connected successfully. Email sync will be available shortly.',
-            accountId: account.id,
-            syncWarning: syncResult.error
-          });
-        }
-      } catch (syncError) {
-        console.warn('⚠️ Auto-sync failed but account created:', syncError);
-        
-        return NextResponse.json({
-          success: true,
-          message: 'IMAP account connected successfully. Email sync will be available shortly.',
+      console.log('🚀 Triggering automatic comprehensive setup for new IMAP account...');
+      
+      // Use the new comprehensive setup approach
+      fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/email/setup-account`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'User-Agent': 'Internal-Auto-Setup'
+        },
+        body: JSON.stringify({
           accountId: account.id,
-          syncWarning: syncError instanceof Error ? syncError.message : 'Sync failed'
-        });
-      }
+          isNewAccount: true,
+          catchUpMode: false
+        })
+      }).catch(setupError => {
+        console.error('Background setup failed (non-blocking):', setupError);
+      });
+      
+      return NextResponse.json({
+        success: true,
+        message: 'IMAP account connected successfully - comprehensive setup running in background (sync + AI learning)',
+        accountId: account.id,
+        setup_initiated: true
+      });
     } else {
       return NextResponse.json({
         success: true,

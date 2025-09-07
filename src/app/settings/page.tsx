@@ -7,6 +7,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
+import { Skeleton } from '@/components/ui/skeleton';
+import { H1, Lead } from '@/components/ui/typography';
+import { Separator } from '@/components/ui/separator';
 
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { SettingsForm } from '@/components/settings/settings-form';
@@ -26,6 +30,15 @@ export default function ProfileSettings() {
     company: ''
   });
   const [saving, setSaving] = useState(false);
+  const [useARISView, setUseARISView] = useState(true);
+
+  // Load dashboard preference from localStorage
+  useEffect(() => {
+    const savedPreference = localStorage.getItem('useARISView');
+    if (savedPreference !== null) {
+      setUseARISView(JSON.parse(savedPreference));
+    }
+  }, []);
 
   // Load saved profile data from localStorage on mount and initialize with session data
   useEffect(() => {
@@ -248,14 +261,33 @@ export default function ProfileSettings() {
   // Final safety check - if no user object, show loading
   if (!session.user) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <div className="animate-spin h-8 w-8 border-4 border-blue-500 rounded-full border-t-transparent mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading profile...</p>
+      <div className="space-y-8">
+        <div className="space-y-2">
+          <Skeleton className="h-8 w-[200px]" />
+          <Skeleton className="h-4 w-[400px]" />
         </div>
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-6 w-[150px] mb-2" />
+            <Skeleton className="h-4 w-[300px]" />
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+          </CardContent>
+        </Card>
       </div>
     );
   }
+
+  const handleDashboardPreferenceChange = (checked: boolean) => {
+    setUseARISView(checked);
+    localStorage.setItem('useARISView', JSON.stringify(checked));
+    toast({
+      title: "Dashboard preference updated",
+      description: `Switched to ${checked ? 'ARIS' : 'Legacy'} dashboard view`,
+    });
+  };
 
   return (
     <div className="space-y-8">
@@ -276,6 +308,31 @@ export default function ProfileSettings() {
           )}
         </Button>
       </div>
+      
+      {/* Dashboard Preference */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Dashboard Preference</CardTitle>
+          <CardDescription>
+            Choose between the new ARIS dashboard or the legacy dashboard view.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label htmlFor="dashboard-preference">Use ARIS Dashboard</Label>
+              <p className="text-sm text-muted-foreground">
+                Enable the modern ARIS dashboard with AI-powered insights
+              </p>
+            </div>
+            <Switch
+              id="dashboard-preference"
+              checked={useARISView}
+              onCheckedChange={handleDashboardPreferenceChange}
+            />
+          </div>
+        </CardContent>
+      </Card>
       
       <Card>
         <CardHeader>
