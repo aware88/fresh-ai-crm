@@ -27,7 +27,32 @@ const nextConfig = {
   
   // Configure images
   images: {
-    domains: ['localhost', 'helloaris.com', 'images.unsplash.com', 'www.withcar.si'],
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'localhost',
+      },
+      {
+        protocol: 'https',
+        hostname: 'helloaris.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'images.unsplash.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'www.withcar.si',
+      },
+      {
+        protocol: 'https',
+        hostname: 'cdn1.iconfinder.com',
+      },
+      {
+        protocol: 'http',
+        hostname: 'localhost',
+      },
+    ],
   },
   
   // Redirect configuration for landing page
@@ -66,6 +91,13 @@ const nextConfig = {
 
     // Add polyfills for browser APIs during server-side builds
     if (isServer) {
+      // Initialize background services
+      try {
+        require('./lib/server-init');
+      } catch (error) {
+        console.error('Failed to initialize server services:', error);
+      }
+
       const { DefinePlugin } = config.webpack || require('webpack');
       config.plugins.push(
         new DefinePlugin({

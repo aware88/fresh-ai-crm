@@ -96,7 +96,8 @@ export class SubscriptionInitializationService {
             ADVANCED_ANALYTICS: false,
             WHITE_LABEL: false,
             AI_CUSTOMIZATION: false,
-            MOBILE_APP_ACCESS: true
+            MOBILE_APP_ACCESS: true,
+            TEAM_COLLABORATION: true // Add team collaboration to Professional plan
           },
           is_active: true
         },
@@ -126,7 +127,8 @@ export class SubscriptionInitializationService {
             CUSTOM_INTEGRATIONS: true,
             ADVANCED_ANALYTICS: true,
             WHITE_LABEL: true,
-            MOBILE_APP_ACCESS: true
+            MOBILE_APP_ACCESS: true,
+            TEAM_COLLABORATION: true // CRITICAL: Add missing team collaboration feature
           },
           is_active: true
         }

@@ -218,25 +218,53 @@ export class RealTimeSyncManager {
    * Sync Microsoft Graph emails
    */
   private async syncMicrosoft(accountId: string, options: { delta?: boolean; maxEmails?: number }) {
-    const response = await fetch('/api/emails/graph/sync', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        accountId,
-        folder: 'inbox',
-        maxEmails: options.maxEmails || 50,
-        delta: options.delta !== false
-      })
-    });
+    try {
+      const port = process.env.PORT || '3000';
+      const baseUrl = process.env.NODE_ENV === 'development' 
+        ? `http://localhost:${port}`
+        : (process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || 'http://localhost:3000');
+      
+      // Use internal API with service role auth for server-side sync
+      const response = await fetch(`${baseUrl}/api/emails/graph/sync`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'User-Agent': 'Internal-RealTime-Sync',
+          // Add internal auth if available
+          ...(process.env.INTERNAL_API_KEY && {
+            'Authorization': `Bearer ${process.env.INTERNAL_API_KEY}`
+          })
+        },
+        body: JSON.stringify({
+          accountId,
+          folder: 'inbox',
+          maxEmails: options.maxEmails || 50,
+          delta: options.delta !== false,
+          internalCall: true // Flag for internal processing
+        })
+      });
 
-    return await response.json();
+      if (!response.ok) {
+        console.warn(`Graph sync failed: ${response.status} ${response.statusText}`);
+        return { success: false, error: `HTTP ${response.status}` };
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.warn('Microsoft sync error (non-critical):', error);
+      return { success: false, error: error?.toString() || 'Unknown error' };
+    }
   }
 
   /**
    * Sync Gmail emails
    */
   private async syncGmail(accountId: string, options: { delta?: boolean; maxEmails?: number }) {
-    const response = await fetch('/api/emails/gmail/sync', {
+    const port = process.env.PORT || '3000';
+    const baseUrl = process.env.NODE_ENV === 'development' 
+      ? `http://localhost:${port}`
+      : (process.env.NEXTAUTH_URL || 'http://localhost:3000');
+    const response = await fetch(`${baseUrl}/api/emails/gmail/sync`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -254,7 +282,11 @@ export class RealTimeSyncManager {
    * Sync IMAP emails
    */
   private async syncIMAP(accountId: string, options: { maxEmails?: number; onlyNew?: boolean }) {
-    const response = await fetch('/api/email/sync-to-database', {
+    const port = process.env.PORT || '3000';
+    const baseUrl = process.env.NODE_ENV === 'development' 
+      ? `http://localhost:${port}`
+      : (process.env.NEXTAUTH_URL || 'http://localhost:3000');
+    const response = await fetch(`${baseUrl}/api/email/sync-to-database`, {
       method: 'POST',
       headers: { 
         'Content-Type': 'application/json',
@@ -271,22 +303,32 @@ export class RealTimeSyncManager {
   }
 
   /**
-   * Calculate optimal polling interval based on provider and usage
+   * Calculate optimal polling interval based on provider and webhooks
    */
   private calculatePollingInterval(config: SyncConfig): number {
     const baseInterval = config.pollingInterval * 60 * 1000; // Convert minutes to ms
 
-    // Adjust based on provider capabilities
+    // If webhooks are enabled, use minimal polling as backup
+    if (config.enableWebhooks && (config.provider === 'microsoft' || config.provider === 'google')) {
+      switch (config.provider) {
+        case 'microsoft':
+          // With webhooks: minimal backup polling (30 seconds)
+          return Math.max(30 * 1000, Math.min(baseInterval, 2 * 60 * 1000));
+        case 'google':
+          // With webhooks: minimal backup polling (30 seconds)  
+          return Math.max(30 * 1000, Math.min(baseInterval, 2 * 60 * 1000));
+      }
+    }
+
+    // Without webhooks: rely on frequent polling
     switch (config.provider) {
       case 'microsoft':
-        // Microsoft Graph supports webhooks, so polling can be less frequent
-        return Math.max(baseInterval, 5 * 60 * 1000); // Min 5 minutes
+        return Math.max(baseInterval, 1 * 60 * 1000); // Min 1 minute without webhooks
       case 'google':
-        // Gmail has push notifications, so polling is backup
-        return Math.max(baseInterval, 3 * 60 * 1000); // Min 3 minutes
+        return Math.max(baseInterval, 1 * 60 * 1000); // Min 1 minute without webhooks
       case 'imap':
-        // IMAP relies on polling, so more frequent
-        return Math.max(baseInterval, 2 * 60 * 1000); // Min 2 minutes
+        // IMAP always relies on polling
+        return Math.max(baseInterval, 30 * 1000); // Min 30 seconds for IMAP
       default:
         return baseInterval;
     }
@@ -358,20 +400,20 @@ export class RealTimeSyncManager {
   }
 
   /**
-   * Get default polling interval based on provider
+   * Get default polling interval based on provider (in minutes)
    */
   private getDefaultPollingInterval(providerType: string): number {
     switch (providerType) {
       case 'microsoft':
       case 'outlook':
-        return 5; // 5 minutes for Microsoft (has webhooks)
+        return 0.5; // 30 seconds for Microsoft (with webhook backup)
       case 'google':
       case 'gmail':
-        return 3; // 3 minutes for Gmail (has push)
+        return 0.5; // 30 seconds for Gmail (with webhook backup)
       case 'imap':
-        return 2; // 2 minutes for IMAP (polling only)
+        return 0.5; // 30 seconds for IMAP (polling only)
       default:
-        return 5;
+        return 1; // 1 minute default
     }
   }
 }

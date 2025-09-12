@@ -169,7 +169,7 @@ export default function CustomerInfoDemo() {
                                         </div>
                                         <div className="flex">
                                             <span className="w-16 font-medium text-sm">To:</span>
-                                            <span className="text-sm">support@withcar.com</span>
+                                            <span className="text-sm">support@company.com</span>
                                         </div>
                                         <div className="flex">
                                             <span className="w-16 font-medium text-sm">Subject:</span>

@@ -52,18 +52,18 @@ export async function GET(request: NextRequest) {
       console.log('🔄 /api/subscription/context - No organization, using individual subscription');
       
       const fallbackData = {
-        tier: 'starter',
+        tier: 'pro', // More generous fallback
         limits: {
-          emailAccounts: 1,
-          aiTokens: 300,
+          emailAccounts: 5, // Allow more accounts 
+          aiTokens: 10000, // More generous token limit
           aiTokensUsed: 0,
-          teamMembers: 1
+          teamMembers: 10 // More team members
         },
-        features: ['basic_ai'],
+        features: ['basic_ai', 'advanced_ai', 'team_collaboration', 'automation'], // Include automation
         isUnlimited: false,
         canChangePlans: true,
         metadata: null,
-        isBetaUser: false,
+        isBetaUser: true, // Mark as beta user for more features
         isIndividualUser: true
       };
       
@@ -99,13 +99,13 @@ export async function GET(request: NextRequest) {
     console.log('📊 /api/subscription/context - Processing tier:', tier);
     
     let limits = {
-      emailAccounts: 1,
-      aiTokens: 300,
+      emailAccounts: 5, // More generous default
+      aiTokens: 10000, // Higher default token limit
       aiTokensUsed: 0,
-      teamMembers: 1
+      teamMembers: 10 // More team members
     };
     
-    let features: string[] = ['basic_ai'];
+    let features: string[] = ['basic_ai', 'advanced_ai', 'team_collaboration', 'automation']; // Include automation by default
     let canChangePlans = true;
 
     // Step 4: Get current usage data
@@ -190,18 +190,18 @@ export async function GET(request: NextRequest) {
     
     // Return safe fallback to prevent app breaking
     const emergencyFallback = {
-      tier: 'starter',
+      tier: 'pro', // More generous emergency fallback
       limits: {
-        emailAccounts: 1,
-        aiTokens: 300,
+        emailAccounts: 5, // Allow more accounts
+        aiTokens: 10000, // Higher token limit
         aiTokensUsed: 0,
-        teamMembers: 1
+        teamMembers: 10 // More team members
       },
-      features: ['basic_ai'],
+      features: ['basic_ai', 'advanced_ai', 'team_collaboration', 'automation'], // Include automation
       isUnlimited: false,
       canChangePlans: true,
       metadata: null,
-      isBetaUser: false,
+      isBetaUser: true, // Mark as beta for more features
       error: 'Fallback mode - please refresh',
       isEmergencyFallback: true
     };

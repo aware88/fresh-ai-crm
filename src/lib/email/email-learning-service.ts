@@ -143,7 +143,8 @@ export class EmailLearningService {
   async performInitialLearning(
     userId: string, 
     organizationId?: string,
-    maxEmails: number = 5000
+    maxEmails: number = 5000,
+    accountId?: string
   ): Promise<LearningAnalysis> {
     const startTime = Date.now();
     let totalCost = 0;
@@ -185,7 +186,8 @@ export class EmailLearningService {
         userId, 
         Math.min(maxEmails, learningConfig.max_emails_to_analyze || 5000),
         learningConfig,
-        organizationId
+        organizationId,
+        accountId
       );
       
       console.log(`[EmailLearning] Found ${emailPairs.length} email pairs to analyze`);
@@ -234,7 +236,7 @@ export class EmailLearningService {
       const mergedPatterns = await this.mergeSimilarPatterns(patterns, learningConfig.pattern_merge_threshold);
       
       // 6. Save patterns to database
-      const savedPatterns = await this.saveLearnedPatterns(mergedPatterns, userId, organizationId);
+      const savedPatterns = await this.saveLearnedPatterns(mergedPatterns, userId, organizationId, accountId);
       
       // 7. Record learning analytics
       await this.recordLearningAnalytics(userId, organizationId, {
@@ -318,7 +320,8 @@ export class EmailLearningService {
     organizationId?: string,
     maxEmails: number = 5000,
     progressCallback?: (progress: number, message?: string) => Promise<void>,
-    preSelectedEmailIds?: string[]
+    preSelectedEmailIds?: string[],
+    accountId?: string
   ): Promise<LearningAnalysis> {
     const startTime = Date.now();
     let totalCost = 0;
@@ -378,7 +381,8 @@ export class EmailLearningService {
           userId, 
           Math.min(maxEmails, learningConfig.max_emails_to_analyze || 5000),
           learningConfig,
-          organizationId
+          organizationId,
+          accountId
         );
       }
       
@@ -453,7 +457,7 @@ export class EmailLearningService {
       const mergedPatterns = await this.mergeSimilarPatterns(patterns, 0.8);
       
       // 6. Save patterns to database
-      const savedPatterns = await this.saveLearnedPatterns(mergedPatterns, userId, organizationId);
+      const savedPatterns = await this.saveLearnedPatterns(mergedPatterns, userId, organizationId, accountId);
 
       if (progressCallback) {
         await progressCallback(95, 'Finalizing learning session...');
@@ -701,22 +705,30 @@ export class EmailLearningService {
     userId: string,
     maxEmails: number,
     config: any,
-    organizationId?: string
+    organizationId?: string,
+    accountId?: string
   ): Promise<EmailPair[]> {
     // Calculate date range
     const dateThreshold = new Date();
     dateThreshold.setDate(dateThreshold.getDate() - config.date_range_days);
 
-    // Fetch received emails
-    const { data: receivedEmails, error: receivedError } = await this.supabase
+    // Build query for received emails
+    let emailQuery = this.supabase
       .from('emails')
-      .select('id, subject, raw_content, plain_content, sender, created_at, message_id')
+      .select('id, subject, raw_content, plain_content, sender, created_at, message_id, account_id')
       .eq('created_by', userId)
       .eq('email_type', 'received')
       .gte('created_at', dateThreshold.toISOString())
       .not('sender', 'in', `(${config.excluded_senders.map((s: string) => `"${s}"`).join(',')})`)
       .order('created_at', { ascending: false })
       .limit(maxEmails);
+
+    // Filter by account_id if provided for multi-email support
+    if (accountId) {
+      emailQuery = emailQuery.eq('account_id', accountId);
+    }
+
+    const { data: receivedEmails, error: receivedError } = await emailQuery;
 
     if (receivedError) {
       console.error('[EmailLearning] Error fetching received emails:', receivedError);
@@ -735,7 +747,8 @@ export class EmailLearningService {
       const responseDate = new Date(receivedEmail.created_at);
       responseDate.setDate(responseDate.getDate() + 7); // Look for responses within 7 days
 
-      const { data: sentResponses } = await this.supabase
+      // Build query for sent responses
+      let sentQuery = this.supabase
         .from('emails')
         .select('id, subject, raw_content, plain_content, created_at')
         .eq('created_by', userId)
@@ -745,6 +758,13 @@ export class EmailLearningService {
         .or(`subject.ilike.%${receivedEmail.subject?.replace('Re: ', '').replace('RE: ', '')}%`)
         .order('created_at', { ascending: true })
         .limit(1);
+
+      // Filter by same account_id if provided for multi-email support
+      if (accountId && receivedEmail.account_id) {
+        sentQuery = sentQuery.eq('account_id', receivedEmail.account_id);
+      }
+
+      const { data: sentResponses } = await sentQuery;
 
       const emailPair: EmailPair = {
         received_email: {
@@ -1085,7 +1105,8 @@ REQUIREMENTS:
   private async saveLearnedPatterns(
     patterns: EmailLearningPattern[],
     userId: string,
-    organizationId?: string
+    organizationId?: string,
+    accountId?: string
   ): Promise<number> {
     let savedCount = 0;
 
@@ -1096,6 +1117,7 @@ REQUIREMENTS:
           .insert({
             user_id: userId,
             organization_id: organizationId,
+            account_id: accountId, // Add account_id for multi-email support
             pattern_type: pattern.pattern_type,
             email_category: pattern.context_category,
             pattern_text: pattern.response_template,
@@ -1182,27 +1204,36 @@ REQUIREMENTS:
    */
   private async getEmailContent(messageId: string, userId: string): Promise<any | null> {
     try {
-      const { data: email, error } = await this.supabase
-        .from('emails')
+      // Use the new email_index table structure
+      const { data: emails, error } = await this.supabase
+        .from('email_index')
         .select('*')
         .eq('message_id', messageId)
-        .eq('user_id', userId)
-        .single();
+        .eq('user_id', userId);
+
+      const email = emails?.[0]; // Take first match
 
       if (error || !email) {
         console.log(`[EmailLearning] Email not found for message_id: ${messageId}`);
         return null;
       }
 
+      // Get content from cache
+      const { data: contentData } = await this.supabase
+        .from('email_content_cache')
+        .select('html_content, plain_content')
+        .eq('message_id', messageId)
+        .single();
+
       return {
         id: email.id,
         message_id: messageId,
         subject: email.subject,
-        content: email.body || email.text_content || '',
-        sender: email.sender_email || email.from_email,
-        recipient: email.recipient_email || email.to_email,
-        date: email.date,
-        is_sent: email.is_sent || false
+        content: contentData?.html_content || contentData?.plain_content || email.preview_text || '',
+        sender: email.sender_email,
+        recipient: email.recipient_email,
+        date: email.received_at || email.sent_at,
+        is_sent: email.email_type === 'sent'
       };
     } catch (error) {
       console.error('[EmailLearning] Error fetching email content:', error);
@@ -1436,11 +1467,15 @@ INSTRUCTIONS:
       }
 
       // 4. Find matching patterns for this email
+      // Try to get accountId from email if available
+      const emailAccountId = await this.getEmailAccountId(messageId, userId);
+      
       const patternMatches = await this.findMatchingPatterns(
         email.content,
         email.sender,
         userId,
-        email.subject
+        email.subject,
+        emailAccountId
       );
 
       console.log(`[EmailLearning] Found ${patternMatches.length} matching patterns`);
@@ -1519,6 +1554,29 @@ INSTRUCTIONS:
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error'
       };
+    }
+  }
+
+  /**
+   * Get email account ID for a message
+   */
+  private async getEmailAccountId(messageId: string, userId: string): Promise<string | null> {
+    try {
+      const { data: emailIndex, error } = await this.supabase
+        .from('email_index')
+        .select('email_account_id, email_accounts!inner(user_id)')
+        .eq('message_id', messageId)
+        .eq('email_accounts.user_id', userId)
+        .single();
+
+      if (error || !emailIndex) {
+        return null;
+      }
+
+      return emailIndex.email_account_id;
+    } catch (error) {
+      console.error('[EmailLearning] Error getting email account ID:', error);
+      return null;
     }
   }
 
@@ -1606,7 +1664,8 @@ INSTRUCTIONS:
     emailContent: string,
     senderEmail: string,
     userId: string,
-    emailSubject?: string
+    emailSubject?: string,
+    accountId?: string
   ): Promise<Array<{
     pattern_id: string;
     match_score: number;
@@ -2005,7 +2064,7 @@ BODY: [response body]`;
 
     const { data, error } = await this.supabase
       .from('email_drafts_cache')
-      .upsert(draftData, { onConflict: 'message_id,user_id' })
+      .upsert(draftData, { ignoreDuplicates: true })
       .select('*')
       .single();
 
@@ -2086,7 +2145,7 @@ BODY: [response body]`;
    * Batch process multiple emails for initial learning (OPTIMIZED)
    * This method both generates drafts AND extracts patterns for learning
    */
-    async processEmailsBatch(messageIds: string[], userId: string, organizationId?: string): Promise<{
+    async processEmailsBatch(messageIds: string[], userId: string, organizationId?: string, accountId?: string): Promise<{
     successful: number;
     failed: number;
     results: Array<{ emailId: string; success: boolean; error?: string }>
@@ -2174,7 +2233,7 @@ BODY: [response body]`;
     if (extractedPatterns.length > 0) {
       try {
         console.log(`[EmailLearning] Saving ${extractedPatterns.length} extracted patterns to database`);
-        const savedCount = await this.saveLearnedPatterns(extractedPatterns, userId, organizationId);
+        const savedCount = await this.saveLearnedPatterns(extractedPatterns, userId, organizationId, accountId);
         console.log(`[EmailLearning] Successfully saved ${savedCount} patterns to database`);
       } catch (error) {
         console.error('[EmailLearning] Error saving patterns:', error);
@@ -2198,7 +2257,8 @@ BODY: [response body]`;
     messageId: string,
     userId: string,
     organizationId?: string,
-    isUserResponse?: boolean
+    isUserResponse?: boolean,
+    accountId?: string
   ): Promise<{ patternsLearned: number; success: boolean }> {
     try {
       console.log(`[EmailLearning] Starting continuous learning from new email: ${messageId}`);
@@ -2225,10 +2285,10 @@ BODY: [response body]`;
       }
 
       // Save new patterns to database
-      const savedCount = await this.saveLearnedPatterns(patterns, userId, organizationId);
+      const savedCount = await this.saveLearnedPatterns(patterns, userId, organizationId, accountId);
       
       // Update existing similar patterns (merge/improve)
-      await this.updateSimilarPatterns(patterns, userId, organizationId);
+      await this.updateSimilarPatterns(patterns, userId, organizationId, accountId);
       
       console.log(`[EmailLearning] Continuous learning completed: ${savedCount} new patterns saved from email ${messageId}`);
       
@@ -2246,18 +2306,25 @@ BODY: [response body]`;
   private async updateSimilarPatterns(
     newPatterns: EmailLearningPattern[],
     userId: string,
-    organizationId?: string
+    organizationId?: string,
+    accountId?: string
   ): Promise<void> {
     try {
       for (const newPattern of newPatterns) {
-        // Find similar existing patterns
-        const { data: existingPatterns } = await this.supabase
+        // Find similar existing patterns - filter by account_id if provided
+        let patternsQuery = this.supabase
           .from('email_patterns')
           .select('*')
           .eq('user_id', userId)
           .eq('pattern_type', newPattern.pattern_type)
           .eq('email_category', newPattern.context_category)
           .gte('confidence', 0.4); // Only consider reasonably confident patterns
+
+        if (accountId) {
+          patternsQuery = patternsQuery.eq('account_id', accountId);
+        }
+
+        const { data: existingPatterns } = await patternsQuery;
 
         if (existingPatterns && existingPatterns.length > 0) {
           for (const existing of existingPatterns) {

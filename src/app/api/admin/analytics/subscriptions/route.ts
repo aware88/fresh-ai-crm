@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { SubscriptionService } from '@/lib/services/subscription-service';
 import { createClient } from '@/lib/supabase/server';
-import { subscriptionPlans } from '@/lib/subscription-plans';
+import { subscriptionPlans } from '@/lib/subscription-plans-v2';
 
 // Helper function to check if user is an admin
 async function isAdmin(userId: string) {

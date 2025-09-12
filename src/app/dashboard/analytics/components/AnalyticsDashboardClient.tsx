@@ -184,7 +184,7 @@ export default function AnalyticsDashboardClient({ initialData, organizationId }
 
       // Refresh AI metrics as well
       try {
-        const aiRes = await fetch('/api/usage/dashboard-demo');
+        const aiRes = await fetch('/api/usage/dashboard-v2');
         if (aiRes.ok) {
           const ai = await aiRes.json();
           setAiSavings(ai.savings || null);

@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../../auth/[...nextauth]/route';
 import { createServiceRoleClient } from '@/lib/supabase/service-role';
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const session = await getServerSession(authOptions);
     
@@ -31,15 +31,7 @@ export async function GET(request: NextRequest) {
       .select(`
         user_id,
         role,
-        joined_at,
-        profiles:user_id (
-          id,
-          full_name,
-          email,
-          avatar_url,
-          last_seen_at,
-          is_online
-        )
+        joined_at
       `)
       .eq('organization_id', userOrg.organization_id);
 
@@ -49,29 +41,16 @@ export async function GET(request: NextRequest) {
     }
 
     // Transform the data to match our frontend interface
-    const formattedMembers = teamMembers
-      .filter(member => member.profiles) // Only include members with profiles
-      .map(member => {
-        const profile = member.profiles as any;
-        const lastSeen = profile.last_seen_at ? new Date(profile.last_seen_at) : new Date(member.joined_at);
-        const isRecentlyActive = profile.is_online || (Date.now() - lastSeen.getTime() < 5 * 60 * 1000); // 5 minutes
+    const formattedMembers = (teamMembers || []).map((member: any) => {
+        const lastSeen = new Date(member.joined_at);
         
-        let status: 'online' | 'away' | 'busy' | 'offline' = 'offline';
-        if (profile.is_online) {
-          status = 'online';
-        } else if (Date.now() - lastSeen.getTime() < 30 * 60 * 1000) { // 30 minutes
-          status = 'away';
-        } else if (Date.now() - lastSeen.getTime() < 2 * 60 * 60 * 1000) { // 2 hours
-          status = 'busy';
-        }
-
         return {
-          id: profile.id,
-          name: profile.full_name || profile.email?.split('@')[0] || 'Unknown User',
-          email: profile.email,
-          avatar: profile.avatar_url,
+          id: member.user_id,
+          name: 'Team Member',
+          email: 'member@example.com',
+          avatar: null,
           role: member.role,
-          status,
+          status: 'offline' as const,
           lastSeen: lastSeen.toISOString(),
           joinedAt: member.joined_at
         };

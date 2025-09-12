@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Supabase Auth Test</title>
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    h1 {
+      color: #333;
+    }
+    .card {
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 20px;
+      background-color: #f9f9f9;
+    }
+    button {
+      background-color: #4CAF50;
+      color: white;
+      padding: 10px 15px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-right: 10px;
+    }
+    button:hover {
+      background-color: #45a049;
+    }
+    input {
+      padding: 8px;
+      margin-bottom: 10px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+    }
+    pre {
+      background-color: #f5f5f5;
+      padding: 10px;
+      border-radius: 4px;
+      overflow-x: auto;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+    .success {
+      color: #4CAF50;
+    }
+    .error {
+      color: #f44336;
+    }
+  </style>
+</head>
+<body>
+  <h1>Supabase Auth Test</h1>
+  
+  <div class="card">
+    <h2>Configuration</h2>
+    <div>
+      <label for="supabaseUrl">Supabase URL:</label>
+      <input type="text" id="supabaseUrl" value="">
+    </div>
+    <div>
+      <label for="supabaseKey">Supabase Anon Key:</label>
+      <input type="text" id="supabaseKey" value="">
+    </div>
+    <button onclick="saveConfig()">Save Configuration</button>
+  </div>
+  
+  <div class="card">
+    <h2>Test Auth</h2>
+    <div>
+      <label for="email">Email:</label>
+      <input type="email" id="email" value="test@example.com">
+    </div>
+    <div>
+      <label for="password">Password:</label>
+      <input type="password" id="password" value="test123">
+    </div>
+    <button onclick="signIn()">Sign In</button>
+    <button onclick="signUp()">Sign Up</button>
+    <button onclick="getSession()">Get Session</button>
+    <button onclick="signOut()">Sign Out</button>
+  </div>
+  
+  <div class="card">
+    <h2>Test Database Access</h2>
+    <button onclick="testOrganizations()">Test Organizations</button>
+    <button onclick="testOrgMembers()">Test Org Members</button>
+    <button onclick="testUserPreferences()">Test User Preferences</button>
+  </div>
+  
+  <div class="card">
+    <h2>Results</h2>
+    <pre id="results">No results yet</pre>
+  </div>
+  
+  <script>
+    let supabase;
+    
+    // Initialize Supabase client
+    function initSupabase() {
+      const url = document.getElementById('supabaseUrl').value;
+      const key = document.getElementById('supabaseKey').value;
+      
+      if (!url || !key) {
+        document.getElementById('results').innerHTML = '❌ Please enter Supabase URL and key';
+        return null;
+      }
+      
+      try {
+        return supabase.createClient(url, key);
+      } catch (error) {
+        document.getElementById('results').innerHTML = `❌ Error initializing Supabase: ${error.message}`;
+        return null;
+      }
+    }
+    
+    // Save configuration
+    function saveConfig() {
+      const url = document.getElementById('supabaseUrl').value;
+      const key = document.getElementById('supabaseKey').value;
+      
+      if (!url || !key) {
+        document.getElementById('results').innerHTML = '❌ Please enter Supabase URL and key';
+        return;
+      }
+      
+      localStorage.setItem('supabaseUrl', url);
+      localStorage.setItem('supabaseKey', key);
+      
+      try {
+        supabase = supabase.createClient(url, key);
+        document.getElementById('results').innerHTML = '✅ Configuration saved and Supabase client initialized';
+      } catch (error) {
+        document.getElementById('results').innerHTML = `❌ Error initializing Supabase: ${error.message}`;
+      }
+    }
+    
+    // Sign in
+    async function signIn() {
+      const client = initSupabase();
+      if (!client) return;
+      
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+      
+      try {
+        const { data, error } = await client.auth.signInWithPassword({
+          email,
+          password
+        });
+        
+        if (error) {
+          document.getElementById('results').innerHTML = `❌ Sign-in failed: ${error.message}`;
+        } else {
+          document.getElementById('results').innerHTML = `✅ Sign-in successful!\n\nUser: ${JSON.stringify(data.user, null, 2)}\n\nSession: ${JSON.stringify(data.session, null, 2)}`;
+        }
+      } catch (error) {
+        document.getElementById('results').innerHTML = `❌ Exception during sign-in: ${error.message}`;
+      }
+    }
+    
+    // Sign up
+    async function signUp() {
+      const client = initSupabase();
+      if (!client) return;
+      
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+      
+      try {
+        const { data, error } = await client.auth.signUp({
+          email,
+          password,
+          options: {
+            data: {
+              first_name: 'Test',
+              last_name: 'User',
+              full_name: 'Test User'
+            }
+          }
+        });
+        
+        if (error) {
+          document.getElementById('results').innerHTML = `❌ Sign-up failed: ${error.message}`;
+        } else {
+          document.getElementById('results').innerHTML = `✅ Sign-up successful!\n\nUser: ${JSON.stringify(data.user, null, 2)}`;
+        }
+      } catch (error) {
+        document.getElementById('results').innerHTML = `❌ Exception during sign-up: ${error.message}`;
+      }
+    }
+    
+    // Get session
+    async function getSession() {
+      const client = initSupabase();
+      if (!client) return;
+      
+      try {
+        const { data, error } = await client.auth.getSession();
+        
+        if (error) {
+          document.getElementById('results').innerHTML = `❌ Get session failed: ${error.message}`;
+        } else {
+          document.getElementById('results').innerHTML = `✅ Session retrieved!\n\n${JSON.stringify(data, null, 2)}`;
+        }
+      } catch (error) {
+        document.getElementById('results').innerHTML = `❌ Exception getting session: ${error.message}`;
+      }
+    }
+    
+    // Sign out
+    async function signOut() {
+      const client = initSupabase();
+      if (!client) return;
+      
+      try {
+        const { error } = await client.auth.signOut();
+        
+        if (error) {
+          document.getElementById('results').innerHTML = `❌ Sign-out failed: ${error.message}`;
+        } else {
+          document.getElementById('results').innerHTML = '✅ Signed out successfully';
+        }
+      } catch (error) {
+        document.getElementById('results').innerHTML = `❌ Exception during sign-out: ${error.message}`;
+      }
+    }
+    
+    // Test organizations table
+    async function testOrganizations() {
+      const client = initSupabase();
+      if (!client) return;
+      
+      try {
+        const { data, error } = await client.from('organizations').select('*').limit(5);
+        
+        if (error) {
+          document.getElementById('results').innerHTML = `❌ Organizations test failed: ${error.message}`;
+        } else {
+          document.getElementById('results').innerHTML = `✅ Organizations test successful!\n\n${JSON.stringify(data, null, 2)}`;
+        }
+      } catch (error) {
+        document.getElementById('results').innerHTML = `❌ Exception testing organizations: ${error.message}`;
+      }
+    }
+    
+    // Test organization members table
+    async function testOrgMembers() {
+      const client = initSupabase();
+      if (!client) return;
+      
+      try {
+        const { data, error } = await client.from('organization_members').select('*').limit(5);
+        
+        if (error) {
+          document.getElementById('results').innerHTML = `❌ Organization members test failed: ${error.message}`;
+        } else {
+          document.getElementById('results').innerHTML = `✅ Organization members test successful!\n\n${JSON.stringify(data, null, 2)}`;
+        }
+      } catch (error) {
+        document.getElementById('results').innerHTML = `❌ Exception testing organization members: ${error.message}`;
+      }
+    }
+    
+    // Test user preferences table
+    async function testUserPreferences() {
+      const client = initSupabase();
+      if (!client) return;
+      
+      try {
+        const { data, error } = await client.from('user_preferences').select('*').limit(5);
+        
+        if (error) {
+          document.getElementById('results').innerHTML = `❌ User preferences test failed: ${error.message}`;
+        } else {
+          document.getElementById('results').innerHTML = `✅ User preferences test successful!\n\n${JSON.stringify(data, null, 2)}`;
+        }
+      } catch (error) {
+        document.getElementById('results').innerHTML = `❌ Exception testing user preferences: ${error.message}`;
+      }
+    }
+    
+    // Load saved configuration
+    window.onload = function() {
+      const url = localStorage.getItem('supabaseUrl');
+      const key = localStorage.getItem('supabaseKey');
+      
+      if (url) document.getElementById('supabaseUrl').value = url;
+      if (key) document.getElementById('supabaseKey').value = key;
+      
+      if (url && key) {
+        try {
+          supabase = supabase.createClient(url, key);
+          document.getElementById('results').innerHTML = '✅ Supabase client initialized with saved configuration';
+        } catch (error) {
+          document.getElementById('results').innerHTML = `❌ Error initializing Supabase: ${error.message}`;
+        }
+      }
+    };
+  </script>
+</body>
+</html>
+
+
+
+
+
+
+
+

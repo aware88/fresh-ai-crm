@@ -5,13 +5,11 @@ import { useRouter } from 'next/navigation';
 import { signIn } from 'next-auth/react';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { getIndividualPlans, getOrganizationPlans, formatPrice } from '@/lib/subscription-plans';
+import { Eye, EyeOff, CheckCircle, AlertCircle } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { getIndividualPlans, getOrganizationPlans, formatPrice } from '@/lib/subscription-plans-v2';
 import { 
   Dialog, 
   DialogContent, 
@@ -20,7 +18,11 @@ import {
   DialogTitle 
 } from '@/components/ui/dialog';
 import Link from 'next/link';
-import { Eye, EyeOff } from 'lucide-react';
+import { 
+  BoxReveal,
+  Label,
+  Input
+} from '@/components/ui/modern-animated-sign-in';
 
 // Helper function to generate a URL-friendly slug
 const generateSlug = (name: string): string => {
@@ -31,10 +33,13 @@ const generateSlug = (name: string): string => {
 };
 
 export default function SignUpForm() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
+  const [formData, setFormData] = useState({
+    email: '',
+    password: '',
+    confirmPassword: '',
+    firstName: '',
+    lastName: '',
+  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -45,7 +50,6 @@ export default function SignUpForm() {
   const [orgName, setOrgName] = useState('');
   const [orgSlug, setOrgSlug] = useState('');
   const [subscriptionPlan, setSubscriptionPlan] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
   const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   // Real-time password validation
@@ -56,9 +60,9 @@ export default function SignUpForm() {
   const [resendLoading, setResendLoading] = useState(false);
   
   // New states for password visibility and validation
+  const [hasSubmitted, setHasSubmitted] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [hasSubmitted, setHasSubmitted] = useState(false);
   
   const { toast } = useToast();
   const router = useRouter();
@@ -77,25 +81,36 @@ export default function SignUpForm() {
     }
   }, [isOrganization]);
 
+  const handleInputChange = (
+    event: React.ChangeEvent<HTMLInputElement>,
+    name: keyof typeof formData
+  ) => {
+    const value = event.target.value;
+    setFormData((prevState) => ({
+      ...prevState,
+      [name]: value,
+    }));
+  };
+
   // Password validation - only show errors after first submit attempt
   useEffect(() => {
-    if (hasSubmitted && password && confirmPassword) {
-      if (password !== confirmPassword) {
+    if (hasSubmitted && formData.password && formData.confirmPassword) {
+      if (formData.password !== formData.confirmPassword) {
         setPasswordError('Passwords do not match');
         setPasswordsMatch(false);
       } else {
         setPasswordError(null);
         setPasswordsMatch(true);
       }
-    } else if (hasSubmitted && (!password || !confirmPassword)) {
+    } else if (hasSubmitted && (!formData.password || !formData.confirmPassword)) {
       setPasswordError(null);
       setPasswordsMatch(false);
     } else if (!hasSubmitted) {
       // Before first submit, only check if passwords match for internal state
-      setPasswordsMatch(password === confirmPassword && password !== '');
+      setPasswordsMatch(formData.password === formData.confirmPassword && formData.password !== '');
       setPasswordError(null);
     }
-  }, [password, confirmPassword, hasSubmitted]);
+  }, [formData.password, formData.confirmPassword, hasSubmitted]);
 
   // Handle organization name change - auto-generate slug
   const handleOrgNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -110,7 +125,7 @@ export default function SignUpForm() {
 
   // Validate form
   const validateForm = () => {
-    if (!email || !password || !firstName || !lastName) {
+    if (!formData.email || !formData.password || !formData.firstName || !formData.lastName) {
       setError('Please fill in all required fields');
       return false;
     }
@@ -140,7 +155,7 @@ export default function SignUpForm() {
   };
 
   const handleResendConfirmation = async () => {
-    if (!email) {
+    if (!formData.email) {
       setError('Please enter your email address');
       return;
     }
@@ -152,7 +167,7 @@ export default function SignUpForm() {
       const response = await fetch('/api/auth/resend-confirmation', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email: formData.email }),
       });
 
       const data = await response.json();
@@ -191,10 +206,10 @@ export default function SignUpForm() {
     try {
       // Prepare the signup data
       const signupData = {
-        email,
-        password,
-        firstName,
-        lastName,
+        email: formData.email,
+        password: formData.password,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
         subscriptionPlan,
         isOrganization,
         ...(isOrganization && {
@@ -217,11 +232,13 @@ export default function SignUpForm() {
         setShowSuccessModal(true);
         
         // Reset form
-        setEmail('');
-        setPassword('');
-        setConfirmPassword('');
-        setFirstName('');
-        setLastName('');
+        setFormData({
+          email: '',
+          password: '',
+          confirmPassword: '',
+          firstName: '',
+          lastName: '',
+        });
         setOrgName('');
         setOrgSlug('');
         setSubscriptionPlan('');
@@ -249,192 +266,207 @@ export default function SignUpForm() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 flex items-center justify-center p-4">
-      <Card className="w-full max-w-md shadow-2xl border-0 bg-white/80 backdrop-blur-sm">
-        <CardHeader className="space-y-1 pb-4">
-          <div className="flex items-center justify-center mb-4">
-            <div className="w-12 h-12 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl flex items-center justify-center">
-              <span className="text-white font-bold text-xl">A</span>
-            </div>
-          </div>
-          <CardTitle className="text-2xl font-bold text-center bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
-            Create Account
-          </CardTitle>
-          <CardDescription className="text-center text-gray-600">
-            Join thousands of users growing their business
-          </CardDescription>
-        </CardHeader>
+    <div className="w-full">
+      {/* Header */}
+      <BoxReveal boxColor='var(--skeleton)' duration={0.3}>
+        <div className="text-center mb-6">
+          <Link href="/" className="inline-block">
+            <h1 className="text-3xl font-black bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">ARIS</h1>
+          </Link>
+          <p className="mt-2 text-gray-600">Create your account to get started</p>
+        </div>
+      </BoxReveal>
 
-        <CardContent className="space-y-4">
-          {error && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-800">
+      {/* Error Messages */}
+      {error && (
+        <BoxReveal boxColor='var(--skeleton)' duration={0.3} className="mb-4">
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
               {error}
               {showResendConfirmation && (
                 <div className="mt-3 pt-3 border-t border-red-200">
                   <p className="text-xs text-red-600 mb-2">
                     Didn't receive the confirmation email?
                   </p>
-                  <button
-                    type="button"
+                  <Button 
+                    variant="link" 
+                    className="p-0 h-auto font-normal underline justify-start text-xs"
                     onClick={handleResendConfirmation}
                     disabled={resendLoading}
-                    className="text-xs bg-red-100 hover:bg-red-200 text-red-700 px-3 py-1 rounded-lg transition-colors disabled:opacity-50"
                   >
                     {resendLoading ? 'Sending...' : 'Resend Confirmation Email'}
-                  </button>
+                  </Button>
                 </div>
               )}
-            </div>
-          )}
-          
-          {success && (
-            <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm text-green-800">
+            </AlertDescription>
+          </Alert>
+        </BoxReveal>
+      )}
+      
+      {success && (
+        <BoxReveal boxColor='var(--skeleton)' duration={0.3} className="mb-4">
+          <Alert className="border-green-200 bg-green-50">
+            <CheckCircle className="h-4 w-4 text-green-600" />
+            <AlertDescription className="text-green-800">
               {success}
-            </div>
-          )}
+            </AlertDescription>
+          </Alert>
+        </BoxReveal>
+      )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Personal Information */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="firstName" className="text-gray-700 font-medium">First Name</Label>
-                <Input
-                  id="firstName"
-                  type="text"
-                  value={firstName}
-                  onChange={(e) => setFirstName(e.target.value)}
-                  className="rounded-xl py-6 px-4 border-gray-200 focus:border-purple-400 focus:ring-purple-400/20"
-                  placeholder="John"
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="lastName" className="text-gray-700 font-medium">Last Name</Label>
-                <Input
-                  id="lastName"
-                  type="text"
-                  value={lastName}
-                  onChange={(e) => setLastName(e.target.value)}
-                  className="rounded-xl py-6 px-4 border-gray-200 focus:border-purple-400 focus:ring-purple-400/20"
-                  placeholder="Doe"
-                  required
-                />
-              </div>
-            </div>
-
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Personal Information */}
+        <div className="grid grid-cols-2 gap-4">
+          <BoxReveal boxColor='var(--skeleton)' duration={0.3}>
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-gray-700 font-medium">Email</Label>
+              <Label htmlFor="firstName">First Name</Label>
               <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="rounded-xl py-6 px-4 border-gray-200 focus:border-purple-400 focus:ring-purple-400/20"
-                placeholder="john@example.com"
+                id="firstName"
+                type="text"
+                value={formData.firstName}
+                onChange={(e) => handleInputChange(e, 'firstName')}
+                placeholder="John"
                 required
               />
             </div>
-
+          </BoxReveal>
+          <BoxReveal boxColor='var(--skeleton)' duration={0.3}>
             <div className="space-y-2">
-              <Label htmlFor="password" className="text-gray-700 font-medium">Password</Label>
-              <div className="relative">
-                <Input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="rounded-xl py-6 px-4 pr-12 border-gray-200 focus:border-purple-400 focus:ring-purple-400/20"
-                  placeholder="Enter your password"
-                  required
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-                >
-                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                </button>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="confirmPassword" className="text-gray-700 font-medium">Confirm Password</Label>
-              <div className="relative">
-                <Input
-                  id="confirmPassword"
-                  type={showConfirmPassword ? "text" : "password"}
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  className={`rounded-xl py-6 px-4 pr-12 border-gray-200 focus:border-purple-400 focus:ring-purple-400/20 ${
-                    passwordError ? 'border-red-300' : ''
-                  }`}
-                  placeholder="Confirm your password"
-                  required
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-                >
-                  {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                </button>
-              </div>
-              {passwordError && hasSubmitted && (
-                <p className="text-sm text-red-600">{passwordError}</p>
-              )}
-            </div>
-
-            {/* Organization Checkbox */}
-            <div className="flex items-center space-x-2 p-4 bg-gray-50 rounded-xl">
-              <Checkbox
-                id="isOrganization"
-                checked={isOrganization}
-                onCheckedChange={(checked) => setIsOrganization(checked as boolean)}
+              <Label htmlFor="lastName">Last Name</Label>
+              <Input
+                id="lastName"
+                type="text"
+                value={formData.lastName}
+                onChange={(e) => handleInputChange(e, 'lastName')}
+                placeholder="Doe"
+                required
               />
-              <Label htmlFor="isOrganization" className="text-sm font-medium text-gray-700">
-                This is for an organization
-              </Label>
             </div>
+          </BoxReveal>
+        </div>
 
-            {/* Organization Name (only shown if organization is selected) */}
-            {isOrganization && (
-              <div className="space-y-4 p-4 bg-blue-50 rounded-xl border border-blue-200">
-                <h3 className="font-medium text-blue-900">Organization Details</h3>
-                <div className="space-y-2">
-                  <Label htmlFor="orgName" className="text-gray-700 font-medium">Organization Name</Label>
+        <BoxReveal boxColor='var(--skeleton)' duration={0.3}>
+          <div className="space-y-2">
+            <Label htmlFor="email">Email</Label>
+            <Input
+              id="email"
+              type="email"
+              value={formData.email}
+              onChange={(e) => handleInputChange(e, 'email')}
+              placeholder="john@example.com"
+              required
+            />
+          </div>
+        </BoxReveal>
+
+        <BoxReveal boxColor='var(--skeleton)' duration={0.3}>
+          <div className="space-y-2">
+            <Label htmlFor="password">Password</Label>
+            <div className="relative">
+              <Input
+                id="password"
+                type={showPassword ? "text" : "password"}
+                value={formData.password}
+                onChange={(e) => handleInputChange(e, 'password')}
+                className="pr-12"
+                placeholder="Enter your password"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+              </button>
+            </div>
+          </div>
+        </BoxReveal>
+
+        <BoxReveal boxColor='var(--skeleton)' duration={0.3}>
+          <div className="space-y-2">
+            <Label htmlFor="confirmPassword">Confirm Password</Label>
+            <div className="relative">
+              <Input
+                id="confirmPassword"
+                type={showConfirmPassword ? "text" : "password"}
+                value={formData.confirmPassword}
+                onChange={(e) => handleInputChange(e, 'confirmPassword')}
+                className={`pr-12 ${
+                  passwordError ? 'border-red-300' : ''
+                }`}
+                placeholder="Confirm your password"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+              </button>
+            </div>
+            {passwordError && hasSubmitted && (
+              <p className="text-sm text-red-600">{passwordError}</p>
+            )}
+          </div>
+        </BoxReveal>
+
+        {/* Organization Checkbox */}
+        <BoxReveal boxColor='var(--skeleton)' duration={0.3}>
+          <div className="flex items-center space-x-2 p-4 bg-gray-50 rounded-xl">
+            <Checkbox
+              id="isOrganization"
+              checked={isOrganization}
+              onCheckedChange={(checked) => setIsOrganization(checked as boolean)}
+            />
+            <Label htmlFor="isOrganization" className="text-sm font-medium text-gray-700">
+              This is for an organization
+            </Label>
+          </div>
+        </BoxReveal>
+
+        {/* Organization Name (only shown if organization is selected) */}
+        {isOrganization && (
+          <BoxReveal boxColor='var(--skeleton)' duration={0.3}>
+            <div className="space-y-4 p-4 bg-blue-50 rounded-xl border border-blue-200">
+              <h3 className="font-medium text-blue-900">Organization Details</h3>
+              <div className="space-y-2">
+                <Label htmlFor="orgName">Organization Name</Label>
+                <Input
+                  id="orgName"
+                  type="text"
+                  value={orgName}
+                  onChange={handleOrgNameChange}
+                  placeholder="Acme Corporation"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="orgSlug">Organization URL</Label>
+                <div className="flex items-center space-x-2">
+                  <span className="text-sm text-gray-500">yourapp.com/</span>
                   <Input
-                    id="orgName"
+                    id="orgSlug"
                     type="text"
-                    value={orgName}
-                    onChange={handleOrgNameChange}
-                    className="rounded-xl py-6 px-4 border-gray-200 focus:border-purple-400 focus:ring-purple-400/20"
-                    placeholder="Acme Corporation"
+                    value={orgSlug}
+                    onChange={(e) => setOrgSlug(e.target.value)}
+                    placeholder="acme-corp"
                     required
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="orgSlug" className="text-gray-700 font-medium">Organization URL</Label>
-                  <div className="flex items-center space-x-2">
-                    <span className="text-sm text-gray-500">yourapp.com/</span>
-                    <Input
-                      id="orgSlug"
-                      type="text"
-                      value={orgSlug}
-                      onChange={(e) => setOrgSlug(e.target.value)}
-                      className="rounded-xl py-6 px-4 border-gray-200 focus:border-purple-400 focus:ring-purple-400/20"
-                      placeholder="acme-corp"
-                      required
-                    />
-                  </div>
-                </div>
               </div>
-            )}
+            </div>
+          </BoxReveal>
+        )}
 
-            {/* Subscription Plan Selection */}
-            <div className="space-y-3">
-              <Label className="text-gray-700 font-medium">
-                {isOrganization ? 'Organization Plan' : 'Choose Your Plan'}
-              </Label>
+        {/* Subscription Plan Selection */}
+        <BoxReveal boxColor='var(--skeleton)' duration={0.3}>
+          <div className="space-y-3">
+            <Label className="text-gray-700 font-medium">
+              {isOrganization ? 'Organization Plan' : 'Choose Your Plan'}
+            </Label>
               
               {availablePlans.map((plan) => {
                 const isPremiumPlan = plan.isOrganizationPlan && plan.id.includes('premium');
@@ -520,18 +552,34 @@ export default function SignUpForm() {
                   </div>
                 );
               })}
-            </div>
+          </div>
+        </BoxReveal>
 
-            <Button 
-              type="submit" 
-              className="w-full bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 hover:from-blue-700 hover:via-purple-700 hover:to-pink-700 text-white py-6 text-base font-medium rounded-xl shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all duration-200" 
-              disabled={loading}
+        <BoxReveal boxColor='var(--skeleton)' duration={0.3}>
+          <Button 
+            type="submit" 
+            className="w-full bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 hover:from-blue-700 hover:via-purple-700 hover:to-pink-700 text-white py-6 text-base font-medium rounded-xl shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all duration-200" 
+            disabled={loading}
+          >
+            {loading ? 'Creating Account...' : 'Create Account'}
+          </Button>
+        </BoxReveal>
+      </form>
+
+      {/* Additional Links */}
+      <div className="mt-6 text-center">
+        <BoxReveal boxColor='var(--skeleton)' duration={0.3}>
+          <p className="text-sm text-muted-foreground">
+            Already have an account?{' '}
+            <Link 
+              href="/signin" 
+              className="font-medium text-primary underline-offset-4 hover:underline"
             >
-              {loading ? 'Creating Account...' : 'Create Account'}
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
+              Sign in
+            </Link>
+          </p>
+        </BoxReveal>
+      </div>
 
       {/* Success Modal */}
       <Dialog open={showSuccessModal} onOpenChange={() => {}}>

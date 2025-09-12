@@ -120,7 +120,7 @@ export class BackgroundAIProcessor {
       }
 
       // 2. Load email data
-      const emailData = await this.loadEmailData(emailId, context.emailContent);
+      const emailData = await this.loadEmailData(emailId, context.emailContent, userId);
       if (!emailData) {
         throw new Error(`Email ${emailId} not found`);
       }
@@ -176,7 +176,7 @@ export class BackgroundAIProcessor {
       } : null;
 
       // 6. Cache results for instant UI access
-      await this.cacheResults(emailId, analysisResult, draftResult);
+      await this.cacheResults(emailId, analysisResult, draftResult, userId);
 
       // 7. CONTINUOUS LEARNING - Learn from this email (NEW!)
       await this.performContinuousLearning(emailData, userId, organizationId);
@@ -398,7 +398,7 @@ export class BackgroundAIProcessor {
   /**
    * Load email data from database or use provided email content
    */
-  private async loadEmailData(emailId: string, providedEmailContent?: any) {
+  private async loadEmailData(emailId: string, providedEmailContent?: any, userId?: string) {
     // If email content is provided (for virtual/compose emails), use it
     if (providedEmailContent) {
       return {
@@ -425,18 +425,56 @@ export class BackgroundAIProcessor {
       };
     }
 
-    const { data, error } = await this.supabase
-      .from('emails')
+    // Get email index data
+    console.log(`[BackgroundAI] Looking up email: ${emailId} for user: ${userId}`);
+    
+    // Get all fields from email_index
+    const { data: indexDataArray, error: indexError } = await this.supabase
+      .from('email_index')
       .select('*')
-      .eq('id', emailId)
-      .single();
+      .eq('message_id', emailId)
+      .eq('user_id', userId);
+    
+    const indexData = indexDataArray?.[0]; // Take first match
+    
+    console.log(`[BackgroundAI] Direct query result:`, { 
+      found: !!indexData, 
+      count: indexDataArray?.length || 0,
+      error: indexError?.message 
+    });
 
-    if (error) {
-      console.error('[BackgroundAI] Error loading email:', error);
+    if (!indexData) {
+      console.error('[BackgroundAI] Email not found in index');
+      console.error('[BackgroundAI] Query params:', { emailId, userId });
+      if (indexError) {
+        console.error('[BackgroundAI] Query error:', indexError);
+      }
       return null;
     }
+    
+    console.log(`[BackgroundAI] Found email data:`, indexData?.subject || 'No subject');
 
-    return data;
+    // Get email content from cache (also don't use .single() to avoid errors)
+    const { data: contentDataArray } = await this.supabase
+      .from('email_content_cache')
+      .select('html_content, plain_content, raw_content')
+      .eq('message_id', emailId);
+    
+    const contentData = contentDataArray?.[0]; // Take first match if exists
+
+    // Map the fields to match expected structure
+    return {
+      id: indexData.id,
+      message_id: indexData.message_id,
+      from_address: indexData.sender_email,
+      to_address: indexData.recipient_email,
+      subject: indexData.subject,
+      raw_content: contentData?.html_content || contentData?.plain_content || indexData.preview_text || '',
+      body: contentData?.html_content || contentData?.plain_content || indexData.preview_text || '',
+      received_date: indexData.received_at,
+      sent_date: indexData.sent_at,
+      headers: {}
+    };
   }
 
   /**
@@ -448,7 +486,7 @@ export class BackgroundAIProcessor {
       const { data, error } = await this.supabase
         .from('email_ai_cache')
         .select('*')
-        .eq('email_id', emailId)
+        .eq('message_id', emailId)
         .order('created_at', { ascending: false })
         .limit(1)
         .single();
@@ -479,7 +517,7 @@ export class BackgroundAIProcessor {
   /**
    * Cache results for instant UI access (with fallback to memory cache)
    */
-  private async cacheResults(emailId: string, analysisResult: any, draftResult: any) {
+  private async cacheResults(emailId: string, analysisResult: any, draftResult: any, userId?: string) {
     const cacheData = {
       analysis: analysisResult,
       draft: draftResult
@@ -492,15 +530,18 @@ export class BackgroundAIProcessor {
     });
 
     try {
-      // Try to cache in database
+      // Try to cache in database (using message_id as the primary key)
       const { error } = await this.supabase
         .from('email_ai_cache')
         .upsert({
-          email_id: emailId,
+          message_id: emailId,
+          user_id: userId || null,
           analysis_result: analysisResult,
           draft_result: draftResult,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'message_id'
         });
 
       if (error) {
@@ -673,9 +714,9 @@ export class BackgroundAIProcessor {
       const isUserResponse = userEmail?.email_address && 
         emailData.from_address?.toLowerCase() === userEmail.email_address.toLowerCase();
       
-      // Learn from this email
+      // Learn from this email (pass message_id, not UUID)
       const learningResult = await learningService.learnFromNewEmail(
-        emailData.id,
+        emailData.message_id || emailData.id,
         userId,
         organizationId,
         isUserResponse
@@ -696,10 +737,9 @@ export class BackgroundAIProcessor {
 let backgroundProcessor: BackgroundAIProcessor | null = null;
 
 export function getBackgroundProcessor(supabase: SupabaseClient<Database>, openai: OpenAI): BackgroundAIProcessor {
-  if (!backgroundProcessor) {
-    backgroundProcessor = new BackgroundAIProcessor(supabase, openai);
-  }
-  return backgroundProcessor;
+  // Always create a new instance to ensure fresh Supabase client
+  // The singleton pattern was causing issues with stale database connections
+  return new BackgroundAIProcessor(supabase, openai);
 }
 
 export default BackgroundAIProcessor;

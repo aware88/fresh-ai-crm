@@ -1,12 +1,1 @@
-{
-  "crons": [
-    {
-      "path": "/api/tasks/scan-emails",
-      "schedule": "0 */2 * * *"
-    },
-    {
-      "path": "/api/email/initialize-realtime-sync",
-      "schedule": "0 */6 * * *"
-    }
-  ]
-}
+{}

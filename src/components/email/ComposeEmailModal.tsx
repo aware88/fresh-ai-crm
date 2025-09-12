@@ -17,11 +17,13 @@ import {
   ChevronDown,
   Sparkles,
   Bot,
+  RefreshCw,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import RichTextEditor from './RichTextEditor';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
@@ -53,6 +55,7 @@ interface ComposeEmailModalProps {
   onDraftSave?: (email: EmailData) => Promise<void>;
   onAIDraft?: (prompt: string) => Promise<string>;
   defaultTo?: string;
+  defaultCc?: string[];
   defaultSubject?: string;
   defaultBody?: string;
   replyTo?: any;
@@ -78,6 +81,7 @@ export default function ComposeEmailModal({
   onDraftSave,
   onAIDraft,
   defaultTo = '',
+  defaultCc = [],
   defaultSubject = '',
   defaultBody = '',
   replyTo,
@@ -86,7 +90,7 @@ export default function ComposeEmailModal({
 }: ComposeEmailModalProps) {
   const [isMinimized, setIsMinimized] = useState(false);
   const [isMaximized, setIsMaximized] = useState(false);
-  const [showCc, setShowCc] = useState(false);
+  const [showCc, setShowCc] = useState(defaultCc.length > 0);
   const [showBcc, setShowBcc] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [isDrafting, setIsDrafting] = useState(false);
@@ -95,7 +99,7 @@ export default function ComposeEmailModal({
   
   const [emailData, setEmailData] = useState<EmailData>({
     to: defaultTo ? [defaultTo] : [],
-    cc: [],
+    cc: defaultCc || [],
     bcc: [],
     subject: replyTo ? `Re: ${replyTo.subject}` : defaultSubject,
     body: defaultBody,
@@ -112,6 +116,24 @@ export default function ComposeEmailModal({
       bodyRef.current.focus();
     }
   }, [isOpen]);
+
+  // Update email data when props change
+  useEffect(() => {
+    if (isOpen) {
+      setEmailData({
+        to: defaultTo ? [defaultTo] : [],
+        cc: defaultCc || [],
+        bcc: [],
+        subject: replyTo ? `Re: ${replyTo.subject}` : defaultSubject,
+        body: defaultBody,
+        attachments: [],
+        priority: 'normal',
+        accountId: selectedAccountId,
+      });
+      setShowCc(defaultCc.length > 0);
+      setShowBcc(false);
+    }
+  }, [isOpen, defaultTo, defaultCc, defaultSubject, defaultBody, replyTo, selectedAccountId]);
 
   const handleSend = async () => {
     setIsSending(true);
@@ -181,13 +203,19 @@ export default function ComposeEmailModal({
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
             onClick={(e) => e.stopPropagation()}
             className={cn(
-              'bg-white dark:bg-gray-900 rounded-2xl shadow-2xl overflow-hidden',
-              isMaximized ? 'w-full h-full' : 'w-full max-w-4xl h-[90vh] max-h-[800px]',
+              'bg-white dark:bg-gray-900 rounded-2xl shadow-2xl overflow-hidden flex flex-col',
+              isMaximized 
+                ? 'w-full h-full' 
+                : `w-full max-w-4xl max-h-[95vh] ${
+                    showCc || showBcc 
+                      ? 'h-auto min-h-[600px]' // Dynamic height when CC/BCC shown
+                      : 'h-[90vh] max-h-[800px]'  // Fixed height when compact
+                  }`,
               isMinimized && 'h-16'
             )}
           >
             {/* Header */}
-            <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-800 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-950/20 dark:to-pink-950/20">
+            <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-800 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-950/20 dark:to-pink-950/20 flex-shrink-0">
               <div className="flex items-center gap-3">
                 <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
                 <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
@@ -243,7 +271,7 @@ export default function ComposeEmailModal({
               <>
                 {/* From Account Selector */}
                 {accounts.length > 0 && (
-                  <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-800">
+                  <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-800 flex-shrink-0">
                     <div className="flex items-center gap-3">
                       <span className="text-sm font-medium text-gray-600 dark:text-gray-400">From:</span>
                       <Select
@@ -266,7 +294,7 @@ export default function ComposeEmailModal({
                 )}
 
                 {/* Recipients */}
-                <div className="px-4 py-3 space-y-2 border-b border-gray-200 dark:border-gray-800">
+                <div className="px-4 py-3 space-y-2 border-b border-gray-200 dark:border-gray-800 flex-shrink-0">
                   <div className="flex items-center gap-3">
                     <span className="text-sm font-medium text-gray-600 dark:text-gray-400 w-12">To:</span>
                     <Input
@@ -331,7 +359,7 @@ export default function ComposeEmailModal({
                 </div>
 
                 {/* Subject */}
-                <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-800">
+                <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-800 flex-shrink-0">
                   <Input
                     type="text"
                     placeholder="Subject"
@@ -342,7 +370,7 @@ export default function ComposeEmailModal({
                 </div>
 
                 {/* Body */}
-                <div className="flex-1 px-4 py-4 overflow-auto">
+                <div className="flex-1 px-4 py-4 overflow-auto min-h-0">
                   {showAIAssist && (
                     <motion.div
                       initial={{ height: 0, opacity: 0 }}
@@ -384,12 +412,12 @@ export default function ComposeEmailModal({
                     </motion.div>
                   )}
                   
-                  <Textarea
-                    ref={bodyRef}
-                    placeholder="Write your message..."
+                  <RichTextEditor
                     value={emailData.body}
-                    onChange={(e) => setEmailData(prev => ({ ...prev, body: e.target.value }))}
-                    className="min-h-[300px] border-0 bg-transparent focus:ring-0 resize-none"
+                    onChange={(value) => setEmailData(prev => ({ ...prev, body: value }))}
+                    placeholder="Write your message..."
+                    height={showCc || showBcc ? "250px" : "300px"} // Adjust height based on CC/BCC
+                    className="border-0 bg-transparent"
                   />
                 </div>
 
@@ -417,7 +445,7 @@ export default function ComposeEmailModal({
                 )}
 
                 {/* Actions */}
-                <div className="flex items-center justify-between p-4 border-t border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50">
+                <div className="flex items-center justify-between p-4 border-t border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50 flex-shrink-0">
                   <div className="flex items-center gap-2">
                     <input
                       ref={fileInputRef}

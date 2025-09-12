@@ -18,36 +18,61 @@ async function gmailGet(url: string, accessToken: string) {
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession();
-    if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    // Check for internal call (from real-time sync)
+    const userAgent = req.headers.get('User-Agent') || '';
+    const isInternalCall = userAgent.includes('Internal-IMAP-Setup') || 
+                          userAgent.includes('Manual-Sync-Script') ||
+                          userAgent.includes('Internal-RealTime-Sync') ||
+                          userAgent.includes('BackgroundSyncService') ||
+                          userAgent.includes('CronRunner');
+    
+    let userId = null;
+    
+    if (!isInternalCall) {
+      const session = await getServerSession();
+      if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      userId = (session.user as any).id;
+    }
 
     const { accountId, folder = 'inbox', maxEmails = 200, pageToken, incremental = true } = await req.json();
     if (!accountId) return NextResponse.json({ error: 'accountId is required' }, { status: 400 });
 
     const supabase = createServiceRoleClient();
-    const { data: account, error } = await supabase
+    let accountQuery = supabase
       .from('email_accounts')
-      .select('id, user_id')
+      .select('id, user_id, email')
       .eq('id', accountId)
-      .eq('user_id', (session.user as any).id)
-      .eq('provider_type', 'google')
-      .maybeSingle();
+      .eq('provider_type', 'google');
+    
+    // Add user_id filter only for authenticated calls
+    if (userId) {
+      accountQuery = accountQuery.eq('user_id', userId);
+    }
+    
+    const { data: account, error } = await accountQuery.maybeSingle();
     if (error || !account) return NextResponse.json({ error: 'Google account not found' }, { status: 404 });
 
-    const valid = await getValidGoogleAccessToken({ userId: (session.user as any).id, accountId });
+    const valid = await getValidGoogleAccessToken({ userId: userId || account.user_id, accountId });
     if (!valid) return NextResponse.json({ error: 'No valid Google token' }, { status: 401 });
     const accessToken = valid.accessToken;
 
-    // Map folder to query
+    // Map folder to query with pagination support
     const label = folder.toLowerCase() === 'sent' ? 'SENT' : 'INBOX';
     const q = label === 'INBOX' ? 'in:inbox' : 'in:sent';
-    const limit = Math.min(Math.max(Number(maxEmails) || 50, 1), 500);
+    const targetEmails = Math.min(Math.max(Number(maxEmails) || 50, 1), 10000); // Allow up to 10k emails
+    const pageSize = Math.min(500, targetEmails); // Gmail max per page is 500
+    
+    console.log(`📧 Starting Gmail sync for ${account.email}: target=${targetEmails}, pageSize=${pageSize}`);
 
-    let url = `https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=${limit}&q=${encodeURIComponent(q)}`;
-    if (pageToken) url += `&pageToken=${encodeURIComponent(pageToken)}`;
-    // Use historyId for incremental sync
+    // Pagination loop to fetch all requested emails
+    let allMessages: any[] = [];
+    let currentPageToken: string | undefined = pageToken;
+    let pageCount = 0;
+    const maxPages = Math.ceil(targetEmails / pageSize);
+    
+    // Use historyId for incremental sync (only for first page)
     let nextHistoryId: string | null = null;
-    if (incremental) {
+    if (incremental && !currentPageToken) {
       const state = await getSyncState(account.id, 'google');
       const key = `history_${folder.toLowerCase()}`;
       const historyId = state?.state?.[key];
@@ -63,21 +88,49 @@ export async function POST(req: NextRequest) {
             (h.messagesAdded || []).forEach((m: any) => ids.push(m.message.id));
           });
           if (ids.length) {
-            // Fetch those messages directly
-            const msgs = await Promise.all(
-              ids.slice(0, limit).map((id) => gmailGet(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${id}?format=full`, accessToken)),
-            );
-            // Attach to flow: reuse below processing by converting to same shape
-            const messages = msgs.map((m) => ({ id: m.id }));
-            // Overwrite first page messages
-            (list as any) = { messages };
+            // Return incremental messages only for delta sync
+            console.log(`📧 Gmail incremental sync found ${ids.length} new messages`);
+            allMessages = ids.slice(0, targetEmails).map(id => ({ id }));
           }
-        } catch {}
+        } catch (error) {
+          console.warn('Gmail history sync failed, falling back to full sync:', error);
+        }
       }
     }
 
-    const list = await gmailGet(url, accessToken);
-    const messages = list.messages || [];
+    // If not incremental or no incremental results, do full pagination
+    if (allMessages.length === 0) {
+      while (allMessages.length < targetEmails && pageCount < maxPages) {
+        pageCount++;
+        const currentPageSize = Math.min(pageSize, targetEmails - allMessages.length);
+        
+        console.log(`📄 Fetching Gmail page ${pageCount}/${maxPages} (${allMessages.length}/${targetEmails} emails)...`);
+        
+        let url = `https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=${currentPageSize}&q=${encodeURIComponent(q)}`;
+        if (currentPageToken) url += `&pageToken=${encodeURIComponent(currentPageToken)}`;
+        
+        const list = await gmailGet(url, accessToken);
+        const pageMessages = list.messages || [];
+        allMessages = allMessages.concat(pageMessages);
+        
+        // Get next page token
+        currentPageToken = list.nextPageToken;
+        
+        // Stop if no more pages or we got fewer results than requested
+        if (!currentPageToken || pageMessages.length < currentPageSize) {
+          console.log(`📭 Reached end of Gmail data at page ${pageCount}`);
+          break;
+        }
+      }
+    }
+    
+    // Trim to exact target if we fetched more
+    if (allMessages.length > targetEmails) {
+      allMessages = allMessages.slice(0, targetEmails);
+    }
+    
+    console.log(`✅ Gmail fetch complete: ${allMessages.length} emails from ${pageCount} pages`);
+    const messages = allMessages;
 
     const emailIndexRecords: any[] = [];
     const contentCacheRecords: any[] = [];
@@ -145,14 +198,25 @@ export async function POST(req: NextRequest) {
     }
 
     if (emailIndexRecords.length) {
-      await supabase
-        .from('email_index')
-        .upsert(emailIndexRecords, { onConflict: 'message_id' })
-        .catch(() => undefined);
+      // Use RPC function to avoid ON CONFLICT issues
+      const { data: insertResult, error: rpcError } = await supabase
+        .rpc('insert_email_index_batch', {
+          p_emails: emailIndexRecords
+        });
+      
+      if (rpcError) {
+        console.error('Gmail RPC batch insert error:', rpcError);
+      } else {
+        console.log('Gmail batch insert result:', insertResult);
+      }
+      
+      // Insert content cache (less critical, can still use upsert)
       await supabase
         .from('email_content_cache')
-        .upsert(contentCacheRecords, { onConflict: 'message_id' })
+        .upsert(contentCacheRecords)
         .catch(() => undefined);
+      
+      // Update account sync metadata
       await supabase
         .from('email_accounts')
         .update({ last_sync_at: new Date().toISOString(), sync_error: null, updated_at: new Date().toISOString() })

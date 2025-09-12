@@ -261,9 +261,11 @@ export default function PipelinePage() {
                 <Target className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">68%</div>
+                <div className="text-2xl font-bold">
+                  {pipelines.length === 0 ? '0%' : '-'}
+                </div>
                 <p className="text-xs text-muted-foreground">
-                  Last 30 days
+                  {pipelines.length === 0 ? 'No data yet' : 'Calculating...'}
                 </p>
               </CardContent>
             </Card>

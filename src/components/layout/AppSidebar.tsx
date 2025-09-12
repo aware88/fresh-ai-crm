@@ -20,7 +20,9 @@ import {
   Building2,
   ShoppingCart,
   Menu,
-  Sparkles
+  Sparkles,
+  UserCheck,
+  Truck
 } from 'lucide-react';
 import {
   Sidebar,
@@ -107,13 +109,13 @@ const ARIS_NAVIGATION_CONFIG: NavItem[] = [
   {
     title: 'Contacts',
     href: '/dashboard/contacts',
-    icon: <Users className="h-4 w-4" />,
+    icon: <UserCheck className="h-4 w-4" />,
     group: 'business'
   },
   {
     title: 'Suppliers',
     href: '/dashboard/suppliers',
-    icon: <Building2 className="h-4 w-4" />,
+    icon: <Truck className="h-4 w-4" />,
     group: 'business'
   },
   {
@@ -137,7 +139,7 @@ const ARIS_NAVIGATION_CONFIG: NavItem[] = [
     group: 'ai'
   },
   {
-    title: 'Smart Insights',
+    title: 'Sales Pipeline',
     href: '/dashboard/pipeline',
     icon: <TrendingUp className="h-4 w-4" />,
     group: 'ai'
@@ -203,8 +205,8 @@ NavItemComponent.displayName = 'NavItemComponent';
 export function AppSidebar({ className, ...props }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname() || '';
   const { toggleSidebar } = useSidebar();
-  const [businessOpen, setBusinessOpen] = useState(true);
-  const [aiOpen, setAiOpen] = useState(true);
+  const [businessOpen, setBusinessOpen] = useState(false);
+  const [aiOpen, setAiOpen] = useState(false);
   
   // Get organization data for navigation features
   const { organization } = useOrganization();
@@ -238,7 +240,7 @@ export function AppSidebar({ className, ...props }: React.ComponentProps<typeof 
 
   return (
     <TooltipProvider delayDuration={0}>
-      <Sidebar variant="inset" collapsible="icon" className={cn("[&_[data-sidebar=sidebar]]:bg-transparent bg-transparent", className)} {...props}>
+      <Sidebar variant="inset" collapsible="icon" className={cn("bg-background [&_[data-sidebar=sidebar]]:bg-background", className)} {...props}>
         <SidebarHeader>
           <div className="flex items-center justify-end p-2">
             <Button

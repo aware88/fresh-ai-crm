@@ -18,19 +18,7 @@ export default function SupplierDetailPage() {
   const router = useRouter();
   const supplierId = params?.id as string;
   
-  if (!supplierId) {
-    return (
-      <div className="flex h-[50vh] w-full flex-col items-center justify-center gap-4">
-        <p className="text-lg text-muted-foreground">
-          Supplier ID not found
-        </p>
-        <Button asChild>
-          <Link href="/suppliers">Back to Suppliers</Link>
-        </Button>
-      </div>
-    );
-  }
-  
+  // All hooks must be called before any conditional returns
   const [supplier, setSupplier] = useState<Supplier | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -55,6 +43,19 @@ export default function SupplierDetailPage() {
       loadSupplier();
     }
   }, [supplierId]);
+  
+  if (!supplierId) {
+    return (
+      <div className="flex h-[50vh] w-full flex-col items-center justify-center gap-4">
+        <p className="text-lg text-muted-foreground">
+          Supplier ID not found
+        </p>
+        <Button asChild>
+          <Link href="/suppliers">Back to Suppliers</Link>
+        </Button>
+      </div>
+    );
+  }
 
   const handleSendEmail = async (emailData: { to: string; subject: string; body: string }) => {
     if (!supplier) return;

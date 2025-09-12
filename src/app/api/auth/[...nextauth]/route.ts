@@ -3,6 +3,7 @@ import { SupabaseAdapter } from '@auth/supabase-adapter';
 import NextAuth from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import GoogleProvider from 'next-auth/providers/google';
+import AzureADProvider from 'next-auth/providers/azure-ad';
 import { supabase } from '../../../../lib/supabaseClient';
 
 // Extend NextAuth types for this file
@@ -75,8 +76,8 @@ const authOptions: NextAuthOptions = {
   }),
   session: {
     strategy: 'jwt',
-    maxAge: 30 * 24 * 60 * 60, // 30 days - reasonable persistence
-    updateAge: 24 * 60 * 60, // 24 hours - reduce frequency of session updates
+    maxAge: 2 * 60 * 60, // 2 hours - prevent long-lived sessions
+    updateAge: 15 * 60, // 15 minutes - more frequent updates for security
   },
   useSecureCookies: process.env.NODE_ENV === 'production', // Use secure cookies in production
   cookies: {
@@ -174,6 +175,16 @@ const authOptions: NextAuthOptions = {
         },
       },
     }),
+    AzureADProvider({
+      clientId: process.env.MICROSOFT_CLIENT_ID!,
+      clientSecret: process.env.MICROSOFT_CLIENT_SECRET!,
+      tenantId: process.env.MICROSOFT_TENANT_ID || 'common',
+      authorization: {
+        params: {
+          scope: 'openid email profile offline_access Mail.Read Mail.ReadWrite Mail.Send Calendars.Read Contacts.Read',
+        },
+      },
+    }),
     {
       id: 'supabase',
       name: 'Supabase',
@@ -220,18 +231,8 @@ const authOptions: NextAuthOptions = {
         if ((token as any).refreshToken) session.refreshToken = (token as any).refreshToken as string;
         if ((token as any).provider) session.provider = (token as any).provider as string;
 
-        // Organization context
-        if ((token as any).currentOrganizationId !== undefined) {
-          session.currentOrganizationId = (token as any).currentOrganizationId as any;
-        }
-
-        // Branding context (used by UI themes)
-        if ((token as any).organizationBranding) {
-          (session as any).organizationBranding = (token as any).organizationBranding;
-        }
-
-        // Setup status
-        (session as any).organizationSetup = (token as any).organizationSetup || false;
+        // Organization context will be loaded lazily by components that need it
+        // Remove automatic organization loading from session
       }
       return session;
     },
@@ -260,72 +261,8 @@ const authOptions: NextAuthOptions = {
       // If we have a user, set the ID in the token
       if (user) {
         token.id = user.id;
-        
-        // Fetch user preferences and organization branding for immediate theme application
-        try {
-          console.log('🎨 JWT: Fetching user preferences for theme preloading:', user.id);
-          const { data: preferences, error } = await supabase
-            .from('user_preferences')
-            .select('current_organization_id, theme')
-            .eq('user_id', user.id)
-            .single();
-          
-          if (!error && preferences && preferences.current_organization_id) {
-            // Store organization ID in token
-            token.currentOrganizationId = preferences.current_organization_id;
-            console.log('🎨 JWT: Found user organization:', preferences.current_organization_id);
-            
-            // Fetch organization branding for immediate theme application
-            try {
-              const { data: orgData } = await supabase
-                .from('organizations')
-                .select('name, slug')
-                .eq('id', preferences.current_organization_id)
-                .single();
-              
-              if (orgData) {
-                // Try to load branding from file system first
-                let brandingData = null;
-                try {
-                  const { promises: fs } = require('fs');
-                  const path = require('path');
-                  
-                  const brandingDir = path.join(process.cwd(), 'data', 'branding');
-                  const brandingFile = path.join(brandingDir, `${preferences.current_organization_id}.json`);
-                  
-                  const brandingFileData = await fs.readFile(brandingFile, 'utf8');
-                  brandingData = JSON.parse(brandingFileData);
-                  console.log('🎨 JWT: Loaded branding from file for', orgData.name);
-                } catch (fileError) {
-                  console.log('🎨 JWT: No branding file found, using org data only');
-                }
-                
-                // Store comprehensive branding info in token
-                token.organizationBranding = {
-                  name: orgData.name,
-                  slug: orgData.slug,
-                  logo_url: brandingData?.logo_url && brandingData.logo_url.trim() !== '' ? brandingData.logo_url : null,
-                  organization_name: brandingData?.organization_name || orgData.name,
-                  primary_color: brandingData?.primary_color || null,
-                  secondary_color: brandingData?.secondary_color || null
-                };
-                console.log('🎨 JWT: Loaded organization branding for', orgData.name, 'with logo:', !!brandingData?.logo_url);
-              }
-            } catch (brandingError) {
-              console.warn('🎨 JWT: Failed to fetch organization branding:', brandingError);
-            }
-          } else {
-            console.log('🎨 JWT: No user preferences found, user is independent');
-            token.currentOrganizationId = null;
-          }
-        } catch (error) {
-          console.warn('🎨 JWT: Failed to fetch user preferences:', error);
-          token.currentOrganizationId = null;
-        }
-        
-        // 🚨 EMERGENCY DISABLE: Skip organization setup to fix sign-in
-        console.log('🚨 Skipping organization setup call to fix sign-in');
-        token.organizationSetup = true; // Always mark as complete
+        // Remove all database queries - organization data will be loaded lazily
+        console.log('✅ JWT: User authenticated:', user.id);
       }
       
       // Store OAuth tokens for Google and other providers
@@ -348,12 +285,12 @@ const authOptions: NextAuthOptions = {
     signIn: '/signin',
     error: '/signin',
   },
-  debug: process.env.NODE_ENV === 'development', // Enable debug in development
-  logger: process.env.NODE_ENV === 'production' ? {
+  debug: false, // Disable debug for better performance
+  logger: {
     error: console.error,
-    warn: console.warn,
-    debug: () => {}, // Only disable debug in production
-  } : undefined,
+    warn: () => {}, // Disable warnings for performance
+    debug: () => {}, // Disable debug for performance
+  },
 };
 
 const handler = NextAuth(authOptions);

@@ -11,51 +11,61 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { accountId } = await request.json();
+    const userId = (session.user as any).id;
+    console.log(`🚀 Starting real-time sync for all accounts for user: ${userId}`);
 
-    if (!accountId) {
-      return NextResponse.json({ error: 'accountId is required' }, { status: 400 });
-    }
-
-    // Get account details
+    // Get all active accounts for the user
     const supabase = createServiceRoleClient();
-    const { data: account, error } = await supabase
+    const { data: accounts, error } = await supabase
       .from('email_accounts')
       .select('id, user_id, email, provider_type, is_active')
-      .eq('id', accountId)
-      .eq('user_id', session.user.id)
-      .single();
+      .eq('user_id', userId)
+      .eq('is_active', true);
 
-    if (error || !account) {
-      return NextResponse.json({ error: 'Email account not found or access denied' }, { status: 404 });
+    if (error || !accounts) {
+      console.error('Failed to fetch user email accounts:', error);
+      return NextResponse.json({ error: 'Failed to fetch email accounts' }, { status: 500 });
     }
 
-    // Configure real-time sync
-    const syncConfig = {
-      provider: account.provider_type as 'microsoft' | 'google' | 'imap',
-      accountId: account.id,
-      userId: account.user_id,
-      email: account.email,
-      enableWebhooks: true,
-      pollingInterval: getPollingInterval(account.provider_type),
-      enableAI: true,
-      enableDraftPreparation: true
-    };
+    const results = [];
+    
+    for (const account of accounts) {
+      const syncConfig = {
+        provider: account.provider_type as 'microsoft' | 'google' | 'imap',
+        accountId: account.id,
+        userId: account.user_id,
+        email: account.email,
+        enableWebhooks: true,
+        pollingInterval: 0.5, // 30 seconds for real-time sync
+        enableAI: true,
+        enableDraftPreparation: true
+      };
 
-    // Start real-time sync
-    await realTimeSyncManager.startRealTimeSync(syncConfig);
-
-    console.log(`✅ Real-time sync started for ${account.email}`);
+      try {
+        await realTimeSyncManager.startRealTimeSync(syncConfig);
+        results.push({
+          email: account.email,
+          provider: account.provider_type,
+          status: 'success',
+          message: 'Real-time sync started with 30s polling + webhooks'
+        });
+        console.log(`✅ Real-time sync started for ${account.email}`);
+      } catch (error) {
+        results.push({
+          email: account.email,
+          provider: account.provider_type,
+          status: 'error',
+          message: error instanceof Error ? error.message : 'Unknown error'
+        });
+        console.error(`❌ Failed to start sync for ${account.email}:`, error);
+      }
+    }
 
     return NextResponse.json({
       success: true,
-      message: `Real-time sync started for ${account.email}`,
-      config: {
-        provider: syncConfig.provider,
-        pollingInterval: syncConfig.pollingInterval,
-        webhooksEnabled: syncConfig.enableWebhooks,
-        aiEnabled: syncConfig.enableAI
-      }
+      message: `Real-time sync initialized for ${accounts.length} accounts`,
+      accounts: results,
+      timestamp: new Date().toISOString()
     });
 
   } catch (error) {
@@ -67,19 +77,9 @@ export async function POST(request: NextRequest) {
   }
 }
 
-function getPollingInterval(providerType: string): number {
-  switch (providerType) {
-    case 'microsoft':
-    case 'outlook':
-      return 5; // 5 minutes (has webhooks)
-    case 'google':
-    case 'gmail':
-      return 3; // 3 minutes (has push notifications)
-    case 'imap':
-      return 2; // 2 minutes (polling only)
-    default:
-      return 5;
-  }
+// Allow GET for easy testing
+export async function GET(request: NextRequest) {
+  return POST(request);
 }
 
 

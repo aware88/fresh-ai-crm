@@ -1,5 +1,5 @@
 import { SubscriptionService } from './services/subscription-service';
-import { getSubscriptionPlan } from './subscription-plans';
+import { getSubscriptionPlan } from './subscription-plans-v2';
 
 /**
  * Utility functions for checking subscription features

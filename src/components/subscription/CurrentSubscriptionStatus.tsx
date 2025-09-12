@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSubscription } from '@/contexts/SubscriptionContext';
-import { getSubscriptionPlan } from '@/lib/subscription-plans';
+import { getSubscriptionPlan } from '@/lib/subscription-plans-v2';
 import { SubscriptionPlan, OrganizationSubscription } from '@/lib/services/subscription-service';
 
 interface CurrentSubscriptionStatusProps {

@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { CheckCircleIcon } from '@heroicons/react/24/outline';
-import { getSubscriptionPlan } from '@/lib/subscription-plans';
+import { getSubscriptionPlan } from '@/lib/subscription-plans-v2';
 
 function CheckoutSuccessContent() {
   const searchParams = useSearchParams();

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { createServiceRoleClient } from '@/lib/supabase/service-role';
 import { cookies } from 'next/headers';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
@@ -129,8 +130,8 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    const cookieStore = await cookies();
-    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
+    // Use service role client to bypass RLS for email lookups
+    const supabase = createServiceRoleClient();
     
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
@@ -151,19 +152,81 @@ export async function POST(request: NextRequest) {
 
     // For virtual/composed emails, we don't need to verify in database
     if (!emailId.startsWith('compose-') && !emailId.startsWith('virtual-')) {
-      // Verify email exists and belongs to user
-      const { data: email, error: emailError } = await supabase
-        .from('emails')
-        .select('id, user_id')
-        .eq('id', emailId)
-        .single();
+      // Verify email exists and belongs to user - try both email_index and emails tables
+      let email = null;
+      let emailError = null;
+      
+      console.log(`[AI Cache POST] Looking up email: ${emailId.substring(0, 50)}... for user: ${session.user.id}`);
+      
+      // First try email_index (new structure) - try with user filter first
+      const { data: indexEmails, error: indexError } = await supabase
+        .from('email_index')
+        .select('id, user_id, message_id, email_account_id')
+        .eq('message_id', emailId)
+        .eq('user_id', session.user.id);
+      
+      let indexEmail = indexEmails?.[0]; // Take the first match
+      
+      // If not found with user_id filter, try without (emails might not have correct user_id)
+      if (!indexEmail && !indexError) {
+        const { data: allIndexEmails, error: allIndexError } = await supabase
+          .from('email_index')
+          .select('id, user_id, message_id, email_account_id')
+          .eq('message_id', emailId)
+          .limit(1);
+          
+        indexEmail = allIndexEmails?.[0];
+        console.log(`[AI Cache POST] Fallback lookup found:`, { 
+          found: !!indexEmail, 
+          error: allIndexError?.message, 
+          userId: indexEmail?.user_id,
+          accountId: indexEmail?.email_account_id
+        });
+      }
+      
+      console.log(`[AI Cache POST] Email index lookup:`, { 
+        found: !!indexEmail, 
+        error: indexError?.message, 
+        userId: indexEmail?.user_id 
+      });
+      
+      if (indexEmail && !indexError) {
+        email = indexEmail;
+        emailError = null; // Reset error since we found it
+      } else {
+        console.log(`[AI Cache POST] Trying legacy emails table...`);
+        // Fallback to emails table (old structure) - search by message_id, not id
+        const { data: legacyEmail, error: legacyError } = await supabase
+          .from('emails')
+          .select('id, user_id, message_id')
+          .eq('message_id', emailId)
+          .single();
+        
+        console.log(`[AI Cache POST] Legacy email lookup:`, { 
+          found: !!legacyEmail, 
+          error: legacyError?.message, 
+          userId: legacyEmail?.user_id 
+        });
+        
+        email = legacyEmail;
+        emailError = legacyError;
+      }
 
       if (emailError || !email || email.user_id !== session.user.id) {
+        console.error(`[AI Cache POST] Email verification failed:`, {
+          hasError: !!emailError,
+          hasEmail: !!email,
+          userIdMatch: email?.user_id === session.user.id,
+          emailUserId: email?.user_id,
+          sessionUserId: session.user.id
+        });
         return NextResponse.json(
           { error: 'Email not found or access denied' },
           { status: 404 }
         );
       }
+      
+      console.log(`[AI Cache POST] Email verification successful`);
     }
 
     // Import and use background processor

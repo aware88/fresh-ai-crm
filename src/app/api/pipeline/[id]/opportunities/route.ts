@@ -1,8 +1,48 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { createServerClient } from '@/lib/supabase/server';
+import { PipelineService } from '@/lib/services/pipeline-service';
+import { logger } from '@/lib/utils/logger';
 
 export async function GET(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ opportunities: [] }, { status: 200 });
+    }
+
+    const { id } = await params;
+    const organizationId = (session.user as any).organizationId;
+
+    // Initialize Supabase client and pipeline service
+    const supabase = await createServerClient();
+    const pipelineService = new PipelineService(supabase);
+
+    // Get pipeline with opportunities
+    const pipelineWithOpps = await pipelineService.getPipelineWithOpportunities(id);
+    
+    // Extract all opportunities from all stages
+    const opportunities = pipelineWithOpps.stages_with_opportunities?.flatMap(
+      stage => stage.opportunities || []
+    ) || [];
+
+    return NextResponse.json({ opportunities });
+  } catch (error) {
+    logger.error('Pipeline opportunities API error:', error);
+    // Return 200 with empty opportunities instead of 500 error
+    return NextResponse.json({ 
+      opportunities: [],
+      message: 'Unable to load opportunities'
+    }, { status: 200 });
+  }
+}
+
+// POST endpoint to create a new opportunity
+export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
@@ -12,50 +52,43 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { id } = await params;
+    const { id: pipelineId } = await params;
+    const body = await request.json();
+    const organizationId = (session.user as any).organizationId;
 
-    // Mock opportunities data
-    const mockOpportunities = [
-      {
-        id: '1',
-        title: 'Enterprise Software License',
-        value: 50000,
-        probability: 75,
-        stage_id: '3',
-        contact_id: '1',
-        assigned_to: session.user.id,
-        status: 'active' as const,
-        created_at: '2024-12-01T10:00:00Z',
-        updated_at: '2025-01-01T10:00:00Z',
-        contact: {
-          firstName: 'John',
-          lastName: 'Doe',
-          email: 'john.doe@techcorp.com',
-          company: 'Tech Corp'
-        }
-      },
-      {
-        id: '2',
-        title: 'Consulting Services',
-        value: 25000,
-        probability: 50,
-        stage_id: '2',
-        contact_id: '2',
-        status: 'active' as const,
-        created_at: '2024-12-15T10:00:00Z',
-        updated_at: '2025-01-02T10:00:00Z',
-        contact: {
-          firstName: 'Jane',
-          lastName: 'Smith',
-          email: 'jane.smith@business.com',
-          company: 'Business Inc'
-        }
-      }
-    ];
+    // Initialize Supabase client and pipeline service
+    const supabase = await createServerClient();
+    const pipelineService = new PipelineService(supabase);
 
-    return NextResponse.json({ opportunities: mockOpportunities });
+    // Get pipeline to get the first stage
+    const pipeline = await pipelineService.getPipelineWithOpportunities(pipelineId);
+    const firstStage = pipeline.stages?.[0];
+    
+    if (!firstStage) {
+      return NextResponse.json({ error: 'Pipeline has no stages' }, { status: 400 });
+    }
+
+    // Create opportunity
+    const opportunityData = {
+      title: body.title,
+      description: body.description,
+      value: body.value || 0,
+      probability: body.probability || firstStage.probability || 10,
+      pipeline_id: pipelineId,
+      stage_id: body.stage_id || firstStage.id,
+      contact_id: body.contact_id,
+      assigned_to: body.assigned_to || session.user.id,
+      expected_close_date: body.expected_close_date,
+      currency: body.currency || 'USD',
+      priority: body.priority || 'medium',
+      status: 'active' as const
+    };
+
+    const opportunity = await pipelineService.createOpportunity(opportunityData, organizationId);
+
+    return NextResponse.json({ opportunity });
   } catch (error) {
-    console.error('Pipeline opportunities API error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    logger.error('Failed to create opportunity', error);
+    return NextResponse.json({ error: 'Failed to create opportunity' }, { status: 400 });
   }
 }

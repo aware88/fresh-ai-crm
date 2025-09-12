@@ -123,7 +123,96 @@ export class MagentoApiClient {
   }
 
   /**
-   * Get Basic Auth header for authentication
+   * Get OAuth 1.0 request token (step 1 of OAuth flow)
+   */
+  private async getOAuthRequestToken(): Promise<{ token: string; tokenSecret: string }> {
+    console.log('[Magento] Getting OAuth request token...');
+    
+    const initiateUrl = `${this.credentials.apiUrl.replace('/api/rest', '')}/oauth/initiate?oauth_callback=http://example.com`;
+    
+    // Create OAuth 1.0 signature for initiate request
+    const oauthHeaders = this.createOAuth1Headers('POST', initiateUrl, {});
+
+    try {
+      const response = await fetch(initiateUrl, {
+        method: 'POST',
+        headers: oauthHeaders,
+        timeout: 30000
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`OAuth initiate failed: HTTP ${response.status}: ${errorText}`);
+      }
+
+      const responseText = await response.text();
+      console.log('[Magento] OAuth initiate response:', responseText);
+      
+      // Parse response: oauth_token=xxx&oauth_token_secret=yyy&oauth_callback_confirmed=true
+      const params = new URLSearchParams(responseText);
+      const token = params.get('oauth_token');
+      const tokenSecret = params.get('oauth_token_secret');
+      
+      if (!token || !tokenSecret) {
+        throw new Error('Invalid OAuth initiate response');
+      }
+      
+      console.log('[Magento] ✅ OAuth request token acquired');
+      return { token, tokenSecret };
+    } catch (error: any) {
+      console.error('[Magento] Failed to get OAuth request token:', error.message);
+      throw new Error(`OAuth initiate failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Create OAuth 1.0 authorization headers
+   */
+  private createOAuth1Headers(method: string, url: string, params: Record<string, string>, token?: string, tokenSecret?: string): Record<string, string> {
+    const oauth = {
+      oauth_consumer_key: this.credentials.apiUser,
+      oauth_nonce: Math.random().toString(36).substring(2, 15),
+      oauth_signature_method: 'HMAC-SHA1',
+      oauth_timestamp: Math.floor(Date.now() / 1000).toString(),
+      oauth_version: '1.0'
+    };
+
+    if (token) {
+      oauth.oauth_token = token;
+    }
+
+    // Create signature base string
+    const paramString = Object.keys({...oauth, ...params})
+      .sort()
+      .map(key => `${encodeURIComponent(key)}=${encodeURIComponent({...oauth, ...params}[key])}`)
+      .join('&');
+    
+    const baseString = `${method}&${encodeURIComponent(url)}&${encodeURIComponent(paramString)}`;
+    
+    // Create signing key
+    const consumerSecret = this.credentials.apiSecret || this.credentials.apiKey;
+    const signingKey = `${encodeURIComponent(consumerSecret)}&${encodeURIComponent(tokenSecret || '')}`;
+    
+    // Create signature (simplified - in production, use crypto.createHmac)
+    const crypto = require('crypto');
+    const signature = crypto.createHmac('sha1', signingKey).update(baseString).digest('base64');
+    
+    oauth.oauth_signature = signature;
+
+    // Create Authorization header
+    const authHeader = 'OAuth ' + Object.keys(oauth)
+      .map(key => `${encodeURIComponent(key)}="${encodeURIComponent(oauth[key])}"`)
+      .join(', ');
+
+    return {
+      'Authorization': authHeader,
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
+    };
+  }
+
+  /**
+   * Get Basic Auth header for authentication (fallback)
    */
   private getBasicAuthHeader(): string {
     // Use API Secret if available, otherwise use API Key
@@ -332,25 +421,53 @@ export class MagentoApiClient {
    */
   async testConnection(): Promise<{ success: boolean; message: string; data?: any }> {
     try {
-      console.log('[Magento] Testing REST API connection with Basic Auth...');
+      console.log('[Magento] Testing REST API connection with OAuth 1.0...');
       
-      // Test: Try to fetch store information
-      const endpoint = '/rest/V1/store/storeConfigs';
-      const response = await this.makeRequest(endpoint);
-      
-      console.log('[Magento] ✅ Store configs retrieved with Basic Auth');
-      
-      return {
-        success: true,
-        message: 'REST API connection successful with Basic Auth',
-        data: {
-          mode: 'real',
-          authMethod: 'Basic Auth',
-          stores: Array.isArray(response) ? response.length : 1,
-          apiUrl: this.credentials.apiUrl,
-          user: this.credentials.apiUser
-        }
-      };
+      // First test: Try OAuth initiate endpoint
+      try {
+        const { token, tokenSecret } = await this.getOAuthRequestToken();
+        console.log('[Magento] ✅ OAuth initiate endpoint works');
+        
+        // Second test: Try to fetch products with OAuth 1.0 (simplified)
+        const endpoint = '/products';
+        const response = await this.makeRequest(endpoint);
+        
+        console.log('[Magento] ✅ Products endpoint accessible with OAuth');
+        
+        return {
+          success: true,
+          message: 'REST API connection successful with OAuth 1.0',
+          data: {
+            mode: 'real',
+            authMethod: 'OAuth 1.0',
+            apiUrl: this.credentials.apiUrl,
+            user: this.credentials.apiUser,
+            oauthToken: token.substring(0, 10) + '...',
+            productsFound: Array.isArray(response) ? response.length : (response.items ? response.items.length : 0)
+          }
+        };
+      } catch (oauthError: any) {
+        console.log('[Magento] OAuth initiate failed, trying direct product access...');
+        
+        // Fallback: Try direct product access with OAuth 1.0 signature
+        const endpoint = '/products';
+        const response = await this.makeRequest(endpoint);
+        
+        console.log('[Magento] ✅ Direct product access works with OAuth signature');
+        
+        return {
+          success: true,
+          message: 'REST API connection successful with OAuth 1.0 (direct)',
+          data: {
+            mode: 'real',
+            authMethod: 'OAuth 1.0 Direct',
+            apiUrl: this.credentials.apiUrl,
+            user: this.credentials.apiUser,
+            note: 'OAuth initiate not available, using direct signature',
+            productsFound: Array.isArray(response) ? response.length : (response.items ? response.items.length : 0)
+          }
+        };
+      }
     } catch (error: any) {
       console.error('[Magento] REST API connection failed:', error.message);
       
@@ -358,7 +475,7 @@ export class MagentoApiClient {
       if (error.message.includes('401') || error.message.includes('Unauthorized')) {
         return {
           success: false,
-          message: 'Authentication failed - check credentials',
+          message: 'OAuth authentication failed - check credentials',
           data: {
             mode: 'error',
             apiUrl: this.credentials.apiUrl,
@@ -388,12 +505,13 @@ export class MagentoApiClient {
   private async makeRequest(endpoint: string, options: RequestInit = {}): Promise<any> {
     const url = `${this.credentials.apiUrl.replace(/\/$/, '')}${endpoint}`;
     
-    const headers = {
-      'Authorization': this.getBasicAuthHeader(),
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-      ...options.headers
-    };
+    // For now, try OAuth 1.0 with consumer credentials only (simplified approach)
+    // In full implementation, we'd need the complete 3-step OAuth flow
+    const headers = this.createOAuth1Headers(
+      options.method?.toString().toUpperCase() || 'GET',
+      url,
+      {}
+    );
 
     for (let attempt = 1; attempt <= this.MAX_RETRIES; attempt++) {
       try {
@@ -571,14 +689,7 @@ export class MagentoApiClient {
  * Get Magento client instance for organization
  */
 export async function getMagentoClient(organizationId?: string): Promise<MagentoApiClient> {
-  // Updated with proper REST API credentials
-  const credentials = {
-    apiUrl: 'https://withcar.si',
-    apiKey: '0de047e9c988989bd00f49745f92748b',
-    apiUser: 'tim',
-    apiSecret: 'd832e7eaefd0ce796171a38199295b0b',
-    storeId: 'default'
-  };
+  let credentials: MagentoCredentials | null = null;
 
   // Try to get from database first
   try {
@@ -604,11 +715,11 @@ export async function getMagentoClient(organizationId?: string): Promise<Magento
       });
     }
   } catch (dbError) {
-    console.log('[Magento] Database not accessible, using hardcoded credentials');
+    console.log('[Magento] Database not accessible, no credentials found');
   }
   
-  // Use hardcoded credentials as fallback
-  return new MagentoApiClient(credentials);
+  // No fallback credentials - require proper database configuration
+  throw new Error('Magento credentials not found. Please configure Magento integration for your organization.');
 }
 
 export default MagentoApiClient;

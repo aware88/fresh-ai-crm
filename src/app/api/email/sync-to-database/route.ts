@@ -36,7 +36,11 @@ export async function POST(request: NextRequest) {
   try {
     // Check for internal call (from automatic sync)
     const userAgent = request.headers.get('User-Agent') || '';
-    const isInternalCall = userAgent.includes('Internal-IMAP-Setup') || userAgent.includes('Manual-Sync-Script');
+    const isInternalCall = userAgent.includes('Internal-IMAP-Setup') || 
+                          userAgent.includes('Manual-Sync-Script') ||
+                          userAgent.includes('Internal-RealTime-Sync') ||
+                          userAgent.includes('BackgroundSyncService') ||
+                          userAgent.includes('CronRunner');
     
     console.log(`🔍 Sync API called - User-Agent: "${userAgent}", Internal: ${isInternalCall}`);
     
@@ -60,7 +64,7 @@ export async function POST(request: NextRequest) {
       console.log('🔧 Internal call - bypassing authentication');
     }
 
-    const { accountId, maxEmails = 5000 } = await request.json();
+    const { accountId, maxEmails = 100 } = await request.json(); // Start with 100 for testing (50+50)
     
     if (!accountId) {
       return NextResponse.json(
@@ -127,23 +131,28 @@ export async function POST(request: NextRequest) {
       console.log(`📧 Syncing emails for ${account.email}...`);
       await client.connect();
       
-      // Sync INBOX emails (smaller batch for testing)
-      const inboxBatchSize = Math.min(100, Math.floor(maxEmails / 2)); // Start with 100 emails
+      // Sync INBOX emails (50 for testing, then 5000 for production)
+      const inboxBatchSize = Math.floor(maxEmails / 2);
       console.log(`📥 Starting INBOX sync (${inboxBatchSize} emails)...`);
       const inboxEmails = await fetchEmailsFromFolder(client, 'INBOX', inboxBatchSize);
       console.log(`📧 Fetched ${inboxEmails.length} emails from INBOX`);
       
-      const savedInbox = await saveEmailsToDatabase(supabase, userId || account.user_id, inboxEmails, 'received', accountId);
+      // CRITICAL: Ensure user_id is ALWAYS set
+      const effectiveUserId = userId || account.user_id;
+      if (!effectiveUserId) {
+        throw new Error('User ID is required for email sync');
+      }
+      const savedInbox = await saveEmailsToDatabase(supabase, effectiveUserId, inboxEmails, 'received', accountId);
       console.log(`💾 Saved ${savedInbox} INBOX emails to database`);
       totalSaved += savedInbox;
       
-      // Sync Sent emails (smaller batch for testing)
-      const sentBatchSize = Math.min(100, Math.floor(maxEmails / 2)); // Start with 100 emails
+      // Sync Sent emails (50 for testing, then 5000 for production)
+      const sentBatchSize = Math.floor(maxEmails / 2);
       console.log(`📤 Starting Sent sync (${sentBatchSize} emails)...`);
       const sentEmails = await fetchEmailsFromFolder(client, 'INBOX.Sent', sentBatchSize);
       console.log(`📧 Fetched ${sentEmails.length} emails from INBOX.Sent`);
       
-      const savedSent = await saveEmailsToDatabase(supabase, userId || account.user_id, sentEmails, 'sent', accountId);
+      const savedSent = await saveEmailsToDatabase(supabase, effectiveUserId, sentEmails, 'sent', accountId);
       console.log(`💾 Saved ${savedSent} Sent emails to database`);
       totalSaved += savedSent;
       
@@ -166,7 +175,7 @@ export async function POST(request: NextRequest) {
       console.log(`✅ Email sync complete: ${totalSaved} emails saved`);
       
       // Trigger background AI processing for new emails (existing implementation)
-      const effectiveUserId = userId || account.user_id;
+      // effectiveUserId already declared above
       if (effectiveUserId && totalSaved > 0) {
         try {
           console.log('🤖 Triggering background AI processing for synced emails...');
@@ -411,7 +420,6 @@ async function saveEmailsToDatabase(supabase: any, userId: string, emails: any[]
               created_at: new Date().toISOString(),
               updated_at: new Date().toISOString()
             }, {
-              onConflict: 'id',
               ignoreDuplicates: true
             });
         } catch (threadError) {
@@ -426,15 +434,44 @@ async function saveEmailsToDatabase(supabase: any, userId: string, emails: any[]
         thread_id: record.message_id // Use message_id as thread_id for now
       }));
       
-      // Insert into email_index
-      const { error: indexError } = await supabase
-        .from('email_index')
-        .insert(emailIndexRecordsWithThreads);
+      // Use the new insert_email_direct RPC function
+      console.log(`📤 Using insert_email_direct RPC to insert ${emailIndexRecordsWithThreads.length} emails...`);
+      
+      // Add necessary fields with defaults
+      const recordsForRPC = emailIndexRecordsWithThreads.map(record => ({
+        id: crypto.randomUUID(),
+        ...record,
+        user_id: userId,
+        organization_id: null,
+        imap_uid: record.imap_uid || null,
+        sender_name: record.sender_name || null,
+        recipient_email: record.recipient_email || null,
+        preview_text: record.subject ? record.subject.substring(0, 200) : null,
+        importance: 'normal',
+        attachment_count: record.has_attachments ? 1 : 0,
+        ai_analyzed: false,
+        ai_analyzed_at: null,
+        sentiment_score: null,
+        language_code: null,
+        upsell_data: null,
+        assigned_agent: null,
+        highlight_color: null,
+        agent_priority: null,
+        replied: false,
+        last_reply_at: null,
+        processing_status: 'pending'
+      }));
+      
+      const { data: insertResult, error: rpcError } = await supabase
+        .rpc('insert_email_direct', {
+          p_records: recordsForRPC
+        });
         
-      if (indexError) {
-        console.error(`❌ Error inserting email_index batch:`, indexError.message);
-        console.error('Full error:', indexError);
-        continue;
+      if (rpcError) {
+        console.error(`❌ insert_email_direct RPC failed:`, rpcError.message);
+        console.error('Full error:', rpcError);
+      } else if (insertResult) {
+        console.log(`✅ insert_email_direct result:`, insertResult);
       }
       
       // Insert into email_content_cache

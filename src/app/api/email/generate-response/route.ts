@@ -12,6 +12,8 @@ import { getMatchingSalesTactics } from '../../../../lib/ai/sales-tactics'; // R
 import { withAILimitCheckAndTopup } from '@/lib/middleware/ai-limit-middleware-v2';
 import { featureFlagService } from '@/lib/services/feature-flag-service';
 import { createClient } from '@supabase/supabase-js';
+import { buildEmailMetakockaContext } from '@/lib/integrations/metakocka/email-context-builder';
+import { createMetakockaClientForUser } from '@/lib/integrations/metakocka';
 
 // Ensure this API route runs in Node.js runtime (not Edge)
 export const runtime = 'nodejs';
@@ -143,6 +145,39 @@ export async function POST(request: NextRequest) {
     const emailContext = EmailContextAnalyzer.analyzeEmail(originalEmail);
     const contextSummary = EmailContextAnalyzer.generateContextSummary(emailContext);
 
+    // Get Metakocka context if available
+    let metakockaContext = null;
+    let metakockaCustomerInfo = null;
+    try {
+      // If we have an emailId, get full Metakocka context
+      if (emailId) {
+        metakockaContext = await buildEmailMetakockaContext(emailId, uid);
+      }
+      
+      // Also try to get customer info directly from sender email
+      if (senderEmail) {
+        const metakockaClient = await createMetakockaClientForUser(uid);
+        if (metakockaClient) {
+          try {
+            const customer = await metakockaClient.getCustomerByEmail(senderEmail);
+            if (customer) {
+              const orders = await metakockaClient.getCustomerOrders(senderEmail, 5);
+              metakockaCustomerInfo = {
+                customer,
+                recentOrders: orders,
+                totalOrderValue: orders.reduce((sum: number, order: any) => sum + (order.total || 0), 0)
+              };
+            }
+          } catch (err) {
+            console.log('Could not fetch Metakocka customer info:', err);
+          }
+        }
+      }
+    } catch (error) {
+      console.log('Metakocka context not available:', error);
+      // Continue without Metakocka context - not a fatal error
+    }
+
     // Get personality profiles and contact context
     const personalityData = await getPersonalityProfilesAndContactContext(senderEmail, contactId, uid);
 
@@ -176,6 +211,23 @@ export async function POST(request: NextRequest) {
       const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
       const unifiedService = new UnifiedAIDraftingService(supabase, openai, organizationId || '', uid);
 
+      // Add Metakocka context to custom instructions if available
+      let enhancedInstructions = customInstructions;
+      if (metakockaCustomerInfo) {
+        const metakockaInfo = `
+        IMPORTANT CUSTOMER CONTEXT FROM METAKOCKA:
+        - Customer: ${metakockaCustomerInfo.customer.name} (${metakockaCustomerInfo.customer.email})
+        - Total Orders: ${metakockaCustomerInfo.customer.totalOrders}
+        - Customer Status: ${metakockaCustomerInfo.customer.status}
+        - Recent Order Value: €${metakockaCustomerInfo.totalOrderValue.toFixed(2)}
+        ${metakockaCustomerInfo.customer.lastOrderDate ? `- Last Order: ${new Date(metakockaCustomerInfo.customer.lastOrderDate).toLocaleDateString()}` : ''}
+        ${metakockaCustomerInfo.recentOrders.length > 0 ? `- Recent Products: ${metakockaCustomerInfo.recentOrders[0].items?.map((i: any) => i.name).join(', ')}` : ''}
+        
+        Use this information to personalize your response and reference their purchase history when relevant.
+        `;
+        enhancedInstructions = metakockaInfo + '\n\n' + customInstructions;
+      }
+
       const draftingContext = {
         emailId: emailId || `generate-response-${Date.now()}`,
         originalEmail: {
@@ -192,13 +244,14 @@ export async function POST(request: NextRequest) {
           includeContext: true
         },
         isVirtual: true,
-        customInstructions
+        customInstructions: enhancedInstructions,
+        metakockaContext: metakockaContext || metakockaCustomerInfo
       };
 
       const result = await unifiedService.generateDraft(draftingContext);
       
       if (result.success && result.draft) {
-        var response = {
+        const response = {
           subject: result.draft.subject,
           body: result.draft.body,
           response: result.draft.body, // Legacy compatibility

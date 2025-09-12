@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,6 +23,22 @@ import {
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 import { 
   Search, 
   Filter, 
@@ -40,70 +56,13 @@ import {
   Brain
 } from "lucide-react";
 
-// Sample data matching ARIS design
-const leads = [
-  {
-    id: 1,
-    name: "Sarah Chen",
-    company: "TechCorp",
-    email: "sarah@techcorp.com",
-    phone: "+1 (555) 123-4567",
-    status: "Hot",
-    score: 92,
-    lastContact: "2 hours ago",
-    nextAction: "Demo scheduled"
-  },
-  {
-    id: 2,
-    name: "Mike Johnson",
-    company: "StartupXYZ",
-    email: "mike@startupxyz.com",
-    phone: "+1 (555) 234-5678",
-    status: "Warm",
-    score: 76,
-    lastContact: "1 day ago",
-    nextAction: "Follow-up email"
-  },
-  {
-    id: 3,
-    name: "Emily Rodriguez",
-    company: "Enterprise Inc",
-    email: "emily@enterprise.com",
-    phone: "+1 (555) 345-6789",
-    status: "Cold",
-    score: 45,
-    lastContact: "1 week ago",
-    nextAction: "Re-engagement"
-  },
-  {
-    id: 4,
-    name: "David Kim",
-    company: "Innovation Labs",
-    email: "david@innovation.com",
-    phone: "+1 (555) 456-7890",
-    status: "Hot",
-    score: 88,
-    lastContact: "30 minutes ago",
-    nextAction: "Contract review"
-  },
-  {
-    id: 5,
-    name: "Lisa Wang",
-    company: "Growth Solutions",
-    email: "lisa@growth.com",
-    phone: "+1 (555) 567-8901",
-    status: "Warm",
-    score: 67,
-    lastContact: "3 days ago",
-    nextAction: "Product demo"
-  }
-];
 
 const getStatusColor = (status: string) => {
-  switch (status) {
-    case "Hot": return "bg-red-100 text-red-800 hover:bg-red-200"
-    case "Warm": return "bg-orange-100 text-orange-800 hover:bg-orange-200"
-    case "Cold": return "bg-blue-100 text-blue-800 hover:bg-blue-200"
+  const normalizedStatus = (status || 'Cold').toLowerCase();
+  switch (normalizedStatus) {
+    case "hot": return "bg-red-100 text-red-800 hover:bg-red-200"
+    case "warm": return "bg-orange-100 text-orange-800 hover:bg-orange-200"
+    case "cold": return "bg-blue-100 text-blue-800 hover:bg-blue-200"
     default: return "bg-gray-100 text-gray-800 hover:bg-gray-200"
   }
 };
@@ -114,27 +73,54 @@ const getScoreColor = (score: number) => {
   return "text-red-600"
 };
 
+const capitalizeStatus = (status: string) => {
+  const normalized = (status || 'Cold').toLowerCase();
+  return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+};
+
 interface ARISLeadsProps {
   contacts?: any[];
   loading?: boolean;
 }
 
+interface Lead {
+  id: number;
+  name: string;
+  company: string;
+  email: string;
+  phone: string;
+  status: string;
+  score: number;
+  lastContact: string;
+  nextAction: string;
+}
+
 export function ARISLeads({ contacts = [], loading = false }: ARISLeadsProps) {
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedLead, setSelectedLead] = useState<typeof leads[0] | null>(null);
+  const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newLead, setNewLead] = useState({
+    name: '',
+    company: '',
+    email: '',
+    phone: '',
+    status: 'Cold'
+  });
 
-  // Use sample data if no contacts provided
-  const displayLeads = contacts.length > 0 ? contacts.map((contact, index) => ({
-    id: contact.id || index,
-    name: `${contact.firstName || ''} ${contact.lastName || ''}`.trim() || contact.name || `Lead ${index + 1}`,
-    company: contact.company || contact.companyName || 'Unknown Company',
-    email: contact.email || `lead${index + 1}@example.com`,
-    phone: contact.phone || '+1 (555) 000-0000',
-    status: contact.leadScore?.qualification_status || contact.status || 'Cold',
-    score: contact.leadScore?.overall_score || Math.floor(Math.random() * 100),
-    lastContact: contact.lastContact || '1 day ago',
-    nextAction: contact.nextAction || 'Follow-up required'
-  })) : leads;
+  // Process contacts data - memoize to prevent recalculation
+  const displayLeads = useMemo(() => {
+    return contacts.map((contact, index) => ({
+      id: contact.id || index,
+      name: `${contact.firstName || ''} ${contact.lastName || ''}`.trim() || contact.name || `Lead ${index + 1}`,
+      company: contact.company || contact.companyName || 'Unknown Company',
+      email: contact.email || `lead${index + 1}@example.com`,
+      phone: contact.phone || '+1 (555) 000-0000',
+      status: contact.leadScore?.qualification_status || contact.status || 'Cold',
+      score: contact.leadScore?.overall_score || 50, // Use a fixed default score instead of random
+      lastContact: contact.lastContact || '1 day ago',
+      nextAction: contact.nextAction || 'Follow-up required'
+    }));
+  }, [contacts]);
 
   const filteredLeads = displayLeads.filter(lead => 
     lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -161,7 +147,7 @@ export function ARISLeads({ contacts = [], loading = false }: ARISLeadsProps) {
           <h1 className="text-3xl font-bold text-foreground">Leads</h1>
           <p className="text-muted-foreground">Manage and track your sales prospects</p>
         </div>
-        <Button className="btn-primary">
+        <Button className="btn-primary" onClick={() => setShowAddModal(true)}>
           <Plus className="h-4 w-4 mr-2" />
           Add Lead
         </Button>
@@ -194,7 +180,7 @@ export function ARISLeads({ contacts = [], loading = false }: ARISLeadsProps) {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {filteredLeads.filter(lead => lead.status === 'Hot').length}
+              {filteredLeads.filter(lead => (lead.status || '').toLowerCase() === 'hot').length}
             </div>
             <p className="text-xs text-muted-foreground">High priority</p>
           </CardContent>
@@ -209,7 +195,10 @@ export function ARISLeads({ contacts = [], loading = false }: ARISLeadsProps) {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {Math.round(filteredLeads.reduce((sum, lead) => sum + lead.score, 0) / filteredLeads.length)}
+              {filteredLeads.length > 0 
+                ? Math.round(filteredLeads.reduce((sum, lead) => sum + lead.score, 0) / filteredLeads.length)
+                : 0
+              }
             </div>
             <p className="text-xs text-muted-foreground">AI scoring</p>
           </CardContent>
@@ -223,7 +212,7 @@ export function ARISLeads({ contacts = [], loading = false }: ARISLeadsProps) {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">24.5%</div>
+            <div className="text-2xl font-bold">0%</div>
             <p className="text-xs text-muted-foreground">This month</p>
           </CardContent>
         </Card>
@@ -269,11 +258,33 @@ export function ARISLeads({ contacts = [], loading = false }: ARISLeadsProps) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredLeads.map((lead) => (
+                {filteredLeads.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-8">
+                      <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                      <p className="text-muted-foreground">No leads found</p>
+                      {searchTerm ? (
+                        <p className="text-sm text-muted-foreground mt-2">
+                          Try adjusting your search terms
+                        </p>
+                      ) : (
+                        <p className="text-sm text-muted-foreground mt-2">
+                          Click "Add Lead" to create your first lead
+                        </p>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ) : filteredLeads.map((lead) => (
                   <TableRow 
                     key={lead.id} 
                     className="cursor-pointer hover:bg-muted/50 transition-colors"
-                    onClick={() => setSelectedLead(lead)}
+                    onClick={(e) => {
+                      // Don't select lead if clicking on dropdown button
+                      const target = e.target as HTMLElement;
+                      if (!target.closest('button') && !target.closest('[role="menu"]')) {
+                        setSelectedLead(lead);
+                      }
+                    }}
                   >
                     <TableCell>
                       <div className="flex items-center space-x-3">
@@ -291,7 +302,7 @@ export function ARISLeads({ contacts = [], loading = false }: ARISLeadsProps) {
                     </TableCell>
                     <TableCell>
                       <Badge className={getStatusColor(lead.status)}>
-                        {lead.status}
+                        {capitalizeStatus(lead.status)}
                       </Badge>
                     </TableCell>
                     <TableCell>
@@ -305,7 +316,12 @@ export function ARISLeads({ contacts = [], loading = false }: ARISLeadsProps) {
                     <TableCell>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="hover-lift">
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="hover-lift"
+                            onClick={(e) => e.stopPropagation()}
+                          >
                             <MoreHorizontal className="h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>
@@ -353,7 +369,7 @@ export function ARISLeads({ contacts = [], loading = false }: ARISLeadsProps) {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {selectedLead ? (
+            {selectedLead && displayLeads.length > 0 ? (
               <div className="space-y-4">
                 <div className="flex items-center space-x-3">
                   <Avatar className="h-12 w-12">
@@ -381,7 +397,7 @@ export function ARISLeads({ contacts = [], loading = false }: ARISLeadsProps) {
                     <label className="text-sm font-medium text-muted-foreground">Status</label>
                     <div className="mt-1">
                       <Badge className={getStatusColor(selectedLead.status)}>
-                        {selectedLead.status}
+                        {capitalizeStatus(selectedLead.status)}
                       </Badge>
                     </div>
                   </div>
@@ -412,6 +428,12 @@ export function ARISLeads({ contacts = [], loading = false }: ARISLeadsProps) {
                   </Button>
                 </div>
               </div>
+            ) : displayLeads.length === 0 ? (
+              <div className="text-center text-muted-foreground py-8">
+                <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>No leads available</p>
+                <p className="text-sm mt-2">Add your first lead to get started</p>
+              </div>
             ) : (
               <div className="text-center text-muted-foreground py-8">
                 <Eye className="h-12 w-12 mx-auto mb-4 opacity-50" />
@@ -421,9 +443,116 @@ export function ARISLeads({ contacts = [], loading = false }: ARISLeadsProps) {
           </CardContent>
         </Card>
       </div>
+
+      {/* Add Lead Modal */}
+      <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Add New Lead</DialogTitle>
+            <DialogDescription>
+              Enter the details for the new lead. All fields are required.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="name" className="text-right">
+                Name
+              </Label>
+              <Input
+                id="name"
+                value={newLead.name}
+                onChange={(e) => setNewLead({ ...newLead, name: e.target.value })}
+                className="col-span-3"
+                placeholder="John Doe"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="company" className="text-right">
+                Company
+              </Label>
+              <Input
+                id="company"
+                value={newLead.company}
+                onChange={(e) => setNewLead({ ...newLead, company: e.target.value })}
+                className="col-span-3"
+                placeholder="Acme Corp"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="email" className="text-right">
+                Email
+              </Label>
+              <Input
+                id="email"
+                type="email"
+                value={newLead.email}
+                onChange={(e) => setNewLead({ ...newLead, email: e.target.value })}
+                className="col-span-3"
+                placeholder="john@example.com"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="phone" className="text-right">
+                Phone
+              </Label>
+              <Input
+                id="phone"
+                value={newLead.phone}
+                onChange={(e) => setNewLead({ ...newLead, phone: e.target.value })}
+                className="col-span-3"
+                placeholder="+1 (555) 123-4567"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="status" className="text-right">
+                Status
+              </Label>
+              <Select
+                value={newLead.status}
+                onValueChange={(value) => setNewLead({ ...newLead, status: value })}
+              >
+                <SelectTrigger className="col-span-3">
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Hot">Hot</SelectItem>
+                  <SelectItem value="Warm">Warm</SelectItem>
+                  <SelectItem value="Cold">Cold</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAddModal(false)}>
+              Cancel
+            </Button>
+            <Button 
+              className="btn-primary"
+              onClick={() => {
+                // Here you would normally save to database
+                console.log('Adding lead:', newLead);
+                // For now, just close the modal
+                setShowAddModal(false);
+                // Reset form
+                setNewLead({
+                  name: '',
+                  company: '',
+                  email: '',
+                  phone: '',
+                  status: 'Cold'
+                });
+              }}
+              disabled={!newLead.name || !newLead.email || !newLead.company}
+            >
+              Add Lead
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
+
 
 
 

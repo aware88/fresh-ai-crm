@@ -235,6 +235,71 @@ export async function POST(request: NextRequest) {
 
     const userId = session.user.id;
     const body = await request.json();
+    
+    // Check if this is a new draft save (has to, subject, body fields) or feedback update (has draftId)
+    const isDraftSave = body.to || body.subject || body.body;
+    const isFeedbackUpdate = body.draftId || body.userFeedback;
+
+    if (isDraftSave) {
+      // Handle new draft saving
+      console.log('[API] Saving new draft for user', userId);
+      
+      const { 
+        to = [], 
+        cc = [], 
+        bcc = [], 
+        subject = '', 
+        body = '', 
+        accountId,
+        priority = 'normal'
+      } = body;
+
+      // Get Supabase client
+      const cookieStore = await cookies();
+      const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
+
+      // Save draft to database using email_drafts_cache table
+      const draftId = `user-draft-${Date.now()}`;
+      const { data: savedDraft, error: saveError } = await supabase
+        .from('email_drafts_cache')
+        .insert({
+          id: draftId,
+          user_id: userId,
+          email_id: null, // This is a new draft, not a reply
+          subject: subject,
+          body: body,
+          confidence_score: 1.0, // User created, so high confidence
+          generation_model: 'user-created',
+          status: 'draft',
+          expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days
+          generated_at: new Date().toISOString(),
+          metadata: JSON.stringify({
+            to_addresses: to,
+            cc_addresses: cc,
+            bcc_addresses: bcc,
+            priority: priority,
+            account_id: accountId
+          })
+        })
+        .select()
+        .single();
+
+      if (saveError) {
+        console.error('[API] Error saving draft:', saveError);
+        return NextResponse.json(
+          { error: 'Failed to save draft', details: saveError.message },
+          { status: 500 }
+        );
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: 'Draft saved successfully',
+        draft: savedDraft
+      });
+    }
+
+    // Handle feedback update (existing functionality)
     const { 
       draftId, 
       emailId,
@@ -246,7 +311,7 @@ export async function POST(request: NextRequest) {
 
     if (!draftId && !emailId) {
       return NextResponse.json(
-        { error: 'Either draftId or emailId is required' },
+        { error: 'Either draftId or emailId is required for feedback updates' },
         { status: 400 }
       );
     }

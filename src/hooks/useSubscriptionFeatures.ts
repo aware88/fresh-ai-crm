@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
-import { getSubscriptionPlan } from '@/lib/subscription-plans';
+import { getSubscriptionPlan } from '@/lib/subscription-plans-v2';
 
 type FeatureAccess = {
   plan: any;

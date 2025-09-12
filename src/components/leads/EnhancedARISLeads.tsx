@@ -462,7 +462,7 @@ export function EnhancedARISLeads(): JSX.Element {
                     <SelectItem value="all">All Scores</SelectItem>
                     <SelectItem value="high">High (70+)</SelectItem>
                     <SelectItem value="medium">Medium (40-69)</SelectItem>
-                    <SelectItem value="low">Low (<40)</SelectItem>
+                    <SelectItem value="low">Low (&lt;40)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

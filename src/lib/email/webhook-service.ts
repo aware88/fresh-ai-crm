@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { getValidMicrosoftAccessToken } from '@/lib/services/microsoft-token';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -28,7 +29,21 @@ export class WebhookService {
    * Register webhook with email provider
    */
   async registerWebhook(provider: 'outlook' | 'imap' | 'gmail', accountId: string): Promise<string> {
-    const webhookUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/webhooks/email-received`;
+    // Use multiple fallbacks for webhook URL
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 
+                   process.env.NEXTAUTH_URL || 
+                   process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 
+                   'http://localhost:3000';
+    
+    const webhookUrl = `${baseUrl}/api/webhooks/email-received`;
+    
+    console.log(`📞 Attempting to register webhook: ${webhookUrl}`);
+    
+    // Skip webhooks in development (localhost) as they won't work
+    if (webhookUrl.includes('localhost') || webhookUrl.includes('127.0.0.1')) {
+      console.log('⚠️  Skipping webhook registration in development (localhost URLs not supported)');
+      return 'dev-polling-fallback';
+    }
     
     try {
       switch (provider) {
@@ -53,15 +68,25 @@ export class WebhookService {
    * Register Outlook webhook using Microsoft Graph API
    */
   private async registerOutlookWebhook(accountId: string, webhookUrl: string): Promise<string> {
-    // Get access token for the account
+    // Get user_id for the account first
     const { data: account } = await supabase
       .from('email_accounts')
-      .select('access_token, refresh_token')
+      .select('user_id')
       .eq('id', accountId)
       .single();
 
-    if (!account?.access_token) {
-      throw new Error('No access token found for account');
+    if (!account?.user_id) {
+      throw new Error('No user found for account');
+    }
+
+    // Get valid access token (will refresh if needed)
+    const tokenResult = await getValidMicrosoftAccessToken({
+      userId: account.user_id,
+      accountId: accountId
+    });
+
+    if (!tokenResult) {
+      throw new Error('Failed to get valid access token for account');
     }
 
     const subscription = {
@@ -75,7 +100,7 @@ export class WebhookService {
     const response = await fetch('https://graph.microsoft.com/v1.0/subscriptions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${account.access_token}`,
+        'Authorization': `Bearer ${tokenResult.accessToken}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify(subscription)
@@ -104,15 +129,16 @@ export class WebhookService {
    * Register Gmail webhook using Gmail Push API
    */
   private async registerGmailWebhook(accountId: string, webhookUrl: string): Promise<string> {
-    // Get access token for the account
+    // Get account details including user_id to fetch fresh tokens
     const { data: account } = await supabase
       .from('email_accounts')
-      .select('access_token, refresh_token')
+      .select('user_id, access_token, refresh_token')
       .eq('id', accountId)
       .single();
 
     if (!account?.access_token) {
-      throw new Error('No access token found for account');
+      console.warn('⚠️  No access token found for Gmail account, skipping webhook registration');
+      return 'no-token-polling-fallback';
     }
 
     const watchRequest = {

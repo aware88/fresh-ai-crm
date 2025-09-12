@@ -14,33 +14,44 @@ export interface ParsedEmailContent {
  * Implements security best practices to prevent XSS, DOM clobbering, and other email-based attacks.
  */
 
-// DOMPurify configuration for email content
+// DOMPurify configuration for email content - More permissive for rich content
 const DOMPURIFY_CONFIG = {
-  // Allow only safe HTML elements
+  // Allow more HTML elements for rich content display
   ALLOWED_TAGS: [
     'div', 'p', 'span', 'br', 'strong', 'b', 'em', 'i', 'u', 's', 'strike',
     'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
     'ul', 'ol', 'li', 'dl', 'dt', 'dd',
-    'table', 'thead', 'tbody', 'tfoot', 'tr', 'td', 'th',
-    'blockquote', 'pre', 'code',
-    'a', 'img',
-    'hr'
+    'table', 'thead', 'tbody', 'tfoot', 'tr', 'td', 'th', 'caption', 'col', 'colgroup',
+    'blockquote', 'pre', 'code', 'kbd', 'samp', 'var',
+    'a', 'img', 'picture', 'source',
+    'hr', 'abbr', 'address', 'article', 'aside', 'audio', 'video',
+    'header', 'footer', 'main', 'nav', 'section',
+    'font', 'center', 'big', 'small', 'sub', 'sup',
+    'mark', 'ins', 'del', 'cite', 'q', 'time',
+    'figure', 'figcaption'
   ],
   
-  // Allow only safe attributes
+  // Allow more attributes for full rich content
   ALLOWED_ATTR: [
     'href', 'title', 'alt', 'src', 'width', 'height',
-    'style', 'class', 'id',
-    'colspan', 'rowspan',
-    'start', 'type'
+    'style', 'class', 'id', 'name',
+    'colspan', 'rowspan', 'align', 'valign', 'bgcolor', 'border', 'cellpadding', 'cellspacing',
+    'start', 'type', 'value', 'reversed',
+    'color', 'face', 'size',
+    'target', 'rel', 'download',
+    'data-*', 'aria-*', 'role',
+    'srcset', 'sizes', 'loading', 'decoding',
+    'datetime', 'cite', 'dir', 'lang'
   ],
   
-  // Security settings
-  ALLOW_DATA_ATTR: false,
+  // Security settings - balanced for rich content
+  ALLOW_DATA_ATTR: true,
   ALLOW_UNKNOWN_PROTOCOLS: false,
   SANITIZE_DOM: true,
   SANITIZE_NAMED_PROPS: true,
   KEEP_CONTENT: true,
+  ALLOW_ARIA_ATTR: true,
+  ALLOW_DATA_ATTR: true,
   
   // URL schemes to allow
   ALLOWED_URI_REGEXP: /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp|data):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i,

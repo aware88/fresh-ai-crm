@@ -359,7 +359,7 @@ export default function CalendarPage() {
                 New Event
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[500px]">
+            <DialogContent className="sm:max-w-[500px] bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700">
               <DialogHeader>
                 <DialogTitle>Create New Event</DialogTitle>
                 <DialogDescription>
@@ -588,6 +588,7 @@ export default function CalendarPage() {
                 mode="single"
                 selected={date}
                 onSelect={setDate}
+                month={currentMonth}
                 className="rounded-md border w-full"
               />
 
@@ -862,7 +863,7 @@ export default function CalendarPage() {
 
       {/* Event Detail Dialog */}
       <Dialog open={!!selectedEvent} onOpenChange={(open) => !open && setSelectedEvent(null)}>
-        <DialogContent>
+        <DialogContent className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700">
           <DialogHeader>
             <DialogTitle>{selectedEvent?.title}</DialogTitle>
             <DialogDescription>

@@ -128,7 +128,7 @@ function EmailAccountsContent() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ accountId, folder, maxEmails: 500 }),
+        body: JSON.stringify({ accountId, folder, maxEmails: 5000 }),
       });
 
       const result = await response.json();
@@ -174,7 +174,7 @@ function EmailAccountsContent() {
       const response = await fetch('/api/emails/gmail/sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ accountId, folder, maxEmails: 500 }),
+        body: JSON.stringify({ accountId, folder, maxEmails: 5000 }),
       });
       const result = await response.json();
       if (result.success) {
@@ -227,6 +227,83 @@ function EmailAccountsContent() {
       }
     } catch (e) {
       toast({ title: 'Learning error', description: 'Network or server error' });
+    }
+  };
+
+  const handleCatchUpSync = async (accountId: string, syncDays: number = 30) => {
+    setSyncingAccounts(prev => new Set([...prev, accountId]));
+    
+    try {
+      toast({ 
+        title: 'Starting catch-up sync...', 
+        description: `Syncing last ${syncDays} days of emails and running AI learning` 
+      });
+
+      const response = await fetch('/api/email/catch-up-sync', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          accountId,
+          syncDays,
+          runAILearning: true
+        })
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        const newEmails = result.results.emails.new_emails;
+        const recommendations = result.recommendations?.join(' ') || 'Catch-up sync completed successfully.';
+        
+        toast({
+          title: 'Catch-up sync completed!',
+          description: `Found ${newEmails} new emails. ${recommendations}`,
+        });
+
+        setSyncResult({
+          success: true,
+          totalSaved: newEmails,
+          breakdown: { inbox: newEmails, sent: 0 },
+          syncedAt: new Date().toISOString()
+        });
+        
+        fetchEmailAccounts();
+      } else {
+        toast({
+          title: 'Catch-up sync failed',
+          description: result.error || 'An error occurred during catch-up sync',
+        });
+
+        setSyncResult({
+          success: false,
+          totalSaved: 0,
+          breakdown: { inbox: 0, sent: 0 },
+          syncedAt: new Date().toISOString(),
+          error: result.error || 'Catch-up sync failed'
+        });
+      }
+    } catch (error) {
+      console.error('Error during catch-up sync:', error);
+      toast({
+        title: 'Catch-up sync failed',
+        description: 'Network or server error during catch-up sync',
+      });
+
+      setSyncResult({
+        success: false,
+        totalSaved: 0,
+        breakdown: { inbox: 0, sent: 0 },
+        syncedAt: new Date().toISOString(),
+        error: "Network or server error during catch-up sync"
+      });
+    } finally {
+      setSyncingAccounts(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(accountId);
+        return newSet;
+      });
     }
   };
   
@@ -658,37 +735,57 @@ function EmailAccountsContent() {
                                 {syncingAccounts.has(account.id) ? 'Syncing...' : 'Sync'}
                               </button>
                             ) : (account.provider_type === 'microsoft' || account.provider_type === 'outlook') ? (
-                              <div className="flex items-center gap-2">
+                              <div className="flex flex-col gap-1">
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    onClick={() => handleGraphImport(account.id, 'inbox')}
+                                    disabled={syncingAccounts.has(account.id)}
+                                    className="text-blue-600 hover:text-blue-900 disabled:opacity-50 disabled:cursor-not-allowed text-xs"
+                                  >
+                                    {syncingAccounts.has(account.id) ? 'Importing…' : 'Import Inbox'}
+                                  </button>
+                                  <button
+                                    onClick={() => handleGraphImport(account.id, 'sent')}
+                                    disabled={syncingAccounts.has(account.id)}
+                                    className="text-blue-600 hover:text-blue-900 disabled:opacity-50 disabled:cursor-not-allowed text-xs"
+                                  >
+                                    {syncingAccounts.has(account.id) ? 'Importing…' : 'Import Sent'}
+                                  </button>
+                                </div>
                                 <button
-                                  onClick={() => handleGraphImport(account.id, 'inbox')}
+                                  onClick={() => handleCatchUpSync(account.id, 30)}
                                   disabled={syncingAccounts.has(account.id)}
-                                  className="text-blue-600 hover:text-blue-900 disabled:opacity-50 disabled:cursor-not-allowed"
+                                  className="text-green-600 hover:text-green-900 disabled:opacity-50 disabled:cursor-not-allowed text-xs font-medium"
+                                  title="Sync emails from last sync date + AI learning"
                                 >
-                                  {syncingAccounts.has(account.id) ? 'Importing…' : 'Import Inbox'}
-                                </button>
-                                <button
-                                  onClick={() => handleGraphImport(account.id, 'sent')}
-                                  disabled={syncingAccounts.has(account.id)}
-                                  className="text-blue-600 hover:text-blue-900 disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                  {syncingAccounts.has(account.id) ? 'Importing…' : 'Import Sent'}
+                                  {syncingAccounts.has(account.id) ? 'Syncing…' : '🔄 Catch-up Sync'}
                                 </button>
                               </div>
                             ) : account.provider_type === 'google' ? (
-                              <div className="flex items-center gap-2">
+                              <div className="flex flex-col gap-1">
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    onClick={() => handleGmailImport(account.id, 'inbox')}
+                                    disabled={syncingAccounts.has(account.id)}
+                                    className="text-blue-600 hover:text-blue-900 disabled:opacity-50 disabled:cursor-not-allowed text-xs"
+                                  >
+                                    {syncingAccounts.has(account.id) ? 'Importing…' : 'Import Inbox'}
+                                  </button>
+                                  <button
+                                    onClick={() => handleGmailImport(account.id, 'sent')}
+                                    disabled={syncingAccounts.has(account.id)}
+                                    className="text-blue-600 hover:text-blue-900 disabled:opacity-50 disabled:cursor-not-allowed text-xs"
+                                  >
+                                    {syncingAccounts.has(account.id) ? 'Importing…' : 'Import Sent'}
+                                  </button>
+                                </div>
                                 <button
-                                  onClick={() => handleGmailImport(account.id, 'inbox')}
+                                  onClick={() => handleCatchUpSync(account.id, 30)}
                                   disabled={syncingAccounts.has(account.id)}
-                                  className="text-blue-600 hover:text-blue-900 disabled:opacity-50 disabled:cursor-not-allowed"
+                                  className="text-green-600 hover:text-green-900 disabled:opacity-50 disabled:cursor-not-allowed text-xs font-medium"
+                                  title="Sync emails from last sync date + AI learning"
                                 >
-                                  {syncingAccounts.has(account.id) ? 'Importing…' : 'Import Inbox'}
-                                </button>
-                                <button
-                                  onClick={() => handleGmailImport(account.id, 'sent')}
-                                  disabled={syncingAccounts.has(account.id)}
-                                  className="text-blue-600 hover:text-blue-900 disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                  {syncingAccounts.has(account.id) ? 'Importing…' : 'Import Sent'}
+                                  {syncingAccounts.has(account.id) ? 'Syncing…' : '🔄 Catch-up Sync'}
                                 </button>
                               </div>
                             ) : null}

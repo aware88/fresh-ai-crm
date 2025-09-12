@@ -55,12 +55,33 @@ export default function CollaborationDashboard({
 
   const mentionActivities = activities.filter(activity => activity.type === 'mention');
 
+  // Calculate real metrics from activities (or show 0 if no data)
+  const calculateResponseTime = () => {
+    // In a real app, this would calculate average response time from activities
+    // For now, return 0 if no activities, otherwise a placeholder
+    if (activities.length === 0) return '0h';
+    return '-'; // Dash indicates no data available yet
+  };
+
+  const calculateResolutionRate = () => {
+    // In a real app, this would calculate resolution rate from completed vs total activities
+    // For now, return 0 if no activities
+    if (activities.length === 0) return 0;
+    return '-'; // Dash indicates no data available yet
+  };
+
+  const calculateTeamEfficiency = () => {
+    // In a real app, this would calculate team efficiency score
+    // For now, return 0 if no activities
+    if (activities.length === 0) return 0;
+    return '-'; // Dash indicates no data available yet
+  };
+
   return (
     <div className={`space-y-6 ${className}`}>
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Team Collaboration</h2>
           <p className="text-gray-600">
             {customerEmail 
               ? `Collaboration for ${customerEmail}` 
@@ -191,13 +212,19 @@ export default function CollaborationDashboard({
               </CardHeader>
               <CardContent>
                 <div className="text-center">
-                  <p className="text-2xl font-bold text-blue-600">2.3h</p>
-                  <p className="text-sm text-gray-600">Avg. first response</p>
-                  <div className="mt-2">
-                    <Badge variant="outline" className="text-green-600">
-                      ↓ 15% from last week
-                    </Badge>
-                  </div>
+                  <p className="text-2xl font-bold text-blue-600">
+                    {calculateResponseTime()}
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    {activities.length === 0 ? 'No data yet' : 'Avg. first response'}
+                  </p>
+                  {activities.length > 0 && (
+                    <div className="mt-2">
+                      <Badge variant="outline" className="text-gray-400">
+                        Tracking started
+                      </Badge>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -211,13 +238,20 @@ export default function CollaborationDashboard({
               </CardHeader>
               <CardContent>
                 <div className="text-center">
-                  <p className="text-2xl font-bold text-green-600">94%</p>
-                  <p className="text-sm text-gray-600">Issues resolved</p>
-                  <div className="mt-2">
-                    <Badge variant="outline" className="text-green-600">
-                      ↑ 3% from last week
-                    </Badge>
-                  </div>
+                  <p className="text-2xl font-bold text-green-600">
+                    {calculateResolutionRate() === 0 ? '0%' : 
+                     calculateResolutionRate() === '-' ? '-' : `${calculateResolutionRate()}%`}
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    {activities.length === 0 ? 'No data yet' : 'Issues resolved'}
+                  </p>
+                  {activities.length > 0 && (
+                    <div className="mt-2">
+                      <Badge variant="outline" className="text-gray-400">
+                        Tracking started
+                      </Badge>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -231,13 +265,20 @@ export default function CollaborationDashboard({
               </CardHeader>
               <CardContent>
                 <div className="text-center">
-                  <p className="text-2xl font-bold text-purple-600">87%</p>
-                  <p className="text-sm text-gray-600">Collaboration score</p>
-                  <div className="mt-2">
-                    <Badge variant="outline" className="text-green-600">
-                      ↑ 8% from last week
-                    </Badge>
-                  </div>
+                  <p className="text-2xl font-bold text-purple-600">
+                    {calculateTeamEfficiency() === 0 ? '0%' : 
+                     calculateTeamEfficiency() === '-' ? '-' : `${calculateTeamEfficiency()}%`}
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    {activities.length === 0 ? 'No data yet' : 'Collaboration score'}
+                  </p>
+                  {activities.length > 0 && (
+                    <div className="mt-2">
+                      <Badge variant="outline" className="text-gray-400">
+                        Tracking started
+                      </Badge>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>

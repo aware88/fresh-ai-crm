@@ -106,11 +106,22 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (status === 'loading') return;
     
-    if (!session?.user?.id) {
+    if (status === 'unauthenticated' || !session?.user?.id) {
       setSubscription(null);
       setIsLoading(false);
       setIsReady(false);
       return;
+    }
+
+    // Don't fetch subscription data on authentication pages
+    if (typeof window !== 'undefined') {
+      const pathname = window.location.pathname;
+      if (pathname === '/signin' || pathname === '/signup' || pathname === '/auth/signin' || pathname === '/auth/signup') {
+        setSubscription(null);
+        setIsLoading(false);
+        setIsReady(false);
+        return;
+      }
     }
 
     // Try to load from cache first for immediate display

@@ -31,6 +31,8 @@ import {
   Eye
 } from 'lucide-react';
 import EmailLearningProgressDialog from './EmailLearningProgressDialog';
+import AccountSelector from './AccountSelector';
+import { useEmailAccounts } from '@/hooks/useEmailAccounts';
 
 interface LearningStatus {
   has_initial_learning: boolean;
@@ -54,8 +56,10 @@ interface LearningConfig {
 export default function EmailLearningSettings() {
   const { data: session } = useSession();
   const { toast } = useToast();
+  const { activeAccounts, loading: accountsLoading } = useEmailAccounts();
   
   const [loading, setLoading] = useState(true);
+  const [selectedAccountId, setSelectedAccountId] = useState<string>('');
   const [learningStatus, setLearningStatus] = useState<LearningStatus | null>(null);
   const [learningConfig, setLearningConfig] = useState<LearningConfig>({
     max_emails_to_analyze: 10000,
@@ -82,6 +86,16 @@ export default function EmailLearningSettings() {
       loadActiveJobs();
     }
   }, [session]);
+
+  // Auto-select primary account when accounts load
+  useEffect(() => {
+    if (!accountsLoading && activeAccounts.length > 0 && !selectedAccountId) {
+      // Find primary account or use first active account
+      const primaryAccount = activeAccounts.find(account => account.is_primary);
+      const defaultAccount = primaryAccount || activeAccounts[0];
+      setSelectedAccountId(defaultAccount.id);
+    }
+  }, [accountsLoading, activeAccounts, selectedAccountId]);
 
   // Poll for active jobs only when there are active jobs
   useEffect(() => {
@@ -138,7 +152,14 @@ export default function EmailLearningSettings() {
   };
 
   const startInitialLearning = async () => {
-    if (!session?.user?.id) return;
+    if (!session?.user?.id || !selectedAccountId) {
+      toast({
+        title: "Account Required",
+        description: "Please select an email account before starting AI learning.",
+        variant: "destructive"
+      });
+      return;
+    }
 
     // Check if there's already an active job
     const existingJob = activeJobs.find(job => 
@@ -162,7 +183,8 @@ export default function EmailLearningSettings() {
         body: JSON.stringify({
           maxEmails: learningConfig.max_emails_to_analyze,
           daysBack: 90,
-          organizationId: null // Will be implemented later
+          organizationId: null, // Will be implemented later
+          accountId: selectedAccountId // Account-specific learning
         })
       });
 
@@ -290,18 +312,89 @@ export default function EmailLearningSettings() {
     }
   };
 
-  if (loading) {
+  if (loading || accountsLoading) {
     return (
       <div className="flex items-center justify-center p-8">
-        <Loader2 className="h-8 w-8 animate-spin" />
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2" />
+          <p className="text-sm text-gray-500">
+            {loading ? 'Loading AI learning settings...' : 'Loading email accounts...'}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show message if no email accounts
+  if (activeAccounts.length === 0) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <div className="text-center max-w-md">
+          <Mail className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">No Email Accounts Found</h3>
+          <p className="text-gray-500 mb-4">
+            You need to connect at least one email account before you can use AI learning.
+          </p>
+          <Button onClick={() => window.location.href = '/settings/email-accounts'}>
+            Add Email Account
+          </Button>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      {/* Learning Status Card */}
+      {/* Account Selection */}
       <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Mail className="h-5 w-5" />
+            Email Account Selection
+          </CardTitle>
+          <CardDescription>
+            Choose which email account to learn from. Each account maintains separate AI patterns and preferences.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <AccountSelector
+            accounts={activeAccounts}
+            selectedAccountId={selectedAccountId}
+            onAccountSelect={setSelectedAccountId}
+            placeholder="Select an email account to learn from"
+            label="Learn from Email Account"
+            showAllAccountsOption={false}
+          />
+          
+          {!selectedAccountId && activeAccounts.length > 0 && (
+            <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-md">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="h-4 w-4 text-blue-600" />
+                <p className="text-sm text-blue-800">
+                  Please select an email account to view AI learning settings and patterns for that account.
+                </p>
+              </div>
+            </div>
+          )}
+          
+          {selectedAccountId && (
+            <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-md">
+              <div className="flex items-center gap-2">
+                <CheckCircle className="h-4 w-4 text-green-600" />
+                <p className="text-sm text-green-800">
+                  AI learning will be specific to this email account. Patterns won't affect other email accounts.
+                </p>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Only show learning settings if account is selected */}
+      {selectedAccountId && (
+        <>
+          {/* Learning Status Card */}
+          <Card>
         <CardHeader>
           <div className="flex items-center gap-2">
             <Brain className="h-5 w-5 text-blue-600" />
@@ -670,6 +763,9 @@ export default function EmailLearningSettings() {
           </div>
         </CardContent>
       </Card>
+        
+        </>
+      )}
 
       {/* Progress Dialog */}
       <EmailLearningProgressDialog

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,6 +43,9 @@ export function BrandingSettings() {
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // Use ref to store timeout ID so it can be accessed across function calls
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const organizationId = organization?.id;
   const hasChanges = JSON.stringify(settings) !== JSON.stringify(originalSettings);
@@ -87,6 +90,20 @@ export function BrandingSettings() {
         setLoading(true);
         setError(null);
 
+        // Clear any existing timeout
+        if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current);
+        }
+
+        // Set timeout that will be cleared on success
+        timeoutRef.current = setTimeout(() => {
+          console.log('🎨 Loading timeout, falling back to ARIS defaults');
+          setSettings(ARIS_DEFAULTS);
+          setOriginalSettings(ARIS_DEFAULTS);
+          setLoading(false);
+          setError('Loading took too long, using ARIS defaults');
+        }, 5000);
+
         const response = await fetch(`/api/organizations/${organization.id}/branding`);
         console.log('🎨 Branding API response status:', response.status);
         
@@ -94,21 +111,54 @@ export function BrandingSettings() {
           const data = await response.json();
           console.log('🎨 Loaded branding data:', data);
           
-          const brandingData = {
-            primary_color: data.branding?.primary_color || ARIS_DEFAULTS.primary_color,
-            secondary_color: data.branding?.secondary_color || ARIS_DEFAULTS.secondary_color,
-            accent_color: data.branding?.accent_color || ARIS_DEFAULTS.accent_color
-          };
+          // Enhanced debugging
+          console.log('🎨 Raw branding data:', data.branding);
+          console.log('🎨 Expected Withcar colors: Primary=#ea580c, Secondary=#fb923c');
           
-          setSettings(brandingData);
-          setOriginalSettings(brandingData);
+          if (data.branding) {
+            const brandingData = {
+              primary_color: data.branding.primary_color || ARIS_DEFAULTS.primary_color,
+              secondary_color: data.branding.secondary_color || ARIS_DEFAULTS.secondary_color,
+              accent_color: data.branding.accent_color || ARIS_DEFAULTS.accent_color
+            };
+            
+            console.log('🎨 Processed branding data:', brandingData);
+            console.log('🎨 Setting colors - Primary:', brandingData.primary_color, 'Secondary:', brandingData.secondary_color);
+            
+            // Clear timeout since we succeeded
+            if (timeoutRef.current) {
+              clearTimeout(timeoutRef.current);
+              timeoutRef.current = null;
+              console.log('🎨 Cleared loading timeout - data loaded successfully');
+            }
+            
+            setSettings(brandingData);
+            setOriginalSettings(brandingData);
+          } else {
+            console.log('🎨 No branding object in response, using ARIS defaults');
+            if (timeoutRef.current) {
+              clearTimeout(timeoutRef.current);
+              timeoutRef.current = null;
+            }
+            setSettings(ARIS_DEFAULTS);
+            setOriginalSettings(ARIS_DEFAULTS);
+          }
         } else {
-          console.log('🎨 Failed to load branding, using ARIS defaults');
+          const errorText = await response.text();
+          console.log('🎨 Failed to load branding, status:', response.status, 'error:', errorText);
+          if (timeoutRef.current) {
+            clearTimeout(timeoutRef.current);
+            timeoutRef.current = null;
+          }
           setSettings(ARIS_DEFAULTS);
           setOriginalSettings(ARIS_DEFAULTS);
         }
       } catch (error) {
         console.error('🎨 Error loading branding settings:', error);
+        if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current);
+          timeoutRef.current = null;
+        }
         setError(`Failed to load branding: ${error}`);
         setSettings(ARIS_DEFAULTS);
         setOriginalSettings(ARIS_DEFAULTS);
@@ -119,16 +169,13 @@ export function BrandingSettings() {
 
     loadBrandingSettings();
 
-    // Add timeout fallback
-    const timeout = setTimeout(() => {
-      console.log('🎨 Loading timeout, falling back to ARIS defaults');
-      setSettings(ARIS_DEFAULTS);
-      setOriginalSettings(ARIS_DEFAULTS);
-      setLoading(false);
-      setError('Loading took too long, using ARIS defaults');
-    }, 5000);
-
-    return () => clearTimeout(timeout);
+    // Cleanup function to clear timeout if component unmounts
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+    };
   }, [organization, status, adminLoading]);
 
   const handleColorChange = (colorType: keyof BrandingData, value: string) => {
@@ -258,6 +305,20 @@ export function BrandingSettings() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-8 p-6">
+          {/* Debug Info */}
+          {process.env.NODE_ENV === 'development' && (
+            <div className="p-4 bg-gray-100 rounded-lg text-sm">
+              <h4 className="font-semibold mb-2">🔧 Debug Info:</h4>
+              <div className="space-y-1">
+                <div>Organization ID: {organizationId}</div>
+                <div>Current Primary: {settings.primary_color}</div>
+                <div>Current Secondary: {settings.secondary_color}</div>
+                <div>Is Admin: {isAdmin ? 'Yes' : 'No'}</div>
+                <div>Has Changes: {hasChanges ? 'Yes' : 'No'}</div>
+              </div>
+            </div>
+          )}
+          
           {/* Color Settings Section */}
           <div className="space-y-6">
             <div className="flex items-center gap-2 mb-4">

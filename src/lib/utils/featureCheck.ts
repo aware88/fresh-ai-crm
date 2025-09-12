@@ -1,4 +1,4 @@
-import { getSubscriptionPlan } from '@/lib/subscription-plans';
+import { getSubscriptionPlan } from '@/lib/subscription-plans-v2';
 
 /**
  * Check if a feature is available for a given subscription plan

@@ -7,6 +7,15 @@ import { realTimeSyncManager } from '@/lib/email/real-time-sync-manager';
  */
 export async function POST(request: NextRequest) {
   try {
+    // DISABLED FOR CONTROLLED SYNC TESTING
+    console.log('⚠️ Real-time sync initialization is DISABLED for controlled testing');
+    
+    return NextResponse.json({
+      success: false,
+      message: 'Real-time sync initialization is temporarily disabled for controlled testing',
+      timestamp: new Date().toISOString()
+    });
+
     // Verify this is an internal call (from deployment or admin)
     const authHeader = request.headers.get('authorization');
     const apiKey = process.env.INTERNAL_API_KEY || process.env.CRON_SECRET_KEY;

@@ -38,7 +38,8 @@ interface EmailContentResponse {
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createRouteHandlerClient<Database>({ cookies });
+    const cookieStore = await cookies();
+    const supabase = createRouteHandlerClient<Database>({ cookies: () => cookieStore });
     
     // Verify user authentication
     const { data: { user }, error: authError } = await supabase.auth.getUser();

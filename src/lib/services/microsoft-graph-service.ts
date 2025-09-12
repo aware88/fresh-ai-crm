@@ -38,27 +38,64 @@ export class MicrosoftGraphService {
 
   /**
    * Fetches emails from the user's mailbox
-   * @param options - Query options
+   * @param options - Query options including folder specification
    * @returns List of emails
    */
-  async getEmails(options: { top?: number; skip?: number; filter?: string } = {}) {
-    const { top = 10, skip = 0, filter = '' } = options;
+  async getEmails(options: { top?: number; skip?: number; filter?: string; folder?: 'inbox' | 'sent' | 'both' } = {}) {
+    const { top = 10, skip = 0, filter = '', folder = 'inbox' } = options;
     
     try {
-      const result = await this.client
-        .api('/me/messages')
-        .top(top)
-        .skip(skip)
-        .filter(filter)
-        .select('id,subject,bodyPreview,receivedDateTime,from,toRecipients,ccRecipients,hasAttachments,importance,isRead')
-        .orderby('receivedDateTime DESC')
-        .get();
+      if (folder === 'both') {
+        // Fetch from both Inbox and Sent Items
+        const inboxPromise = this.getEmailsFromFolder('inbox', { top: Math.ceil(top / 2), skip, filter });
+        const sentPromise = this.getEmailsFromFolder('sent', { top: Math.floor(top / 2), skip, filter });
         
-      return (result as PromiseFulfilledResult<any>).value;
+        const [inboxEmails, sentEmails] = await Promise.all([inboxPromise, sentPromise]);
+        
+        // Combine and sort by date
+        const allEmails = [...inboxEmails, ...sentEmails];
+        return allEmails.sort((a, b) => 
+          new Date(b.receivedDateTime || b.sentDateTime).getTime() - 
+          new Date(a.receivedDateTime || a.sentDateTime).getTime()
+        ).slice(0, top);
+      } else {
+        return await this.getEmailsFromFolder(folder, { top, skip, filter });
+      }
     } catch (error) {
       console.error('Error fetching emails:', error);
       throw error;
     }
+  }
+
+  /**
+   * Fetches emails from a specific folder
+   * @param folder - The folder to fetch from ('inbox' or 'sent')
+   * @param options - Query options
+   * @returns List of emails from the specified folder
+   */
+  async getEmailsFromFolder(
+    folder: 'inbox' | 'sent', 
+    options: { top?: number; skip?: number; filter?: string } = {}
+  ) {
+    const { top = 10, skip = 0, filter = '' } = options;
+    
+    let apiPath: string;
+    if (folder === 'sent') {
+      apiPath = '/me/mailFolders/SentItems/messages';
+    } else {
+      apiPath = '/me/messages'; // Inbox is default
+    }
+    
+    const result = await this.client
+      .api(apiPath)
+      .top(top)
+      .skip(skip)
+      .filter(filter)
+      .select('id,subject,bodyPreview,receivedDateTime,sentDateTime,from,toRecipients,ccRecipients,hasAttachments,importance,isRead')
+      .orderby(folder === 'sent' ? 'sentDateTime DESC' : 'receivedDateTime DESC')
+      .get();
+      
+    return (result as PromiseFulfilledResult<any>).value;
   }
 
   /**

@@ -11,8 +11,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 
 export default function SetupOrganizationsPage() {
-  const [withcarAdmins, setWithcarAdmins] = useState('tim.mak88@gmail.com, zarfin.jakupovic@withcar.si');
-  const [bulkNutritionAdmins, setBulkNutritionAdmins] = useState('tim.mak@bulknutrition.eu');
+  const [withcarAdmins, setWithcarAdmins] = useState('');
+  const [bulkNutritionAdmins, setBulkNutritionAdmins] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);

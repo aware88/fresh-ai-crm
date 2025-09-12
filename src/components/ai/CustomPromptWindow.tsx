@@ -30,8 +30,8 @@ export function CustomPromptWindow() {
   const responseRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   
-  // Mock contacts for fallback when API fails
-  const mockContacts: Contact[] = [];
+  // No mock contacts - always use real data from API
+  const fallbackContacts: Contact[] = [];
 
   // Fetch real contacts from the CRM system
   useEffect(() => {
@@ -45,17 +45,17 @@ export function CustomPromptWindow() {
         if (contactsData && Array.isArray(contactsData) && contactsData.length > 0) {
           setContacts(contactsData);
         } else {
-          // Fall back to mock data if no contacts were returned
-          console.log('No contacts found, using mock data');
-          setContacts(mockContacts);
+          // No contacts found - use empty array
+          console.log('No contacts found in database');
+          setContacts([]);
         }
       } catch (error) {
         console.error('Error fetching contacts:', error);
-        // Fall back to mock data on error
-        setContacts(mockContacts);
+        // Use empty array on error
+        setContacts([]);
         toast({
-          title: "Using sample contacts",
-          description: "Could not load real contact data. Using sample data instead.",
+          title: "No contacts available",
+          description: "Could not load contact data from database.",
           variant: "default"
         });
       } finally {

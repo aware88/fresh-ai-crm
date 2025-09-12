@@ -1,5 +1,6 @@
 'use client';
 
+import { useMemo } from 'react';
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,68 +19,6 @@ import {
   BarChart3
 } from "lucide-react";
 
-const campaigns = [
-  {
-    id: 1,
-    name: "Q4 Enterprise Outreach",
-    type: "Email Sequence",
-    status: "Active",
-    prospects: 156,
-    sent: 1240,
-    opened: 287,
-    replied: 43,
-    converted: 12,
-    startDate: "Dec 1, 2024",
-    openRate: 23.1,
-    replyRate: 3.5,
-    conversionRate: 7.7
-  },
-  {
-    id: 2,
-    name: "SaaS Startup Follow-up", 
-    type: "Drip Campaign",
-    status: "Scheduled",
-    prospects: 89,
-    sent: 0,
-    opened: 0,
-    replied: 0,
-    converted: 0,
-    startDate: "Dec 10, 2024",
-    openRate: 0,
-    replyRate: 0,
-    conversionRate: 0
-  },
-  {
-    id: 3,
-    name: "Product Demo Series",
-    type: "Nurture",
-    status: "Active",
-    prospects: 67,
-    sent: 402,
-    opened: 270,
-    replied: 89,
-    converted: 23,
-    startDate: "Nov 15, 2024",
-    openRate: 67.2,
-    replyRate: 22.1,
-    conversionRate: 25.8
-  },
-  {
-    id: 4,
-    name: "Cold Outreach - Tech",
-    type: "Prospecting",
-    status: "Paused",
-    prospects: 234,
-    sent: 468,
-    opened: 93,
-    replied: 12,
-    converted: 2,
-    startDate: "Nov 1, 2024",
-    openRate: 19.9,
-    replyRate: 2.6,
-    conversionRate: 16.7
-  }
-];
 
 const getStatusColor = (status: string) => {
   switch (status) {
@@ -102,10 +41,29 @@ const getTypeColor = (type: string) => {
 };
 
 interface ARISCampaignsProps {
+  campaigns?: any[];
   loading?: boolean;
 }
 
-export function ARISCampaigns({ loading = false }: ARISCampaignsProps) {
+export function ARISCampaigns({ campaigns = [], loading = false }: ARISCampaignsProps) {
+  // Process campaigns data - memoize to prevent recalculation
+  const displayCampaigns = useMemo(() => {
+    return campaigns.map((campaign, index) => ({
+      id: campaign.id || index,
+      name: campaign.name || `Campaign ${index + 1}`,
+      type: campaign.type || 'Email Sequence',
+      status: campaign.status || 'Draft',
+      prospects: campaign.prospects || 0,
+      sent: campaign.sent || 0,
+      opened: campaign.opened || 0,
+      replied: campaign.replied || 0,
+      converted: campaign.converted || 0,
+      startDate: campaign.startDate || 'Not scheduled',
+      openRate: campaign.openRate || 0,
+      replyRate: campaign.replyRate || 0,
+      conversionRate: campaign.conversionRate || 0
+    }));
+  }, [campaigns]);
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -141,7 +99,9 @@ export function ARISCampaigns({ loading = false }: ARISCampaignsProps) {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">2</div>
+            <div className="text-2xl font-bold">
+              {displayCampaigns.filter(c => c.status === 'Active').length}
+            </div>
             <p className="text-xs text-muted-foreground">Running now</p>
           </CardContent>
         </Card>
@@ -154,7 +114,9 @@ export function ARISCampaigns({ loading = false }: ARISCampaignsProps) {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">546</div>
+            <div className="text-2xl font-bold">
+              {displayCampaigns.reduce((sum, c) => sum + c.prospects, 0)}
+            </div>
             <p className="text-xs text-muted-foreground">Across all campaigns</p>
           </CardContent>
         </Card>
@@ -167,7 +129,12 @@ export function ARISCampaigns({ loading = false }: ARISCampaignsProps) {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">37.5%</div>
+            <div className="text-2xl font-bold">
+              {displayCampaigns.length > 0 
+                ? `${(displayCampaigns.reduce((sum, c) => sum + c.openRate, 0) / displayCampaigns.length).toFixed(1)}%`
+                : '0%'
+              }
+            </div>
             <p className="text-xs text-muted-foreground">Industry avg: 24%</p>
           </CardContent>
         </Card>
@@ -180,7 +147,9 @@ export function ARISCampaigns({ loading = false }: ARISCampaignsProps) {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">37</div>
+            <div className="text-2xl font-bold">
+              {displayCampaigns.reduce((sum, c) => sum + c.converted, 0)}
+            </div>
             <p className="text-xs text-muted-foreground">This month</p>
           </CardContent>
         </Card>
@@ -188,7 +157,17 @@ export function ARISCampaigns({ loading = false }: ARISCampaignsProps) {
 
       {/* Campaigns List */}
       <div className="space-y-4">
-        {campaigns.map((campaign, index) => (
+        {displayCampaigns.length === 0 ? (
+          <Card className="card-feature">
+            <CardContent className="py-12">
+              <div className="text-center text-muted-foreground">
+                <Mail className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p className="text-lg font-medium">No campaigns yet</p>
+                <p className="text-sm mt-2">Click "Create Campaign" to get started</p>
+              </div>
+            </CardContent>
+          </Card>
+        ) : displayCampaigns.map((campaign, index) => (
           <Card key={campaign.id} className="card-feature animate-scale-in" style={{ animationDelay: `${index * 0.1}s` }}>
             <CardContent className="pt-6">
               <div className="flex items-center justify-between mb-4">
@@ -316,6 +295,7 @@ export function ARISCampaigns({ loading = false }: ARISCampaignsProps) {
     </div>
   );
 }
+
 
 
 

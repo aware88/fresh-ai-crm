@@ -6,7 +6,7 @@
  */
 
 import { createClient } from '@/lib/supabase/server';
-import { getSubscriptionPlan } from '@/lib/subscription-plans';
+import { getSubscriptionPlan } from '@/lib/subscription-plans-v2';
 
 export interface AIUsageStats {
   currentMessages: number;

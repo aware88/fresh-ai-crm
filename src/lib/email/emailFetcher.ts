@@ -271,7 +271,6 @@ async function saveEmailsToDB(
     const { data, error } = await supabase
       .from('emails')
       .upsert(batch, { 
-        onConflict: 'message_id',
         ignoreDuplicates: true 
       });
       

@@ -135,8 +135,14 @@ export async function GET(
     console.log('📧 Returning email data with content:', {
       messageId,
       hasHtml: !!emailData.html_content,
+      htmlLength: emailData.html_content?.length || 0,
       hasPlain: !!emailData.plain_content,
-      attachmentsCount: emailData.attachments?.length || 0
+      plainLength: emailData.plain_content?.length || 0,
+      hasRaw: !!emailData.raw_content,
+      attachmentsCount: emailData.attachments?.length || 0,
+      subject: emailData.subject,
+      from: emailData.sender_email,
+      to: emailData.recipient_email
     });
     
     return NextResponse.json(emailData);

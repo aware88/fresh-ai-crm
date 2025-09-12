@@ -1,11 +1,13 @@
 import { createLazyServerClient } from '@/lib/supabase/lazy-client';
 import { NotificationService } from '@/lib/services/notification-service';
+import { aiNotificationService } from '@/lib/services/ai-notification-service';
 import EmailLearningService from '@/lib/email/email-learning-service';
 
 export interface EmailLearningJobProgress {
   jobId: string;
   userId: string;
   organizationId?: string;
+  accountId?: string;
   status: 'queued' | 'processing' | 'completed' | 'failed';
   totalEmails: number;
   processedEmails: number;
@@ -35,10 +37,11 @@ export class EmailLearningJobService {
       maxEmails?: number;
       daysBack?: number;
       organizationId?: string;
+      accountId?: string;
     } = {}
   ): Promise<{ jobId: string; message: string }> {
     const jobId = `email-learning-${userId}-${Date.now()}`;
-    const { maxEmails = 1000, daysBack = 90, organizationId } = options;
+    const { maxEmails = 1000, daysBack = 90, organizationId, accountId } = options;
 
     // Check if user already has a running job
     const existingJob = Array.from(EmailLearningJobService.activeJobs.values())
@@ -56,6 +59,7 @@ export class EmailLearningJobService {
       jobId,
       userId,
       organizationId,
+      accountId,
       status: 'queued',
       totalEmails: 0,
       processedEmails: 0,
@@ -71,7 +75,7 @@ export class EmailLearningJobService {
     await this.saveJobProgress(jobProgress);
 
     // Start the job in background (don't await)
-    this.processEmailLearningJob(jobId, { maxEmails, daysBack, organizationId })
+    this.processEmailLearningJob(jobId, { maxEmails, daysBack, organizationId, accountId })
       .catch(error => {
         console.error(`[EmailLearningJob] Error processing job ${jobId}:`, error);
       });
@@ -147,6 +151,7 @@ export class EmailLearningJobService {
       maxEmails: number;
       daysBack: number;
       organizationId?: string;
+      accountId?: string;
     }
   ): Promise<void> {
     const job = EmailLearningJobService.activeJobs.get(jobId);
@@ -161,7 +166,7 @@ export class EmailLearningJobService {
       await this.saveJobProgress(job);
 
       const supabase = await createLazyServerClient();
-      const { maxEmails, daysBack, organizationId } = options;
+      const { maxEmails, daysBack, organizationId, accountId } = options;
 
       console.log(`[EmailLearningJob] Starting job ${jobId} for user ${job.userId}`);
 
@@ -178,14 +183,21 @@ export class EmailLearningJobService {
 
       // Fetch emails to process from email_index (the new optimized structure)
       // First get user's email accounts
-      const { data: emailAccounts, error: accountsError } = await supabase
+      let emailAccountsQuery = supabase
         .from('email_accounts')
         .select('id')
         .eq('user_id', job.userId)
         .eq('is_active', true);
 
+      // Filter by specific account if provided
+      if (accountId) {
+        emailAccountsQuery = emailAccountsQuery.eq('id', accountId);
+      }
+
+      const { data: emailAccounts, error: accountsError } = await emailAccountsQuery;
+
       if (accountsError || !emailAccounts || emailAccounts.length === 0) {
-        console.log(`[Job ${job.id}] No active email accounts found for user ${job.userId}`);
+        console.log(`[Job ${job.jobId}] No active email accounts found for user ${job.userId}`);
         job.status = 'completed';
         job.endTime = new Date();
         job.totalEmails = 0;
@@ -278,7 +290,7 @@ export class EmailLearningJobService {
         const batch = emailsToProcess.slice(i, i + batchSize);
         
         try {
-          const result = await learningService.processEmailsBatch(batch, job.userId, finalOrganizationId);
+          const result = await learningService.processEmailsBatch(batch, job.userId, finalOrganizationId, accountId);
           totalSuccessful += result.successful;
           totalFailed += result.failed;
 
@@ -319,13 +331,43 @@ export class EmailLearningJobService {
 
       await this.saveJobProgress(job);
 
-      // Send completion notification
+      // Send enhanced completion notification
       const success = totalFailed === 0 || (totalSuccessful > 0 && totalFailed < totalSuccessful);
-      await this.sendCompletionNotification(
-        job, 
-        success ? 'success' : 'warning',
-        `Processed ${totalSuccessful} emails successfully${totalFailed > 0 ? `, ${totalFailed} failed` : ''}`
-      );
+      
+      // Get learning stats for enhanced notification
+      const supabaseClient = await createLazyServerClient();
+      const { data: patterns } = await supabaseClient
+        .from('email_patterns')
+        .select('pattern_type, confidence')
+        .eq('user_id', job.userId);
+      
+      const patternsLearned = patterns?.length || 0;
+      const avgConfidence = patterns && patterns.length > 0
+        ? patterns.reduce((sum, p) => sum + p.confidence, 0) / patterns.length
+        : 0;
+      
+      // Send enhanced notification with emotional hooks
+      if (success && job.processedEmails > 0) {
+        await aiNotificationService.sendInitialLearningComplete(
+          job.userId,
+          job.organizationId || '',
+          {
+            patternsLearned,
+            confidenceScore: avgConfidence,
+            emailsProcessed: job.processedEmails,
+            responseTemplates: patternsLearned,
+            languagesDetected: ['en'], // TODO: Detect actual languages
+            processingTimeMs: job.endTime ? job.endTime.getTime() - job.startTime.getTime() : 0
+          }
+        );
+      } else {
+        // Fallback to basic notification for errors
+        await this.sendCompletionNotification(
+          job, 
+          success ? 'success' : 'warning',
+          `Processed ${totalSuccessful} emails successfully${totalFailed > 0 ? `, ${totalFailed} failed` : ''}`
+        );
+      }
 
       console.log(`[EmailLearningJob] Job ${jobId} completed: ${totalSuccessful} successful, ${totalFailed} failed`);
 

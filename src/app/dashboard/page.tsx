@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -30,10 +30,6 @@ import { useOrganization } from '@/hooks/useOrganization';
 import { formatPriceUSD } from '@/lib/subscription-plans-v2';
 import AnalyticsSummaryCards from '@/components/dashboard/AnalyticsSummaryCards';
 import RecentActivityCards from '@/components/dashboard/RecentActivityCards';
-import { ARISDashboard } from '@/components/dashboard/ARISDashboard';
-import { ModernDashboard } from '@/components/dashboard/ModernDashboard';
-import { EnhancedModernDashboard } from '@/components/dashboard/EnhancedModernDashboard';
-import { Phase2EnhancedDashboard } from '@/components/dashboard/Phase2EnhancedDashboard';
 import { Phase3RefinedDashboard } from '@/components/dashboard/Phase3RefinedDashboard';
 
 
@@ -58,10 +54,11 @@ interface DashboardStats {
 export default function DashboardPage() {
   const { data: session, status } = useSession();
   const { organization } = useOrganization();
-  const isWithcar = (organization?.slug?.toLowerCase?.() === 'withcar') || (organization?.name?.toLowerCase?.() === 'withcar') || (organization?.id === '577485fb-50b4-4bb2-a4c6-54b97e1545ad');
+  const isWithcar = (organization?.slug?.toLowerCase?.() === 'withcar') || (organization?.name?.toLowerCase?.() === 'withcar');
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [useARISView, setUseARISView] = useState(true);
+  const [displayName, setDisplayName] = useState<string>('');
 
   // Load dashboard preference from localStorage
   useEffect(() => {
@@ -70,6 +67,80 @@ export default function DashboardPage() {
       setUseARISView(JSON.parse(savedPreference));
     }
   }, []); // Toggle between ARIS and original legacy view
+
+  // Fetch user's display name from Supabase profile
+  useEffect(() => {
+    const fetchUserName = async () => {
+      if (!session?.user?.id) return;
+
+      try {
+        // First try to get name from user metadata
+        const userMetadata = (session.user as any)?.user_metadata;
+        if (userMetadata?.full_name && userMetadata.full_name.trim()) {
+          setDisplayName(userMetadata.full_name.trim());
+          return;
+        }
+
+        // If no metadata name, try fetching from profiles table
+        const response = await fetch('/api/user/profile');
+        if (response.ok) {
+          const profileData = await response.json();
+          if (profileData?.full_name && profileData.full_name.trim()) {
+            setDisplayName(profileData.full_name.trim());
+            return;
+          }
+        }
+
+        // Fallback to session name if it's not an email
+        if (session?.user?.name && 
+            !session.user.name.includes('@') && 
+            session.user.name !== session.user.email?.split('@')[0]) {
+          setDisplayName(session.user.name);
+          return;
+        }
+
+        // Final fallback to first part of email if no name is available
+        if (session?.user?.email) {
+          const emailName = session.user.email.split('@')[0];
+          // Capitalize first letter and replace dots/underscores with spaces
+          const formattedName = emailName
+            .replace(/[._]/g, ' ')
+            .replace(/\b\w/g, l => l.toUpperCase());
+          setDisplayName(formattedName);
+        }
+      } catch (error) {
+        console.error('Error fetching user name:', error);
+        // Fallback to empty string
+        setDisplayName('');
+      }
+    };
+
+    fetchUserName();
+  }, [session?.user?.id, session?.user?.name, session?.user?.email]);
+
+  // Dynamic greeting variations
+  const getRandomGreeting = () => {
+    const greetings = [
+      'Welcome back',
+      'Great to see you',
+      'Hello there',
+      'Good to have you back',
+      'Today is a great day',
+      'Ready to conquer the day',
+      'Let\'s make today amazing',
+      'Time to achieve greatness',
+    ];
+    
+    // Use a consistent random based on date so it changes daily but stays same during the day
+    const today = new Date().toDateString();
+    const hash = today.split('').reduce((a, b) => {
+      a = ((a << 5) - a) + b.charCodeAt(0);
+      return a & a;
+    }, 0);
+    const index = Math.abs(hash) % greetings.length;
+    
+    return greetings[index];
+  };
   const [aiSavings, setAiSavings] = useState<null | {
     time: { minutes: number; hours: number; workDays: number };
     cost: { hourlyRateUsd: number; savedUsd: number };
@@ -215,7 +286,7 @@ export default function DashboardPage() {
       {/* Hero Section */}
       <div className="text-center py-8 rounded-2xl border border-gray-100 bg-white">
         <h1 className="text-4xl font-bold tracking-tight aris-text-gradient mb-2">
-          Welcome back{session?.user?.name ? `, ${session.user.name}` : ''}!
+{getRandomGreeting()}{displayName ? `, ${displayName}` : ''}!
         </h1>
         <p className="text-lg text-muted-foreground mb-6">
           Here's an overview of your business performance and recent activity.

@@ -105,6 +105,16 @@ export default function OptimizedEmailList({
     loadContentOnInit: true // Preload email content on initial load
   });
 
+  // Virtualization setup (must be after filteredEmails is available)
+  const viewportRef = useRef<HTMLDivElement | null>(null);
+  const itemSizeEstimate = 150; // approximate row height incl. padding/borders (optimized for content)
+  const rowVirtualizer = useVirtualizer({
+    count: filteredEmails.length,
+    getScrollElement: () => viewportRef.current,
+    estimateSize: () => itemSizeEstimate,
+    overscan: 5,
+  });
+
   // Handle checkbox selection
   const handleCheckboxChange = useCallback((messageId: string, checked: boolean) => {
     setSelectedEmails(prev => {
@@ -291,24 +301,14 @@ export default function OptimizedEmailList({
     );
   }
 
-  // Virtualization setup
-  const viewportRef = useRef<HTMLDivElement | null>(null);
-  const itemSizeEstimate = 110; // approximate row height incl. padding/borders (increased for better styling)
-  const rowVirtualizer = useVirtualizer({
-    count: emails.length,
-    getScrollElement: () => viewportRef.current,
-    estimateSize: () => itemSizeEstimate,
-    overscan: 8,
-  });
-
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-full flex flex-col overflow-hidden">
       {/* Header with search and stats */}
-      <Card className="mb-4 shadow-sm">
-        <CardHeader className="pb-3">
+      <Card className="mb-2 shadow-sm flex-shrink-0">
+        <CardHeader className="pb-3 pt-3">
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg font-semibold">
-              {folder} ({emails.length})
+              {folder} ({filteredEmails.length}/{emails.length})
             </CardTitle>
             <div className="flex items-center space-x-2">
               <Button
@@ -337,6 +337,110 @@ export default function OptimizedEmailList({
             />
           </div>
 
+          {/* Filters */}
+          <div className="flex items-center gap-2 mt-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 px-3 text-xs"
+                >
+                  <Filter className="h-3 w-3 mr-1" />
+                  Status: {filterStatus}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-32">
+                <DropdownMenuCheckboxItem
+                  checked={filterStatus === 'all'}
+                  onCheckedChange={() => setFilterStatus('all')}
+                >
+                  All
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem
+                  checked={filterStatus === 'unread'}
+                  onCheckedChange={() => setFilterStatus('unread')}
+                >
+                  Unread
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem
+                  checked={filterStatus === 'read'}
+                  onCheckedChange={() => setFilterStatus('read')}
+                >
+                  Read
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem
+                  checked={filterStatus === 'replied'}
+                  onCheckedChange={() => setFilterStatus('replied')}
+                >
+                  Replied
+                </DropdownMenuCheckboxItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            {uniqueAgents.length > 0 && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 px-3 text-xs"
+                  >
+                    <Tag className="h-3 w-3 mr-1" />
+                    Agent: {filterAgent}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-36">
+                  <DropdownMenuCheckboxItem
+                    checked={filterAgent === 'all'}
+                    onCheckedChange={() => setFilterAgent('all')}
+                  >
+                    All
+                  </DropdownMenuCheckboxItem>
+                  {uniqueAgents.map((agent) => (
+                    <DropdownMenuCheckboxItem
+                      key={agent}
+                      checked={filterAgent === agent}
+                      onCheckedChange={() => setFilterAgent(agent)}
+                    >
+                      {getAgentIcon(agent)}
+                      <span className="ml-1">{agent}</span>
+                    </DropdownMenuCheckboxItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+
+            {/* Active Filters Display */}
+            {(filterStatus !== 'all' || filterAgent !== 'all') && (
+              <div className="flex items-center gap-1">
+                <span className="text-xs text-gray-500">Active:</span>
+                {filterStatus !== 'all' && (
+                  <Badge variant="secondary" className="text-xs h-5">
+                    {filterStatus}
+                  </Badge>
+                )}
+                {filterAgent !== 'all' && (
+                  <Badge variant="secondary" className="text-xs h-5">
+                    {filterAgent}
+                  </Badge>
+                )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-5 w-5 p-0 text-gray-400 hover:text-gray-600"
+                  onClick={() => {
+                    setFilterStatus('all');
+                    setFilterAgent('all');
+                  }}
+                  title="Clear filters"
+                >
+                  ✕
+                </Button>
+              </div>
+            )}
+          </div>
+
         </CardHeader>
       </Card>
 
@@ -358,15 +462,31 @@ export default function OptimizedEmailList({
                   </div>
                 ))}
               </div>
-            ) : emails.length === 0 ? (
+            ) : filteredEmails.length === 0 ? (
               // Empty state
               <div className="flex items-center justify-center h-64">
                 <div className="text-center">
                   <Mail className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                   <p className="text-gray-500 font-medium">No emails found</p>
                   <p className="text-sm text-gray-400">
-                    {searchQuery ? 'Try adjusting your search' : 'Your emails will appear here'}
+                    {searchQuery || filterStatus !== 'all' || filterAgent !== 'all' 
+                      ? 'Try adjusting your search or filters' 
+                      : 'Your emails will appear here'
+                    }
                   </p>
+                  {(filterStatus !== 'all' || filterAgent !== 'all') && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="mt-2"
+                      onClick={() => {
+                        setFilterStatus('all');
+                        setFilterAgent('all');
+                      }}
+                    >
+                      Clear all filters
+                    </Button>
+                  )}
                 </div>
               </div>
             ) : (
@@ -384,16 +504,16 @@ export default function OptimizedEmailList({
                 >
                     {(() => {
                       const virtualItems = rowVirtualizer.getVirtualItems();
-                      console.log(`🎯 [OptimizedEmailList] Virtual items to render: ${virtualItems.length}/${emails.length}, totalSize: ${rowVirtualizer.getTotalSize()}px`);
+                      console.log(`🎯 [OptimizedEmailList] Virtual items to render: ${virtualItems.length}/${filteredEmails.length}, totalSize: ${rowVirtualizer.getTotalSize()}px`);
                       
-                      // Debug: Check if emails array has unique items
-                      if (emails.length > 0) {
-                        const uniqueIds = new Set(emails.map(e => e.message_id));
-                        if (uniqueIds.size !== emails.length) {
-                          console.warn(`⚠️ Duplicate emails detected! ${emails.length} emails but only ${uniqueIds.size} unique IDs`);
+                      // Debug: Check if filteredEmails array has unique items
+                      if (filteredEmails.length > 0) {
+                        const uniqueIds = new Set(filteredEmails.map(e => e.message_id));
+                        if (uniqueIds.size !== filteredEmails.length) {
+                          console.warn(`⚠️ Duplicate emails detected! ${filteredEmails.length} emails but only ${uniqueIds.size} unique IDs`);
                         }
                         // Log first 3 emails to verify they're different
-                        console.log('First 3 emails in list:', emails.slice(0, 3).map(e => ({ 
+                        console.log('First 3 filtered emails in list:', filteredEmails.slice(0, 3).map(e => ({ 
                           id: e.message_id?.substring(0, 20), 
                           subject: e.subject?.substring(0, 30) 
                         })));
@@ -401,7 +521,7 @@ export default function OptimizedEmailList({
                       
                       return virtualItems.map((virtualRow) => {
                       const index = virtualRow.index;
-                      const email = emails[index];
+                      const email = filteredEmails[index];
                       
                       if (!email) {
                         console.error(`❌ No email at index ${index}`);
@@ -416,7 +536,7 @@ export default function OptimizedEmailList({
                           initial={{ opacity: 0 }}
                           animate={{ opacity: 1 }}
                           exit={{ opacity: 0 }}
-                          className={`p-4 cursor-pointer transition-all duration-200 border-b border-gray-100 ${
+                          className={`px-4 py-3 cursor-pointer transition-all duration-200 border-b border-gray-100 ${
                             selectedEmailId === email.message_id
                               ? 'selected bg-blue-50 border-blue-200 shadow-sm'
                               : email.is_read
@@ -438,7 +558,8 @@ export default function OptimizedEmailList({
                             position: 'absolute',
                             top: 0,
                             left: 0,
-                            width: '100%',
+                            right: 0,
+                            minHeight: '150px',
                             height: `${virtualRow.size}px`,
                             transform: `translateY(${virtualRow.start}px)`,
                             borderLeft: selectedEmailId === email.message_id
@@ -448,13 +569,12 @@ export default function OptimizedEmailList({
                               : '4px solid transparent'
                           }}
                         >
-                          <div className="w-full">
-                            <div className="flex items-center justify-between mb-2">
-                              <p className={`text-sm font-semibold truncate flex-1 pr-2 ${
+                          <div className="w-full overflow-hidden">
+                            <div className="flex items-center justify-between mb-1">
+                              <p className={`text-sm font-semibold truncate flex-1 ${
                                 email.is_read ? 'text-gray-800' : 'text-gray-900'
                               }`}
-                               title={email.sender_name || email.sender_email}
-                               style={{ maxWidth: 'calc(100% - 80px)' }}>
+                               title={email.sender_name || email.sender_email}>
                                 {email.sender_name || email.sender_email}
                               </p>
                               <div className="flex items-center space-x-2 flex-shrink-0 min-w-[80px] justify-end">
@@ -472,12 +592,12 @@ export default function OptimizedEmailList({
                               </div>
                             </div>
 
-                            <p className={`text-sm mb-2 leading-tight ${
+                            <p className={`text-sm mb-1.5 leading-snug ${
                               email.is_read ? 'font-semibold text-gray-800' : 'font-bold text-gray-900'
                             }`}
                                style={{
                                  display: '-webkit-box',
-                                 WebkitLineClamp: 2,
+                                 WebkitLineClamp: 1,
                                  WebkitBoxOrient: 'vertical',
                                  overflow: 'hidden',
                                  textOverflow: 'ellipsis'
@@ -486,7 +606,7 @@ export default function OptimizedEmailList({
                               {email.subject || '(No Subject)'}
                             </p>
 
-                            <div className="flex items-center flex-wrap gap-1.5 mb-1">
+                            <div className="flex items-center flex-wrap gap-1.5 mb-1.5">
                               {email.assigned_agent && (
                                 <Badge 
                                   variant="outline" 
@@ -507,19 +627,20 @@ export default function OptimizedEmailList({
                               )}
                             </div>
 
-                            <p className="text-xs text-gray-500 leading-tight" 
+                            <p className="text-xs text-gray-600 leading-relaxed mb-1.5" 
                                style={{
                                  display: '-webkit-box',
-                                 WebkitLineClamp: 1,
+                                 WebkitLineClamp: 2,
                                  WebkitBoxOrient: 'vertical',
                                  overflow: 'hidden',
-                                 textOverflow: 'ellipsis'
+                                 textOverflow: 'ellipsis',
+                                 wordBreak: 'break-word'
                                }}>
-                              {email.preview_text || generateEmailPreview(email.html_content || email.plain_content || '', 80) || 'No preview available'}
+                              {email.preview_text || generateEmailPreview(email.html_content || email.plain_content || '', 150) || 'No preview available'}
                             </p>
                           </div>
 
-                          <div className="flex items-center justify-between mt-1">
+                          <div className="flex items-center justify-between mt-auto">
                             <div className="flex items-center space-x-1.5">
                               {email.replied && (
                                 <Badge variant="outline" className="text-xs px-1.5 py-0 h-5 bg-gray-50 border-gray-200 text-gray-600">

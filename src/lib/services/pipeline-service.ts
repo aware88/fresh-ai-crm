@@ -45,7 +45,7 @@ export class PipelineService {
         .from('sales_pipelines')
         .select(`
           *,
-          stages:pipeline_stages(*)
+          pipeline_stages(*)
         `)
         .eq('is_active', true)
         .order('sort_order');
@@ -63,7 +63,7 @@ export class PipelineService {
 
       return (data || []).map(pipeline => ({
         ...pipeline,
-        stages: (pipeline.stages || []).sort((a: any, b: any) => a.sort_order - b.sort_order)
+        stages: (pipeline.pipeline_stages || []).sort((a: any, b: any) => a.sort_order - b.sort_order)
       })) as PipelineWithStages[];
     } catch (error) {
       logger.error('Error in getPipelines', error, { organizationId });
@@ -88,7 +88,7 @@ export class PipelineService {
         .from('sales_pipelines')
         .select(`
           *,
-          stages:pipeline_stages(*)
+          pipeline_stages(*)
         `)
         .eq('id', pipelineId)
         .single();
@@ -136,7 +136,7 @@ export class PipelineService {
       });
 
       // Create stages with their opportunities
-      const stagesWithOpportunities: StageWithOpportunities[] = (pipeline.stages || [])
+      const stagesWithOpportunities: StageWithOpportunities[] = (pipeline.pipeline_stages || [])
         .sort((a: any, b: any) => a.sort_order - b.sort_order)
         .map((stage: any) => {
           const stageOpportunities = opportunitiesByStage[stage.id] || [];
@@ -153,7 +153,7 @@ export class PipelineService {
 
       return {
         ...pipeline as PipelineWithStages,
-        stages: pipeline.stages || [],
+        stages: pipeline.pipeline_stages || [],
         stages_with_opportunities: stagesWithOpportunities
       };
     } catch (error) {

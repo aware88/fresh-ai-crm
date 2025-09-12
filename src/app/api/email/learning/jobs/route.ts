@@ -21,14 +21,16 @@ export async function POST(request: NextRequest) {
     const { 
       maxEmails = 1000,
       daysBack = 90,
-      organizationId 
+      organizationId,
+      accountId
     } = body;
 
     const jobService = new EmailLearningJobService();
     const result = await jobService.startEmailLearningJob(session.user.id, {
       maxEmails,
       daysBack,
-      organizationId
+      organizationId,
+      accountId
     });
 
     return NextResponse.json({

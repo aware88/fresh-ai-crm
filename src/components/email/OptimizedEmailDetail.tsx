@@ -23,10 +23,11 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmailRenderer } from './EmailRenderer';
 import CustomerInfoWidget from './CustomerInfoWidget';
+import TeamCollaborationSheet from './TeamCollaborationSheet';
 import { 
   Reply, 
   ReplyAll, 
@@ -48,7 +49,8 @@ import {
   FileText,
   FileSpreadsheet,
   Image,
-  RefreshCw
+  RefreshCw,
+  Users
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -75,6 +77,7 @@ export default function OptimizedEmailDetail({
   
   const { content, loading, error, reload } = useEmailContent(messageId);
   const [showFullHeaders, setShowFullHeaders] = useState(false);
+  const [showTeamCollaboration, setShowTeamCollaboration] = useState(false);
   
   console.log('🔥 [OptimizedEmailDetail] Content state:', { content: !!content, loading, error });
   const [updatingReadStatus, setUpdatingReadStatus] = useState(false);
@@ -267,90 +270,114 @@ export default function OptimizedEmailDetail({
 
   if (loading) {
     return (
-      <Card className="h-full">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div className="space-y-2">
-              <Skeleton className="h-6 w-3/4" />
-              <Skeleton className="h-4 w-1/2" />
-            </div>
-            <div className="flex space-x-2">
-              <Skeleton className="h-8 w-8" />
-              <Skeleton className="h-8 w-8" />
-              <Skeleton className="h-8 w-8" />
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
+      <div className="h-full w-full bg-white">
+          <div className="border-b p-4">
             <div className="flex items-center justify-between">
-              <Skeleton className="h-4 w-1/3" />
-              <Skeleton className="h-4 w-1/4" />
-            </div>
-            <Separator />
-            <div className="space-y-2">
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-5/6" />
-              <Skeleton className="h-4 w-4/5" />
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-3/4" />
+              <div className="space-y-2">
+                <Skeleton className="h-6 w-3/4" />
+                <Skeleton className="h-4 w-1/2" />
+              </div>
+              <div className="flex space-x-2">
+                <Skeleton className="h-8 w-8" />
+                <Skeleton className="h-8 w-8" />
+                <Skeleton className="h-8 w-8" />
+              </div>
             </div>
           </div>
-        </CardContent>
-      </Card>
+          <div className="p-6">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <Skeleton className="h-4 w-1/3" />
+                <Skeleton className="h-4 w-1/4" />
+              </div>
+              <Separator />
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-5/6" />
+                <Skeleton className="h-4 w-4/5" />
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-3/4" />
+              </div>
+            </div>
+          </div>
+      </div>
     );
   }
 
   if (error) {
     return (
-      <Card className="h-full">
-        <CardContent className="flex items-center justify-center h-full">
-          <div className="text-center">
-            <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-            <p className="text-red-600 font-medium">Failed to load email content</p>
-            <p className="text-sm text-gray-500 mb-4">{error}</p>
-            <div className="space-x-2">
-              <Button onClick={reload} variant="outline">
-                <Loader2 className="h-4 w-4 mr-2" />
-                Retry
-              </Button>
-              {onBack && (
-                <Button onClick={onBack} variant="ghost">
-                  Back to List
+      <div className="h-full w-full bg-white">
+          <div className="flex items-center justify-center h-full p-6">
+            <div className="text-center">
+              <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+              <p className="text-red-600 font-medium">Failed to load email content</p>
+              <p className="text-sm text-gray-500 mb-4">{error}</p>
+              <div className="space-x-2">
+                <Button onClick={reload} variant="outline">
+                  <Loader2 className="h-4 w-4 mr-2" />
+                  Retry
                 </Button>
-              )}
+                {onBack && (
+                  <Button onClick={onBack} variant="ghost">
+                    Back to List
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
-        </CardContent>
-      </Card>
+      </div>
     );
   }
 
   if (!content) {
     return (
-      <Card className="h-full">
-        <CardContent className="flex items-center justify-center h-full">
-          <div className="text-center">
-            <Mail className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-500">No email selected</p>
-            <p className="text-sm text-gray-400">Select an email to view its content</p>
+      <div className="h-full w-full bg-white">
+          <div className="flex items-center justify-center h-full p-6">
+            <div className="text-center">
+              <Mail className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-500">No email selected</p>
+              <p className="text-sm text-gray-400">Select an email to view its content</p>
+            </div>
           </div>
-        </CardContent>
-      </Card>
+      </div>
     );
   }
 
   const dateInfo = formatDate(content.received_at);
 
   return (
-    <div className="h-full flex flex-col overflow-hidden email-detail-with-attachments">
-      <Card className="flex-1 flex flex-col overflow-hidden">
-        <CardHeader className="border-b flex-shrink-0">
+    <div className="h-full w-full bg-white flex flex-col overflow-hidden relative">
+        {/* Floating Action Button for Team Collaboration */}
+        <div className="absolute bottom-6 right-6 z-40">
+          <div className="relative">
+            {/* Notification Badge */}
+            <span className="absolute -top-1 -right-1 h-3 w-3 bg-red-500 rounded-full animate-pulse" />
+            
+            {/* FAB Button */}
+            <Button
+              onClick={() => setShowTeamCollaboration(true)}
+              className="h-14 w-14 rounded-full shadow-lg bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 transition-all duration-200 hover:scale-105"
+              title="Open Team Collaboration"
+            >
+              <Users className="h-6 w-6 text-white" />
+            </Button>
+          </div>
+        </div>
+
+        {/* Team Collaboration Sheet */}
+        <TeamCollaborationSheet
+          isOpen={showTeamCollaboration}
+          onOpenChange={setShowTeamCollaboration}
+          customerEmail={content?.sender_email}
+          emailId={messageId}
+        />
+
+        <div className="border-b flex-shrink-0 p-4">
           <div className="flex items-start justify-between">
-            <div className="flex-1 min-w-0">
-              <CardTitle className="text-xl font-semibold mb-2 line-clamp-2">
+            <div className="flex-1 min-w-0 pr-4">
+              <div className="text-sm font-semibold mb-2 break-words text-gray-900 leading-tight" style={{ fontSize: '14px', lineHeight: '1.25' }}>
                 {content.subject || '(No Subject)'}
-              </CardTitle>
+              </div>
               
               <div className="space-y-2">
                 <div className="flex items-center space-x-2">
@@ -391,7 +418,7 @@ export default function OptimizedEmailDetail({
             </div>
 
             {/* Action buttons */}
-            <div className="flex items-center space-x-2 ml-4">
+            <div className="flex items-center space-x-2 ml-4 flex-shrink-0">
               <Button 
                 variant="outline" 
                 size="sm" 
@@ -424,10 +451,20 @@ export default function OptimizedEmailDetail({
               </Button>
             </div>
           </div>
-        </CardHeader>
+        </div>
 
-        <CardContent className="flex-1 p-6 overflow-y-auto">
-            <div className="space-y-6">
+        <ScrollArea className="flex-1">
+          <div className="p-6">
+              {/* Metakocka Customer Information */}
+              {content.sender_email && (
+                <div className="mb-6">
+                  <CustomerInfoWidget 
+                    customerEmail={content.sender_email}
+                    className="w-full"
+                  />
+                </div>
+              )}
+
               {/* Attachments */}
               {content.attachments && content.attachments.length > 0 && (
                 <div className="mb-6">
@@ -442,7 +479,7 @@ export default function OptimizedEmailDetail({
               )}
 
               {/* Email content */}
-              <div className="bg-gray-50 border rounded-lg p-4">
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-6">
                 {/* Inline attachments display */}
                 {content.html_content && content.attachments && content.attachments.length > 0 && (
                   <div className="mb-4">
@@ -453,7 +490,7 @@ export default function OptimizedEmailDetail({
                           <img 
                             src={`data:${att.contentType};base64,${att.content}`}
                             alt={att.filename || 'Embedded image'}
-                            style={{ maxWidth: '100%', height: 'auto', margin: '0 auto', display: 'block' }}
+                            className="max-w-full h-auto mx-auto block"
                           />
                         </div>
                       ))
@@ -461,13 +498,35 @@ export default function OptimizedEmailDetail({
                   </div>
                 )}
                 
-                {/* Main email content */}
+                {/* Main email content - Full rich HTML with complete history */}
                 {(content.html_content || content.plain_content || content.raw_content) ? (
-                  <div className="prose prose-sm max-w-none break-words">
-                    <EmailRenderer 
-                      content={content.html_content || content.plain_content || content.raw_content || ''}
-                      className="text-sm leading-relaxed"
-                    />
+                  <div className="w-full">
+                    {/* Display raw HTML if available, otherwise formatted content */}
+                    {content.html_content ? (
+                      <div className="email-content-wrapper">
+                        <EmailRenderer 
+                          content={content.html_content}
+                          className="text-sm leading-relaxed"
+                          style={{ 
+                            maxWidth: '100%'
+                          }}
+                        />
+                      </div>
+                    ) : content.plain_content ? (
+                      <div className="whitespace-pre-wrap font-mono text-sm p-4 bg-gray-50 rounded">
+                        {content.plain_content}
+                      </div>
+                    ) : content.raw_content ? (
+                      <div className="email-content-wrapper">
+                        <EmailRenderer 
+                          content={content.raw_content}
+                          className="text-sm leading-relaxed"
+                          style={{ 
+                            maxWidth: '100%'
+                          }}
+                        />
+                      </div>
+                    ) : null}
                   </div>
                 ) : (
                   <div className="text-center py-8 text-gray-500">
@@ -501,8 +560,6 @@ export default function OptimizedEmailDetail({
                 )}
               </div>
 
-
-
               {/* Email headers (expandable) */}
               {content.raw_content && (
                 <div className="mt-8 border-t pt-4">
@@ -523,9 +580,8 @@ export default function OptimizedEmailDetail({
                   )}
                 </div>
               )}
-            </div>
-        </CardContent>
-      </Card>
+        </div>
+      </ScrollArea>
     </div>
   );
 }
@@ -537,6 +593,14 @@ const emailContentStyles = `
   font-size: 14px;
   line-height: 1.6;
   color: #374151;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.email-content * {
+  max-width: 100%;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .email-content img {
@@ -549,16 +613,20 @@ const emailContentStyles = `
 .email-content table {
   border-collapse: collapse;
   width: 100%;
+  max-width: 100%;
   margin: 16px 0;
   border: 1px solid #e5e7eb;
   border-radius: 6px;
   overflow: hidden;
+  table-layout: fixed;
 }
 
 .email-content td, .email-content th {
   border: 1px solid #e5e7eb;
   padding: 12px;
   text-align: left;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .email-content th {
@@ -575,12 +643,15 @@ const emailContentStyles = `
   background-color: #f9fafb;
   padding: 12px 16px;
   border-radius: 0 6px 6px 0;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .email-content a {
   color: #3b82f6;
   text-decoration: underline;
   transition: color 0.2s;
+  word-break: break-all;
 }
 
 .email-content a:hover {
@@ -590,21 +661,28 @@ const emailContentStyles = `
 
 .email-content p {
   margin: 12px 0;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .email-content h1, .email-content h2, .email-content h3, .email-content h4, .email-content h5, .email-content h6 {
   margin: 16px 0 8px 0;
   font-weight: 600;
   color: #111827;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .email-content ul, .email-content ol {
   margin: 12px 0;
   padding-left: 24px;
+  max-width: 100%;
 }
 
 .email-content li {
   margin: 4px 0;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .email-content pre {
@@ -615,6 +693,7 @@ const emailContentStyles = `
   overflow-x: auto;
   font-size: 13px;
   margin: 16px 0;
+  max-width: 100%;
 }
 
 .email-content code {
@@ -623,6 +702,14 @@ const emailContentStyles = `
   padding: 2px 4px;
   font-size: 13px;
   font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  word-break: break-all;
+}
+
+.email-content-wrapper {
+  max-width: 100%;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  word-break: break-word;
 }
 `;
 

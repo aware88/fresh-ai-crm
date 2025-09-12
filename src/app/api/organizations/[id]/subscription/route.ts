@@ -8,6 +8,9 @@ import { EnhancedSubscriptionService } from '@/lib/services/subscription-service
 const DEV_SUBSCRIPTION_CACHE = new Map<string, any>();
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
+// Prevent concurrent subscription creation
+const SUBSCRIPTION_CREATION_LOCKS = new Map<string, Promise<any>>();
+
 // GET /api/organizations/[id]/subscription
 export async function GET(
   request: NextRequest,
@@ -64,27 +67,55 @@ export async function GET(
         );
       }
       
-      // Only create if doesn't exist
-      console.log('🚧 No existing subscription, creating premium subscription...');
-      const result = await subscriptionInitService.createDevelopmentPremiumSubscription(organizationId);
+      // Only create if doesn't exist - use lock to prevent concurrent creation
+      const lockKey = `create-subscription-${organizationId}`;
       
-      if (result.error) {
-        console.error('❌ Development subscription error:', result.error);
-        // Fall back to normal flow
-      } else if (result.subscription && result.plan) {
-        console.log('✅ Development premium subscription created successfully');
+      // Check if another request is already creating the subscription
+      if (SUBSCRIPTION_CREATION_LOCKS.has(lockKey)) {
+        console.log('🔄 Another request is creating subscription, waiting...');
+        try {
+          const result = await SUBSCRIPTION_CREATION_LOCKS.get(lockKey);
+          if (result && result.subscription && result.plan) {
+            return NextResponse.json(
+              { subscription: result.subscription, plan: result.plan },
+              { status: 200 }
+            );
+          }
+        } catch (error) {
+          console.error('❌ Concurrent subscription creation failed:', error);
+        }
+      }
+      
+      console.log('🚧 No existing subscription, creating premium subscription...');
+      
+      // Create lock promise
+      const creationPromise = subscriptionInitService.createDevelopmentPremiumSubscription(organizationId);
+      SUBSCRIPTION_CREATION_LOCKS.set(lockKey, creationPromise);
+      
+      try {
+        const result = await creationPromise;
         
-        // Cache the result
-        DEV_SUBSCRIPTION_CACHE.set(cacheKey, {
-          subscription: result.subscription,
-          plan: result.plan,
-          timestamp: Date.now()
-        });
-        
-        return NextResponse.json(
-          { subscription: result.subscription, plan: result.plan },
-          { status: 200 }
-        );
+        if (result.error) {
+          console.error('❌ Development subscription error:', result.error);
+          // Fall back to normal flow
+        } else if (result.subscription && result.plan) {
+          console.log('✅ Development premium subscription created successfully');
+          
+          // Cache the result
+          DEV_SUBSCRIPTION_CACHE.set(cacheKey, {
+            subscription: result.subscription,
+            plan: result.plan,
+            timestamp: Date.now()
+          });
+          
+          return NextResponse.json(
+            { subscription: result.subscription, plan: result.plan },
+            { status: 200 }
+          );
+        }
+      } finally {
+        // Clean up lock after completion (success or failure)
+        SUBSCRIPTION_CREATION_LOCKS.delete(lockKey);
       }
     }
     

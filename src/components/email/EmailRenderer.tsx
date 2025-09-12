@@ -45,7 +45,10 @@ export function EmailRenderer({ content, className = '', style = {} }: EmailRend
     if (!iframeRef.current) return;
 
     const iframe = iframeRef.current;
-  const parsedContent = parseEmailContent(content);
+    
+    console.log('📧 EmailRenderer received content:', content?.substring(0, 200));
+    const parsedContent = parseEmailContent(content);
+    console.log('📧 Parsed content:', parsedContent.displayContent?.substring(0, 200));
     
     // Reset scroll position when content changes
     setIsLoaded(false);
@@ -62,12 +65,19 @@ export function EmailRenderer({ content, className = '', style = {} }: EmailRend
     /* Reset and base styles */
     * {
       box-sizing: border-box;
-      max-width: 100%;
+      max-width: 100% !important;
+      word-break: break-word !important;
+      overflow-wrap: break-word !important;
+    }
+    
+    /* Prevent any element from breaking layout */
+    #email-content-container * {
+      max-width: 100% !important;
     }
     
     html, body {
       margin: 0;
-      padding: 16px;
+      padding: 0;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
       font-size: 14px;
       line-height: 1.6;
@@ -75,33 +85,41 @@ export function EmailRenderer({ content, className = '', style = {} }: EmailRend
       background: #ffffff;
       word-wrap: break-word;
       overflow-wrap: break-word;
+      overflow-x: hidden !important;
+      max-width: 100% !important;
+      width: 100% !important;
     }
     
     body {
       padding: 16px;
       margin: 0;
       border-radius: 8px;
+      overflow-x: auto;
+      max-width: 100vw;
     }
     
     /* Gmail-like seamless email styling */
     img {
       max-width: 100% !important;
+      width: auto !important;
       height: auto !important;
-      display: inline-block;
+      display: block !important;
       border: none;
-      margin: 0;
+      margin: 0 auto;
       padding: 0;
       vertical-align: middle;
     }
     
     table {
-      width: 100% !important;
       max-width: 100% !important;
+      width: auto !important;
       border-collapse: collapse;
       margin: 0;
       padding: 0;
       font-family: inherit;
       border: none;
+      display: block;
+      overflow-x: auto;
     }
     
     td, th {
@@ -190,6 +208,8 @@ export function EmailRenderer({ content, className = '', style = {} }: EmailRend
       line-height: 1.4;
       margin: 0;
       white-space: pre-wrap;
+      word-break: break-all;
+      max-width: 100%;
     }
     
     /* Responsive design */
@@ -215,7 +235,11 @@ export function EmailRenderer({ content, className = '', style = {} }: EmailRend
   </style>
 </head>
 <body>
-  <div id="email-content-container">${parsedContent.displayContent}</div>
+  <div id="email-content-container" style="width: 100%; overflow: hidden; word-break: break-word; overflow-wrap: break-word; box-sizing: border-box;">
+    <div style="width: 100%; overflow-x: auto; overflow-y: visible; padding: 0;">
+      ${parsedContent.displayContent}
+    </div>
+  </div>
   
   <script>
     // Find and process any inline attachments with CID references
@@ -299,16 +323,19 @@ export function EmailRenderer({ content, className = '', style = {} }: EmailRend
   }, [content]);
 
   return (
-    <div className={`email-renderer ${className}`} style={style}>
+    <div className={`email-renderer ${className}`} style={{ maxWidth: '100%', overflow: 'hidden', ...style }}>
       <iframe
         ref={iframeRef}
         sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"
-      style={{
+        style={{
           width: '100%',
+          maxWidth: '100%',
           minHeight: '200px',
           border: 'none',
           backgroundColor: 'transparent',
-          display: isLoaded ? 'block' : 'none'
+          display: isLoaded ? 'block' : 'none',
+          overflow: 'hidden',
+          boxSizing: 'border-box'
         }}
         title="Email content"
         loading="lazy"

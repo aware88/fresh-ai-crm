@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { CheckIcon } from '@/components/icons/HeroIcons';
-import { subscriptionPlans, SubscriptionPlanDefinition, formatPrice } from '@/lib/subscription-plans';
+import { subscriptionPlans, SubscriptionPlanDefinition, formatPrice } from '@/lib/subscription-plans-v2';
 
 export default function PricingPlans() {
   const [billingInterval, setBillingInterval] = useState<'monthly' | 'yearly'>('monthly');

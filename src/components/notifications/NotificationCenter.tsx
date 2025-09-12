@@ -104,7 +104,7 @@ export function NotificationCenter({ className }: NotificationCenterProps) {
         const response = await fetch('/api/notifications');
         if (response.ok) {
           const data = await response.json();
-          setNotifications(data.notifications || []);
+          setNotifications(data.data || []);
         }
       } catch (error) {
         console.error('Error fetching notifications:', error);
@@ -130,7 +130,7 @@ export function NotificationCenter({ className }: NotificationCenterProps) {
 
   const markAsRead = async (id: string) => {
     try {
-      await fetch(`/api/notifications/${id}/mark-read`, { method: 'POST' });
+      await fetch(`/api/notifications/${id}/read`, { method: 'POST' });
       setNotifications(prev => 
         prev.map(n => n.id === id ? { ...n, read: true } : n)
       );
@@ -141,7 +141,7 @@ export function NotificationCenter({ className }: NotificationCenterProps) {
 
   const markAllAsRead = async () => {
     try {
-      await fetch('/api/notifications/mark-all-read', { method: 'POST' });
+      await fetch('/api/notifications/read-all', { method: 'POST' });
       setNotifications(prev => 
         prev.map(n => ({ ...n, read: true }))
       );
@@ -150,14 +150,6 @@ export function NotificationCenter({ className }: NotificationCenterProps) {
     }
   };
 
-  const removeNotification = async (id: string) => {
-    try {
-      await fetch(`/api/notifications/${id}`, { method: 'DELETE' });
-      setNotifications(prev => prev.filter(n => n.id !== id));
-    } catch (error) {
-      console.error('Error removing notification:', error);
-    }
-  };
 
   const handleNotificationClick = (notification: Notification) => {
     markAsRead(notification.id);
@@ -307,17 +299,6 @@ export function NotificationCenter({ className }: NotificationCenterProps) {
                           {!notification.read && (
                             <div className="w-2 h-2 bg-primary rounded-full"></div>
                           )}
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              removeNotification(notification.id);
-                            }}
-                            className="h-6 w-6 p-0 hover:bg-destructive/10"
-                          >
-                            <X className="h-3 w-3" />
-                          </Button>
                         </div>
                       </div>
                     </div>

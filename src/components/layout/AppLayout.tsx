@@ -143,8 +143,13 @@ function AppLayoutInner({ children }: { children: React.ReactNode }) {
                   <span className="sr-only">Toggle user menu</span>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56" align="end" forceMount>
-                <DropdownMenuLabel className="font-normal">
+              <DropdownMenuContent 
+                className="w-56 bg-white border border-gray-200" 
+                align="end" 
+                forceMount
+                style={{ backgroundColor: '#ffffff', border: '1px solid #e5e7eb', zIndex: 999999 }}
+              >
+                <DropdownMenuLabel className="font-normal bg-white" style={{ backgroundColor: '#ffffff' }}>
                   <div className="flex flex-col space-y-1">
                     <p className="text-sm font-medium leading-none">
                       {(session?.user as any)?.user_metadata?.full_name || session?.user?.email || 'User'}
@@ -156,23 +161,26 @@ function AppLayoutInner({ children }: { children: React.ReactNode }) {
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem 
-                  className="cursor-pointer"
+                  className="cursor-pointer bg-white hover:bg-gray-50"
                   onClick={handleProfileClick}
+                  style={{ backgroundColor: '#ffffff' }}
                 >
                   <User className="mr-2 h-4 w-4" />
                   Profile
                 </DropdownMenuItem>
                 <DropdownMenuItem 
-                  className="cursor-pointer"
+                  className="cursor-pointer bg-white hover:bg-gray-50"
                   onClick={handleSettingsClick}
+                  style={{ backgroundColor: '#ffffff' }}
                 >
                   <Settings className="mr-2 h-4 w-4" />
                   Settings
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem 
-                  className="cursor-pointer"
+                  className="cursor-pointer bg-white hover:bg-gray-50"
                   onClick={handleSignOut}
+                  style={{ backgroundColor: '#ffffff' }}
                 >
                   <LogOut className="mr-2 h-4 w-4" />
                   Sign out
@@ -183,8 +191,10 @@ function AppLayoutInner({ children }: { children: React.ReactNode }) {
         </header>
 
         {/* Main Content */}
-        <main className="flex-1 overflow-auto p-6 lg:p-8">
-          {children}
+        <main className="flex-1 overflow-hidden">
+          <div className="h-full w-full overflow-auto p-6 lg:p-8">
+            {children}
+          </div>
         </main>
       </div>
     </div>

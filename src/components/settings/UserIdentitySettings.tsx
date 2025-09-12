@@ -91,7 +91,7 @@ export function UserIdentitySettings() {
           id="email" 
           name="email" 
           type="email"
-          placeholder="e.g., tim@bulknutrition.com" 
+          placeholder="e.g., user@company.com" 
           value={identity.email}
           onChange={handleChange}
         />

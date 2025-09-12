@@ -63,6 +63,10 @@ export async function GET(request: Request) {
     const emailAccounts = accounts || [];
     const connected = emailAccounts.length > 0;
     
+    // DEBUG: Log what accounts we're returning for this user
+    console.log(`Email status API: User ${userId} has ${emailAccounts.length} accounts:`, 
+      emailAccounts.map(acc => ({ id: acc.id, email: acc.email, user_id: acc.user_id })));
+    
     // Get counts by provider type
     const googleAccounts = emailAccounts.filter(acc => acc.provider_type === 'google');
     const microsoftAccounts = emailAccounts.filter(acc => acc.provider_type === 'microsoft' || acc.provider_type === 'outlook');

@@ -7,7 +7,7 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { createServiceRoleClient } from '@/lib/supabase/service-role';
-import { getSubscriptionPlan } from '@/lib/subscription-plans';
+import { getSubscriptionPlan } from '@/lib/subscription-plans-v2';
 import { proBoostService } from '@/lib/services/pro-boost-service';
 
 export interface FeatureCheck {
