@@ -275,8 +275,8 @@ export default function ModernEmailInterface({
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
             accountId: emailAccountId,
-            receivedCount: 200,
-            sentCount: 100
+            receivedCount: 2500,
+            sentCount: 2500
           })
         });
         

@@ -23,8 +23,8 @@ export async function POST(request: NextRequest) {
     
     const { 
       accountId, 
-      receivedCount = 50, 
-      sentCount = 50,
+      receivedCount = 2500, 
+      sentCount = 2500,
       testMode = false 
     } = await request.json();
     

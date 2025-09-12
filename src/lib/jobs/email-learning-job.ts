@@ -41,7 +41,7 @@ export class EmailLearningJobService {
     } = {}
   ): Promise<{ jobId: string; message: string }> {
     const jobId = `email-learning-${userId}-${Date.now()}`;
-    const { maxEmails = 1000, daysBack = 90, organizationId, accountId } = options;
+    const { maxEmails = 5000, daysBack = 365, organizationId, accountId } = options;
 
     // Check if user already has a running job
     const existingJob = Array.from(EmailLearningJobService.activeJobs.values())
