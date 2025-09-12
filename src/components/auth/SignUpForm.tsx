@@ -9,7 +9,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Eye, EyeOff, CheckCircle, AlertCircle } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { getIndividualPlans, getOrganizationPlans, formatPrice } from '@/lib/subscription-plans-v2';
+import { getIndividualPlans, getOrganizationPlans, formatPriceUSD } from '@/lib/subscription-plans-v2';
 import { 
   Dialog, 
   DialogContent, 
@@ -529,7 +529,7 @@ export default function SignUpForm() {
                         </p>
                         <div className="flex items-center space-x-2 mt-2">
                           <span className={`text-2xl font-bold ${isRestricted ? 'text-gray-500' : 'text-gray-900'}`}>
-                            {formatPrice(plan.monthlyPrice)}
+                            {formatPriceUSD(plan.monthlyPrice)}
                           </span>
                           <span className={`text-sm ${isRestricted ? 'text-gray-400' : 'text-gray-500'}`}>
                             /month
